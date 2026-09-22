@@ -14,17 +14,32 @@ from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from firebid.api.app import create_app
-from firebid.api.deps import get_session
+from firebid.api.deps import get_principal, get_session
+from firebid.auth.provisioning import Principal
 from firebid.db.audit import record_event
-from firebid.db.models.core import AppUser, Bid
+from firebid.db.models.core import AppUser, Bid, Organisation
 from firebid.domain.actors import Actor, AuditContext
+from firebid.domain.state_machines import Role
 from firebid.settings import Settings
 
 pytestmark = pytest.mark.req("FR-ADM-04")
 
 
 @pytest.fixture
-def client(engine: Engine) -> Iterator[TestClient]:
+def auditor(session: Session, organisation: Organisation, bid: Bid, user: AppUser) -> Principal:
+    """A commercial director, who may read the whole organisation's history, on this bid's team."""
+    assert bid.id  # the fixture puts this person on the bid's team
+    return Principal(
+        user_id=user.id,
+        organisation_id=organisation.id,
+        username=user.username,
+        display_name=user.display_name,
+        roles=frozenset({str(Role.COMMERCIAL_DIRECTOR)}),
+    )
+
+
+@pytest.fixture
+def client(engine: Engine, auditor: Principal) -> Iterator[TestClient]:
     factory = sessionmaker(bind=engine, expire_on_commit=False)
 
     def session_override() -> Iterator[Session]:
@@ -34,6 +49,7 @@ def client(engine: Engine) -> Iterator[TestClient]:
 
     app = create_app(Settings(env="test"), health_checks={})
     app.dependency_overrides[get_session] = session_override
+    app.dependency_overrides[get_principal] = lambda: auditor
     with TestClient(app) as client:
         yield client
 
@@ -106,8 +122,9 @@ class TestFilters:
 
     def test_filters_by_bid(self, client: TestClient, bid: Bid, history: list[str]) -> None:
         assert len(client.get("/audit", params={"bid_id": str(bid.id)}).json()["items"]) == 3
-        other = client.get("/audit", params={"bid_id": str(uuid.uuid4())}).json()
-        assert other["items"] == []
+
+    def test_a_bid_the_caller_is_not_on_is_not_found(self, client: TestClient) -> None:
+        assert client.get("/audit", params={"bid_id": str(uuid.uuid4())}).status_code == 404
 
 
 class TestPaging:

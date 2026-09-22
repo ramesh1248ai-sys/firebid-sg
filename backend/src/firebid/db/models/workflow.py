@@ -14,7 +14,9 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
+    func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -101,3 +103,23 @@ class AgentRun(UuidPk, Timestamped, Base):
     error_type: Mapped[str | None] = mapped_column(String(80))
     output_ref: Mapped[str | None] = mapped_column(String(512))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DeadlineAlert(UuidPk, BidScoped, Base):
+    """One alert per bid, deadline and interval, so a repeated run never notifies twice."""
+
+    __tablename__ = "deadline_alert"
+    __table_args__ = (
+        UniqueConstraint("bid_id", "deadline_kind", "days_before", name="uq_deadline_alert_once"),
+        CheckConstraint(
+            "deadline_kind IN ('submission', 'clarification_cutoff')",
+            name="ck_deadline_alert_kind_known",
+        ),
+    )
+
+    deadline_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    days_before: Mapped[int] = mapped_column(Integer, nullable=False)
+    recipient_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    sent_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

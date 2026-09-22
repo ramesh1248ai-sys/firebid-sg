@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from firebid.db.audit import record_event, verify_chain
 from firebid.db.models.audit import AuditChainLink, AuditEvent
-from firebid.db.models.core import Bid
+from firebid.db.models.core import AppUser, Bid
 from firebid.domain.actors import Actor, AuditContext
 from firebid.domain.state_machines import QtoItemState
 from firebid.services.transitions import apply_transition
@@ -35,14 +35,23 @@ def write_event(session: Session, bid: Bid, actor: Actor, action: str = "noted")
 
 class TestAppendOnly:
     def test_the_application_role_cannot_change_or_delete_history(
-        self, session: Session, bid: Bid, estimator: Actor, app_role_engine: Engine
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        estimator: Actor,
+        app_role_engine: Engine,
     ) -> None:
         write_event(session, bid, estimator)
         session.commit()
 
         with app_role_engine.begin() as connection:
+            connection.execute(
+                text("SELECT set_config('app.user_id', :user_id, true)"),
+                {"user_id": str(user.id)},
+            )
             rows = connection.execute(text("SELECT count(*) FROM audit_event")).scalar_one()
-            assert rows == 1  # the application can read
+            assert rows == 1  # the application can read its own bid's history
             with pytest.raises(ProgrammingError, match="permission denied"):
                 connection.execute(text("UPDATE audit_event SET reason = 'changed'"))
         with (

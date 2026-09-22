@@ -21,6 +21,12 @@ class Settings(BaseSettings):
 
     organisation_name: str = "FireBid SG"
 
+    # Internal notifications. With no SMTP host, alerts are logged instead of sent.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_sender: str = "firebid@example.com"
+    smtp_use_tls: bool = True
+
     # Identity provider: Keycloak in development, Microsoft Entra ID in staging and production.
     oidc_issuer: str = "http://localhost:8081/realms/firebid"
     oidc_audience: str = "firebid-web"

@@ -22,7 +22,7 @@ from testcontainers.community.postgres import PostgresContainer
 
 from firebid.db.base import Base
 from firebid.db.engine import get_engine, sqlalchemy_url
-from firebid.db.models.core import AppUser, Bid, Organisation, Project
+from firebid.db.models.core import AppUser, Bid, BidMember, Organisation, Project
 from firebid.domain.actors import Actor
 from firebid.domain.state_machines import Role
 from firebid.settings import get_settings
@@ -128,7 +128,8 @@ def user(session: Session, organisation: Organisation) -> AppUser:
 
 
 @pytest.fixture
-def bid(session: Session, organisation: Organisation) -> Bid:
+def bid(session: Session, organisation: Organisation, user: AppUser) -> Bid:
+    """A complete, staffed bid: every FR-BID-01 detail present, so it can be qualified."""
     project = Project(organisation_id=organisation.id, name="Example Commercial Tower")
     session.add(project)
     session.flush()
@@ -139,7 +140,11 @@ def bid(session: Session, organisation: Organisation) -> Bid:
         client_name="Main Contractor Pte Ltd",
         tender_reference="MC/2026/FP/014",
         submission_deadline=datetime.now(UTC) + timedelta(days=14),
+        clarification_cutoff=datetime.now(UTC) + timedelta(days=7),
+        tender_validity_days=90,
     )
     session.add(bid)
+    session.flush()
+    session.add(BidMember(bid_id=bid.id, user_id=user.id, role=str(Role.BID_MANAGER)))
     session.commit()
     return bid

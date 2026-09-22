@@ -26,7 +26,7 @@ from firebid.db.models.core import (
 )
 from firebid.db.models.documents import Addendum, Document, Sheet, SheetRevision
 from firebid.db.models.takeoff import DetectedObject, Evidence, MeasurementRule, QtoItem
-from firebid.db.models.workflow import AgentRun, Approval, HumanTask
+from firebid.db.models.workflow import AgentRun, Approval, DeadlineAlert, HumanTask
 from firebid.db.system import SystemHeartbeat, SystemJobResult
 
 __all__ = [
@@ -45,6 +45,7 @@ __all__ = [
     "ClientBoq",
     "ClientBoqLine",
     "ClientBoqMapping",
+    "DeadlineAlert",
     "DetectedObject",
     "Document",
     "Evidence",

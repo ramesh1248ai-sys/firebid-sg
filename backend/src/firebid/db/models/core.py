@@ -14,6 +14,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from firebid.db.base import Base
@@ -29,6 +30,10 @@ class Organisation(UuidPk, Timestamped, Base):
     __tablename__ = "organisation"
 
     name: Mapped[str] = mapped_column(String(200), nullable=False, unique=True)
+    # How many days before a deadline people are warned (FR-BID-03).
+    deadline_alert_days: Mapped[list[int]] = mapped_column(
+        JSONB, nullable=False, default=lambda: [7, 3, 1]
+    )
 
 
 class AppUser(UuidPk, Timestamped, Base):

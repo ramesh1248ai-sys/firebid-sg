@@ -57,24 +57,32 @@ def two_bids(session: Session, organisation: Organisation, bid: Bid) -> tuple[Bi
     return bid, other, person
 
 
-def rows_visible(engine: Engine, user_id: uuid.UUID | None, statement: str) -> int:
+def rows_visible(
+    engine: Engine,
+    user_id: uuid.UUID | None,
+    statement: str,
+    params: dict[str, object] | None = None,
+) -> int:
     with engine.begin() as connection:
         connection.execute(
             text("SELECT set_config('app.user_id', :user_id, true)"),
             {"user_id": str(user_id) if user_id else ""},
         )
-        return int(connection.execute(text(statement)).scalar_one())
+        return int(connection.execute(text(statement), params or {}).scalar_one())
 
 
 class TestApplicationRole:
     def test_sees_only_its_own_bid(
         self, app_role_engine: Engine, two_bids: tuple[Bid, Bid, AppUser]
     ) -> None:
-        member_bid, other_bid, person = two_bids
+        _member_bid, other_bid, person = two_bids
         assert rows_visible(app_role_engine, person.id, "SELECT count(*) FROM bid") == 1
         assert (
             rows_visible(
-                app_role_engine, person.id, f"SELECT count(*) FROM bid WHERE id = '{other_bid.id}'"
+                app_role_engine,
+                person.id,
+                "SELECT count(*) FROM bid WHERE id = :bid_id",
+                {"bid_id": other_bid.id},
             )
             == 0
         )
@@ -88,7 +96,8 @@ class TestApplicationRole:
             rows_visible(
                 app_role_engine,
                 person.id,
-                f"SELECT count(*) FROM qto_item WHERE bid_id = '{other_bid.id}'",
+                "SELECT count(*) FROM qto_item WHERE bid_id = :bid_id",
+                {"bid_id": other_bid.id},
             )
             == 0
         )
@@ -181,4 +190,25 @@ class TestEveryBidTableIsProtected:
 
 def test_the_app_role_password_is_configurable() -> None:
     """The migration reads FIREBID_APP_DB_PASSWORD; the test database proves it took effect."""
-    assert APP_ROLE_PASSWORD != "firebid-app"
+    assert APP_ROLE_PASSWORD != "firebid-app"  # noqa: S105  # the default, not a secret
+
+
+@pytest.mark.req("NFR-08")
+def test_a_partition_created_later_is_protected_too(engine: Engine) -> None:
+    """The nightly job makes partitions; migration 0006 makes them arrive with policies."""
+    with engine.begin() as connection:
+        name = connection.execute(
+            text("SELECT ensure_audit_event_partition(:target)"), {"target": "2031-05-01"}
+        ).scalar_one()
+        protected = connection.execute(
+            text(
+                """
+                SELECT c.relrowsecurity,
+                       (SELECT count(*) FROM pg_policy p WHERE p.polrelid = c.oid)
+                FROM pg_class c WHERE c.relname = :name
+                """
+            ),
+            {"name": name},
+        ).one()
+    assert protected[0] is True, f"{name} was created without row-level security"
+    assert protected[1] == 2, f"{name} is missing the application or service policy"

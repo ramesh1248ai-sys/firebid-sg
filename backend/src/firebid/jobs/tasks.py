@@ -4,7 +4,7 @@ import structlog
 from procrastinate import JobContext
 from sqlalchemy import text
 
-from firebid.db.engine import session_scope
+from firebid.db.engine import service_session_scope, session_scope
 from firebid.db.system import record_heartbeat, record_job_result
 from firebid.jobs.app import app
 
@@ -24,6 +24,20 @@ def add_example(context: JobContext, a: int, b: int) -> int:
         record_job_result(session, job_id, "system.add_example", {"sum": total})
     log.info("example_job_done", job_id=job_id)
     return total
+
+
+@app.periodic(cron="5 * * * *", periodic_id="deadline_alerts")
+@app.task(name="system.deadline_alerts", queueing_lock="system.deadline_alerts")
+def deadline_alerts(timestamp: int) -> int:
+    """Warn people before a tender deadline (FR-BID-03). Runs hourly; sends each alert once."""
+    from firebid.notifications import get_notifier
+    from firebid.services.alerts import send_deadline_alerts
+
+    # Deadlines span bids, so this runs on the service role.
+    with service_session_scope() as session:
+        sent = send_deadline_alerts(session, get_notifier())
+    log.info("deadline_alerts_sent", count=len(sent))
+    return len(sent)
 
 
 @app.periodic(cron="17 3 * * *", periodic_id="audit_partitions")
