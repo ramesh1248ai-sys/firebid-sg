@@ -70,3 +70,53 @@ Entry template:
   - The worker reports unhealthy for up to about a minute after starting, until the first heartbeat runs (container `start_period` is 120 s).
   - Development job endpoints (`/dev/jobs`) are unauthenticated and mounted only in dev and test. P0-03 adds authorised job views.
   - The `/workspaces` bind mount needs git's `safe.directory`; `devcontainer.json` sets it on start.
+
+---
+
+## P0-02 · Domain Model, State Machines and Audit Log · 2026-09-22
+
+- **Summary:** the persistence and domain core for Phases 0–1:
+  - value types (`LengthMm`, `Money`, `Confidence`), lineage (`SourceRef`) and the full Appendix B evidence record;
+  - the three Phase 1 state machines with role permissions and guards;
+  - every Phase 0–1 entity, partitioned where it will grow;
+  - an append-only, tamper-evident audit trail with a per-bid hash chain;
+  - the audit API, object storage, human IDs and the personal-data inventory.
+- **Key modules / files:**
+  - `domain/`: `values.py`, `evidence.py`, `actors.py`, `state_machines.py`.
+  - `db/`: `models/` (core, documents, takeoff, commercial, workflow, audit), `audit.py`, `ids.py`, `types.py`, `mixins.py`, `migrations/versions/0002_domain_model_and_audit.py`.
+  - `services/transitions.py`; `api/audit.py`, `api/deps.py`; `storage/object_store.py`.
+  - `scripts/data_inventory.py` → `docs/data-inventory.md`; `tests/db/` (conftest with Testcontainers, factories).
+- **How to run and demo:**
+  1. `make test` starts a PostgreSQL 17 container, migrates it and runs everything.
+  2. `make up`, then `GET /audit?bid_id=…` for the history, `GET /audit/export.csv` for the CSV, and `GET /audit/chain/{bid_id}` for the chain status.
+  3. `make data-inventory` regenerates the PDPA inventory; `make req-coverage IDS=FR-ADM-04` shows its tests.
+- **Requirement IDs covered (test names):**
+  - FR-DOC-07: `test_source_ref_round_trips_with_every_lineage_field`.
+  - FR-ADM-04: `test_audit_api.py` (filters, paging, CSV export, chain status).
+  - NFR-07: `test_personal_data_inventory_is_generated_and_current`.
+  - NFR-09: `test_audit_chain.py` (append-only, tamper evidence, links per transaction, concurrency).
+- **Deviations and decisions:**
+  - **Composite keys on partitioned tables.** PostgreSQL requires the partition key inside the primary key, so `qto_item`, `detected_object` and `evidence` use `(id, bid_id)`, and references to them are two-column foreign keys. Partitioning now avoids migrating large tables later.
+  - **A second database role.** The application connects as `firebid_app`, which has no UPDATE or DELETE on the audit tables and no `BYPASSRLS`; migrations run as the owner and create the role. P0-03's row-level security builds on this. The password comes from `FIREBID_APP_DB_PASSWORD`.
+  - **One chain link per transaction per bid,** rather than per event, taken under a per-bid advisory lock. A 5,000-item bulk action costs one link.
+  - **Alembic owns the queue schema too,** and ignores Procrastinate's tables during autogenerate (ADR-006).
+  - **Tests need Docker** (Testcontainers). The Dev Container sets `TESTCONTAINERS_HOST_OVERRIDE`.
+  - **The clarification and external-approval state models are not built yet;** they arrive with P2-06 and later, as the prompt allows.
+- **Manual checks and results (Done when):**
+  1. **Migrations:** ✅ `upgrade head`, `downgrade base` (zero leftover tables, functions or roles) and re-upgrade all succeed on a clean database. The suite runs against a migrated database.
+  2. **State machines:** ✅ 284 table-driven tests cover every state pair, role refusal and guard; database tests confirm exactly one audit event per successful transition, and none for a refused one.
+  3. **Append-only and tamper evidence:** ✅ The app role is refused UPDATE and DELETE; the trigger refuses even the owner; `verify_chain()` detects an altered row and a deleted row (tests tagged NFR-09).
+  4. **Concurrency:** ✅ With one bid's chain lock held, a write to another bid completes in well under a second, while a second write to the same bid times out waiting, proving the lock is per bid. A 5,000-item bulk transition appends exactly one link.
+  5. **Transactional queuing:** ✅ Covered by the P0-01 integration tests (rollback leaves no job; commit runs it). The helper now carries an idempotency-key convention.
+  6. **Partitions:** ✅ Rows insert across several bids and months; `ensure_audit_event_partition` creates a future month on demand, and a daily job calls it three months ahead.
+  7. **Property tests:** ✅ Hypothesis covers `LengthMm` and `Money` round-trips, associativity and rounding.
+  8. **Lineage:** ✅ `SourceRef` round-trips with every field, including the region box (FR-DOC-07).
+  9. **Audit API:** ✅ Every filter, keyset paging, a capped page size, a refused bad cursor, and the CSV export.
+  10. **Data inventory:** ✅ Generated from column metadata; 7 columns are marked, and the test fails if the file drifts.
+  11. **CI:** ✅ Green on both jobs, including the database tests on the runner.
+- **Known gaps and follow-ups:**
+  - The audit API has no authorisation yet; P0-03 scopes it to bid members and adds row-level security using the `bid_id` columns added here.
+  - `Money` is stored as `numeric(14,2)`; multi-currency (FR-CST-04) needs a currency column on priced tables in P2-04.
+  - Tamper-evidence tests disable the trigger as owner to simulate an attacker; production owner access should be restricted to deployment credentials (part of P1-11 hardening).
+  - Partition counts (8 hash partitions) are a starting point, to revisit with real volumes at P1-11.
+  - The `clean_database` fixture truncates between tests, so a very large future suite may want per-test schemas instead.
