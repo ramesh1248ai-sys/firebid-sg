@@ -1,0 +1,298 @@
+{
+  "realm": "firebid",
+  "displayName": "FireBid SG (development only)",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "estimator",
+        "description": "Estimator / QS"
+      },
+      {
+        "name": "senior_estimator",
+        "description": "Senior Estimator / Estimating Manager"
+      },
+      {
+        "name": "bid_manager",
+        "description": "Bid / Tender Manager"
+      },
+      {
+        "name": "design_manager",
+        "description": "Design / Engineering Manager"
+      },
+      {
+        "name": "commercial_director",
+        "description": "Commercial Director (authorised approver)"
+      },
+      {
+        "name": "procurement",
+        "description": "Procurement Executive"
+      },
+      {
+        "name": "project_manager",
+        "description": "Project Manager (downstream)"
+      },
+      {
+        "name": "system_admin",
+        "description": "System Administrator / Data Steward"
+      },
+      {
+        "name": "executive_sponsor",
+        "description": "Executive Sponsor"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "firebid-web",
+      "name": "FireBid SG web app",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8080/*",
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8080",
+        "http://localhost:5173"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:8080/*##http://localhost:5173/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "oid",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "id",
+            "claim.name": "oid",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "roles",
+            "multivalued": "true",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "firebid-dev-tests",
+      "name": "Automated tests only (password grant; development realm)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "oid",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "id",
+            "claim.name": "oid",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "roles",
+            "multivalued": "true",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "estimator@firebid.test",
+      "email": "estimator@firebid.test",
+      "firstName": "Esther",
+      "lastName": "Tan",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "firebid-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "estimator"
+      ]
+    },
+    {
+      "username": "senior.estimator@firebid.test",
+      "email": "senior.estimator@firebid.test",
+      "firstName": "Samuel",
+      "lastName": "Lim",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "firebid-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "senior_estimator"
+      ]
+    },
+    {
+      "username": "bid.manager@firebid.test",
+      "email": "bid.manager@firebid.test",
+      "firstName": "Bella",
+      "lastName": "Ng",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "firebid-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "bid_manager"
+      ]
+    },
+    {
+      "username": "design.manager@firebid.test",
+      "email": "design.manager@firebid.test",
+      "firstName": "Daniel",
+      "lastName": "Koh",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "firebid-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "design_manager"
+      ]
+    },
+    {
+      "username": "commercial.director@firebid.test",
+      "email": "commercial.director@firebid.test",
+      "firstName": "Clara",
+      "lastName": "Wong",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "firebid-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "commercial_director"
+      ]
+    },
+    {
+      "username": "procurement@firebid.test",
+      "email": "procurement@firebid.test",
+      "firstName": "Priya",
+      "lastName": "Nair",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "firebid-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "procurement"
+      ]
+    },
+    {
+      "username": "project.manager@firebid.test",
+      "email": "project.manager@firebid.test",
+      "firstName": "Marcus",
+      "lastName": "Lee",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "firebid-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "project_manager"
+      ]
+    },
+    {
+      "username": "admin@firebid.test",
+      "email": "admin@firebid.test",
+      "firstName": "Aisha",
+      "lastName": "Rahman",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "firebid-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "system_admin"
+      ]
+    },
+    {
+      "username": "sponsor@firebid.test",
+      "email": "sponsor@firebid.test",
+      "firstName": "Victor",
+      "lastName": "Chua",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "firebid-dev",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "executive_sponsor"
+      ]
+    }
+  ]
+}

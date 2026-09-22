@@ -16,7 +16,8 @@ def main(argv: list[str]) -> None:
     app = create_app(Settings(env="prod", log_level="WARNING"), health_checks={})
     rendered = json.dumps(app.openapi(), indent=2, sort_keys=True) + "\n"
     if len(argv) > 1:
-        Path(argv[1]).write_text(rendered, encoding="utf-8")
+        # LF on every OS, so the CI drift check compares identical bytes.
+        Path(argv[1]).write_text(rendered, encoding="utf-8", newline="\n")
     else:
         sys.stdout.write(rendered)
 

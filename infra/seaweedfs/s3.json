@@ -1,0 +1,11 @@
+{
+  "identities": [
+    {
+      "name": "firebid-dev",
+      "credentials": [
+        { "accessKey": "firebid-dev", "secretKey": "firebid-dev-secret" }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
