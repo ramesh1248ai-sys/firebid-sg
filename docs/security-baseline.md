@@ -78,7 +78,7 @@ Rows marked **Phase 1+** are not built yet; they name the step that will build t
 
 | Control | Where | ASVS | Evidence |
 |---|---|---|---|
-| Dependencies are pinned by lock file and updated by Renovate | `uv.lock`, `package-lock.json`, `renovate.json` | 10.3.2 | CI installs from the lock files |
+| Dependencies are pinned by lock file and updated by Renovate | `uv.lock`, `package-lock.json`, `renovate.json` | 10.3.2 | CI installs from the lock files; the Renovate app is installed on this repository with Silent mode off, so updates arrive as pull requests |
 | Static analysis runs on every push: `ruff` (including `bandit` rules), `mypy --strict`, `oxlint` | `.github/workflows/ci.yml` | 14.2.1 | CI |
 | Dependency vulnerability scanning in CI | — | 10.3.3 | **Phase 1**, step P1-10 |
 

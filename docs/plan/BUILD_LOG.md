@@ -168,4 +168,4 @@ Entry template:
   - **The email notifier is unexercised in anger** — the tests use a recording adapter and the stack logs instead of sending. An SMTP host must be configured before alerts leave the building.
   - **Bid membership is managed by API only**; there is no screen for adding people to a bid yet.
   - **`FR-BID-04`** (several bids per project) remains Phase 2, as planned.
-  - Repository admin still outstanding: install the Renovate GitHub App, and protect `main` so CI must pass.
+  - Repository admin: the Renovate GitHub App is installed on `ramesh1248ai-sys/firebid-sg` (2026-09-23), scoped to that repository alone. Mend's account default is Silent mode, which scans but never opens a pull request; this repository overrides it to Interactive, so onboarding and dependency-update PRs do arrive. The other repositories on the account keep the Silent default. Still outstanding: protect `main` so CI must pass.
