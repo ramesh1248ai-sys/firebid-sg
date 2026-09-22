@@ -17,6 +17,7 @@
     "FIREBID_STACK_HOST": "host.docker.internal"
   },
   "postCreateCommand": "make bootstrap",
+  "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
   "customizations": {
     "vscode": {
       "extensions": [
