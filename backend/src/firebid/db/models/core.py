@@ -22,6 +22,7 @@ from firebid.domain.state_machines import BidState, Role
 
 BID_STATES = tuple(str(state) for state in BidState)
 ROLES = tuple(str(role) for role in Role)
+STAGES = tuple(f"S{index}" for index in range(10))  # requirements §5
 
 
 class Organisation(UuidPk, Timestamped, Base):
@@ -83,6 +84,7 @@ class Bid(UuidPk, Timestamped, CreatedBy, Base):
     __table_args__ = (
         UniqueConstraint("organisation_id", "human_id", name="uq_bid_human_id"),
         CheckConstraint(f"state IN {BID_STATES}", name="state_known"),
+        CheckConstraint(f"stage IN {STAGES}", name="stage_known"),
     )
 
     organisation_id: Mapped[uuid.UUID] = mapped_column(
@@ -100,6 +102,8 @@ class Bid(UuidPk, Timestamped, CreatedBy, Base):
     state: Mapped[str] = mapped_column(
         String(40), nullable=False, default=str(BidState.REGISTERED), index=True
     )
+    # Where the work has reached in the process (requirements §5): S0 intake to S9 post-tender.
+    stage: Mapped[str] = mapped_column(String(4), nullable=False, default="S0", index=True)
 
 
 class BidMember(Timestamped, Base):

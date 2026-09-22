@@ -140,6 +140,12 @@ def _submission_needs_gate_approval(context: Mapping[str, Any]) -> GuardResult:
     return None if context.get("has_g4_approval") else "the G4 submission approval is missing"
 
 
+def _bid_details_complete(context: Mapping[str, Any]) -> GuardResult:
+    """FR-BID-01: work starts only once the tender's details and team are known."""
+    missing = context.get("missing_fields") or []
+    return f"these details are missing: {', '.join(missing)}" if missing else None
+
+
 BID_LIFECYCLE = StateMachine(
     name="bid lifecycle",
     states=BidState,
@@ -147,7 +153,12 @@ BID_LIFECYCLE = StateMachine(
     terminal=frozenset({BidState.AWARDED, BidState.LOST, BidState.WITHDRAWN, BidState.NO_BID}),
     transitions=(
         Transition(
-            BidState.REGISTERED, BidState.QUALIFYING, "start qualification", _BID_MANAGEMENT
+            BidState.REGISTERED,
+            BidState.QUALIFYING,
+            "start qualification",
+            _BID_MANAGEMENT,
+            guard=_bid_details_complete,
+            note="FR-BID-01: the mandatory details and the bid team must be complete.",
         ),
         Transition(BidState.REGISTERED, BidState.WITHDRAWN, "withdraw", _BID_MANAGEMENT),
         Transition(BidState.QUALIFYING, BidState.IN_PREPARATION, "bid (G0)", _COMMERCIAL),

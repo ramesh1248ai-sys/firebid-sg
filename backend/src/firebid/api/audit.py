@@ -1,6 +1,8 @@
 """Audit trail API (FR-ADM-04): filtered, paginated reads and a CSV export.
 
-Access control arrives with P0-03, which scopes every bid-owned query to its members.
+A caller sees the history of the bids they belong to. Organisation-wide reads need the
+`audit.read.organisation` role (requirements §3). Row-level security enforces the same limit
+in the database, so a missed filter here still cannot leak another bid's history.
 """
 
 from __future__ import annotations
@@ -13,15 +15,18 @@ from collections.abc import Iterator
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import Select, select, tuple_
 from sqlalchemy.orm import Session
 
-from firebid.api.deps import get_session
+from firebid.api.deps import CurrentPrincipal, DbSession
+from firebid.auth.permissions import Action, may
+from firebid.auth.provisioning import Principal, is_member
 from firebid.db.audit import verify_chain
 from firebid.db.models.audit import AuditEvent
+from firebid.db.models.core import BidMember
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 
@@ -118,17 +123,38 @@ def decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
         raise HTTPException(status_code=400, detail="invalid cursor") from exc
 
 
+def scope_to_caller(
+    statement: Select[tuple[AuditEvent]],
+    session: Session,
+    principal: Principal,
+    bid_id: uuid.UUID | None,
+) -> Select[tuple[AuditEvent]]:
+    """Limit a query to what this caller may read."""
+    if bid_id is not None:
+        if not is_member(session, bid_id, principal.user_id):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "bid not found")
+        return statement
+    if may(principal.roles, Action.AUDIT_READ_ORGANISATION):
+        return statement
+    return statement.where(
+        AuditEvent.bid_id.in_(
+            select(BidMember.bid_id).where(BidMember.user_id == principal.user_id)
+        )
+    )
+
+
 @router.get("", response_model=AuditPage)
 def list_events(
-    session: Annotated[Session, Depends(get_session)],
+    session: DbSession,
+    principal: CurrentPrincipal,
     filters: Annotated[AuditFilters, Depends()],
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE)] = 50,
     cursor: Annotated[str | None, Query()] = None,
 ) -> AuditPage:
     """Newest first. Paging is by keyset, so results stay stable as new events arrive."""
-    statement = filters.apply(select(AuditEvent)).order_by(
-        AuditEvent.occurred_at.desc(), AuditEvent.id.desc()
-    )
+    statement = scope_to_caller(
+        filters.apply(select(AuditEvent)), session, principal, filters.bid_id
+    ).order_by(AuditEvent.occurred_at.desc(), AuditEvent.id.desc())
     if cursor:
         occurred_at, identifier = decode_cursor(cursor)
         statement = statement.where(
@@ -145,12 +171,13 @@ def list_events(
 
 @router.get("/export.csv")
 def export_csv(
-    session: Annotated[Session, Depends(get_session)],
+    session: DbSession,
+    principal: CurrentPrincipal,
     filters: Annotated[AuditFilters, Depends()],
 ) -> StreamingResponse:
     """The same filters, streamed as CSV so a large range does not build up in memory."""
     statement = (
-        filters.apply(select(AuditEvent))
+        scope_to_caller(filters.apply(select(AuditEvent)), session, principal, filters.bid_id)
         .order_by(AuditEvent.occurred_at, AuditEvent.id)
         .limit(EXPORT_LIMIT)
     )
@@ -187,9 +214,12 @@ def export_csv(
 
 @router.get("/chain/{chain_key}", response_model=ChainStatus)
 def chain_status(
-    chain_key: uuid.UUID, session: Annotated[Session, Depends(get_session)]
+    chain_key: uuid.UUID, session: DbSession, principal: CurrentPrincipal
 ) -> ChainStatus:
     """Recompute a chain from its events: does the recorded history still add up?"""
+    organisation_wide = may(principal.roles, Action.AUDIT_READ_ORGANISATION)
+    if not organisation_wide and not is_member(session, chain_key, principal.user_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "chain not found")
     problems = verify_chain(session, chain_key)
     return ChainStatus(
         chain_key=chain_key,

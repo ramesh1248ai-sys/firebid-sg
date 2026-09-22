@@ -19,6 +19,15 @@ class Settings(BaseSettings):
     worker_concurrency: int = 1
     worker_name: str = "worker"
 
+    organisation_name: str = "FireBid SG"
+
+    # Identity provider: Keycloak in development, Microsoft Entra ID in staging and production.
+    oidc_issuer: str = "http://localhost:8081/realms/firebid"
+    oidc_audience: str = "firebid-web"
+    oidc_jwks_url: str = ""  # defaults to the issuer's JWKS endpoint
+    # Jobs that legitimately span bids (deadline alerts, retention) use this role.
+    database_service_url: str = ""
+
     # Object storage (SeaweedFS locally, cloud object storage in production).
     s3_bucket: str = "firebid-dev"
     s3_endpoint_url: str = "http://localhost:8333"

@@ -65,6 +65,11 @@ def _audit_context(session: Session, entity: Stateful) -> AuditContext:
 
 def _guard_context(session: Session, entity: Stateful, target: StrEnum) -> dict[str, Any]:
     """Facts the guards need, read from the database rather than trusted from the caller."""
+    if isinstance(entity, Bid) and target == BidState.QUALIFYING:
+        from firebid.services.bids import missing_mandatory_fields
+
+        return {"missing_fields": missing_mandatory_fields(session, entity)}
+
     if isinstance(entity, Bid) and target == BidState.SUBMITTED:
         approved = session.execute(
             select(func.count())
