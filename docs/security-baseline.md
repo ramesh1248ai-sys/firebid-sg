@@ -80,6 +80,7 @@ Rows marked **Phase 1+** are not built yet; they name the step that will build t
 |---|---|---|---|
 | Dependencies are pinned by lock file and updated by Renovate | `uv.lock`, `package-lock.json`, `renovate.json` | 10.3.2 | CI installs from the lock files; the Renovate app is installed on this repository with Silent mode off, so updates arrive as pull requests |
 | Static analysis runs on every push: `ruff` (including `bandit` rules), `mypy --strict`, `oxlint` | `.github/workflows/ci.yml` | 14.2.1 | CI |
+| Work reaches `main` through a pull request with CI green | `.githooks/pre-push` | 1.1.2 | Local guard only; see the open item below |
 | Dependency vulnerability scanning in CI | — | 10.3.3 | **Phase 1**, step P1-10 |
 
 ## Open items
@@ -91,3 +92,4 @@ These are known gaps, not oversights. Each names where it is closed.
 3. **Dependency scanning** — Renovate keeps versions current but does not fail a build on a known vulnerability (P1-10).
 4. **Retention and deletion** — PDPA retention is Phase 3 (P3-05).
 5. **Provider data terms** — decision D2 must record what each LLM provider may retain before any confidential data class is routed to it.
+6. **`main` is not protected server-side.** GitHub refuses branch protection and rulesets on a private repository on the Free plan. `.githooks/pre-push` refuses a direct push to `main` so work goes through a pull request, but it is client-side and `--no-verify` bypasses it. Enforcement needs GitHub Pro; until then, treat a green PR as a convention rather than a gate.

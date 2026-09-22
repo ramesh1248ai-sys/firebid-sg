@@ -16,6 +16,8 @@ help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
 
 bootstrap: ## Install backend, frontend and browser dependencies (Dev Container setup)
+	# .git is shared with the host, so this one setting covers pushes from either side.
+	git config core.hooksPath .githooks
 	sudo chown -R "$$(id -u):$$(id -g)" frontend/node_modules 2>/dev/null || true
 	cd backend && uv sync
 	cd frontend && npm ci --no-audit --no-fund && npx playwright install --with-deps chromium

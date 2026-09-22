@@ -1,0 +1,46 @@
+#!/usr/bin/env sh
+# Keep main mergeable: work goes through a branch and a pull request, where CI runs both jobs
+# before anything lands. GitHub cannot enforce this on a private repository on the Free plan
+# (branch protection and rulesets are both Pro-only), so this hook stands in for it.
+#
+# This is a local guard, not a security control: `git push --no-verify` goes round it, and it
+# only applies to clones that have run `make bootstrap` (which sets core.hooksPath).
+#
+# Enable by hand with:  git config core.hooksPath .githooks
+
+protected_branch="main"
+remote_ref_prefix="refs/heads/$protected_branch"
+
+# stdin gives one line per ref being pushed: <local ref> <local sha> <remote ref> <remote sha>
+while read -r _local_ref local_sha remote_ref _remote_sha; do
+    [ "$remote_ref" = "$remote_ref_prefix" ] || continue
+
+    # An all-zero local sha is a branch deletion; refuse that outright.
+    case "$local_sha" in
+        0000000000000000000000000000000000000000)
+            echo "pre-push: refusing to delete $protected_branch." >&2
+            exit 1
+            ;;
+    esac
+
+    cat >&2 <<MESSAGE
+
+  pre-push: refusing to push straight to '$protected_branch'.
+
+  CI runs on pull requests, so open one and merge it once both jobs are green:
+
+      git switch -c <branch-name>
+      git push -u origin <branch-name>
+      gh pr create --fill
+      gh pr checks --watch     # then merge on green
+
+  If you genuinely need to push to $protected_branch (a hotfix, or restoring the
+  branch), bypass this hook deliberately:
+
+      git push --no-verify
+
+MESSAGE
+    exit 1
+done
+
+exit 0
