@@ -14,7 +14,8 @@
   "containerEnv": {
     "UV_PROJECT_ENVIRONMENT": "/home/vscode/.venvs/firebid",
     "UV_LINK_MODE": "copy",
-    "FIREBID_STACK_HOST": "host.docker.internal"
+    "FIREBID_STACK_HOST": "host.docker.internal",
+    "TESTCONTAINERS_HOST_OVERRIDE": "host.docker.internal"
   },
   "postCreateCommand": "make bootstrap",
   "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",

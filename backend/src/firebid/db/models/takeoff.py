@@ -1,0 +1,155 @@
+"""Detections, quantities, evidence and measurement rules.
+
+`detected_object`, `qto_item` and `evidence` grow to millions of rows, so they are
+hash-partitioned by `bid_id`. PostgreSQL requires the partition key inside the primary key,
+which is why these tables have composite keys and composite foreign keys.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+from decimal import Decimal
+
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
+from firebid.db.base import Base
+from firebid.db.mixins import CreatedBy, Timestamped, personal
+from firebid.db.types import LengthMmType
+from firebid.domain.state_machines import QtoItemState
+from firebid.domain.values import LengthMm
+
+QTO_STATES = tuple(str(state) for state in QtoItemState)
+
+
+class DetectedObject(Timestamped, Base):
+    """Something found on a sheet, before it becomes a quantity. Always a proposal."""
+
+    __tablename__ = "detected_object"
+    __table_args__ = ({"postgresql_partition_by": "HASH (bid_id)"},)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    bid_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("bid.id", ondelete="CASCADE"), primary_key=True
+    )
+    sheet_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    sheet_revision_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
+    object_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    attributes: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    geometry_ref: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    source_ref: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    extraction_method: Mapped[str] = mapped_column(String(24), nullable=False)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    view_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    agent_run_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+
+
+class QtoItem(Timestamped, CreatedBy, Base):
+    """A counted or measured quantity. Verified and baselined rows are versioned, never edited."""
+
+    __tablename__ = "qto_item"
+    __table_args__ = (
+        UniqueConstraint("bid_id", "human_id", name="uq_qto_item_human_id"),
+        CheckConstraint(f"state IN {QTO_STATES}", name="state_known"),
+        ForeignKeyConstraint(
+            ["supersedes_id", "bid_id"],
+            ["qto_item.id", "qto_item.bid_id"],
+            name="fk_qto_item_supersedes",
+            ondelete="SET NULL",
+        ),
+        {"postgresql_partition_by": "HASH (bid_id)"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    bid_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("bid.id", ondelete="CASCADE"), primary_key=True
+    )
+    human_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    item_type: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    classification: Mapped[str | None] = mapped_column(String(80))
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    attributes: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    unit: Mapped[str] = mapped_column(String(16), nullable=False)
+    net_quantity: Mapped[Decimal] = mapped_column(Numeric(16, 3), nullable=False)
+    allowance_percent: Mapped[Decimal | None] = mapped_column(Numeric(6, 3))
+    length: Mapped[LengthMm | None] = mapped_column(LengthMmType)
+    level: Mapped[str | None] = mapped_column(String(40), index=True)
+    zone: Mapped[str | None] = mapped_column(String(40))
+    grid_from: Mapped[str | None] = mapped_column(String(40))
+    grid_to: Mapped[str | None] = mapped_column(String(40))
+    calculation_method: Mapped[str] = mapped_column(String(32), nullable=False)
+    rule_key: Mapped[str | None] = mapped_column(String(80))
+    rule_version: Mapped[int | None] = mapped_column(Integer)
+    is_manual: Mapped[bool] = mapped_column(default=False, nullable=False)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    state: Mapped[str] = mapped_column(
+        String(24), nullable=False, default=str(QtoItemState.DETECTED), index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    supersedes_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    duplicate_group_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
+    verified_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reason_code: Mapped[str | None] = mapped_column(String(40))
+
+
+class Evidence(Timestamped, Base):
+    """The Appendix B record behind a quantity. One per QTO item, stored as JSONB."""
+
+    __tablename__ = "evidence"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["qto_item_id", "bid_id"],
+            ["qto_item.id", "qto_item.bid_id"],
+            name="fk_evidence_qto_item",
+            ondelete="CASCADE",
+        ),
+        {"postgresql_partition_by": "HASH (bid_id)"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    bid_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("bid.id", ondelete="CASCADE"), primary_key=True
+    )
+    qto_item_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    record: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    missing_fields: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+
+
+class MeasurementRule(Timestamped, CreatedBy, Base):
+    """A versioned takeoff rule (drops, risers, fittings, allowances). FR-ADM-02."""
+
+    __tablename__ = "measurement_rule"
+    __table_args__ = (
+        UniqueConstraint("organisation_id", "key", "version", name="uq_rule_version"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organisation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organisation.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    key: Mapped[str] = mapped_column(String(80), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    definition: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    source_note: Mapped[str | None] = mapped_column(
+        Text, info=personal("may name the estimator whose judgement set the rule")
+    )
+    effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

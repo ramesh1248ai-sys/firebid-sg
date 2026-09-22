@@ -5,7 +5,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine, pool
 
-from firebid.db import system  # noqa: F401  (registers system tables on the metadata)
+from firebid.db import models  # noqa: F401  (registers every table on the metadata)
 from firebid.db.base import Base
 from firebid.db.engine import sqlalchemy_url
 from firebid.settings import get_settings
@@ -17,10 +17,21 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def include_object(
+    obj: object, name: str | None, type_: str, reflected: bool, compare_to: object
+) -> bool:
+    """Leave the job queue's own tables alone: Procrastinate owns their shape (ADR-006)."""
+    return not (type_ == "table" and name and name.startswith("procrastinate"))
+
+
 def run_migrations_online() -> None:
     engine = create_engine(sqlalchemy_url(get_settings().database_url), poolclass=pool.NullPool)
     with engine.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            include_object=include_object,
+        )
         with context.begin_transaction():
             context.run_migrations()
 

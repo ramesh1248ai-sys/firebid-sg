@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "alembic>=1.20.0",
+    "boto3>=1.43.99",
     "fastapi>=0.141.1",
     "procrastinate>=3.9.0",
     "psycopg[binary,pool]>=3.3.6",
@@ -29,6 +30,7 @@ dev = [
     "mypy>=2.3.1",
     "pytest>=9.1.1",
     "ruff>=0.16.8",
+    "testcontainers[postgres]>=4.15.0",
 ]
 
 [tool.ruff]
@@ -40,6 +42,8 @@ select = ["E", "F", "W", "I", "B", "UP", "S", "RUF", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101"]
+# Migrations are generated; keep them close to Alembic's output.
+"src/firebid/db/migrations/versions/*" = ["E501", "F401"]
 
 [tool.mypy]
 python_version = "3.12"
