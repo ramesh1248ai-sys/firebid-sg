@@ -1,0 +1,33 @@
+{
+  "name": "FireBid SG",
+  "build": { "dockerfile": "Dockerfile", "context": "." },
+  "workspaceFolder": "/workspaces/firebid-sg",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/firebid-sg,type=bind",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": { "username": "vscode", "installZsh": false },
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "remoteUser": "vscode",
+  "mounts": [
+    "source=firebid-node-modules,target=/workspaces/firebid-sg/frontend/node_modules,type=volume"
+  ],
+  "containerEnv": {
+    "UV_PROJECT_ENVIRONMENT": "/home/vscode/.venvs/firebid",
+    "UV_LINK_MODE": "copy",
+    "FIREBID_STACK_HOST": "host.docker.internal"
+  },
+  "postCreateCommand": "make bootstrap",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "ms-python.mypy-type-checker",
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss",
+        "ms-playwright.playwright",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  }
+}
