@@ -13,8 +13,7 @@ IDS ?=
 .PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client req-coverage check
 
 help: ## List targets
-	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s
-", $$1, $$2}'
+	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
 
 bootstrap: ## Install backend, frontend and browser dependencies (Dev Container setup)
 	sudo chown -R "$$(id -u):$$(id -g)" frontend/node_modules 2>/dev/null || true
