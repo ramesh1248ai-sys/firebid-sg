@@ -1,0 +1,10 @@
+# Normalise text to LF so files behave the same in the Linux Dev Container and CI.
+* text=auto eol=lf
+
+*.docx binary
+*.xlsx binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.webp binary
+*.dwg binary
