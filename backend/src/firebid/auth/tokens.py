@@ -26,6 +26,7 @@ class TokenVerifier(Protocol):
 class OidcTokenVerifier:
     def __init__(self, issuer: str, audience: str, jwks_url: str, leeway_seconds: int = 30) -> None:
         self.issuer = issuer
+        self.jwks_url = jwks_url
         self.audience = audience
         self.leeway_seconds = leeway_seconds
         self._keys = PyJWKClient(jwks_url, cache_keys=True)
@@ -48,11 +49,17 @@ class OidcTokenVerifier:
 
 
 @lru_cache
+def _verifier(issuer: str, audience: str, jwks_url: str) -> OidcTokenVerifier:
+    """Cached on the values, not on the Settings object, which is not hashable."""
+    return OidcTokenVerifier(issuer=issuer, audience=audience, jwks_url=jwks_url)
+
+
 def get_token_verifier(settings: Settings | None = None) -> OidcTokenVerifier:
+    """One verifier per identity provider, so its key set is fetched and cached once."""
     settings = settings or get_settings()
     issuer = settings.oidc_issuer.rstrip("/")
-    return OidcTokenVerifier(
-        issuer=issuer,
-        audience=settings.oidc_audience,
-        jwks_url=settings.oidc_jwks_url or f"{issuer}/protocol/openid-connect/certs",
+    return _verifier(
+        issuer,
+        settings.oidc_audience,
+        settings.oidc_jwks_url or f"{issuer}/protocol/openid-connect/certs",
     )

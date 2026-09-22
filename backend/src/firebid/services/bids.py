@@ -82,6 +82,9 @@ def create_bid(session: Session, principal: Principal, details: NewBid) -> Bid:
     for role in sorted(principal.roles):
         session.add(BidMember(bid_id=bid.id, user_id=principal.user_id, role=role))
         break  # the creator joins under one role; more members are added explicitly
+    # Flush the membership before anything else on this bid: row-level security reads the team
+    # from the database, and a row still sitting in the session is not there yet.
+    session.flush()
 
     record_event(
         session,

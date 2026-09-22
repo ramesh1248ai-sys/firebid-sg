@@ -42,15 +42,17 @@ typecheck: ## Type-check backend (mypy strict) and frontend (tsc)
 	cd frontend && npm run -s typecheck
 
 test: ## Unit tests (no stack needed)
-	cd backend && uv run pytest
+	# Database tests start their own PostgreSQL container. Inside the Dev Container that
+	# container runs on the host, so testcontainers must be told where to reach it.
+	cd backend && TESTCONTAINERS_HOST_OVERRIDE=$(STACK_HOST) uv run pytest
 	cd frontend && npm run -s test
 
 test-integration: ## Integration tests against the running stack (make up first)
 	cd backend && FIREBID_DATABASE_URL=postgresql://firebid:firebid@$(STACK_HOST):$(PG_PORT)/firebid \
 		FIREBID_API_URL=$(API_URL) FIREBID_STACK_HOST=$(STACK_HOST) uv run pytest -m integration
 
-e2e: ## Playwright smoke tests against the running stack (make up first)
-	cd frontend && FIREBID_STACK_HOST=$(STACK_HOST) npm run -s e2e
+e2e: ## Playwright tests against the running stack (make up first)
+	FIREBID_STACK_HOST=$(STACK_HOST) ./scripts/e2e.sh
 
 data-inventory: ## Regenerate docs/data-inventory.md from the model metadata (NFR-07)
 	uv run --project backend python scripts/data_inventory.py

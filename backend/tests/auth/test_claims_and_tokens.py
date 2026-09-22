@@ -14,7 +14,8 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from firebid.auth.claims import ClaimsError, map_claims
-from firebid.auth.tokens import OidcTokenVerifier, TokenError
+from firebid.auth.tokens import OidcTokenVerifier, TokenError, get_token_verifier
+from firebid.settings import Settings
 
 ISSUER = "https://login.microsoftonline.com/tenant/v2.0"
 AUDIENCE = "firebid-web"
@@ -156,3 +157,30 @@ class TestTokenVerification:
         unsigned = jwt.encode(entra_claims(iss=ISSUER, aud=AUDIENCE), key="", algorithm="none")
         with pytest.raises(TokenError):
             verifier.verify(unsigned)
+
+
+class TestVerifierFactory:
+    """The factory is what the API actually calls; the tests above build verifiers directly."""
+
+    def test_it_builds_a_verifier_from_settings(self) -> None:
+        settings = Settings(
+            env="test",
+            oidc_issuer="https://login.example/tenant/v2.0/",
+            oidc_audience="firebid-web",
+        )
+        verifier = get_token_verifier(settings)
+        assert verifier.issuer == "https://login.example/tenant/v2.0"
+        assert verifier.jwks_url.endswith("/protocol/openid-connect/certs")
+
+    def test_an_explicit_key_set_url_is_used(self) -> None:
+        """The stack fetches keys inside its network while tokens name the browser's URL."""
+        settings = Settings(
+            env="test",
+            oidc_issuer="http://localhost:8081/realms/firebid",
+            oidc_jwks_url="http://keycloak:8080/realms/firebid/protocol/openid-connect/certs",
+        )
+        assert get_token_verifier(settings).jwks_url.startswith("http://keycloak:8080/")
+
+    def test_the_same_settings_give_the_same_verifier(self) -> None:
+        settings = Settings(env="test", oidc_issuer="https://login.example/tenant/v2.0")
+        assert get_token_verifier(settings) is get_token_verifier(settings)

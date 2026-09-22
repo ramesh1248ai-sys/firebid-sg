@@ -8,13 +8,19 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, create_engine, select, text
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import Session
 
+from firebid.auth.provisioning import Principal
 from firebid.db.engine import sqlalchemy_url
-from firebid.db.models.core import AppUser, Bid, BidMember, Organisation
+from firebid.db.identity import acting_as
+from firebid.db.models.core import AppUser, Bid, BidMember, Organisation, Project
+from firebid.domain.state_machines import Role
+from firebid.services.bids import NewBid, create_bid
 from tests.db.conftest import APP_ROLE_PASSWORD
 from tests.db.factories import make_qto_item
 
@@ -212,3 +218,91 @@ def test_a_partition_created_later_is_protected_too(engine: Engine) -> None:
         ).one()
     assert protected[0] is True, f"{name} was created without row-level security"
     assert protected[1] == 2, f"{name} is missing the application or service policy"
+
+
+class TestCreatingABid:
+    """Creation runs as the application role, so the policies must allow the first write.
+
+    The service-layer tests run as the database owner, where row-level security does not
+    apply; only a test on the application role can prove a bid can be created at all.
+    """
+
+    def test_the_creator_can_register_a_bid_and_then_see_it(
+        self, app_role_engine: Engine, organisation: Organisation, user: AppUser
+    ) -> None:
+        principal = Principal(
+            user_id=user.id,
+            organisation_id=organisation.id,
+            username=user.username,
+            display_name=user.display_name,
+            roles=frozenset({str(Role.BID_MANAGER)}),
+        )
+        details = NewBid(
+            project_name="Tuas Fabrication Yard",
+            client_name="Main Contractor Pte Ltd",
+            tender_reference=f"MC/RLS/{uuid.uuid4().hex[:8]}",
+            submission_deadline=datetime.now(UTC) + timedelta(days=30),
+        )
+
+        with acting_as(user.id), Session(app_role_engine) as app_session:
+            created = create_bid(app_session, principal, details)
+            app_session.commit()
+            bid_id = created.id
+
+        with acting_as(user.id), Session(app_role_engine) as app_session:
+            assert app_session.get(Bid, bid_id) is not None
+
+    def test_nobody_can_add_themselves_to_a_bid_they_did_not_create(
+        self, app_role_engine: Engine, session: Session, organisation: Organisation, bid: Bid
+    ) -> None:
+        outsider = AppUser(
+            organisation_id=organisation.id,
+            external_id=uuid.uuid4().hex,
+            username="outsider@firebid.test",
+            display_name="Otto Sider",
+        )
+        session.add(outsider)
+        session.commit()
+
+        with (
+            acting_as(outsider.id),
+            Session(app_role_engine) as app_session,
+            pytest.raises(ProgrammingError, match="row-level security"),
+        ):
+            app_session.add(BidMember(bid_id=bid.id, user_id=outsider.id, role=str(Role.ESTIMATOR)))
+            app_session.flush()
+
+    def test_a_bid_cannot_be_registered_in_someone_else_s_name(
+        self, app_role_engine: Engine, session: Session, organisation: Organisation, user: AppUser
+    ) -> None:
+        """The insert policy pins created_by to the acting user, so authorship cannot be faked."""
+        impostor = AppUser(
+            organisation_id=organisation.id,
+            external_id=uuid.uuid4().hex,
+            username="impostor@firebid.test",
+            display_name="Ivy Impostor",
+        )
+        session.add(impostor)
+        session.commit()
+
+        with (
+            acting_as(impostor.id),
+            Session(app_role_engine) as app_session,
+            pytest.raises(ProgrammingError, match="row-level security"),
+        ):
+            app_session.add(
+                Bid(
+                    organisation_id=organisation.id,
+                    project_id=bid_project_id(session),
+                    human_id="BID-2026-777",
+                    client_name="Main Contractor Pte Ltd",
+                    tender_reference="MC/2026/FP/777",
+                    submission_deadline=datetime.now(UTC) + timedelta(days=30),
+                    created_by_id=user.id,  # not the acting user
+                )
+            )
+            app_session.flush()
+
+
+def bid_project_id(session: Session) -> uuid.UUID:
+    return session.execute(select(Project.id)).scalars().first() or uuid.uuid4()

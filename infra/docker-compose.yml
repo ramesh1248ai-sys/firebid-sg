@@ -7,6 +7,12 @@ x-backend-env: &backend-env
   FIREBID_LOG_LEVEL: INFO
   # The application connects as the restricted role (no UPDATE/DELETE on audit tables).
   FIREBID_DATABASE_URL: postgresql://firebid_app:firebid-app@postgres:5432/firebid
+  # The service role crosses bids for scheduled work (deadline alerts, retention).
+  FIREBID_DATABASE_SERVICE_URL: postgresql://firebid_service:firebid-service@postgres:5432/firebid
+  # Tokens are issued for the browser's URL, but the API fetches the keys inside the network.
+  FIREBID_OIDC_ISSUER: http://localhost:${FIREBID_KEYCLOAK_PORT:-8081}/realms/firebid
+  FIREBID_OIDC_JWKS_URL: http://keycloak:8080/realms/firebid/protocol/openid-connect/certs
+  FIREBID_OIDC_AUDIENCE: firebid-web
   FIREBID_S3_ENDPOINT_URL: http://seaweedfs:8333
   FIREBID_S3_BUCKET: firebid-dev
   FIREBID_S3_ACCESS_KEY_ID: firebid-dev
@@ -107,6 +113,8 @@ services:
         condition: service_completed_successfully
       s3-init:
         condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
     healthcheck:
       test:
         - CMD

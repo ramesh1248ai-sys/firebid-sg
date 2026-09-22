@@ -91,6 +91,17 @@
             "multivalued": "true",
             "jsonType.label": "String"
           }
+        },
+        {
+          "name": "audience-firebid-web",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "firebid-web",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
         }
       ]
     },
@@ -126,6 +137,17 @@
             "claim.name": "roles",
             "multivalued": "true",
             "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "audience-firebid-web",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "firebid-web",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
           }
         }
       ]
