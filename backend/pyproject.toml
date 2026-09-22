@@ -51,6 +51,11 @@ strict = true
 plugins = ["pydantic.mypy"]
 files = ["src", "tests", "../scripts"]
 
+[[tool.mypy.overrides]]
+# boto3 and botocore ship no type information.
+module = ["boto3.*", "botocore.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-markers -m 'not integration'"

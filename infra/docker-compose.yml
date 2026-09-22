@@ -5,7 +5,8 @@ name: firebid
 x-backend-env: &backend-env
   FIREBID_ENV: dev
   FIREBID_LOG_LEVEL: INFO
-  FIREBID_DATABASE_URL: postgresql://firebid:firebid@postgres:5432/firebid
+  # The application connects as the restricted role (no UPDATE/DELETE on audit tables).
+  FIREBID_DATABASE_URL: postgresql://firebid_app:firebid-app@postgres:5432/firebid
   FIREBID_S3_ENDPOINT_URL: http://seaweedfs:8333
   FIREBID_S3_BUCKET: firebid-dev
   FIREBID_S3_ACCESS_KEY_ID: firebid-dev
@@ -85,7 +86,11 @@ services:
     build:
       context: ../backend
     command: ["alembic", "upgrade", "head"]
-    environment: *backend-env
+    environment:
+      # Migrations run as the database owner and set up the application role.
+      <<: *backend-env
+      FIREBID_DATABASE_URL: postgresql://firebid:firebid@postgres:5432/firebid
+      FIREBID_APP_DB_PASSWORD: firebid-app
     depends_on:
       postgres:
         condition: service_healthy

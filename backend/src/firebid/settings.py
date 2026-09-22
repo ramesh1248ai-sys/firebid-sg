@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     worker_concurrency: int = 1
     worker_name: str = "worker"
 
+    # Object storage (SeaweedFS locally, cloud object storage in production).
+    s3_bucket: str = "firebid-dev"
+    s3_endpoint_url: str = "http://localhost:8333"
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    s3_region: str = "ap-southeast-1"
+
 
 @lru_cache
 def get_settings() -> Settings:

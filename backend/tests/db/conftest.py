@@ -21,10 +21,11 @@ from sqlalchemy.orm import Session, sessionmaker
 from testcontainers.community.postgres import PostgresContainer
 
 from firebid.db.base import Base
-from firebid.db.engine import sqlalchemy_url
+from firebid.db.engine import get_engine, sqlalchemy_url
 from firebid.db.models.core import AppUser, Bid, Organisation, Project
 from firebid.domain.actors import Actor
 from firebid.domain.state_machines import Role
+from firebid.settings import get_settings
 
 PG_IMAGE = "pgvector/pgvector:pg17"
 APP_ROLE_PASSWORD = "firebid-app-test"  # noqa: S105  (throwaway container credential)
@@ -42,9 +43,14 @@ def database_url() -> Iterator[str]:
         url = container.get_connection_url().replace("postgresql+psycopg2://", "postgresql://")
         os.environ["FIREBID_DATABASE_URL"] = url
         os.environ["FIREBID_APP_DB_PASSWORD"] = APP_ROLE_PASSWORD
+        # Settings and the engine are cached; an earlier test may have cached the defaults.
+        get_settings.cache_clear()
+        get_engine.cache_clear()
         config = Config(ALEMBIC_INI)
         command.upgrade(config, "head")
         yield url
+        get_settings.cache_clear()
+        get_engine.cache_clear()
 
 
 @pytest.fixture(scope="session")

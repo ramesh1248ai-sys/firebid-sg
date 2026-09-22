@@ -10,7 +10,7 @@ API_URL := http://$(STACK_HOST):$(or $(FIREBID_API_PORT),8000)
 PHASE ?=
 IDS ?=
 
-.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client req-coverage check
+.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client data-inventory req-coverage check
 
 help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -51,6 +51,9 @@ test-integration: ## Integration tests against the running stack (make up first)
 
 e2e: ## Playwright smoke tests against the running stack (make up first)
 	cd frontend && FIREBID_STACK_HOST=$(STACK_HOST) npm run -s e2e
+
+data-inventory: ## Regenerate docs/data-inventory.md from the model metadata (NFR-07)
+	uv run --project backend python scripts/data_inventory.py
 
 api-client: ## Regenerate the frontend API client from the backend's OpenAPI schema
 	cd backend && uv run python -m firebid.api.export_openapi ../frontend/src/api/openapi.json

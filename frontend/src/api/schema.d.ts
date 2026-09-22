@@ -4,6 +4,66 @@
  */
 
 export interface paths {
+    "/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Events
+         * @description Newest first. Paging is by keyset, so results stay stable as new events arrive.
+         */
+        get: operations["list_events_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit/chain/{chain_key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Chain Status
+         * @description Recompute a chain from its events: does the recorded history still add up?
+         */
+        get: operations["chain_status_audit_chain__chain_key__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/audit/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Csv
+         * @description The same filters, streamed as CSV so a large range does not build up in memory.
+         */
+        get: operations["export_csv_audit_export_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -65,6 +125,60 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AuditEventOut */
+        AuditEventOut: {
+            /** Action */
+            action: string;
+            /** Actor Id */
+            actor_id: string | null;
+            /** Actor Label */
+            actor_label: string;
+            /** After */
+            after: {
+                [key: string]: unknown;
+            } | null;
+            /** Before */
+            before: {
+                [key: string]: unknown;
+            } | null;
+            /** Bid Id */
+            bid_id: string | null;
+            /** Entity Id */
+            entity_id: string;
+            /** Entity Type */
+            entity_type: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Reason */
+            reason: string | null;
+        };
+        /** AuditPage */
+        AuditPage: {
+            /** Items */
+            items: components["schemas"]["AuditEventOut"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** ChainStatus */
+        ChainStatus: {
+            /**
+             * Chain Key
+             * Format: uuid
+             */
+            chain_key: string;
+            /** Intact */
+            intact: boolean;
+            /** Problems */
+            problems: string[];
+        };
         /** CheckResult */
         CheckResult: {
             /**
@@ -76,6 +190,11 @@ export interface components {
             };
             /** Ok */
             ok: boolean;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
         };
         /** HealthReport */
         HealthReport: {
@@ -90,6 +209,19 @@ export interface components {
         Liveness: {
             /** Status */
             status: string;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
         };
         /** VersionInfo */
         VersionInfo: {
@@ -109,6 +241,113 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_events_audit_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+                bid_id?: string | null;
+                entity_type?: string | null;
+                entity_id?: string | null;
+                actor_id?: string | null;
+                action?: string | null;
+                occurred_from?: string | null;
+                occurred_to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chain_status_audit_chain__chain_key__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chain_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChainStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_csv_audit_export_csv_get: {
+        parameters: {
+            query?: {
+                bid_id?: string | null;
+                entity_type?: string | null;
+                entity_id?: string | null;
+                actor_id?: string | null;
+                action?: string | null;
+                occurred_from?: string | null;
+                occurred_to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_health_get: {
         parameters: {
             query?: never;
