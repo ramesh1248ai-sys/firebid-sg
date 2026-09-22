@@ -35,7 +35,7 @@ ps: ## Show stack services and their health
 	$(COMPOSE) ps
 
 lint: ## Lint backend and frontend
-	cd backend && uv run ruff check . && uv run ruff format --check .
+	cd backend && uv run ruff check . ../scripts && uv run ruff format --check . ../scripts
 	cd frontend && npm run -s lint
 
 typecheck: ## Type-check backend (mypy strict) and frontend (tsc)
