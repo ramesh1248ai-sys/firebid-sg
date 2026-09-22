@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     # Jobs that legitimately span bids (deadline alerts, retention) use this role.
     database_service_url: str = ""
 
+    # Security baseline (docs/security-baseline.md). The app and API share an origin, so
+    # cross-origin requests are refused unless an origin is named here.
+    cors_allowed_origins: tuple[str, ...] = ()
+    max_body_bytes: int = 2 * 1024 * 1024
+    max_upload_bytes: int = 200 * 1024 * 1024
+    rate_limit_per_minute: int = 300
+
     # Object storage (SeaweedFS locally, cloud object storage in production).
     s3_bucket: str = "firebid-dev"
     s3_endpoint_url: str = "http://localhost:8333"

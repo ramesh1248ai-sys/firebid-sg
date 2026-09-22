@@ -12,7 +12,9 @@ from firebid.settings import get_settings
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Alembic's default would set disabled=True on every logger already created, silencing
+    # the application's own logging whenever migrations run in the same process.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

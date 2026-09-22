@@ -3,11 +3,17 @@
 from collections.abc import Mapping
 
 from fastapi import FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from firebid import __version__
 from firebid.api.health import HealthCheck, HealthReport, run_checks
 from firebid.api.middleware import RequestIdMiddleware
+from firebid.api.security import (
+    BodySizeLimitMiddleware,
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from firebid.logging import configure_logging
 from firebid.settings import Settings, get_settings
 
@@ -35,6 +41,28 @@ def create_app(
     checks = health_checks
 
     app = FastAPI(title="FireBid SG API", version=__version__)
+    # Starlette runs middleware outermost-last, so the request ID is bound before anything
+    # else can log or refuse, and the security headers reach even a refusal.
+    app.add_middleware(
+        RateLimitMiddleware,
+        requests_per_minute=settings.rate_limit_per_minute,
+        exempt_paths=("/health", "/health/live"),
+    )
+    app.add_middleware(
+        BodySizeLimitMiddleware,
+        max_bytes=settings.max_body_bytes,
+        upload_max_bytes=settings.max_upload_bytes,
+    )
+    if settings.cors_allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(settings.cors_allowed_origins),
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PATCH", "DELETE"],
+            allow_headers=["authorization", "content-type", "x-request-id"],
+            max_age=600,
+        )
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIdMiddleware)
 
     @app.get("/health", response_model=HealthReport, tags=["system"])
