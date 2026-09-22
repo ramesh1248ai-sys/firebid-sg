@@ -1,0 +1,56 @@
+[project]
+name = "firebid"
+version = "0.1.0"
+description = "FireBid SG: AI-assisted tendering and pre-construction platform for Singapore fire protection contractors"
+readme = "README.md"
+authors = [
+    { name = "Ramesh R", email = "ramesh1248@gmail.com" }
+]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.141.1",
+    "pydantic-settings>=2.15.0",
+    "structlog>=26.1.0",
+    "uvicorn[standard]>=0.53.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.25,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.0",
+    "hypothesis>=6.168.0",
+    "mypy>=2.3.1",
+    "pytest>=9.1.1",
+    "ruff>=0.16.8",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "RUF", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers -m 'not integration'"
+markers = [
+    "req(id): the requirement ID this test verifies, e.g. @pytest.mark.req('FR-QTO-08')",
+    "integration: needs the running local stack (make up); run with make test-integration",
+]
+filterwarnings = [
+    # Raised inside Starlette's test client, not our code; remove once Starlette updates.
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]
