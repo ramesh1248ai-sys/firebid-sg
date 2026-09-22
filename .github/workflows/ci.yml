@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, types, unit tests, API client, coverage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.25"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: |
+          uv sync --project backend --locked
+          npm ci --prefix frontend --no-audit --no-fund
+      - run: make lint
+      - run: make typecheck
+      - run: make test
+      - name: Generated API client is up to date
+        run: |
+          make api-client
+          git diff --exit-code -- frontend/src/api \
+            || (echo "::error::Run 'make api-client' and commit the result." && exit 1)
+      - name: Requirement coverage report
+        run: uv run --project backend python scripts/req_coverage.py --output reports/req-coverage.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: req-coverage
+          path: reports/req-coverage.md
+
+  stack:
+    name: Stack, integration and end-to-end tests
+    runs-on: ubuntu-24.04
+    needs: checks
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.25"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: |
+          uv sync --project backend --locked
+          npm ci --prefix frontend --no-audit --no-fund
+          npx --prefix frontend playwright install --with-deps chromium
+      - name: Start the stack
+        run: make up
+      - run: make test-integration
+      - run: make e2e
+      - name: Collect stack logs
+        if: failure()
+        run: docker compose -f infra/docker-compose.yml logs --no-color > stack-logs.txt
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: stack-logs
+          path: stack-logs.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          if-no-files-found: ignore
