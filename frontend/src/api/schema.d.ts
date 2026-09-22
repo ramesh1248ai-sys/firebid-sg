@@ -64,6 +64,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Bids
+         * @description The dashboard: the caller's bids with stage, gates, tasks and days to each deadline.
+         */
+        get: operations["list_bids_bids_get"];
+        put?: never;
+        /** Create */
+        post: operations["create_bids_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Bid */
+        get: operations["get_bid_bids__bid_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Bid */
+        patch: operations["update_bid_bids__bid_id__patch"];
+        trace?: never;
+    };
+    "/bids/{bid_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Members */
+        get: operations["list_members_bids__bid_id__members_get"];
+        put?: never;
+        /** Add Member */
+        post: operations["add_member_bids__bid_id__members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tasks */
+        get: operations["list_tasks_bids__bid_id__tasks_get"];
+        put?: never;
+        /** Add Task */
+        post: operations["add_task_bids__bid_id__tasks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transition */
+        post: operations["transition_bids__bid_id__transitions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -167,6 +259,120 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** BidCreate */
+        BidCreate: {
+            /** Clarification Cutoff */
+            clarification_cutoff?: string | null;
+            /** Client Name */
+            client_name: string;
+            /** Project Id */
+            project_id?: string | null;
+            /** Project Name */
+            project_name: string;
+            /**
+             * Submission Deadline
+             * Format: date-time
+             */
+            submission_deadline: string;
+            /** Tender Reference */
+            tender_reference: string;
+            /** Tender Validity Days */
+            tender_validity_days?: number | null;
+        };
+        /** BidOut */
+        BidOut: {
+            /** Clarification Cutoff */
+            clarification_cutoff: string | null;
+            /** Client Name */
+            client_name: string;
+            /** Human Id */
+            human_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Missing Mandatory Fields
+             * @default []
+             */
+            missing_mandatory_fields: string[];
+            /** Stage */
+            stage: string;
+            /** State */
+            state: string;
+            /**
+             * Submission Deadline
+             * Format: date-time
+             */
+            submission_deadline: string;
+            /** Tender Reference */
+            tender_reference: string;
+            /** Tender Validity Days */
+            tender_validity_days: number | null;
+        };
+        /**
+         * BidState
+         * @enum {string}
+         */
+        BidState: "registered" | "qualifying" | "in_preparation" | "under_review" | "approved_for_submission" | "submitted" | "post_submission_clarification" | "awarded" | "lost" | "withdrawn" | "no_bid";
+        /** BidSummaryOut */
+        BidSummaryOut: {
+            /** Clarification Cutoff */
+            clarification_cutoff: string | null;
+            /** Client Name */
+            client_name: string;
+            /** Days To Clarification Cutoff */
+            days_to_clarification_cutoff: number | null;
+            /** Days To Submission */
+            days_to_submission: number | null;
+            /** Gates Passed */
+            gates_passed: string[];
+            /** Human Id */
+            human_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Missing Mandatory Fields
+             * @default []
+             */
+            missing_mandatory_fields: string[];
+            /** Open Tasks */
+            open_tasks: number;
+            /** Overdue Tasks */
+            overdue_tasks: number;
+            /** Stage */
+            stage: string;
+            /** State */
+            state: string;
+            /**
+             * Submission Deadline
+             * Format: date-time
+             */
+            submission_deadline: string;
+            /** Tender Reference */
+            tender_reference: string;
+            /** Tender Validity Days */
+            tender_validity_days: number | null;
+        };
+        /** BidUpdate */
+        BidUpdate: {
+            /** Clarification Cutoff */
+            clarification_cutoff?: string | null;
+            /** Client Name */
+            client_name?: string | null;
+            /** Stage */
+            stage?: string | null;
+            /** Submission Deadline */
+            submission_deadline?: string | null;
+            /** Tender Reference */
+            tender_reference?: string | null;
+            /** Tender Validity Days */
+            tender_validity_days?: number | null;
+        };
         /** ChainStatus */
         ChainStatus: {
             /**
@@ -209,6 +415,69 @@ export interface components {
         Liveness: {
             /** Status */
             status: string;
+        };
+        /** MemberIn */
+        MemberIn: {
+            role: components["schemas"]["Role"];
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
+        /** MemberOut */
+        MemberOut: {
+            /** Display Name */
+            display_name: string;
+            /** Role */
+            role: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
+        /**
+         * Role
+         * @description Organisation roles from requirements §3. `SYSTEM` is the platform acting on its own.
+         * @enum {string}
+         */
+        Role: "estimator" | "senior_estimator" | "bid_manager" | "design_manager" | "commercial_director" | "procurement" | "project_manager" | "system_admin" | "executive_sponsor" | "system";
+        /** TaskIn */
+        TaskIn: {
+            /** Assignee Id */
+            assignee_id?: string | null;
+            /** Due At */
+            due_at?: string | null;
+            required_role?: components["schemas"]["Role"] | null;
+            /** Stage */
+            stage: string;
+            /** Title */
+            title: string;
+        };
+        /** TaskOut */
+        TaskOut: {
+            /** Assignee Id */
+            assignee_id: string | null;
+            /** Due At */
+            due_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Stage */
+            stage: string | null;
+            /** State */
+            state: string;
+            /** Title */
+            title: string;
+        };
+        /** TransitionIn */
+        TransitionIn: {
+            /** Reason */
+            reason?: string | null;
+            target: components["schemas"]["BidState"];
         };
         /** ValidationError */
         ValidationError: {
@@ -335,6 +604,292 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_bids_bids_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BidSummaryOut"][];
+                };
+            };
+        };
+    };
+    create_bids_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BidCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BidOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_bid_bids__bid_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BidOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_bid_bids__bid_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BidUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BidOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_members_bids__bid_id__members_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_member_bids__bid_id__members_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tasks_bids__bid_id__tasks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_task_bids__bid_id__tasks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transition_bids__bid_id__transitions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransitionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BidOut"];
                 };
             };
             /** @description Validation Error */

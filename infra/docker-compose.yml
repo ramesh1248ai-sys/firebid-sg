@@ -138,6 +138,10 @@ services:
   frontend:
     build:
       context: ../frontend
+      args:
+        # The browser reaches Keycloak on the host, not inside the compose network.
+        VITE_OIDC_AUTHORITY: "http://localhost:${FIREBID_KEYCLOAK_PORT:-8081}/realms/firebid"
+        VITE_OIDC_CLIENT_ID: "firebid-web"
     ports:
       - "${FIREBID_WEB_PORT:-8080}:8080"
     depends_on:

@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router";
 
 import { routes } from "@/app/routes";
+import { AuthProvider } from "@/auth/AuthProvider";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -16,8 +17,10 @@ if (!rootElement) throw new Error("Missing #root element");
 
 createRoot(rootElement).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </AuthProvider>
   </StrictMode>,
 );
