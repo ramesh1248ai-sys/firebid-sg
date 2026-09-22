@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://firebid:firebid@localhost:5432/firebid"
     # A heartbeat older than this marks the job queue as unhealthy.
     heartbeat_max_age_seconds: int = 180
+    # Jobs per worker process. Keep 1 for synchronous tasks; add processes to scale.
+    worker_concurrency: int = 1
+    worker_name: str = "worker"
 
 
 @lru_cache

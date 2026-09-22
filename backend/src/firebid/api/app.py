@@ -18,26 +18,50 @@ class VersionInfo(BaseModel):
     env: str
 
 
+class Liveness(BaseModel):
+    status: str
+
+
 def create_app(
     settings: Settings | None = None,
     health_checks: Mapping[str, HealthCheck] | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level)
-    checks = health_checks if health_checks is not None else {}
+    if health_checks is None:
+        from firebid.api.checks import default_checks
+
+        health_checks = default_checks(settings)
+    checks = health_checks
 
     app = FastAPI(title="FireBid SG API", version=__version__)
     app.add_middleware(RequestIdMiddleware)
 
     @app.get("/health", response_model=HealthReport, tags=["system"])
     def health(response: Response) -> HealthReport:
+        """Readiness: every dependency, including a fresh job-queue heartbeat."""
         report = run_checks(checks)
         if report.status != "ok":
             response.status_code = 503
         return report
 
+    @app.get("/health/live", response_model=Liveness, tags=["system"])
+    def live() -> Liveness:
+        """Liveness: the process is serving requests. Used by container health checks."""
+        return Liveness(status="ok")
+
     @app.get("/version", response_model=VersionInfo, tags=["system"])
     def version() -> VersionInfo:
         return VersionInfo(version=__version__, git_sha=settings.git_sha, env=settings.env)
 
+    if settings.env in ("dev", "test"):
+        from firebid.api import dev_jobs
+
+        app.include_router(dev_jobs.router)
+
     return app
+
+
+def app_factory() -> FastAPI:
+    """Entry point for ``uvicorn --factory firebid.api.app:app_factory``."""
+    return create_app()
