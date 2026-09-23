@@ -82,10 +82,11 @@ def create_app(
     def version() -> VersionInfo:
         return VersionInfo(version=__version__, git_sha=settings.git_sha, env=settings.env)
 
-    from firebid.api import audit, bids
+    from firebid.api import admin, audit, bids
 
     app.include_router(bids.router)
     app.include_router(audit.router)
+    app.include_router(admin.router)
 
     if settings.env in ("dev", "test"):
         from firebid.api import dev_jobs

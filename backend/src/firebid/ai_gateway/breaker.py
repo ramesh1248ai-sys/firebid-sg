@@ -52,6 +52,13 @@ class CircuitBreaker:
             state.opened_at = self.clock()
             state.half_open = False
 
+    def snapshot(self) -> list[tuple[str, bool, int]]:
+        """(key, open, consecutive failures) for everything seen, for the admin view."""
+        return sorted(
+            (key, self.is_open(key), state.consecutive_failures)
+            for key, state in self._states.items()
+        )
+
     def is_open(self, key: str) -> bool:
         state = self._states.get(key)
         return state is not None and state.opened_at is not None and not self.allows(key)

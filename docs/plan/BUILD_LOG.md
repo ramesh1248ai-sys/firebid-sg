@@ -169,3 +169,50 @@ Entry template:
   - **Bid membership is managed by API only**; there is no screen for adding people to a bid yet.
   - **`FR-BID-04`** (several bids per project) remains Phase 2, as planned.
   - Repository admin: the Renovate GitHub App is installed on `ramesh1248ai-sys/firebid-sg` (2026-09-23), scoped to that repository alone. Mend's account default is Silent mode, which scans but never opens a pull request; this repository overrides it to Interactive, so onboarding and dependency-update PRs do arrive. The other repositories on the account keep the Silent default. **`main` cannot be protected server-side on this plan**: branch protection and rulesets both refuse a private repository on GitHub Free ("Upgrade to GitHub Pro or make this repository public"). A tracked `pre-push` hook (`.githooks/pre-push`, enabled by `make bootstrap`) stands in for it by refusing a direct push to `main`, so work goes through a branch and a pull request where CI runs both jobs. It is a local guard, not a control: `--no-verify` goes round it. Real enforcement needs GitHub Pro.
+
+---
+
+## P0-04 · Multi-Provider AI Gateway and Agent Runtime · 2026-09-23
+
+- **Summary:** every model call in the platform now goes through one governed gateway. Calling code names a **route**; `backend/config/llm.yaml` decides which provider and model serves it, in what order, with what reasoning depth, and which data classes each provider may receive. Switching a route from Claude to Gemini, reordering fallbacks or widening a provider's approval is an edit to that file and a restart — no code change, no new build. Around that: adapters for Anthropic, OpenAI, Google and self-hosted models, a response cache and a shared rate limiter in PostgreSQL, cost metering with per-bid and per-run budgets, OpenTelemetry tracing with redaction, an opt-in encrypted payload store, an agent runtime with autonomy levels, and an admin view.
+- **Key modules / files:**
+  - `backend/src/firebid/ai_gateway/`: `types.py` (the provider-neutral vocabulary), `config.py` (`llm.yaml` schema, startup validation, config hash), `router.py` (chain resolution, retries, breaker, fallback, data-class enforcement), `breaker.py`, `cache.py`, `ratelimit.py`, `metering.py`, `prompts.py`, `emulation.py`, `tracing.py`, `payloads.py`, `providers/` (anthropic, openai, google, fake), `prompts/title_block_read/v1.md`.
+  - `backend/src/firebid/agents/`: `base.py` (contract, autonomy levels, tool registry), `runtime.py` (idempotent runs, escalation to `HumanTask`), `title_block.py` (the demonstration agent).
+  - `backend/src/firebid/redaction.py`; `backend/src/firebid/api/admin.py`; migrations `0008` (cache and rate buckets), `0009` (bid budget), `0010` (payload store).
+  - `backend/config/llm.yaml` and `backend/config/README.md`; `frontend/src/pages/AdminPage.tsx`.
+- **How to run and demo:**
+  1. `make check` — lint, types, 577 backend tests and 15 frontend tests.
+  2. Change a provider: edit `routes.title_block_read.models` in `backend/config/llm.yaml`, restart, and `curl localhost:8000/health` shows the new `config_version`.
+  3. Sign in as `admin@firebid.test` and open **Platform**: routes with the model that would serve each, providers with their approved data classes and whether a key is configured, and spend by route, provider, model or bid.
+  4. `uv run pytest -m live` — real calls to whichever providers have keys set. Costs money; never part of `make check`.
+- **Requirement IDs covered (test names):**
+  - FR-ADM-05 — `test_metering.py::TestPricing`, `::TestRecording`; `test_admin_api.py::TestCostView`.
+  - NFR-05 — `test_config.py::TestStartupRefusesBadConfiguration`, `test_router.py::TestFallback`, `::TestCircuitBreaker`, `test_adapter_contract.py`, `test_prompts_and_emulation.py::TestEmulation`.
+  - NFR-08 — `test_router.py::TestDataClassIsEnforcedOnEveryAttempt`.
+  - NFR-11 — `test_router.py::TestSwitchingProviderIsConfigurationOnly`, `test_prompts_and_emulation.py::TestPromptRegistry`, `test_agent_runtime.py::TestRunningAnAgent`.
+  - NFR-14 — `test_tracing_and_payloads.py::test_no_document_text_or_price_reaches_the_logs_or_the_spans`, `::TestRedaction`, `::TestPayloadStore`.
+  - NFR-15 — `test_metering.py::TestBudgets`, `test_llm_cache_and_ratelimit.py::TestResponseCache`, `::TestSharedRateLimiter`.
+  - FR-ADM-01 (agent autonomy) — `test_agent_runtime.py::TestAutonomyLevels`, `::TestEscalation`, `::TestCompletingATask`.
+- **Deviations and decisions:**
+  - **Data-class approval follows the product owner's direction, not ADR-004's recommendation.** All three providers are approved for `internal`, `confidential` and `commercial` ahead of decision D2. ADR-004 and `docs/decisions/D2-llm-provider-data-terms.md` record this rather than claiming an Anthropic-only launch the configuration contradicts.
+  - **OpenAI and Gemini model IDs are unconfirmed.** They are marked in `llm.yaml`. `pytest -m live` is what catches a stale one; it needs keys and costs money, so it is not in CI.
+  - **Structured output on OpenAI uses a JSON schema rather than an SDK `parse()` helper**, so the adapter does not depend on where that helper lives in a given SDK version. The gateway validates the result itself regardless of provider.
+  - **The cache and rate limiter are in PostgreSQL, not process memory.** In process memory each worker believes it holds the whole budget; together they pass the provider's limit. A test races ten threads for five slots.
+  - **Provider clients are built on first use.** A missing key should fail the route that needs it, where the router can fall back — not stop the gateway being constructed or break the admin page.
+  - **Sub-parts E–J only.** Batch submission (`submit_batch`/`poll_batch`) is not built; `generate`, `stream` and `embed` are.
+- **Manual checks and results:**
+  - Confirmed `/health` reports `llm_routing` with the configuration version and enabled providers, and that a missing `llm.yaml` makes the service unhealthy rather than failing on first use.
+  - Confirmed the admin page renders routes, providers and spend against the real stack.
+- **Defects found and fixed during the step:**
+  - The redaction allowlist was not one: a short string under an unknown key passed straight through, so a supplier's name or a sheet number would have been logged. Writing the NFR-14 test exposed it.
+  - `PayloadStore.enable_for` wrote a row before checking the bid existed, so an unknown bid produced a foreign-key error rather than a clear refusal.
+  - The row-level-security guardrail caught a speculative `bid_id` on the cache table that nothing wrote; removed rather than given a policy for a dead column.
+  - The PDPA inventory guardrail caught `bid_budget.owner_email`; the inventory was regenerated.
+  - The admin health endpoint constructed provider clients and so needed live API keys. Fixed by building clients lazily.
+- **Known gaps and follow-ups:**
+  - **Batch submission** is unbuilt. It matters for bulk sheet processing in Phase 1 and should be added before P1-03.
+  - **Tracing is not exported anywhere.** Spans are produced and tested, but no OTLP exporter is configured; that belongs with the deployment step (P1-10).
+  - **The circuit breaker is in process memory**, like the rate limiter was. It should move to PostgreSQL when the API runs as more than one service.
+  - **`FIREBID_PAYLOAD_ENCRYPTION_KEY` is unset by default**, so the payload store cannot be used until someone sets one. That is deliberate, but it means the feature is inert until configured.
+  - **The retention sweep for expired cache entries and payloads is not scheduled.** `delete_expired()` exists and is tested; a periodic job should call it (P3-05).
+  - **`firebid-eval compare-models` does not exist yet** (P0-05), so the rule that a primary model changes only on evidence is a convention, not a gate.

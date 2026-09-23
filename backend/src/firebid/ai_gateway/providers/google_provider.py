@@ -46,7 +46,22 @@ STOP_REASONS = {
 class GoogleAdapter(AdapterBase):
     def __init__(self, name: str, config: ProviderConfig, client: Any | None = None) -> None:
         super().__init__(name, config)
-        self._client = client or self._build_client(config)
+        self._given_client = client
+        self._built_client: Any | None = None
+
+    @property
+    def _client(self) -> Any:
+        """Built on first use, not at construction.
+
+        A provider whose key is absent should fail on the route that needs it — where the
+        router can fall back — rather than stopping the gateway being built at all. That
+        also lets the admin page report on a provider nobody has credentials for yet.
+        """
+        if self._given_client is not None:
+            return self._given_client
+        if self._built_client is None:
+            self._built_client = self._build_client(self.config)
+        return self._built_client
 
     @staticmethod
     def _build_client(config: ProviderConfig) -> Any:

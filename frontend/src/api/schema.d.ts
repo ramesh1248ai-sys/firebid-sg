@@ -4,6 +4,69 @@
  */
 
 export interface paths {
+    "/admin/llm/cost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cost
+         * @description What has been spent, grouped as asked (FR-ADM-05).
+         *
+         *     Scoped to the bids this person can see, so the admin page obeys the same rule as
+         *     everything else even for an administrator.
+         */
+        get: operations["cost_admin_llm_cost_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/llm/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Breaker Health
+         * @description Which models the gateway has given up on, and how close others are to that.
+         */
+        get: operations["breaker_health_admin_llm_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/llm/routing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Routing
+         * @description Which provider and model serves each task, straight from the configuration.
+         */
+        get: operations["routing_admin_llm_routing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/audit": {
         parameters: {
             query?: never;
@@ -373,6 +436,15 @@ export interface components {
             /** Tender Validity Days */
             tender_validity_days?: number | null;
         };
+        /** BreakerOut */
+        BreakerOut: {
+            /** Consecutive Failures */
+            consecutive_failures: number;
+            /** Key */
+            key: string;
+            /** Open */
+            open: boolean;
+        };
         /** ChainStatus */
         ChainStatus: {
             /**
@@ -437,12 +509,87 @@ export interface components {
              */
             user_id: string;
         };
+        /** ModelOut */
+        ModelOut: {
+            /** Capabilities */
+            capabilities: string[];
+            /** Max Output Tokens */
+            max_output_tokens: number | null;
+            /** Model Id */
+            model_id: string;
+            /** Name */
+            name: string;
+            /** Provider */
+            provider: string;
+        };
+        /** ProviderOut */
+        ProviderOut: {
+            /** Approved Data Classes */
+            approved_data_classes: string[];
+            /** Credentials Configured */
+            credentials_configured: boolean;
+            /** Enabled */
+            enabled: boolean;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** No Training */
+            no_training: boolean | null;
+            /** Platform */
+            platform: string;
+            /** Retention */
+            retention: string | null;
+        };
         /**
          * Role
          * @description Organisation roles from requirements §3. `SYSTEM` is the platform acting on its own.
          * @enum {string}
          */
         Role: "estimator" | "senior_estimator" | "bid_manager" | "design_manager" | "commercial_director" | "procurement" | "project_manager" | "system_admin" | "executive_sponsor" | "system";
+        /** RouteOut */
+        RouteOut: {
+            /** Allow Emulation */
+            allow_emulation: boolean;
+            /** Data Class */
+            data_class: string;
+            /** Effective Model */
+            effective_model: string | null;
+            /** Models */
+            models: string[];
+            /** Name */
+            name: string;
+            /** Reasoning */
+            reasoning: string;
+            /** Requires */
+            requires: string[];
+        };
+        /** RoutingOut */
+        RoutingOut: {
+            /** Config Version */
+            config_version: string;
+            /** Models */
+            models: components["schemas"]["ModelOut"][];
+            /** Providers */
+            providers: components["schemas"]["ProviderOut"][];
+            /** Routes */
+            routes: components["schemas"]["RouteOut"][];
+        };
+        /** SpendRow */
+        SpendRow: {
+            /** Cache Hits */
+            cache_hits: number;
+            /** Calls */
+            calls: number;
+            /** Cost Sgd */
+            cost_sgd: string;
+            /** Group */
+            group: string;
+            /** Tokens In */
+            tokens_in: number;
+            /** Tokens Out */
+            tokens_out: number;
+        };
         /** TaskIn */
         TaskIn: {
             /** Assignee Id */
@@ -510,6 +657,78 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    cost_admin_llm_cost_get: {
+        parameters: {
+            query?: {
+                by?: string;
+                bid_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpendRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    breaker_health_admin_llm_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BreakerOut"][];
+                };
+            };
+        };
+    };
+    routing_admin_llm_routing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoutingOut"];
+                };
+            };
+        };
+    };
     list_events_audit_get: {
         parameters: {
             query?: {

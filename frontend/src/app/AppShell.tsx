@@ -9,6 +9,9 @@ const navItems = [
   { to: "/audit", label: "History", end: false },
 ];
 
+// Only the roles the API would let in; otherwise the link leads to a refusal.
+const ADMIN_ROLES = ["system_admin", "commercial_director"];
+
 export function AppShell() {
   const { session, status, signOut } = useAuth();
 
@@ -21,7 +24,12 @@ export function AppShell() {
           </span>
           {status === "signed-in" && (
             <nav aria-label="Main" className="flex gap-6 text-sm">
-              {navItems.map((item) => (
+              {[
+                ...navItems,
+                ...(session?.roles.some((role) => ADMIN_ROLES.includes(role))
+                  ? [{ to: "/admin", label: "Platform", end: false }]
+                  : []),
+              ].map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
