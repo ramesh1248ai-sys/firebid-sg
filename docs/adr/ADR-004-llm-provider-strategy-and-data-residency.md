@@ -25,13 +25,16 @@ At launch every route uses **Anthropic `claude-opus-5`**. Other providers are en
 
 | Provider / access path | Region for our data | Retention | No-training terms | Approved data classes |
 |---|---|---|---|---|
-| Anthropic: Claude API | To confirm | To confirm | To confirm | To be decided (D2) |
+| Anthropic: Claude API | No SG-region processing documented; to confirm | To confirm (DPA) | **Yes** — Commercial Terms: "Anthropic may not train models on Customer Content from Services" | To be decided (D2) |
 | Anthropic: via Amazon Bedrock | To confirm | To confirm | To confirm | To be decided (D2) |
 | Anthropic: via Google Vertex AI | To confirm | To confirm | To confirm | To be decided (D2) |
 | Anthropic: via Microsoft Foundry | To confirm | To confirm | To confirm | To be decided (D2) |
-| OpenAI API / Azure OpenAI | To confirm | To confirm | To confirm | To be decided (D2) |
+| OpenAI API | SG residency exists (`sg.api.openai.com`) but is **storage only, not processing**, and requires ZDR approval | Abuse logs up to 30 days; **ZDR on approval** for chat/responses/embeddings, not for Assistants or Vector Stores | **Yes** by default — not used to train unless you opt in | To be decided (D2) |
+| Azure OpenAI | To confirm | To confirm (modified abuse monitoring, on approval) | To confirm | To be decided (D2) |
 | Google Gemini (Gemini API / Vertex AI) | To confirm | To confirm | To confirm | To be decided (D2) |
 | Self-hosted open-weight models | Our own hosting | Ours | N/A | Candidate for all classes |
+
+Findings so far, with quotes and dates, are in **[`docs/decisions/D2-llm-provider-data-terms.md`](../decisions/D2-llm-provider-data-terms.md)**, which also sets out the one question that decides whether P1-01 needs one provider adapter or two: whether "Singapore region" means processing, storage, or both. Published terms change, so rows here are research, not the contract.
 
 Data classes: `internal`, `confidential` (tender documents, drawings, quantities), `commercial` (prices, quotations, margins), `personal` (PDPA). Legal and IT Security complete this table. The Executive Sponsor approves it as decision D2. Providers hosted in Singapore or the region, with zero-retention terms where available, are preferred for confidential and commercial data.
 
