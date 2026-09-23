@@ -105,9 +105,7 @@ def test_no_document_text_or_price_reaches_the_logs_or_the_spans(
     previous = trace.get_tracer_provider()
     trace._TRACER_PROVIDER = provider  # the SDK offers no public reset
 
-    structlog.configure(
-        processors=[*_processors()], logger_factory=structlog.stdlib.LoggerFactory()
-    )
+    structlog.configure(processors=_processors(), logger_factory=structlog.stdlib.LoggerFactory())
 
     try:
         adapter = FakeAdapter("primary").reply(f"The rate quoted is {SUPPLIER_RATE}.")
@@ -144,7 +142,7 @@ def test_no_document_text_or_price_reaches_the_logs_or_the_spans(
     assert attributes["provider"] == "primary"
 
 
-def _processors() -> list[object]:
+def _processors() -> list[structlog.types.Processor]:
     from firebid.redaction import redact_processor
 
     return [
