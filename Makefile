@@ -10,7 +10,7 @@ API_URL := http://$(STACK_HOST):$(or $(FIREBID_API_PORT),8000)
 PHASE ?=
 IDS ?=
 
-.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client data-inventory req-coverage check
+.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client data-inventory golden-template req-coverage check
 
 help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -62,6 +62,9 @@ data-inventory: ## Regenerate docs/data-inventory.md from the model metadata (NF
 api-client: ## Regenerate the frontend API client from the backend's OpenAPI schema
 	cd backend && uv run python -m firebid.api.export_openapi ../frontend/src/api/openapi.json
 	cd frontend && npm run -s api:generate
+
+golden-template: ## Write the estimator workbook for golden-set collection (decision D3)
+	cd backend && uv run firebid-eval template --out ../eval/templates/golden_takeoff.xlsx
 
 req-coverage: ## Requirement coverage report; filter with PHASE=P1 or IDS=FR-QTO-08,NFR-06
 	uv run --project backend python scripts/req_coverage.py $(if $(PHASE),--phase $(PHASE)) $(if $(IDS),--ids $(IDS))
