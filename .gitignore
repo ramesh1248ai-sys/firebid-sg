@@ -37,3 +37,9 @@ Thumbs.db
 
 # Reports
 reports/req-coverage.*
+
+# The estimator workbook is generated (make golden-template), not committed: a binary in git
+# hides its own diff. Real tender data never comes near the repository.
+eval/templates/*.xlsx
+eval/truth/
+eval/data/
