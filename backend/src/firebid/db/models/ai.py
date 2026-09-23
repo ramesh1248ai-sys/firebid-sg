@@ -102,3 +102,45 @@ class BidBudget(UuidPk, Timestamped, Base):
     owner_email: Mapped[str | None] = mapped_column(
         String(320), info=personal("who to tell when the bid's AI budget runs down")
     )
+
+
+class PayloadCapture(UuidPk, Timestamped, Base):
+    """Whether one bid's prompts and responses are being kept for debugging.
+
+    Off unless an administrator turns it on, which is why this is a row rather than a setting.
+    """
+
+    __tablename__ = "payload_capture"
+    __table_args__ = (UniqueConstraint("bid_id", name="uq_payload_capture_bid"),)
+
+    bid_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("bid.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    enabled: Mapped[bool] = mapped_column(default=False, nullable=False)
+    retention_days: Mapped[int] = mapped_column(Integer, default=14, nullable=False)
+    enabled_by: Mapped[str | None] = mapped_column(String(200))
+    enabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class LlmPayload(UuidPk, Timestamped, Base):
+    """One prompt and response, encrypted, kept only while a bid has opted in.
+
+    The bodies are ciphertext: the key lives outside the database, so a copy of the database
+    alone does not disclose tender content.
+    """
+
+    __tablename__ = "llm_payload"
+
+    bid_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("bid.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    agent_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("agent_run.id", ondelete="SET NULL")
+    )
+    route: Mapped[str] = mapped_column(String(80), nullable=False)
+    prompt_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    response_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    reads: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

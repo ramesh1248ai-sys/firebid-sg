@@ -9,6 +9,8 @@ import sys
 
 import structlog
 
+from firebid.redaction import redact_processor
+
 _shared_processors: list[structlog.types.Processor] = [
     structlog.contextvars.merge_contextvars,
     structlog.stdlib.add_log_level,
@@ -16,6 +18,8 @@ _shared_processors: list[structlog.types.Processor] = [
     structlog.processors.TimeStamper(fmt="iso", utc=True),
     structlog.processors.StackInfoRenderer(),
     structlog.processors.format_exc_info,
+    # Last: document text and prices must not reach a log line (NFR-14, guardrail 8).
+    redact_processor,
 ]
 
 

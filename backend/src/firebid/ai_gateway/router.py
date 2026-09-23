@@ -43,6 +43,7 @@ from firebid.ai_gateway.metering import CallContext, Meter, NullMeter
 from firebid.ai_gateway.prompts import family_of, prompt_for
 from firebid.ai_gateway.providers.base import Adapter
 from firebid.ai_gateway.ratelimit import NullRateLimiter, RateLimiter
+from firebid.ai_gateway.tracing import model_attempt, record_outcome, usage_attributes
 from firebid.ai_gateway.types import (
     Attempt,
     DataClass,
@@ -219,11 +220,22 @@ class Router:
                 self.breaker.record_failure(key)
                 return last_reason
             started = time.monotonic()
+            span_context = model_attempt(
+                route_name,
+                model.provider,
+                model_name,
+                attempt_number,
+                self.config.config_hash,
+                data_class=str(route.data_class),
+            )
+            span = span_context.__enter__()
             try:
                 response = adapter.generate(attempt_request, model)
             except AuthenticationFailed as error:
                 # Credentials will not fix themselves, and every model on this provider
                 # shares them, so stop trying this provider.
+                record_outcome(span, ok=False, reason=f"authentication failed: {error}")
+                span_context.__exit__(None, None, None)
                 self.breaker.record_failure(key)
                 return f"authentication failed ({error})"
             except ProviderError as error:
@@ -236,6 +248,8 @@ class Router:
                     retryable=error.retryable,
                     error=type(error).__name__,
                 )
+                record_outcome(span, ok=False, reason=last_reason)
+                span_context.__exit__(None, None, None)
                 if not error.retryable:
                     self.breaker.record_failure(key)
                     return last_reason
@@ -248,6 +262,8 @@ class Router:
                 # One retry on the same model, then move on: a second malformed answer is a
                 # sign the model cannot hold the schema, not bad luck.
                 last_reason = f"invalid output: {error}"
+                record_outcome(span, ok=False, reason=last_reason)
+                span_context.__exit__(None, None, None)
                 if attempt_number == 1:
                     continue
                 self.breaker.record_failure(key)
@@ -255,6 +271,8 @@ class Router:
 
             if response.stop_reason is StopReason.REFUSAL:
                 last_reason = "the model refused the request"
+                record_outcome(span, ok=False, reason=last_reason)
+                span_context.__exit__(None, None, None)
                 if attempt_number == 1:
                     continue
                 return last_reason
@@ -264,19 +282,30 @@ class Router:
                 response = emulation.finish(response)
             except OutputInvalid as error:
                 last_reason = f"invalid output: {error}"
+                record_outcome(span, ok=False, reason=last_reason)
+                span_context.__exit__(None, None, None)
                 if attempt_number == 1:
                     continue
                 return last_reason
             if prompt is not None:
                 response = replace(response, prompt_version=prompt.version)
             self.cache.put(cache_key, response, route, route_name)
+            latency_ms = int((time.monotonic() - started) * 1000)
+            record_outcome(
+                span,
+                ok=True,
+                stop_reason=str(response.stop_reason),
+                emulated=",".join(response.emulated),
+                **usage_attributes(
+                    {
+                        "input_tokens": response.usage.input_tokens,
+                        "output_tokens": response.usage.output_tokens,
+                    }
+                ),
+            )
+            span_context.__exit__(None, None, None)
             self.meter.record(
-                route_name,
-                model,
-                response,
-                int((time.monotonic() - started) * 1000),
-                context,
-                self.config.config_hash,
+                route_name, model, response, latency_ms, context, self.config.config_hash
             )
             return response
 

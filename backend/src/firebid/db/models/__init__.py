@@ -1,6 +1,12 @@
 """Entity models. Importing this package registers every table on the metadata."""
 
-from firebid.db.models.ai import BidBudget, LlmRateBucket, LlmResponseCache
+from firebid.db.models.ai import (
+    BidBudget,
+    LlmPayload,
+    LlmRateBucket,
+    LlmResponseCache,
+    PayloadCapture,
+)
 from firebid.db.models.audit import (
     AuditChainLink,
     AuditEvent,
@@ -53,10 +59,12 @@ __all__ = [
     "Evidence",
     "HumanTask",
     "IdCounter",
+    "LlmPayload",
     "LlmRateBucket",
     "LlmResponseCache",
     "MeasurementRule",
     "Organisation",
+    "PayloadCapture",
     "Project",
     "QtoItem",
     "Rate",

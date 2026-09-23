@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     smtp_sender: str = "firebid@example.com"
     smtp_use_tls: bool = True
 
+    # Debugging payloads are encrypted with this key, held outside the database. Unset means
+    # payloads cannot be stored or read at all, which is the right default.
+    payload_encryption_key: str = ""
+
     # Identity provider: Keycloak in development, Microsoft Entra ID in staging and production.
     oidc_issuer: str = "http://localhost:8081/realms/firebid"
     oidc_audience: str = "firebid-web"
