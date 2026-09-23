@@ -39,6 +39,7 @@ from firebid.ai_gateway.errors import (
     OutputInvalid,
     ProviderError,
 )
+from firebid.ai_gateway.metering import CallContext, Meter, NullMeter
 from firebid.ai_gateway.prompts import family_of, prompt_for
 from firebid.ai_gateway.providers.base import Adapter
 from firebid.ai_gateway.ratelimit import NullRateLimiter, RateLimiter
@@ -67,6 +68,7 @@ class Router:
         breaker: CircuitBreaker | None = None,
         cache: ResponseCache | None = None,
         rate_limiter: RateLimiter | None = None,
+        meter: Meter | None = None,
     ) -> None:
         self.config = config or get_config()
         self._adapters = dict(adapters or {})
@@ -76,6 +78,7 @@ class Router:
         self.breaker = breaker or CircuitBreaker()
         self.cache = cache or NullCache()
         self.rate_limiter = rate_limiter or NullRateLimiter()
+        self.meter = meter or NullMeter()
 
     def adapter_for(self, provider_name: str) -> Adapter:
         try:
@@ -86,11 +89,19 @@ class Router:
             ) from None
 
     def generate(
-        self, route_name: str, request: GenerationRequest, *, regenerate: bool = False
+        self,
+        route_name: str,
+        request: GenerationRequest,
+        *,
+        context: CallContext | None = None,
+        regenerate: bool = False,
     ) -> GenerationResponse:
         """`regenerate` bypasses the cache: the caller wants a fresh answer, and will pay."""
         route = self.config.route(route_name)
         request = _apply_route_defaults(request, route.max_output_tokens, route.reasoning)
+        context = context or CallContext()
+        # Budgets are checked before a provider is called, not after the money is spent.
+        self.meter.check(context)
 
         attempts: list[Attempt] = []
         reasons: list[str] = []
@@ -137,6 +148,7 @@ class Router:
                 key,
                 provider,
                 route,
+                context,
                 regenerate=regenerate,
             )
             if isinstance(outcome, GenerationResponse):
@@ -159,6 +171,7 @@ class Router:
         key: str,
         provider: ProviderConfig,
         route: RouteConfig,
+        context: CallContext,
         *,
         regenerate: bool = False,
     ) -> GenerationResponse | str:
@@ -190,7 +203,12 @@ class Router:
             remembered = self.cache.get(cache_key)
             if remembered is not None:
                 log.info("cache_hit", route=route_name, model=model_name)
-                return replace(remembered, route=route_name, cache_hit=True)
+                remembered = replace(remembered, route=route_name, cache_hit=True)
+                # Recorded at zero cost: the saving should be visible, not invisible.
+                self.meter.record(
+                    route_name, model, remembered, 0, context, self.config.config_hash
+                )
+                return remembered
 
         for attempt_number in range(1, self.max_attempts_per_model + 1):
             # Every worker draws from the same budget, so a provider's limit is respected
@@ -200,6 +218,7 @@ class Router:
                 last_reason = "rate limit reached; no capacity within the wait"
                 self.breaker.record_failure(key)
                 return last_reason
+            started = time.monotonic()
             try:
                 response = adapter.generate(attempt_request, model)
             except AuthenticationFailed as error:
@@ -251,6 +270,14 @@ class Router:
             if prompt is not None:
                 response = replace(response, prompt_version=prompt.version)
             self.cache.put(cache_key, response, route, route_name)
+            self.meter.record(
+                route_name,
+                model,
+                response,
+                int((time.monotonic() - started) * 1000),
+                context,
+                self.config.config_hash,
+            )
             return response
 
         return last_reason

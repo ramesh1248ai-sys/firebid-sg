@@ -6,22 +6,27 @@ it holds so retention can differ per class, and a rate bucket holds no content a
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
     DateTime,
+    ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
+    Uuid,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from firebid.db.base import Base
-from firebid.db.mixins import Timestamped, UuidPk
+from firebid.db.mixins import Timestamped, UuidPk, personal
 
 DATA_CLASSES = ("internal", "confidential", "commercial", "personal")
 
@@ -75,3 +80,25 @@ class LlmRateBucket(UuidPk, Base):
     window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     requests: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     tokens: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+
+
+class BidBudget(UuidPk, Timestamped, Base):
+    """What a bid may spend on AI processing, and who to tell as it runs down (NFR-15).
+
+    Bid-scoped, so it carries the same row-level security as the rest of a bid's data.
+    """
+
+    __tablename__ = "bid_budget"
+    __table_args__ = (UniqueConstraint("bid_id", name="uq_bid_budget_bid"),)
+
+    bid_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("bid.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    limit_sgd: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    # Fractions of the limit at which to warn, e.g. [0.5, 0.8, 1.0].
+    alert_at: Mapped[list[float]] = mapped_column(JSONB, default=lambda: [0.5, 0.8, 1.0])
+    # Which of those have already been sent, so a threshold warns once rather than every call.
+    alerts_sent: Mapped[list[float]] = mapped_column(JSONB, default=list)
+    owner_email: Mapped[str | None] = mapped_column(
+        String(320), info=personal("who to tell when the bid's AI budget runs down")
+    )
