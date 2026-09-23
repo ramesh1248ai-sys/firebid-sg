@@ -22,14 +22,17 @@ from dataclasses import replace
 import structlog
 
 from firebid.ai_gateway.breaker import CircuitBreaker
-from firebid.ai_gateway.config import LlmConfig, ModelConfig, get_config
+from firebid.ai_gateway.config import LlmConfig, ModelConfig, RouteConfig, get_config
+from firebid.ai_gateway.emulation import emulate
 from firebid.ai_gateway.errors import (
     AuthenticationFailed,
+    CapabilityMissing,
     DataClassRefused,
     NoModelAvailable,
     OutputInvalid,
     ProviderError,
 )
+from firebid.ai_gateway.prompts import family_of, prompt_for
 from firebid.ai_gateway.providers.base import Adapter
 from firebid.ai_gateway.types import (
     Attempt,
@@ -110,7 +113,9 @@ class Router:
                 reasons.append(reason)
                 continue
 
-            outcome = self._try_model(adapter, request, model, model_name, route_name, key)
+            outcome = self._try_model(
+                adapter, request, model, model_name, route_name, key, provider.kind, route
+            )
             if isinstance(outcome, GenerationResponse):
                 attempts.append(Attempt(model.provider, model_name, ok=True))
                 return _stamp(outcome, route_name, attempts, self.config.config_hash)
@@ -129,13 +134,27 @@ class Router:
         model_name: str,
         route_name: str,
         key: str,
+        provider_kind: str,
+        route: RouteConfig,
     ) -> GenerationResponse | str:
         """Return a response, or a short reason this model did not serve the call."""
         last_reason = "no attempt made"
 
+        # The prompt is per route, optionally per model family, and its version is recorded.
+        prompt = prompt_for(route.prompt or route_name, family_of(provider_kind))
+        attempt_request = request
+        if prompt is not None and not attempt_request.system:
+            attempt_request = replace(attempt_request, system=prompt.text)
+
+        try:
+            emulation = emulate(attempt_request, model, allowed=route.allow_emulation)
+        except CapabilityMissing as error:
+            return str(error)
+        attempt_request = emulation.request
+
         for attempt_number in range(1, self.max_attempts_per_model + 1):
             try:
-                response = adapter.generate(request, model)
+                response = adapter.generate(attempt_request, model)
             except AuthenticationFailed as error:
                 # Credentials will not fix themselves, and every model on this provider
                 # shares them, so stop trying this provider.
@@ -175,6 +194,15 @@ class Router:
                 return last_reason
 
             self.breaker.record_success(key)
+            try:
+                response = emulation.finish(response)
+            except OutputInvalid as error:
+                last_reason = f"invalid output: {error}"
+                if attempt_number == 1:
+                    continue
+                return last_reason
+            if prompt is not None:
+                response = replace(response, prompt_version=prompt.version)
             return response
 
         return last_reason
