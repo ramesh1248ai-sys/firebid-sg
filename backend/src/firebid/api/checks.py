@@ -1,4 +1,4 @@
-"""Production health checks: the database, the job-queue heartbeat, and the LLM routing."""
+"""Production health checks: the database, the job-queue heartbeat, the scanner, the LLM routing."""
 
 from datetime import UTC, datetime
 
@@ -60,9 +60,24 @@ def llm_routing_check() -> CheckResult:
     )
 
 
+def malware_scanner_check() -> CheckResult:
+    """clamd answers, and says which signature set it has.
+
+    Worth its own check because a scanner outage does not stop uploads — it holds them — so
+    without this the first sign of trouble is an estimator asking why nothing has been read.
+    """
+    from firebid.ingest.scanning import ClamAvScanner, get_scanner
+
+    scanner = get_scanner()
+    if not isinstance(scanner, ClamAvScanner):
+        return CheckResult(ok=True, detail={"scanner": type(scanner).__name__})
+    return CheckResult(ok=scanner.available(), detail={"scanner": "clamd"})
+
+
 def default_checks(settings: Settings) -> dict[str, HealthCheck]:
     return {
         "database": database_check,
         "job_queue": job_queue_check(settings.heartbeat_max_age_seconds),
+        "malware_scanner": malware_scanner_check,
         "llm_routing": llm_routing_check,
     }

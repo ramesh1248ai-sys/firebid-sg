@@ -166,6 +166,133 @@ export interface paths {
         patch: operations["update_bid_bids__bid_id__patch"];
         trace?: never;
     };
+    "/bids/{bid_id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Documents
+         * @description Everything on this bid, including what was refused — the refusals are the point.
+         */
+        get: operations["list_documents_bids__bid_id__documents_get"];
+        put?: never;
+        /**
+         * Upload
+         * @description Upload one or more files, or one archive holding a whole set.
+         */
+        post: operations["upload_bids__bid_id__documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/documents/rescan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rescan
+         * @description Retry the files an outage held. Safe to call repeatedly.
+         */
+        post: operations["rescan_bids__bid_id__documents_rescan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/documents/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Presign
+         * @description Ask for somewhere to put each file. A digest already on this bid needs no upload.
+         */
+        post: operations["presign_bids__bid_id__documents_uploads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/documents/uploads/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete
+         * @description Register bytes that went straight to object storage.
+         *
+         *     The digest is recomputed here rather than trusted: the browser computed the one it sent,
+         *     and this is the point where the file stops being the client's word and becomes ours.
+         */
+        post: operations["complete_bids__bid_id__documents_uploads_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Document */
+        get: operations["get_document_bids__bid_id__documents__document_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/documents/{document_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download
+         * @description A short-lived link to the original.
+         *
+         *     A quarantined file is never handed out: the whole point of quarantine is that nothing
+         *     downstream — including a browser — opens it.
+         */
+        get: operations["download_bids__bid_id__documents__document_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/members": {
         parameters: {
             query?: never;
@@ -436,6 +563,11 @@ export interface components {
             /** Tender Validity Days */
             tender_validity_days?: number | null;
         };
+        /** Body_upload_bids__bid_id__documents_post */
+        Body_upload_bids__bid_id__documents_post: {
+            /** Files */
+            files: string[];
+        };
         /** BreakerOut */
         BreakerOut: {
             /** Consecutive Failures */
@@ -468,6 +600,37 @@ export interface components {
             };
             /** Ok */
             ok: boolean;
+        };
+        /** CompleteRequest */
+        CompleteRequest: {
+            /** Filename */
+            filename: string;
+            /** Sha256 */
+            sha256: string;
+            /** Storage Key */
+            storage_key: string;
+        };
+        /** DocumentOut */
+        DocumentOut: {
+            /** Byte Size */
+            byte_size: number;
+            /** Filename */
+            filename: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string | null;
+            /** Media Type */
+            media_type: string;
+            /** Rejected Reason */
+            rejected_reason?: string | null;
+            /** Sha256 */
+            sha256: string;
+            /** State */
+            state: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -522,6 +685,34 @@ export interface components {
             /** Provider */
             provider: string;
         };
+        /** PresignOut */
+        PresignOut: {
+            /**
+             * Already Uploaded
+             * @default false
+             */
+            already_uploaded: boolean;
+            /**
+             * Expires In
+             * @default 3600
+             */
+            expires_in: number;
+            /** Filename */
+            filename: string;
+            /** Storage Key */
+            storage_key: string;
+            /** Upload Url */
+            upload_url: string | null;
+        };
+        /** PresignRequest */
+        PresignRequest: {
+            /** Byte Size */
+            byte_size: number;
+            /** Filename */
+            filename: string;
+            /** Sha256 */
+            sha256: string;
+        };
         /** ProviderOut */
         ProviderOut: {
             /** Approved Data Classes */
@@ -540,6 +731,13 @@ export interface components {
             platform: string;
             /** Retention */
             retention: string | null;
+        };
+        /** RefusedOut */
+        RefusedOut: {
+            /** Filename */
+            filename: string;
+            /** Reason */
+            reason: string;
         };
         /**
          * Role
@@ -625,6 +823,42 @@ export interface components {
             /** Reason */
             reason?: string | null;
             target: components["schemas"]["BidState"];
+        };
+        /**
+         * UploadReport
+         * @description Every file, accounted for. `accounted_for` should equal what the client sent.
+         */
+        UploadReport: {
+            /**
+             * Accounted For
+             * @default 0
+             */
+            accounted_for: number;
+            /**
+             * Awaiting Scan
+             * @default []
+             */
+            awaiting_scan: components["schemas"]["RefusedOut"][];
+            /**
+             * Duplicates
+             * @default []
+             */
+            duplicates: components["schemas"]["DocumentOut"][];
+            /**
+             * Quarantined
+             * @default []
+             */
+            quarantined: components["schemas"]["RefusedOut"][];
+            /**
+             * Rejected
+             * @default []
+             */
+            rejected: components["schemas"]["RefusedOut"][];
+            /**
+             * Stored
+             * @default []
+             */
+            stored: components["schemas"]["DocumentOut"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -942,6 +1176,241 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BidOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_documents_bids__bid_id__documents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_bids__bid_id__documents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_bids__bid_id__documents_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rescan_bids__bid_id__documents_rescan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    presign_bids__bid_id__documents_uploads_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresignRequest"][];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PresignOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_bids__bid_id__documents_uploads_complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteRequest"][];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_document_bids__bid_id__documents__document_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_bids__bid_id__documents__document_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
             /** @description Validation Error */

@@ -18,6 +18,7 @@ class Action(StrEnum):
     BID_CREATE = "bid.create"
     BID_EDIT = "bid.edit"
     BID_MEMBER_MANAGE = "bid.member.manage"
+    DOCUMENT_UPLOAD = "document.upload"
     GATE_G0_APPROVE = "gate.G0.approve"  # bid / no-bid
     GATE_G1_APPROVE = "gate.G1.approve"  # QTO verified
     GATE_G2_APPROVE = "gate.G2.approve"  # estimate approved
@@ -41,6 +42,10 @@ _MATRIX: dict[Action, frozenset[str]] = {
     Action.BID_CREATE: frozenset({Role.BID_MANAGER, Role.SENIOR_ESTIMATOR, Role.SYSTEM_ADMIN}),
     Action.BID_EDIT: frozenset({Role.BID_MANAGER, Role.SENIOR_ESTIMATOR, Role.ESTIMATOR}),
     Action.BID_MEMBER_MANAGE: frozenset({Role.BID_MANAGER, Role.SYSTEM_ADMIN}),
+    # Anyone working the bid brings documents in; a design manager issues the addenda.
+    Action.DOCUMENT_UPLOAD: frozenset(
+        {Role.BID_MANAGER, Role.SENIOR_ESTIMATOR, Role.ESTIMATOR, Role.DESIGN_MANAGER}
+    ),
     Action.GATE_G0_APPROVE: frozenset({Role.COMMERCIAL_DIRECTOR}),
     Action.GATE_G1_APPROVE: frozenset({Role.SENIOR_ESTIMATOR}),
     Action.GATE_G2_APPROVE: frozenset({Role.SENIOR_ESTIMATOR}),

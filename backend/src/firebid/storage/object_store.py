@@ -92,3 +92,37 @@ def get_object_store() -> S3ObjectStore:
         secret_access_key=settings.s3_secret_access_key or None,
         region=settings.s3_region,
     )
+
+
+class MemoryObjectStore:
+    """An object store in a dict, for tests.
+
+    Kept beside the real one so it stays honest about the behaviour that matters: `put_once`
+    refuses an existing key, exactly as the S3 implementation does, so a test that relies on
+    write-once semantics is testing the same rule production enforces.
+    """
+
+    def __init__(self) -> None:
+        self.objects: dict[str, bytes] = {}
+        self.content_types: dict[str, str] = {}
+        self.writes = 0
+
+    def put_once(self, key: str, data: bytes, *, content_type: str) -> str:
+        if self.exists(key):
+            raise ObjectExists(key)
+        return self.put(key, data, content_type=content_type)
+
+    def put(self, key: str, data: bytes, *, content_type: str) -> str:
+        self.objects[key] = data
+        self.content_types[key] = content_type
+        self.writes += 1
+        return key
+
+    def get(self, key: str) -> bytes:
+        return self.objects[key]
+
+    def exists(self, key: str) -> bool:
+        return key in self.objects
+
+    def presigned_url(self, key: str, *, expires_in: int = 900) -> str:
+        return f"memory://{key}?expires_in={expires_in}"

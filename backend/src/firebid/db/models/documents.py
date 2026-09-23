@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import (
     CheckConstraint,
+    DateTime,
     Float,
     ForeignKey,
     Integer,
@@ -50,6 +51,10 @@ class Document(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
     state: Mapped[str] = mapped_column(String(24), nullable=False, default="received", index=True)
     rejected_reason: Mapped[str | None] = mapped_column(Text)
+    # Evidence that the scan happened, kept separately from `state` so "cleared at 10:04 by
+    # signature set X" survives a later state change (NFR-06).
+    scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    scan_signature: Mapped[str | None] = mapped_column(String(200))
     derived_from_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("document.id", ondelete="SET NULL")
     )

@@ -22,6 +22,8 @@ x-backend-env: &backend-env
   FIREBID_S3_BUCKET: firebid-dev
   FIREBID_S3_ACCESS_KEY_ID: firebid-dev
   FIREBID_S3_SECRET_ACCESS_KEY: firebid-dev-secret
+  FIREBID_CLAMAV_HOST: clamav
+  FIREBID_CLAMAV_PORT: "3310"
 
 services:
   postgres:
@@ -69,6 +71,23 @@ services:
         done
         exit 1
     restart: "no"
+
+  clamav:
+    image: clamav/clamav:1.4
+    environment:
+      # Fetch signatures on start; without them clamd answers but detects nothing.
+      CLAMAV_NO_FRESHCLAMD: "false"
+    healthcheck:
+      # clamd accepts connections long before the signature database is loaded, so the check
+      # is PING over the scanning port rather than the port merely being open.
+      test: ["CMD-SHELL", "clamdcheck.sh || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      # The first start downloads ~250 MB of signatures.
+      start_period: 180s
+    volumes:
+      - clamdb:/var/lib/clamav
 
   keycloak:
     build: ./keycloak
@@ -118,6 +137,8 @@ services:
         condition: service_completed_successfully
       s3-init:
         condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
       keycloak:
         condition: service_healthy
     healthcheck:
@@ -140,6 +161,8 @@ services:
         condition: service_completed_successfully
       s3-init:
         condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
     healthcheck:
       # Healthy once the heartbeat job (every minute) has run: proves jobs are being processed.
       test: ["CMD", "python", "-m", "firebid.jobs.healthcheck"]
@@ -169,3 +192,4 @@ services:
 volumes:
   pgdata:
   s3data:
+  clamdb:

@@ -148,3 +148,24 @@ def bid(session: Session, organisation: Organisation, user: AppUser) -> Bid:
     session.add(BidMember(bid_id=bid.id, user_id=user.id, role=str(Role.BID_MANAGER)))
     session.commit()
     return bid
+
+
+@pytest.fixture
+def second_bid(session: Session, organisation: Organisation, user: AppUser) -> Bid:
+    """Another bid in the same organisation, for testing that bids stay separate."""
+    project = Project(organisation_id=organisation.id, name="Another Tower")
+    session.add(project)
+    session.flush()
+    bid = Bid(
+        organisation_id=organisation.id,
+        project_id=project.id,
+        human_id="BID-2026-015",
+        client_name="Another Contractor Pte Ltd",
+        tender_reference="AC/2026/FP/015",
+        submission_deadline=datetime.now(UTC) + timedelta(days=21),
+    )
+    session.add(bid)
+    session.flush()
+    session.add(BidMember(bid_id=bid.id, user_id=user.id, role=str(Role.BID_MANAGER)))
+    session.commit()
+    return bid
