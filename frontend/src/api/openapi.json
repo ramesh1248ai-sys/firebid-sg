@@ -501,6 +501,29 @@
         "title": "BidUpdate",
         "type": "object"
       },
+      "BreakerOut": {
+        "properties": {
+          "consecutive_failures": {
+            "title": "Consecutive Failures",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "open": {
+            "title": "Open",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "open",
+          "consecutive_failures"
+        ],
+        "title": "BreakerOut",
+        "type": "object"
+      },
       "ChainStatus": {
         "properties": {
           "chain_key": {
@@ -636,6 +659,114 @@
         "title": "MemberOut",
         "type": "object"
       },
+      "ModelOut": {
+        "properties": {
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "max_output_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Output Tokens"
+          },
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "provider",
+          "model_id",
+          "capabilities",
+          "max_output_tokens"
+        ],
+        "title": "ModelOut",
+        "type": "object"
+      },
+      "ProviderOut": {
+        "properties": {
+          "approved_data_classes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Approved Data Classes",
+            "type": "array"
+          },
+          "credentials_configured": {
+            "title": "Credentials Configured",
+            "type": "boolean"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "no_training": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "No Training"
+          },
+          "platform": {
+            "title": "Platform",
+            "type": "string"
+          },
+          "retention": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retention"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "platform",
+          "enabled",
+          "approved_data_classes",
+          "credentials_configured",
+          "retention",
+          "no_training"
+        ],
+        "title": "ProviderOut",
+        "type": "object"
+      },
       "Role": {
         "description": "Organisation roles from requirements \u00a73. `SYSTEM` is the platform acting on its own.",
         "enum": [
@@ -652,6 +783,138 @@
         ],
         "title": "Role",
         "type": "string"
+      },
+      "RouteOut": {
+        "properties": {
+          "allow_emulation": {
+            "title": "Allow Emulation",
+            "type": "boolean"
+          },
+          "data_class": {
+            "title": "Data Class",
+            "type": "string"
+          },
+          "effective_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Model"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reasoning": {
+            "title": "Reasoning",
+            "type": "string"
+          },
+          "requires": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Requires",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "data_class",
+          "requires",
+          "models",
+          "reasoning",
+          "allow_emulation",
+          "effective_model"
+        ],
+        "title": "RouteOut",
+        "type": "object"
+      },
+      "RoutingOut": {
+        "properties": {
+          "config_version": {
+            "title": "Config Version",
+            "type": "string"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelOut"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderOut"
+            },
+            "title": "Providers",
+            "type": "array"
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/RouteOut"
+            },
+            "title": "Routes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "config_version",
+          "providers",
+          "models",
+          "routes"
+        ],
+        "title": "RoutingOut",
+        "type": "object"
+      },
+      "SpendRow": {
+        "properties": {
+          "cache_hits": {
+            "title": "Cache Hits",
+            "type": "integer"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_sgd": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cost Sgd",
+            "type": "string"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "tokens_in": {
+            "title": "Tokens In",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "title": "Tokens Out",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "group",
+          "calls",
+          "tokens_in",
+          "tokens_out",
+          "cost_sgd",
+          "cache_hits"
+        ],
+        "title": "SpendRow",
+        "type": "object"
       },
       "TaskIn": {
         "properties": {
@@ -872,6 +1135,135 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/admin/llm/cost": {
+      "get": {
+        "description": "What has been spent, grouped as asked (FR-ADM-05).\n\nScoped to the bids this person can see, so the admin page obeys the same rule as\neverything else even for an administrator.",
+        "operationId": "cost_admin_llm_cost_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "by",
+            "required": false,
+            "schema": {
+              "default": "route",
+              "pattern": "^(bid|route|provider|model)$",
+              "title": "By",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "bid_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Bid Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SpendRow"
+                  },
+                  "title": "Response Cost Admin Llm Cost Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cost",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/llm/health": {
+      "get": {
+        "description": "Which models the gateway has given up on, and how close others are to that.",
+        "operationId": "breaker_health_admin_llm_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BreakerOut"
+                  },
+                  "title": "Response Breaker Health Admin Llm Health Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Breaker Health",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/llm/routing": {
+      "get": {
+        "description": "Which provider and model serves each task, straight from the configuration.",
+        "operationId": "routing_admin_llm_routing_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Routing",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/audit": {
       "get": {
         "description": "Newest first. Paging is by keyset, so results stay stable as new events arrive.",

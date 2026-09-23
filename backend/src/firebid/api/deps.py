@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterator
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Path, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -60,8 +60,12 @@ CurrentPrincipal = Annotated[Principal, Depends(get_principal)]
 DbSession = Annotated[Session, Depends(get_session)]
 
 
-def require(action: Action) -> object:
-    """Dependency factory: the caller must hold a role permitted for ``action``."""
+def require(action: Action) -> Any:
+    """Dependency factory: the caller must hold a role permitted for ``action``.
+
+    Returns a `Depends(...)`, so it is used directly — as an `Annotated` marker on a
+    parameter, or in a router's `dependencies` list — never wrapped in `Depends` again.
+    """
 
     def check(principal: CurrentPrincipal) -> Principal:
         if not may(principal.roles, action):

@@ -2,6 +2,7 @@ import type { RouteObject } from "react-router";
 
 import { AppShell } from "@/app/AppShell";
 import { RequireAuth } from "@/auth/RequireAuth";
+import { AdminPage } from "@/pages/AdminPage";
 import { AuditPage } from "@/pages/AuditPage";
 import { BidDetailPage } from "@/pages/BidDetailPage";
 import { CallbackPage } from "@/pages/CallbackPage";
@@ -23,6 +24,7 @@ export const routes: RouteObject[] = [
           { path: "bids/new", element: <NewBidPage /> },
           { path: "bids/:bidId", element: <BidDetailPage /> },
           { path: "audit", element: <AuditPage /> },
+          { path: "admin", element: <AdminPage /> },
         ],
       },
     ],

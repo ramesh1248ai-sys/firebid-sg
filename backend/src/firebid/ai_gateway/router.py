@@ -22,15 +22,28 @@ from dataclasses import replace
 import structlog
 
 from firebid.ai_gateway.breaker import CircuitBreaker
-from firebid.ai_gateway.config import LlmConfig, ModelConfig, get_config
+from firebid.ai_gateway.cache import NullCache, ResponseCache, fingerprint
+from firebid.ai_gateway.config import (
+    LlmConfig,
+    ModelConfig,
+    ProviderConfig,
+    RouteConfig,
+    get_config,
+)
+from firebid.ai_gateway.emulation import emulate
 from firebid.ai_gateway.errors import (
     AuthenticationFailed,
+    CapabilityMissing,
     DataClassRefused,
     NoModelAvailable,
     OutputInvalid,
     ProviderError,
 )
+from firebid.ai_gateway.metering import CallContext, Meter, NullMeter
+from firebid.ai_gateway.prompts import family_of, prompt_for
 from firebid.ai_gateway.providers.base import Adapter
+from firebid.ai_gateway.ratelimit import NullRateLimiter, RateLimiter
+from firebid.ai_gateway.tracing import model_attempt, record_outcome, usage_attributes
 from firebid.ai_gateway.types import (
     Attempt,
     DataClass,
@@ -54,6 +67,9 @@ class Router:
         backoff_base_seconds: float = 0.5,
         sleep: Callable[[float], None] = time.sleep,
         breaker: CircuitBreaker | None = None,
+        cache: ResponseCache | None = None,
+        rate_limiter: RateLimiter | None = None,
+        meter: Meter | None = None,
     ) -> None:
         self.config = config or get_config()
         self._adapters = dict(adapters or {})
@@ -61,6 +77,9 @@ class Router:
         self.backoff_base_seconds = backoff_base_seconds
         self._sleep = sleep
         self.breaker = breaker or CircuitBreaker()
+        self.cache = cache or NullCache()
+        self.rate_limiter = rate_limiter or NullRateLimiter()
+        self.meter = meter or NullMeter()
 
     def adapter_for(self, provider_name: str) -> Adapter:
         try:
@@ -70,9 +89,20 @@ class Router:
                 provider_name, [f"no adapter is registered for provider '{provider_name}'"]
             ) from None
 
-    def generate(self, route_name: str, request: GenerationRequest) -> GenerationResponse:
+    def generate(
+        self,
+        route_name: str,
+        request: GenerationRequest,
+        *,
+        context: CallContext | None = None,
+        regenerate: bool = False,
+    ) -> GenerationResponse:
+        """`regenerate` bypasses the cache: the caller wants a fresh answer, and will pay."""
         route = self.config.route(route_name)
         request = _apply_route_defaults(request, route.max_output_tokens, route.reasoning)
+        context = context or CallContext()
+        # Budgets are checked before a provider is called, not after the money is spent.
+        self.meter.check(context)
 
         attempts: list[Attempt] = []
         reasons: list[str] = []
@@ -110,7 +140,18 @@ class Router:
                 reasons.append(reason)
                 continue
 
-            outcome = self._try_model(adapter, request, model, model_name, route_name, key)
+            outcome = self._try_model(
+                adapter,
+                request,
+                model,
+                model_name,
+                route_name,
+                key,
+                provider,
+                route,
+                context,
+                regenerate=regenerate,
+            )
             if isinstance(outcome, GenerationResponse):
                 attempts.append(Attempt(model.provider, model_name, ok=True))
                 return _stamp(outcome, route_name, attempts, self.config.config_hash)
@@ -129,16 +170,72 @@ class Router:
         model_name: str,
         route_name: str,
         key: str,
+        provider: ProviderConfig,
+        route: RouteConfig,
+        context: CallContext,
+        *,
+        regenerate: bool = False,
     ) -> GenerationResponse | str:
         """Return a response, or a short reason this model did not serve the call."""
         last_reason = "no attempt made"
 
+        # The prompt is per route, optionally per model family, and its version is recorded.
+        prompt = prompt_for(route.prompt or route_name, family_of(provider.kind))
+        attempt_request = request
+        if prompt is not None and not attempt_request.system:
+            attempt_request = replace(attempt_request, system=prompt.text)
+
+        try:
+            emulation = emulate(attempt_request, model, allowed=route.allow_emulation)
+        except CapabilityMissing as error:
+            return str(error)
+        attempt_request = emulation.request
+
+        # The cache key covers the model, the prompt version and the configuration version,
+        # so any of those changing is a miss rather than a stale answer.
+        cache_key = fingerprint(
+            route_name,
+            attempt_request,
+            model,
+            prompt.version if prompt else None,
+            self.config.config_hash,
+        )
+        if not regenerate:
+            remembered = self.cache.get(cache_key)
+            if remembered is not None:
+                log.info("cache_hit", route=route_name, model=model_name)
+                remembered = replace(remembered, route=route_name, cache_hit=True)
+                # Recorded at zero cost: the saving should be visible, not invisible.
+                self.meter.record(
+                    route_name, model, remembered, 0, context, self.config.config_hash
+                )
+                return remembered
+
         for attempt_number in range(1, self.max_attempts_per_model + 1):
+            # Every worker draws from the same budget, so a provider's limit is respected
+            # across processes rather than per process.
+            limit = model.requests_per_minute or provider.requests_per_minute
+            if not self.rate_limiter.acquire(key, limit):
+                last_reason = "rate limit reached; no capacity within the wait"
+                self.breaker.record_failure(key)
+                return last_reason
+            started = time.monotonic()
+            span_context = model_attempt(
+                route_name,
+                model.provider,
+                model_name,
+                attempt_number,
+                self.config.config_hash,
+                data_class=str(route.data_class),
+            )
+            span = span_context.__enter__()
             try:
-                response = adapter.generate(request, model)
+                response = adapter.generate(attempt_request, model)
             except AuthenticationFailed as error:
                 # Credentials will not fix themselves, and every model on this provider
                 # shares them, so stop trying this provider.
+                record_outcome(span, ok=False, reason=f"authentication failed: {error}")
+                span_context.__exit__(None, None, None)
                 self.breaker.record_failure(key)
                 return f"authentication failed ({error})"
             except ProviderError as error:
@@ -151,6 +248,8 @@ class Router:
                     retryable=error.retryable,
                     error=type(error).__name__,
                 )
+                record_outcome(span, ok=False, reason=last_reason)
+                span_context.__exit__(None, None, None)
                 if not error.retryable:
                     self.breaker.record_failure(key)
                     return last_reason
@@ -163,6 +262,8 @@ class Router:
                 # One retry on the same model, then move on: a second malformed answer is a
                 # sign the model cannot hold the schema, not bad luck.
                 last_reason = f"invalid output: {error}"
+                record_outcome(span, ok=False, reason=last_reason)
+                span_context.__exit__(None, None, None)
                 if attempt_number == 1:
                     continue
                 self.breaker.record_failure(key)
@@ -170,11 +271,42 @@ class Router:
 
             if response.stop_reason is StopReason.REFUSAL:
                 last_reason = "the model refused the request"
+                record_outcome(span, ok=False, reason=last_reason)
+                span_context.__exit__(None, None, None)
                 if attempt_number == 1:
                     continue
                 return last_reason
 
             self.breaker.record_success(key)
+            try:
+                response = emulation.finish(response)
+            except OutputInvalid as error:
+                last_reason = f"invalid output: {error}"
+                record_outcome(span, ok=False, reason=last_reason)
+                span_context.__exit__(None, None, None)
+                if attempt_number == 1:
+                    continue
+                return last_reason
+            if prompt is not None:
+                response = replace(response, prompt_version=prompt.version)
+            self.cache.put(cache_key, response, route, route_name)
+            latency_ms = int((time.monotonic() - started) * 1000)
+            record_outcome(
+                span,
+                ok=True,
+                stop_reason=str(response.stop_reason),
+                emulated=",".join(response.emulated),
+                **usage_attributes(
+                    {
+                        "input_tokens": response.usage.input_tokens,
+                        "output_tokens": response.usage.output_tokens,
+                    }
+                ),
+            )
+            span_context.__exit__(None, None, None)
+            self.meter.record(
+                route_name, model, response, latency_ms, context, self.config.config_hash
+            )
             return response
 
         return last_reason

@@ -33,6 +33,7 @@ class Action(StrEnum):
     KNOWLEDGE_CORPUS_APPROVE = "knowledge_corpus.approve"
     KNOWLEDGE_CORPUS_APPLY = "knowledge_corpus.apply"
     AUDIT_READ_ORGANISATION = "audit.read.organisation"
+    ADMIN_READ_PLATFORM = "admin.read.platform"
 
 
 # Accountable roles from requirements §3.2. Keep this table and the RACI in step.
@@ -55,6 +56,9 @@ _MATRIX: dict[Action, frozenset[str]] = {
     Action.KNOWLEDGE_CORPUS_APPROVE: frozenset({Role.DESIGN_MANAGER}),
     Action.KNOWLEDGE_CORPUS_APPLY: frozenset({Role.SYSTEM_ADMIN}),
     Action.AUDIT_READ_ORGANISATION: frozenset({Role.SYSTEM_ADMIN, Role.COMMERCIAL_DIRECTOR}),
+    # Routing, provider health and what the platform is spending. The commercial director
+    # owns the budget, so they see it too.
+    Action.ADMIN_READ_PLATFORM: frozenset({Role.SYSTEM_ADMIN, Role.COMMERCIAL_DIRECTOR}),
 }
 
 GATE_ACTIONS: dict[str, Action] = {

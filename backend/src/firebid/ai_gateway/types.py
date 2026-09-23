@@ -171,6 +171,10 @@ class GenerationResponse:
     route: str | None = None
     prompt_version: str | None = None
     attempts: tuple[Attempt, ...] = ()
+    # Capabilities the adapter stood in for, e.g. ("pdf_input->vision",). Empty means the
+    # model did the work natively.
+    emulated: tuple[str, ...] = ()
+    cache_hit: bool = False
 
 
 @dataclass(frozen=True)

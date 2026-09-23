@@ -181,3 +181,89 @@ describe("the history", () => {
     expect(link).toHaveAttribute("href", expect.stringContaining("/api/audit/export.csv"));
   });
 });
+
+describe("the platform page", () => {
+  const routing = {
+    config_version: "abc123",
+    providers: [
+      {
+        name: "anthropic",
+        kind: "anthropic",
+        platform: "api",
+        enabled: true,
+        approved_data_classes: ["internal", "confidential", "commercial"],
+        credentials_configured: true,
+        retention: null,
+        no_training: true,
+      },
+      {
+        name: "google",
+        kind: "google",
+        platform: "api",
+        enabled: true,
+        approved_data_classes: ["internal"],
+        credentials_configured: false,
+        retention: null,
+        no_training: null,
+      },
+    ],
+    models: [],
+    routes: [
+      {
+        name: "title_block_read",
+        data_class: "confidential",
+        requires: ["vision"],
+        models: ["claude-opus-5", "gpt-5.1"],
+        reasoning: "low",
+        allow_emulation: false,
+        effective_model: "claude-opus-5",
+      },
+    ],
+  };
+
+  it("is offered to an administrator but not to an estimator", async () => {
+    stubApi({ "/bids": () => Response.json([]) });
+    signedInAs({
+      name: "Esther Tan",
+      preferred_username: "estimator@firebid.test",
+      roles: ["estimator"],
+    });
+    renderAt("/");
+    await screen.findByText("Esther Tan");
+    expect(screen.queryByRole("link", { name: "Platform" })).not.toBeInTheDocument();
+  });
+
+  it("shows each route, what serves it, and which provider has no key", async () => {
+    signedInAs({
+      name: "Adele Admin",
+      preferred_username: "admin@firebid.test",
+      roles: ["system_admin"],
+    });
+    stubApi({
+      "/admin/llm/routing": () => Response.json(routing),
+      "/admin/llm/cost": () =>
+        Response.json([
+          {
+            group: "title_block_read",
+            calls: 12,
+            tokens_in: 120000,
+            tokens_out: 4000,
+            cost_sgd: "3.50",
+            cache_hits: 4,
+          },
+        ]),
+    });
+    renderAt("/admin");
+
+    const row = within(await screen.findByRole("row", { name: /title_block_read.*confidential/ }));
+    expect(row.getByText("claude-opus-5")).toBeInTheDocument();
+    expect(row.getByText("claude-opus-5 → gpt-5.1")).toBeInTheDocument();
+
+    // A provider that is enabled with no key is the thing an administrator needs to spot.
+    const google = within(await screen.findByRole("row", { name: /google/ }));
+    expect(google.getByText("not set")).toBeInTheDocument();
+
+    expect(await screen.findByText("3.50")).toBeInTheDocument();
+    expect(screen.getByText(/Configuration version abc123/)).toBeInTheDocument();
+  });
+});
