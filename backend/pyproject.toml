@@ -74,6 +74,12 @@ files = ["src", "tests", "../scripts"]
 module = ["boto3.*", "botocore.*", "pypdfium2.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# ezdxf is typed but declares no __all__, so strict mode rejects its own documented API
+# (ezdxf.new, ezdxf.readfile, the drawing add-on). Scoped to ezdxf so nothing else relaxes.
+module = ["ezdxf.*"]
+implicit_reexport = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-markers -m 'not integration and not live'"

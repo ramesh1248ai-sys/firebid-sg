@@ -40,6 +40,11 @@ jobs:
           make api-client
           git diff --exit-code -- frontend/src/api \
             || (echo "::error::Run 'make api-client' and commit the result." && exit 1)
+      - name: Evaluation regression gate
+        # The synthetic suite only. The private golden set runs manually or nightly, because
+        # its data cannot be in CI (guardrail 8).
+        run: make eval-gate
+
       - name: Requirement coverage report
         run: uv run --project backend python scripts/req_coverage.py --output reports/req-coverage.md
       - uses: actions/upload-artifact@v4

@@ -1,0 +1,17 @@
+{
+  "suite": "synthetic",
+  "approver": "Ramesh R",
+  "accepted_at": "2026-09-23T14:29:07.810770+00:00",
+  "predictor": "dummy",
+  "predictor_version": "1",
+  "metrics": {
+    "sprinkler_count_accuracy": 1.0,
+    "pipe_length_error": 0.0,
+    "missed_item_rate": 0.0,
+    "false_detection_rate": 0.0,
+    "duplicate_detection_rate": 1.0,
+    "sheet_classification_accuracy": 1.0,
+    "boq_mapping_accuracy": 1.0,
+    "calibration_error": 0.0
+  }
+}
