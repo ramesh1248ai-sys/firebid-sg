@@ -1,6 +1,6 @@
 # ADR-004: LLM provider strategy and data residency
 
-- **Status:** Proposed; pending sponsor decision D2 and legal review
+- **Status:** Proposed; pending sponsor decision D2 and legal review. Implemented in P0-04 (gateway, adapters, routing).
 - **Date:** 2026-09-22
 - **Deciders:** Executive Sponsor (D2), Tech Lead, Legal, IT Security
 - **Requirements:** §12.2, §11.4; NFR-05, NFR-08, NFR-11, NFR-15; risk R13
@@ -19,7 +19,7 @@ The platform uses multiple LLM providers, chosen per task by configuration (requ
 
 **Option 1.** Callers name a route; `backend/config/llm.yaml` maps each route to a main model and ordered fallbacks. At startup the gateway rejects configurations that break capability or data-class rules, and at runtime it refuses any attempt, including fallbacks, to send data to a provider not approved for the route's class (built in step P0-04).
 
-At launch every route uses **Anthropic `claude-opus-5`**. Other providers are enabled per route only after legal approval and `firebid-eval compare-models` evidence.
+Every route's **primary** model is **Anthropic `claude-opus-5`**. As built in P0-04, routes also carry **OpenAI and Google fallbacks**, and all three providers are approved in `llm.yaml` for `internal`, `confidential` and `commercial` at the product owner's direction, ahead of decision D2 (recorded in `docs/decisions/D2-llm-provider-data-terms.md`). `firebid-eval compare-models` evidence is still required before a *primary* model changes; a fallback exists to keep work moving when the primary is unavailable.
 
 ### Candidate providers and access paths
 

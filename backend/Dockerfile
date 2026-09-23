@@ -19,6 +19,8 @@ COPY pyproject.toml uv.lock .python-version README.md ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY alembic.ini ./
+# The LLM routing table. It is read at runtime, and /health fails without it.
+COPY config ./config
 COPY src ./src
 RUN uv sync --frozen --no-dev
 
