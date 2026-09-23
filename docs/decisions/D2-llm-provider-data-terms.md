@@ -1,6 +1,11 @@
 # D2 · LLM provider data terms and approved data classes
 
 - **Status:** In preparation — not yet decided. Evidence gathered 23 September 2026.
+- **Interim position (23 September 2026, product owner's direction):** the shipped
+  `backend/config/llm.yaml` approves **Anthropic, OpenAI and Google for `internal`,
+  `confidential` and `commercial`**, ahead of this decision. The gateway enforces whatever the
+  file says, so signing D2 differently is a one-line edit per provider and no code change.
+  No provider is approved for `personal`.
 - **Decision owner:** Executive Sponsor, on advice from Legal and IT Security.
 - **Requirements:** §0.3 D2, §11.4, §12.2; NFR-05, NFR-06, NFR-08; risk R13; ADR-004.
 - **Blocks:** step P1-01 (`ai_gateway`). Until D2 is decided, only development and fake
@@ -79,6 +84,8 @@ Proposed, pending Legal:
 1. **Launch with Anthropic only**, approved for `internal`, `confidential` and `commercial`,
    conditional on the DPA confirming retention and the contractual training bar (the training
    bar is already explicit in the published Commercial Terms).
+   *Not the position currently shipped* — see the interim position at the top, which approves
+   all three providers. Legal should either ratify that or narrow the file.
 2. **No provider is approved for `personal` at launch.** Personal data is redacted before any
    model call rather than routed by class. This is the cheapest way to hold the PDPA line, and
    it means a provider's terms never have to be strong enough to carry personal data.

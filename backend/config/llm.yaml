@@ -1,0 +1,110 @@
+# Which provider and model serves which task.
+#
+# Everything here is configuration. Changing a route's provider, its model chain, its reasoning
+# level, or which data classes a provider may receive does NOT require a code change or a new
+# build — edit this file and restart. Startup refuses a configuration that would send a data
+# class to an unapproved provider, or that names a model without a capability the route needs.
+#
+# Credentials are never written here. `env://NAME` reads that environment variable;
+# `secret://llm/openai` reads FIREBID_SECRET_LLM_OPENAI.
+#
+# MODEL IDs: confirm each one against the provider's current model list before relying on it.
+# A wrong ID is a one-line fix here, which is the point.
+
+version: 1
+
+providers:
+  anthropic:
+    kind: anthropic
+    platform: api # api | bedrock | vertex | foundry
+    credentials: env://ANTHROPIC_API_KEY
+    # Decision D2 (docs/decisions/D2-llm-provider-data-terms.md).
+    approved_data_classes: [internal, confidential, commercial]
+    no_training: true # Commercial Terms: "Anthropic may not train models on Customer Content"
+    retention: "per DPA — to confirm"
+
+  openai:
+    kind: openai
+    platform: api # set to `azure` with base_url and options.api_version for Azure OpenAI
+    credentials: env://OPENAI_API_KEY
+    approved_data_classes: [internal, confidential, commercial]
+    no_training: true # not used for training by default; opt-in only
+    retention: "abuse logs up to 30 days; zero retention available on approval"
+
+  google:
+    kind: google
+    platform: api # set to `vertex` with project_id and region for Vertex AI
+    credentials: env://GEMINI_API_KEY
+    approved_data_classes: [internal, confidential, commercial]
+    retention: "to confirm — Gemini API and Vertex AI terms differ"
+
+  # Self-hosted open-weight models behind an OpenAI-compatible endpoint. Off until there is
+  # something to point it at.
+  selfhosted:
+    kind: openai_compatible
+    enabled: false
+    base_url: http://localhost:8001/v1
+    approved_data_classes: [internal, confidential, commercial, personal]
+
+  fake:
+    kind: fake
+    enabled: false # tests construct this directly; never enabled in a running system
+    approved_data_classes: [internal]
+
+models:
+  claude-opus-5:
+    provider: anthropic
+    model_id: claude-opus-5
+    capabilities: [vision, pdf_input, structured_output, tools, streaming, citations, caching, batch]
+    context_tokens: 1000000
+    max_output_tokens: 128000
+    prices:
+      - effective_from: 2026-01-01
+        input_per_mtok: 5.0
+        output_per_mtok: 25.0
+
+  gpt-5.1:
+    provider: openai
+    model_id: gpt-5.1 # confirm against OpenAI's current model list
+    capabilities: [vision, structured_output, tools, streaming]
+    context_tokens: 400000
+    max_output_tokens: 128000
+    reasoning_parameter: reasoning_effort
+
+  gemini-3-pro:
+    provider: google
+    model_id: gemini-3-pro # confirm against Google's current model list
+    capabilities: [vision, pdf_input, structured_output, tools, streaming]
+    context_tokens: 1000000
+    max_output_tokens: 65536
+    reasoning_parameter: thinking_level
+
+  text-embedding-3-large:
+    provider: openai
+    model_id: text-embedding-3-large
+    capabilities: [embedding]
+
+routes:
+  # Reads a title block from a drawing image and returns structured fields (P0-04, reused by
+  # P1-02). The chain is the proof that switching provider is configuration only.
+  title_block_read:
+    requires: [vision, structured_output]
+    data_class: confidential
+    models: [claude-opus-5, gpt-5.1, gemini-3-pro]
+    reasoning: low
+    max_output_tokens: 2000
+    prompt: title_block_read
+
+  # Everyday internal text work with no tender content in it.
+  internal_summary:
+    requires: [structured_output]
+    data_class: internal
+    models: [claude-opus-5, gpt-5.1, gemini-3-pro]
+    reasoning: low
+    max_output_tokens: 4000
+
+  # Embeddings for the knowledge corpus.
+  corpus_embedding:
+    requires: [embedding]
+    data_class: internal
+    models: [text-embedding-3-large]

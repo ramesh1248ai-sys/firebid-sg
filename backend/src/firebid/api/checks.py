@@ -1,4 +1,4 @@
-"""Production health checks: database connectivity and job-queue heartbeat freshness."""
+"""Production health checks: the database, the job-queue heartbeat, and the LLM routing."""
 
 from datetime import UTC, datetime
 
@@ -34,8 +34,35 @@ def job_queue_check(max_age_seconds: int) -> HealthCheck:
     return check
 
 
+def llm_routing_check() -> CheckResult:
+    """The routing table loads and every route still resolves to an approved model.
+
+    A configuration edit is the supported way to change providers, so a bad edit has to be
+    visible here rather than at the moment an estimator asks an agent for something.
+    """
+    from firebid.ai_gateway.config import load_config
+    from firebid.ai_gateway.errors import ConfigError
+
+    try:
+        config = load_config()
+    except ConfigError as error:
+        return CheckResult(ok=False, detail={"error": str(error).splitlines()[0]})
+
+    unserviceable = [name for name in config.routes if not config.enabled_chain(name)]
+    return CheckResult(
+        ok=not unserviceable,
+        detail={
+            "config_version": config.config_hash,
+            "routes": len(config.routes),
+            "providers": sorted(name for name, p in config.providers.items() if p.enabled),
+            **({"routes_without_an_enabled_model": unserviceable} if unserviceable else {}),
+        },
+    )
+
+
 def default_checks(settings: Settings) -> dict[str, HealthCheck]:
     return {
         "database": database_check,
         "job_queue": job_queue_check(settings.heartbeat_max_age_seconds),
+        "llm_routing": llm_routing_check,
     }
