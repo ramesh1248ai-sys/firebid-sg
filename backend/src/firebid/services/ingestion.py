@@ -53,11 +53,19 @@ class IngestOutcome:
     rejected: list[tuple[str, str]] = field(default_factory=list)
     quarantined: list[tuple[str, str]] = field(default_factory=list)
     held: list[tuple[str, str]] = field(default_factory=list)
+    # (original filename, converter) for each legacy file given a modern copy.
+    converted: list[tuple[str, str]] = field(default_factory=list)
 
     @property
     def accounted_for(self) -> int:
+        """How many of the files the estimator sent are accounted for.
+
+        A converted copy is not one of them: it is something the platform made, so counting
+        it would make the report stop matching what was uploaded.
+        """
         return (
             len(self.stored)
+            - len(self.converted)
             + len(self.duplicates)
             + len(self.rejected)
             + len(self.quarantined)
@@ -172,6 +180,9 @@ class Ingestor:
         document.scanned_at = datetime.now(UTC)
         outcome.stored.append(document)
 
+        if detected.kind in LEGACY_OFFICE:
+            self._convert_legacy(document, payload, detected, outcome)
+
     def _refusal_for(self, detected: Detected) -> str | None:
         """Whether this kind can be read at all, before spending a scan on it."""
         if detected.kind is FileKind.DWG and not dwg_supported():
@@ -187,6 +198,59 @@ class Ingestor:
                 return None  # images are registered; P1-03 decides what to do with them
             return REASON_UNSUPPORTED
         return None
+
+    def _convert_legacy(
+        self,
+        original: Document,
+        payload: bytes,
+        detected: Detected,
+        outcome: IngestOutcome,
+    ) -> None:
+        """Convert a `.doc` or `.xls` and register the result as a derived document.
+
+        The original is kept and the conversion points back at it, because a converter is a
+        lossy step and the lineage has to lead past it to what the consultant actually sent.
+        A conversion that fails does not fail the upload: the original is registered, and the
+        failure is visible as a reason on the derived document that was not created.
+        """
+        from firebid.sandbox.office import ConversionFailed, convert_legacy
+        from firebid.sandbox.runner import SandboxFailure
+
+        try:
+            converted = convert_legacy(payload, original.filename, str(detected.kind))
+        except (ConversionFailed, SandboxFailure) as failure:
+            reason = getattr(failure, "reason", str(failure))
+            original.rejected_reason = f"the modern copy could not be made: {reason}"
+            outcome.rejected.append((original.filename, original.rejected_reason))
+            log.warning("legacy_conversion_failed", filename=original.filename, reason=reason)
+            return
+
+        digest = checksum(converted.payload)
+        if existing_document(self._session, self._bid_id, digest) is not None:
+            return
+
+        derived = self._register(
+            converted.filename,
+            converted.payload,
+            digest,
+            Detected(
+                FileKind.XLSX if detected.kind is FileKind.XLS else FileKind.DOCX,
+                converted.media_type,
+            ),
+            state="received",
+        )
+        derived.derived_from_id = original.id
+        derived.scanned_at = original.scanned_at
+        # What produced it, so a file that looks wrong later is answerable.
+        derived.rejected_reason = None
+        outcome.stored.append(derived)
+        outcome.converted.append((original.filename, converted.converter))
+        log.info(
+            "legacy_document_converted",
+            original=str(original.id),
+            derived=str(derived.id),
+            converter=converted.converter,
+        )
 
     def _register(
         self,

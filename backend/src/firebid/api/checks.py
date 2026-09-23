@@ -1,4 +1,4 @@
-"""Production health checks: the database, the job-queue heartbeat, the scanner, the LLM routing."""
+"""Production health checks: the database, the queue, the scanner, the sandbox, LLM routing."""
 
 from datetime import UTC, datetime
 
@@ -74,10 +74,26 @@ def malware_scanner_check() -> CheckResult:
     return CheckResult(ok=scanner.available(), detail={"scanner": "clamd"})
 
 
+def parser_sandbox_check() -> CheckResult:
+    """The pool can run a job, and the walls around it stood (NFR-06).
+
+    A sandbox that has quietly become a plain subprocess still parses files perfectly well,
+    which is exactly why this is checked rather than assumed.
+    """
+    from firebid.sandbox.probe import sandbox_report
+
+    report = sandbox_report()
+    return CheckResult(
+        ok=bool(report.get("ok")),
+        detail={key: value for key, value in report.items() if key != "ok"},
+    )
+
+
 def default_checks(settings: Settings) -> dict[str, HealthCheck]:
     return {
         "database": database_check,
         "job_queue": job_queue_check(settings.heartbeat_max_age_seconds),
         "malware_scanner": malware_scanner_check,
+        "parser_sandbox": parser_sandbox_check,
         "llm_routing": llm_routing_check,
     }

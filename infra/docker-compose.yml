@@ -36,6 +36,9 @@ services:
       - "${FIREBID_PG_PORT:-55432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - default
+      - sandbox
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U firebid -d firebid"]
       interval: 5s
@@ -51,6 +54,9 @@ services:
       - "${FIREBID_S3_PORT:-8333}:8333"
     volumes:
       - s3data:/data
+    networks:
+      - default
+      - sandbox
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:9333/cluster/healthz || exit 1"]
       interval: 5s
@@ -154,7 +160,8 @@ services:
   worker:
     build:
       context: ../backend
-    command: ["python", "-m", "firebid.jobs.worker"]
+    # Everything except parsing, which belongs to the sandbox pool.
+    command: ["python", "-m", "firebid.jobs.worker", "--queues", "default,system"]
     environment: *backend-env
     depends_on:
       migrate:
@@ -170,6 +177,48 @@ services:
       timeout: 10s
       retries: 3
       start_period: 120s
+
+  # The parser pool. Every file from outside the company is opened here and nowhere else
+  # (guardrail 9). The walls, in the order they matter:
+  #
+  #  * `cap_drop: ALL` and a non-root user: nothing to escalate to.
+  #  * `no-new-privileges`: a setuid binary cannot change that.
+  #  * a read-only filesystem, with a tmpfs scratch that is noexec and nosuid, so a parser
+  #    cannot write a file and then run it.
+  #  * `internal: true` on its network: it can reach postgres and seaweedfs to take work and
+  #    read files, and it cannot reach the internet at all. This is the wall that holds; the
+  #    per-job network namespace inside the pool is best-effort, because Docker's default
+  #    seccomp profile refuses `unshare` (see docs/security-baseline.md).
+  #  * memory and CPU caps, so one hostile file cannot starve the host.
+  sandbox:
+    build:
+      context: ../backend
+      dockerfile: ../infra/sandbox/Dockerfile
+    command: ["python", "-m", "firebid.jobs.worker", "--queues", "parse"]
+    environment:
+      <<: *backend-env
+      FIREBID_WORKER_NAME: sandbox
+    networks:
+      - sandbox
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /scratch:rw,noexec,nosuid,size=4g
+      - /tmp:rw,noexec,nosuid,size=1g
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+          cpus: "2.0"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      s3-init:
+        condition: service_completed_successfully
 
   frontend:
     build:
@@ -188,6 +237,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+networks:
+  # The default network reaches the host and the internet. `sandbox` does not: `internal`
+  # means Docker gives it no gateway, so the parser pool has no route off this network.
+  default:
+  sandbox:
+    internal: true
 
 volumes:
   pgdata:

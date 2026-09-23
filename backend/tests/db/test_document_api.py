@@ -10,6 +10,7 @@ import io
 import uuid
 import zipfile
 from collections.abc import Callable, Iterator
+from typing import Any
 
 import pytest
 from fastapi import FastAPI
@@ -138,13 +139,13 @@ def zip_of(files: dict[str, bytes]) -> bytes:
     return buffer.getvalue()
 
 
-def upload(client: TestClient, bid: Bid, files: list[tuple[str, bytes]]) -> dict[str, object]:
+def upload(client: TestClient, bid: Bid, files: list[tuple[str, bytes]]) -> dict[str, Any]:
     response = client.post(
         f"/bids/{bid.id}/documents",
         files=[("files", (name, payload, "application/octet-stream")) for name, payload in files],
     )
     assert response.status_code == 201, response.text
-    body: dict[str, object] = response.json()
+    body: dict[str, Any] = response.json()
     return body
 
 
