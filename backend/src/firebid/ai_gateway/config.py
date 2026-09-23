@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from firebid.ai_gateway.errors import ConfigError
 from firebid.ai_gateway.types import Capability, DataClass, ReasoningLevel
+from firebid.env import lookup
 
 # A credential is never written in the file: it is named, and resolved from the environment.
 SECRET_REFERENCE = re.compile(r"^(env|secret)://(?P<name>[A-Za-z0-9_./-]+)$")
@@ -74,8 +75,11 @@ class ProviderConfig(BaseModel):
         return data_class in self.approved_data_classes
 
     def resolve_credential(self) -> str | None:
-        """Read the named secret from the environment. Missing is not fatal here: an adapter
-        that needs it fails when it is constructed, naming the variable."""
+        """The named secret, from the environment or `backend/.env`.
+
+        Missing is not fatal here: an adapter that needs it fails when it is built, naming
+        the variable, and the router falls back to the next model in the chain.
+        """
         if self.credentials is None:
             return None
         match = SECRET_REFERENCE.match(self.credentials)
@@ -91,7 +95,7 @@ class ProviderConfig(BaseModel):
                 + name.replace("/", "_").replace("-", "_").replace(".", "_").upper()
             )
         )
-        return os.environ.get(env_name)
+        return lookup(env_name)
 
 
 class ModelConfig(BaseModel):
