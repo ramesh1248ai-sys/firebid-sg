@@ -43,3 +43,5 @@ reports/req-coverage.*
 eval/templates/*.xlsx
 eval/truth/
 eval/data/
+eval/results/
+eval/synthetic/

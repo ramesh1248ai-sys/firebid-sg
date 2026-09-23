@@ -216,3 +216,44 @@ Entry template:
   - **`FIREBID_PAYLOAD_ENCRYPTION_KEY` is unset by default**, so the payload store cannot be used until someone sets one. That is deliberate, but it means the feature is inert until configured.
   - **The retention sweep for expired cache entries and payloads is not scheduled.** `delete_expired()` exists and is tested; a periodic job should call it (P3-05).
   - **`firebid-eval compare-models` does not exist yet** (P0-05), so the rule that a primary model changes only on evidence is a convention, not a gate.
+
+---
+
+## P0-05 · Evaluation Harness and Golden Set Tooling · 2026-09-23
+
+- **Summary:** accuracy can now be measured the same way every time, and a route's model can be changed on evidence rather than opinion. The step delivers the golden-set format and the estimator workbook that unblock decision D3, the eight Phase 1 KPIs from §14, a seeded synthetic fixture generator so CI can test drawing logic without confidential tenders, a runner and report sliced by input class and consultant, a regression gate wired into CI, and `firebid-eval compare-models`.
+- **Key modules / files:**
+  - `backend/src/firebid/evals/`: `schema.py` (golden-set format), `template.py` (the estimator workbook), `importer.py` (validation with per-cell errors), `metrics.py` (§14 KPIs), `prediction.py` (the `Predictor` contract later steps implement), `synthetic.py` (fixtures), `dummy.py` (scriptable predictor), `runner.py` (suite, report, baselines, gate), `compare_models.py`, `cli.py`.
+  - `eval/README.md`, `eval/baselines/synthetic.json`; `Makefile` targets `eval`, `eval-gate`, `golden-template`; CI job "Evaluation regression gate".
+  - `docs/decisions/D3-golden-dataset.md`.
+- **How to run and demo:**
+  1. `make golden-template` → `eval/templates/golden_takeoff.xlsx`, the workbook for estimators.
+  2. `cd backend && uv run firebid-eval import <filled.xlsx>` — reports every problem by tab, row and column; writes nothing until clean.
+  3. `make eval` → `eval/results/synthetic.md`, all eight metrics sliced by input class and consultant.
+  4. `make eval-gate` → passes; `uv run firebid-eval --root ../eval compare --count-error 0.25` → fails, naming the three metrics that regressed.
+  5. `uv run firebid-eval --root ../eval compare-models --route title_block_read --models claude-opus-5,gpt-5.1` → side-by-side with cost and latency.
+- **Requirement IDs covered (test names):**
+  - FR-LRN-01 — `test_metrics.py` (46 hand-computed cases), `test_runner_and_gate.py::TestTheRegressionGate`, `::TestTheCommandLine::test_compare_fails_on_an_injected_regression`, `test_synthetic.py`, `test_golden_set_template.py`.
+  - NFR-11 — `test_runner_and_gate.py::TestCompareModels` (ranking, data-class refusal, configuration version recorded).
+- **Deviations and decisions:**
+  - **Undefined is neither zero nor one.** Every §14 formula divides by a verified count, so a sheet with nothing to find has no score. Returning 1.0 would let empty sheets flatter the average and 0.0 would punish the platform for correctly finding nothing, so an undefined metric is `None`, excluded from aggregates, with the exclusions counted and reported.
+  - **`pipe_length_error` is named as an error, not an accuracy**, because §14 defines it as a ratio where smaller is better. Calling it accuracy would have someone read 0.04 as a bad score.
+  - **`false_detection_rate` is an offline approximation.** §14 defines it by what a person rejects, which needs the review workbench (P1-08). Offline it measures detections in excess of truth, and the docstring says so. `qto_effort` cannot be computed from drawings at all and is absent.
+  - **Fixtures are generated from a seed, not committed.** The seed is the artefact; `eval/synthetic/` is git-ignored.
+  - **The estimator workbook is generated too**, so a change to it is a reviewable diff rather than an opaque binary.
+  - **`ezdxf[draw]` pulled in a ~200 MB Qt stack**; replaced with `ezdxf` plus `matplotlib`.
+  - **Gate tolerances are not zero** (1–5% per metric). These are means over a small set, and a gate that fires on noise is a gate someone switches off.
+- **Manual checks and results:**
+  - Ran the gate both ways: clean predictor passes with exit 0; a 25% injected error fails with exit 1, naming `sprinkler_count_accuracy`, `missed_item_rate` and `calibration_error` with their tolerances.
+  - Ran `compare-models` against the shipped `llm.yaml`: it ranked the candidates, showed cost and latency, and refused `text-embedding-3-large` with a readable reason, exiting 1.
+  - Read the generated workbook tab by tab: Instructions first, hints under every header, the machinery tab hidden.
+- **Defects found and fixed during the step:**
+  - The dummy predictor truncated rather than rounded, so `count_error=0.001` dropped a whole sprinkler — a 2% error on a 48-head sheet and 16% on a six-head one. The knob did not mean what it said, and the tolerance test caught it.
+  - `compare-models` printed raw enum reprs in its refusal message (`[<Capability.VISION: 'vision'>]`) instead of names.
+  - `openpyxl` and `ezdxf` needed type stubs and a scoped `implicit_reexport` override; ezdxf is typed but declares no `__all__`, so strict mode rejected its own documented API.
+- **Known gaps and follow-ups:**
+  - **Nothing here measures real-world accuracy.** The synthetic set proves the pipeline, the arithmetic and the gate. Only decision D3's golden set can say whether the platform reads a real consultant's drawing, and every report says so in as many words.
+  - **`compare-models` scores a dummy predictor.** Until P1-02 supplies one that actually calls a gateway route, it compares the harness rather than the models. The refusal and ranking logic is real; the numbers are not.
+  - **The HTML report is not built** — Markdown and JSON only. The prompt allows either.
+  - **The nightly job for the private golden set is not configured.** The CI job runs the synthetic suite only, which is correct; someone must schedule the real one once D3 delivers.
+  - **`qto_effort` and the Phase 2–4 KPIs are out of scope** and remain unmeasured.
