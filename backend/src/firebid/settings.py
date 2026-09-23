@@ -5,9 +5,13 @@ from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from firebid.env import env_file
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="FIREBID_", env_file=".env", extra="ignore")
+    # The env file is found from the package, not the working directory: a .env that works
+    # from backend/ but silently does nothing from the repository root wastes an afternoon.
+    model_config = SettingsConfigDict(env_prefix="FIREBID_", env_file=env_file(), extra="ignore")
 
     env: Literal["dev", "test", "staging", "prod"] = "dev"
     log_level: str = "INFO"
