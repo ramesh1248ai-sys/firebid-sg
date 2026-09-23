@@ -109,6 +109,9 @@ class ModelConfig(BaseModel):
     # (`reasoning_effort` on OpenAI, `thinking_level` on Gemini). Left unset, the route's
     # reasoning level is simply not sent, which is right for models that reject it.
     reasoning_parameter: str | None = None
+    # Per-model limits, where a provider publishes them. Unset falls back to the provider's.
+    requests_per_minute: int | None = Field(default=None, gt=0)
+    tokens_per_minute: int | None = Field(default=None, gt=0)
     # Anything else this model needs passed through. An escape hatch so a provider's new knob
     # is a configuration edit rather than an adapter change.
     options: dict[str, Any] = Field(default_factory=dict)

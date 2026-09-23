@@ -22,7 +22,14 @@ from dataclasses import replace
 import structlog
 
 from firebid.ai_gateway.breaker import CircuitBreaker
-from firebid.ai_gateway.config import LlmConfig, ModelConfig, RouteConfig, get_config
+from firebid.ai_gateway.cache import NullCache, ResponseCache, fingerprint
+from firebid.ai_gateway.config import (
+    LlmConfig,
+    ModelConfig,
+    ProviderConfig,
+    RouteConfig,
+    get_config,
+)
 from firebid.ai_gateway.emulation import emulate
 from firebid.ai_gateway.errors import (
     AuthenticationFailed,
@@ -34,6 +41,7 @@ from firebid.ai_gateway.errors import (
 )
 from firebid.ai_gateway.prompts import family_of, prompt_for
 from firebid.ai_gateway.providers.base import Adapter
+from firebid.ai_gateway.ratelimit import NullRateLimiter, RateLimiter
 from firebid.ai_gateway.types import (
     Attempt,
     DataClass,
@@ -57,6 +65,8 @@ class Router:
         backoff_base_seconds: float = 0.5,
         sleep: Callable[[float], None] = time.sleep,
         breaker: CircuitBreaker | None = None,
+        cache: ResponseCache | None = None,
+        rate_limiter: RateLimiter | None = None,
     ) -> None:
         self.config = config or get_config()
         self._adapters = dict(adapters or {})
@@ -64,6 +74,8 @@ class Router:
         self.backoff_base_seconds = backoff_base_seconds
         self._sleep = sleep
         self.breaker = breaker or CircuitBreaker()
+        self.cache = cache or NullCache()
+        self.rate_limiter = rate_limiter or NullRateLimiter()
 
     def adapter_for(self, provider_name: str) -> Adapter:
         try:
@@ -73,7 +85,10 @@ class Router:
                 provider_name, [f"no adapter is registered for provider '{provider_name}'"]
             ) from None
 
-    def generate(self, route_name: str, request: GenerationRequest) -> GenerationResponse:
+    def generate(
+        self, route_name: str, request: GenerationRequest, *, regenerate: bool = False
+    ) -> GenerationResponse:
+        """`regenerate` bypasses the cache: the caller wants a fresh answer, and will pay."""
         route = self.config.route(route_name)
         request = _apply_route_defaults(request, route.max_output_tokens, route.reasoning)
 
@@ -114,7 +129,15 @@ class Router:
                 continue
 
             outcome = self._try_model(
-                adapter, request, model, model_name, route_name, key, provider.kind, route
+                adapter,
+                request,
+                model,
+                model_name,
+                route_name,
+                key,
+                provider,
+                route,
+                regenerate=regenerate,
             )
             if isinstance(outcome, GenerationResponse):
                 attempts.append(Attempt(model.provider, model_name, ok=True))
@@ -134,14 +157,16 @@ class Router:
         model_name: str,
         route_name: str,
         key: str,
-        provider_kind: str,
+        provider: ProviderConfig,
         route: RouteConfig,
+        *,
+        regenerate: bool = False,
     ) -> GenerationResponse | str:
         """Return a response, or a short reason this model did not serve the call."""
         last_reason = "no attempt made"
 
         # The prompt is per route, optionally per model family, and its version is recorded.
-        prompt = prompt_for(route.prompt or route_name, family_of(provider_kind))
+        prompt = prompt_for(route.prompt or route_name, family_of(provider.kind))
         attempt_request = request
         if prompt is not None and not attempt_request.system:
             attempt_request = replace(attempt_request, system=prompt.text)
@@ -152,7 +177,29 @@ class Router:
             return str(error)
         attempt_request = emulation.request
 
+        # The cache key covers the model, the prompt version and the configuration version,
+        # so any of those changing is a miss rather than a stale answer.
+        cache_key = fingerprint(
+            route_name,
+            attempt_request,
+            model,
+            prompt.version if prompt else None,
+            self.config.config_hash,
+        )
+        if not regenerate:
+            remembered = self.cache.get(cache_key)
+            if remembered is not None:
+                log.info("cache_hit", route=route_name, model=model_name)
+                return replace(remembered, route=route_name, cache_hit=True)
+
         for attempt_number in range(1, self.max_attempts_per_model + 1):
+            # Every worker draws from the same budget, so a provider's limit is respected
+            # across processes rather than per process.
+            limit = model.requests_per_minute or provider.requests_per_minute
+            if not self.rate_limiter.acquire(key, limit):
+                last_reason = "rate limit reached; no capacity within the wait"
+                self.breaker.record_failure(key)
+                return last_reason
             try:
                 response = adapter.generate(attempt_request, model)
             except AuthenticationFailed as error:
@@ -203,6 +250,7 @@ class Router:
                 return last_reason
             if prompt is not None:
                 response = replace(response, prompt_version=prompt.version)
+            self.cache.put(cache_key, response, route, route_name)
             return response
 
         return last_reason
