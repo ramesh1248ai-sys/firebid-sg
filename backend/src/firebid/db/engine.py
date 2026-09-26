@@ -44,6 +44,16 @@ def _service_session_factory() -> sessionmaker[Session]:
     return sessionmaker(bind=get_service_engine(), expire_on_commit=False)
 
 
+def clear_engine_caches() -> None:
+    """Forget every cached engine and session factory, so the next use reads settings afresh.
+
+    Clearing `get_engine` alone is not enough: a session factory cached before it stays bound
+    to the old engine.
+    """
+    for cached in (get_engine, get_service_engine, _session_factory, _service_session_factory):
+        cached.cache_clear()
+
+
 @contextmanager
 def session_scope() -> Iterator[Session]:
     """One unit of work: commits on success, rolls back on any exception."""

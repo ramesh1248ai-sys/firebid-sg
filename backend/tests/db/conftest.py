@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from testcontainers.community.postgres import PostgresContainer
 
 from firebid.db.base import Base
-from firebid.db.engine import get_engine, sqlalchemy_url
+from firebid.db.engine import clear_engine_caches, sqlalchemy_url
 from firebid.db.models.core import AppUser, Bid, BidMember, Organisation, Project
 from firebid.domain.actors import Actor
 from firebid.domain.state_machines import Role
@@ -45,12 +45,12 @@ def database_url() -> Iterator[str]:
         os.environ["FIREBID_APP_DB_PASSWORD"] = APP_ROLE_PASSWORD
         # Settings and the engine are cached; an earlier test may have cached the defaults.
         get_settings.cache_clear()
-        get_engine.cache_clear()
+        clear_engine_caches()
         config = Config(ALEMBIC_INI)
         command.upgrade(config, "head")
         yield url
         get_settings.cache_clear()
-        get_engine.cache_clear()
+        clear_engine_caches()
 
 
 @pytest.fixture(scope="session")

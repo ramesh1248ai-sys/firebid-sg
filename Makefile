@@ -10,7 +10,7 @@ API_URL := http://$(STACK_HOST):$(or $(FIREBID_API_PORT),8000)
 PHASE ?=
 IDS ?=
 
-.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client data-inventory golden-template eval eval-gate req-coverage check
+.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client data-inventory golden-template eval eval-gate ingest-benchmark req-coverage check
 
 help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -62,6 +62,9 @@ data-inventory: ## Regenerate docs/data-inventory.md from the model metadata (NF
 api-client: ## Regenerate the frontend API client from the backend's OpenAPI schema
 	cd backend && uv run python -m firebid.api.export_openapi ../frontend/src/api/openapi.json
 	cd frontend && npm run -s api:generate
+
+ingest-benchmark: ## Time a synthetic tender set through ingestion (NFR-01); SHEETS=300
+	cd backend && uv run python -m firebid.evals.ingest_benchmark 		--sheets $(or $(SHEETS),300) --report ../eval/results/ingest-throughput.md
 
 eval: ## Run the synthetic evaluation suite and write a report
 	cd backend && uv run firebid-eval --root ../eval run --report ../eval/results/synthetic.md

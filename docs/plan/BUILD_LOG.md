@@ -257,3 +257,73 @@ Entry template:
   - **The HTML report is not built** — Markdown and JSON only. The prompt allows either.
   - **The nightly job for the private golden set is not configured.** The CI job runs the synthetic suite only, which is correct; someone must schedule the real one once D3 delivers.
   - **`qto_effort` and the Phase 2–4 KPIs are out of scope** and remain unmeasured.
+
+---
+
+## P1-01 · Document Ingestion · 2026-09-23
+
+- **Summary:** a tender set can be uploaded, scanned, read and opened. Every file ends in a state a person can read, every parser of an external file runs in a sandboxed process, each PDF page and CAD layout becomes a sheet with its paper size and lineage, and the low zoom levels of its tile pyramid are rendered at ingest so the viewer opens instantly. Close-up tiles are rendered on first request and cached. Built in six sub-parts; A and B were committed separately, C to F together.
+- **Key modules / files:**
+  - `backend/src/firebid/ingest/`: `detection.py` (content signatures, never the extension), `scanning.py` (clamd INSTREAM, an outage holds rather than passes), `archives.py` (bomb, traversal and nesting limits checked against declared sizes first).
+  - `backend/src/firebid/sandbox/`: `limits.py` (the walls), `runner.py` (`run_sandboxed`), `safety.py` (`defusedxml`, Pillow pixel cap, readable failure reasons), `office.py` (LibreOffice for `.doc`/`.xls`), `probe.py` (which walls actually stood).
+  - `backend/src/firebid/parsing/`: `pdf.py` (pypdfium2; crop-box sizes, vector/raster/mixed classification), `dxf.py` (ezdxf; paperspace layouts, page setup or extents).
+  - `backend/src/firebid/imaging/`: `pyramid.py` (level maths, content-hash cache keys), `tiles.py` (lossless WebP).
+  - `backend/src/firebid/services/`: `ingestion.py` (store, then scan, then register), `sheets.py` (document to sheets to tiles).
+  - `backend/src/firebid/api/`: `documents.py` (upload, presigned, rescan), `sheets.py` (sheets, tiles, thumbnails), `progress.py` (counts and SSE).
+  - `frontend/src/pages/DocumentsPage.tsx`, `SheetViewerPage.tsx` (OpenSeadragon).
+  - `infra/sandbox/Dockerfile`, the `sandbox` and `clamav` services in `infra/docker-compose.yml`, migrations `0011` and `0012`.
+  - `backend/src/firebid/evals/ingest_benchmark.py`, `Makefile` target `ingest-benchmark`.
+- **How to run and demo:**
+  1. `make up`, then open a bid and click **Tender documents**.
+  2. Drop a zip of drawings in. The counts move as files are scanned and read; refusals appear with their reasons.
+  3. Click a sheet thumbnail to open the viewer; zoom past the pre-rendered levels and close-up tiles fill in.
+  4. `make ingest-benchmark SHEETS=300` writes `eval/results/ingest-throughput.md`.
+  5. `make e2e` runs `frontend/e2e/document-ingestion.spec.ts`, which does all of the above against the real stack.
+- **Requirement IDs covered (test names):**
+  - FR-DOC-01 — `tests/ingest/test_detection_and_archives.py::TestDetection`, `tests/db/test_document_ingestion.py`, `tests/db/test_document_api.py`, `tests/db/test_legacy_conversion.py`, `tests/parsing/test_pdf_and_dxf.py`, `tests/imaging/test_pyramid_and_tiles.py`, `tests/db/test_sheet_pipeline.py`, `tests/db/test_sheet_api.py`.
+  - FR-DOC-07 — `test_sheet_pipeline.py::TestProcessingAPdf::test_a_sheet_carries_its_lineage`, `test_sheet_api.py::TestListingSheets::test_a_sheet_carries_its_lineage`.
+  - NFR-06 — `tests/sandbox/test_parser_sandbox.py` (all), `test_detection_and_archives.py::TestArchiveLimits`, `test_document_ingestion.py` (EICAR, outage), `test_sheet_api.py::TestWhoMaySee`.
+  - NFR-01 — the benchmark below.
+- **Throughput (NFR-01):** measured in the sandbox image on 4 workers, 8 GB, against 300 generated A3 vector drawings.
+
+  | Measure | Value |
+  |---|---|
+  | Time to all sheets viewable | 23.0 s |
+  | Per sheet | 0.077 s (784/min) |
+  | Median parse | 0.002 s |
+  | Median render and tile | 0.284 s |
+  | Peak memory per worker | 139.7 MB |
+  | Tiles per sheet | 35.0 |
+  | Storage per sheet | 16.2 kB |
+  | Total tile storage | 4.9 MB |
+
+  **Read this as a floor, not a promise.** The fixtures are clean A3 vector exports of a few hundred entities; a real A0 tender sheet with xrefs, hatching and an embedded scan is heavier by an order of magnitude or more. What the numbers do establish is that ingestion scales across processes, that memory per worker is bounded well inside the 4 GB container limit, and that storage is trivial — so the NFR-01 budget is effectively all still available to classification and takeoff. The figure to re-measure is this one, on the D3 golden set, once it exists.
+- **Deviations and decisions:**
+  - **The pool is not literally without a network, and the honest wall is the container's.** A queue-driven worker must reach PostgreSQL and object storage. Each parse child additionally asks the kernel for its own network namespace, but **Docker's default seccomp profile refuses `unshare`**, which was measured rather than assumed: a `ctypes` call to `connect(2)` from inside the sandbox reached the internet on a default-profile container. The wall that holds in every configuration is `internal: true` on the pool's Docker network — verified as "Network is unreachable" from it, against reachable from the default network. Python's socket layer is blocked in the child either way. `/health` reports which walls actually stood; `docs/security-baseline.md` records the gap and the two ways to close it (a vendored seccomp profile, or `seccomp=unconfined` with `cap_drop: ALL`). Open item 6 there tracks the decision, which belongs with deployment (P1-10).
+  - **Only the low zoom levels are rendered at ingest** (ADR-005). Levels up to 2,048 px are cut from one render; the rest are rendered on first request. An estimator zooms into the riser shafts and the valve room, not every square metre of a car park, so rendering everything would spend most of ingest on tiles nobody opens.
+  - **Tiles are keyed by content hash and shared across bids.** The same consultant's drawing on two bids renders once. That means the key cannot decide who may see it, so every tile route resolves the sheet through the bid first; `test_sheet_api.py::TestWhoMaySee` tries it the other way round.
+  - **A page's size comes from its crop box, not its media box**, because consultants routinely export A1 content inside an A0 media box.
+  - **Coverage decides the content class before object counts do.** A scan with a vector title block stamped on it is still a scan as far as measuring is concerned.
+  - **A converted `.doc` or `.xls` is a derived document, and the original is kept.** A converter is a lossy step and the lineage has to lead past it. A conversion that fails does not fail the upload.
+  - **`quality_band` and `manual_takeoff_recommended` are left null.** Sheet quality is P1-03's decision; this step records the object counts it will need in `quality_detail` rather than guessing.
+  - **Sub-part scope:** the prompt's items 1-13 are all built except that DWG conversion remains unavailable pending ADR-003 — a DWG is refused with a message asking for the DXF export, which is the fallback the prompt names.
+- **Manual checks and results:**
+  - Ran a real `.xls` to `.xlsx` conversion through `convert_legacy` inside the built sandbox image: LibreOffice 7.4.7.2, 5,632 bytes in, 4,874 out, and the result detected as `xlsx`.
+  - Ran the sandbox test suite on Linux in a container: 24/24 pass, including the memory and CPU limits that skip on Windows.
+  - Measured the network walls directly, as described above.
+  - Checked that a rendered page is not blank, and that a tile cut on the on-demand path is byte-identical to the same tile cut at ingest.
+- **Defects found and fixed during the step:**
+  - `put_once` raised `ObjectExists` where the code claimed a second write was a no-op, so a document row removed while its write-once object survived would have failed re-ingestion.
+  - The upload report counted a converted copy as an uploaded file, so the totals stopped matching what the estimator sent.
+  - The test harness's `fetch` stub only understood a `Request`, so any call passing a URL and an init — the upload and the SSE stream — silently returned 404.
+  - `render_tile` referenced a `Sheet.kind_for_render` attribute that never existed; the document's kind is now passed in.
+  - The sandbox image installed the project into the wrong virtualenv (`VIRTUAL_ENV` instead of `UV_PROJECT_ENVIRONMENT`), so `firebid` was absent at runtime.
+  - The database test fixture cleared the cached engine but not the cached session factory, so `session_scope` could stay bound to the default URL from an earlier test. The progress stream was the first route under test to use it, and failed only in a full run. `clear_engine_caches()` now clears all four caches.
+- **Known gaps and follow-ups:**
+  - **The per-job network namespace is inert under Docker's default seccomp profile.** Tracked as open item 6 in the security baseline; the decision belongs to P1-10.
+  - **DWG is still unreadable** pending ADR-003. Every DWG is refused with a message naming the DXF export as the way forward.
+  - **The benchmark measures synthetic A3 drawings.** Re-measure on the D3 golden set.
+  - **No revision or sheet-number extraction yet** — `SheetRevision` is untouched here; that is P1-02.
+  - **`tender_package_id` is accepted but never set by the API.** Packages arrive with P1-02's addenda handling.
+  - **Failed parse jobs do not retry with backoff.** Procrastinate's retry strategy is not configured on `parse.document`; a failure lands in `rejected` with its reason instead, which is visible but final until the file is re-uploaded.
+  - **The ingestion E2E has not been run against the stack in this session.** It is written but unrun: it needs `make up` with the new `clamav` and `sandbox` services and a signature download.

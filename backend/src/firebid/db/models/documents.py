@@ -78,6 +78,19 @@ class Sheet(UuidPk, BidScoped, Timestamped, Base):
     manual_takeoff_recommended: Mapped[bool] = mapped_column(default=False, nullable=False)
     quality_detail: Mapped[dict[str, object] | None] = mapped_column(JSONB)
 
+    # Where this sheet came from (FR-DOC-07). Every quantity measured on it inherits this.
+    source_ref: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+
+    # The tile pyramid. `content_hash` keys the tiles in object storage and is derived from
+    # the document's digest and this page, so identical sheets share one set of tiles across
+    # bids; the API checks membership before serving any of them.
+    content_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    base_width_px: Mapped[int | None] = mapped_column(Integer)
+    base_height_px: Mapped[int | None] = mapped_column(Integer)
+    max_level: Mapped[int | None] = mapped_column(Integer)
+    renderer_version: Mapped[str | None] = mapped_column(String(16))
+    thumbnail_key: Mapped[str | None] = mapped_column(String(512))
+
 
 class SheetRevision(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     """A drawing number at one revision, pointing at the sheet that carries it.

@@ -7,7 +7,9 @@ import { AuditPage } from "@/pages/AuditPage";
 import { BidDetailPage } from "@/pages/BidDetailPage";
 import { CallbackPage } from "@/pages/CallbackPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { DocumentsPage } from "@/pages/DocumentsPage";
 import { NewBidPage } from "@/pages/NewBidPage";
+import { SheetViewerPage } from "@/pages/SheetViewerPage";
 import { SignInPage } from "@/pages/SignInPage";
 
 export const routes: RouteObject[] = [
@@ -23,6 +25,8 @@ export const routes: RouteObject[] = [
           { index: true, element: <DashboardPage /> },
           { path: "bids/new", element: <NewBidPage /> },
           { path: "bids/:bidId", element: <BidDetailPage /> },
+          { path: "bids/:bidId/documents", element: <DocumentsPage /> },
+          { path: "bids/:bidId/sheets/:sheetId", element: <SheetViewerPage /> },
           { path: "audit", element: <AuditPage /> },
           { path: "admin", element: <AdminPage /> },
         ],

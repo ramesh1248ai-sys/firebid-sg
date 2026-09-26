@@ -311,6 +311,123 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Progress
+         * @description Where this bid's documents have got to, once.
+         */
+        get: operations["progress_bids__bid_id__progress_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/progress/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Progress Stream
+         * @description The same thing, as it changes. Sends an event only when something has moved.
+         */
+        get: operations["progress_stream_bids__bid_id__progress_stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/sheets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sheets
+         * @description Every sheet on the bid, or just one document's, in the order they appear in the file.
+         */
+        get: operations["list_sheets_bids__bid_id__sheets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/sheets/{sheet_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sheet */
+        get: operations["get_sheet_bids__bid_id__sheets__sheet_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/sheets/{sheet_id}/thumbnail.webp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Thumbnail */
+        get: operations["thumbnail_bids__bid_id__sheets__sheet_id__thumbnail_webp_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/sheets/{sheet_id}/tiles/{level}/{column}_{row}.webp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tile
+         * @description One tile. Served from the cache, or rendered in the sandbox on first request.
+         *
+         *     A level that was pre-rendered is always a cache read. A close-up level is rendered here
+         *     the first time anyone looks at that part of the sheet, and cached for everyone after.
+         */
+        get: operations["tile_bids__bid_id__sheets__sheet_id__tiles__level___column___row__webp_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/tasks": {
         parameters: {
             query?: never;
@@ -632,6 +749,20 @@ export interface components {
             /** State */
             state: string;
         };
+        /** FailedDocument */
+        FailedDocument: {
+            /** Filename */
+            filename: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Reason */
+            reason: string | null;
+            /** State */
+            state: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -713,6 +844,27 @@ export interface components {
             /** Sha256 */
             sha256: string;
         };
+        /**
+         * Progress
+         * @description Where a bid's documents have got to. The counts always sum to `total`.
+         */
+        Progress: {
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /**
+             * Failures
+             * @default []
+             */
+            failures: components["schemas"]["FailedDocument"][];
+            /** Finished */
+            finished: boolean;
+            /** Sheets */
+            sheets: number;
+            /** Total */
+            total: number;
+        };
         /** ProviderOut */
         ProviderOut: {
             /** Approved Data Classes */
@@ -772,6 +924,90 @@ export interface components {
             providers: components["schemas"]["ProviderOut"][];
             /** Routes */
             routes: components["schemas"]["RouteOut"][];
+        };
+        /** SheetDetail */
+        SheetDetail: {
+            /** Base Height Px */
+            base_height_px: number | null;
+            /** Base Width Px */
+            base_width_px: number | null;
+            /** Content Class */
+            content_class: string | null;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /**
+             * Has Thumbnail
+             * @default false
+             */
+            has_thumbnail: boolean;
+            /** Height Mm */
+            height_mm: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Index In Document */
+            index_in_document: number;
+            /** Layout Name */
+            layout_name: string | null;
+            /** Max Level */
+            max_level: number | null;
+            /** Quality Detail */
+            quality_detail?: {
+                [key: string]: unknown;
+            } | null;
+            /** Source Ref */
+            source_ref?: {
+                [key: string]: unknown;
+            } | null;
+            /** Tile Source */
+            tile_source?: {
+                [key: string]: unknown;
+            } | null;
+            /** Width Mm */
+            width_mm: number | null;
+        };
+        /** SheetOut */
+        SheetOut: {
+            /** Base Height Px */
+            base_height_px: number | null;
+            /** Base Width Px */
+            base_width_px: number | null;
+            /** Content Class */
+            content_class: string | null;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /**
+             * Has Thumbnail
+             * @default false
+             */
+            has_thumbnail: boolean;
+            /** Height Mm */
+            height_mm: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Index In Document */
+            index_in_document: number;
+            /** Layout Name */
+            layout_name: string | null;
+            /** Max Level */
+            max_level: number | null;
+            /** Source Ref */
+            source_ref?: {
+                [key: string]: unknown;
+            } | null;
+            /** Width Mm */
+            width_mm: number | null;
         };
         /** SpendRow */
         SpendRow: {
@@ -1477,6 +1713,200 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    progress_bids__bid_id__progress_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Progress"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    progress_stream_bids__bid_id__progress_stream_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sheets_bids__bid_id__sheets_get: {
+        parameters: {
+            query?: {
+                document_id?: string | null;
+            };
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SheetOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sheet_bids__bid_id__sheets__sheet_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheet_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SheetDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    thumbnail_bids__bid_id__sheets__sheet_id__thumbnail_webp_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheet_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tile_bids__bid_id__sheets__sheet_id__tiles__level___column___row__webp_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheet_id: string;
+                level: number;
+                column: number;
+                row: number;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
