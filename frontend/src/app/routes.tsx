@@ -9,6 +9,7 @@ import { CallbackPage } from "@/pages/CallbackPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { DocumentsPage } from "@/pages/DocumentsPage";
 import { NewBidPage } from "@/pages/NewBidPage";
+import { RegistersPage } from "@/pages/RegistersPage";
 import { SheetViewerPage } from "@/pages/SheetViewerPage";
 import { SignInPage } from "@/pages/SignInPage";
 
@@ -26,6 +27,7 @@ export const routes: RouteObject[] = [
           { path: "bids/new", element: <NewBidPage /> },
           { path: "bids/:bidId", element: <BidDetailPage /> },
           { path: "bids/:bidId/documents", element: <DocumentsPage /> },
+          { path: "bids/:bidId/registers", element: <RegistersPage /> },
           { path: "bids/:bidId/sheets/:sheetId", element: <SheetViewerPage /> },
           { path: "audit", element: <AuditPage /> },
           { path: "admin", element: <AdminPage /> },

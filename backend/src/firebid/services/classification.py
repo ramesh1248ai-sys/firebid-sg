@@ -17,7 +17,7 @@ import structlog
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from firebid.db.models.documents import Document, Sheet, SheetRevision
+from firebid.db.models.documents import Document, DocumentRevision, Sheet, SheetRevision
 from firebid.drawings.title_block import DEFAULT_THRESHOLD
 from firebid.ingest.classification import Classification, Digest, DocType, classify
 from firebid.sandbox.runner import SandboxFailure, run_sandboxed
@@ -56,6 +56,7 @@ def classify_in_sandbox(session: Session, document: Document, payload: bytes) ->
     result = classify(digest)
     _record(document, result, digest)
     _pass_to_original(session, document)
+    register_document(session, document)
 
     if not result.settled:
         from firebid.jobs.enqueue import enqueue
@@ -160,6 +161,7 @@ def classify_with_model(session: Session, document: Document, router: Any) -> Do
         Classification(answer.doc_type, answer.confidence, "model", (answer.reason,)),
         None,
     )
+    register_document(session, document)
     document.classification = {**(document.classification or {}), "agent_run_id": str(run.id)}
     _pass_to_original(session, document)
     session.flush()
@@ -169,3 +171,49 @@ def classify_with_model(session: Session, document: Document, router: Any) -> Do
 def confirm(document: Document, doc_type: DocType, person: str) -> None:
     """A person's answer: the only thing that turns a proposal into a decision."""
     _record(document, Classification(doc_type, 1.0, "person", (f"confirmed by {person}",)), None)
+
+
+# Kinds that are originals of a converted copy: the copy is the register's row, not these.
+LEGACY = frozenset({"xls", "doc"})
+
+
+def register_document(session: Session, document: Document) -> DocumentRevision | None:
+    """Put a non-drawing document in the specification register (FR-DOC-03).
+
+    Once per document; a later classification only updates its type. A drawing is registered
+    by its sheets instead, and a legacy original through its converted copy.
+    """
+    from firebid.ingest.document_identity import filename_revision, identify, text_revision
+    from firebid.services.revisions import settle_document
+
+    if document.doc_type == str(DocType.DRAWING) or document.kind in LEGACY:
+        return None
+    existing = session.execute(
+        select(DocumentRevision).where(DocumentRevision.document_id == document.id)
+    ).scalar_one_or_none()
+    if existing is not None:
+        existing.doc_type = document.doc_type
+        return existing
+
+    digest = cast(dict[str, Any], (document.classification or {}).get("digest") or {})
+    text = str(digest.get("text") or "")
+    identity = identify(document.filename, text)
+    revision = DocumentRevision(
+        bid_id=document.bid_id,
+        document_id=document.id,
+        doc_type=document.doc_type,
+        doc_key=identity.key,
+        title=identity.title,
+        revision_label=identity.revision,
+        sources={"text": text_revision(text), "filename": filename_revision(document.filename)},
+        created_by_id=document.created_by_id,
+    )
+    session.add(revision)
+    session.flush()
+    if identity.key is None:
+        from firebid.services.revisions import revision_task
+
+        revision_task(session, revision, "document_identity", "Say what this document is.")
+    else:
+        settle_document(session, revision)
+    return revision

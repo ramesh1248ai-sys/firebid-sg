@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from firebid.db.audit import record_event
 from firebid.db.models.core import Bid
-from firebid.db.models.documents import SheetRevision
+from firebid.db.models.documents import DocumentRevision, SheetRevision
 from firebid.db.models.takeoff import QtoItem
 from firebid.db.models.workflow import Approval
 from firebid.domain.actors import Actor, AuditContext
@@ -40,6 +40,8 @@ class Stateful(Protocol):
 _MACHINES: dict[type, StateMachine] = {
     Bid: BID_LIFECYCLE,
     SheetRevision: SHEET_REVISION,
+    # Requirements §7 names one model for document and sheet revisions.
+    DocumentRevision: SHEET_REVISION,
     QtoItem: QTO_ITEM,
 }
 
@@ -92,6 +94,18 @@ def _guard_context(session: Session, entity: Stateful, target: StrEnum) -> dict[
             )
         ).scalar_one_or_none()
         return {"other_current_revision": other}
+
+    if isinstance(entity, DocumentRevision) and target == SheetRevisionState.CURRENT:
+        found = session.execute(
+            select(DocumentRevision.id, DocumentRevision.revision_label).where(
+                DocumentRevision.bid_id == entity.bid_id,
+                DocumentRevision.doc_key == entity.doc_key,
+                DocumentRevision.state == str(SheetRevisionState.CURRENT),
+                DocumentRevision.id != entity.id,
+            )
+        ).first()
+        # A Current revision with no label is still a Current revision.
+        return {"other_current_revision": (found[1] or "(unlabelled)") if found else None}
 
     if isinstance(entity, QtoItem) and target == QtoItemState.BASELINED:
         unresolved = entity.duplicate_group_id is not None

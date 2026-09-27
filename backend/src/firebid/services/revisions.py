@@ -13,14 +13,21 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from firebid.db.models.core import Bid, Project
-from firebid.db.models.documents import Document, Sheet, SheetRevision, TransmittalEntry
+from firebid.db.models.documents import (
+    Addendum,
+    Document,
+    DocumentRevision,
+    Sheet,
+    SheetRevision,
+    TransmittalEntry,
+)
 from firebid.db.models.workflow import HumanTask
 from firebid.domain.actors import SYSTEM_ACTOR, Actor
 from firebid.domain.state_machines import SheetRevisionState
@@ -47,6 +54,19 @@ IN_THE_RUNNING = (str(State.REGISTERED), str(State.CURRENT), str(State.SUPERSEDE
 # be ordered against the others. The first is about the file; the second about the set.
 CONFLICT_SOURCES = "sources"
 CONFLICT_ORDER = "order"
+
+# Drawings and documents follow one revision model (requirements §7). What differs is what
+# identifies the thing being revised: a drawing number, or a document's key.
+Revision = SheetRevision | DocumentRevision
+RevisionModel = type[SheetRevision] | type[DocumentRevision]
+
+
+def _key_column(model: RevisionModel) -> InstrumentedAttribute[str | None]:
+    return model.sheet_number if model is SheetRevision else model.doc_key  # type: ignore[union-attr]
+
+
+def _key(revision: Revision) -> str | None:
+    return revision.sheet_number if isinstance(revision, SheetRevision) else revision.doc_key
 
 
 def scheme_for(session: Session, bid_id: uuid.UUID) -> Scheme:
@@ -82,6 +102,34 @@ def settle(session: Session, revision: SheetRevision, actor: Actor = SYSTEM_ACTO
         session, revision, target=State.REGISTERED, actor=actor, reason="title block read"
     )
     recompute_current(session, revision.bid_id, revision.sheet_number, actor)
+
+
+def settle_document(
+    session: Session, revision: DocumentRevision, actor: Actor = SYSTEM_ACTOR
+) -> None:
+    """Register a document revision and work out the Current one of its document.
+
+    A document with no identity waits for a person. One whose own text and file name give
+    different revisions is a Conflict, like a drawing's.
+    """
+    if revision.state != str(State.RECEIVED) or not revision.doc_key:
+        return
+    sources = revision.sources or {}
+    said_text = sources.get("text")
+    said_name = sources.get("filename")
+    agreement = reconcile(
+        str(said_text) if said_text else None,
+        str(said_name) if said_name else None,
+        None,
+        first="document",
+    )
+    if agreement.conflict:
+        _flag(session, revision, actor, agreement.conflict, CONFLICT_SOURCES)
+        return
+    apply_transition(
+        session, revision, target=State.REGISTERED, actor=actor, reason="document classified"
+    )
+    recompute_current(session, revision.bid_id, revision.doc_key, actor, model=DocumentRevision)
 
 
 @dataclass(frozen=True)
@@ -150,10 +198,18 @@ def _transmittal_says(
     return listed[-1].revision_label
 
 
-def _issued(session: Session, revision: SheetRevision) -> date | None:
-    """When a revision was issued: its title block date, else what a transmittal says."""
+def _issued(session: Session, revision: Revision) -> date | None:
+    """When a revision was issued: its own date, else its addendum's, else a transmittal's."""
     if revision.revision_date is not None:
         return revision.revision_date
+    if revision.addendum_id is not None:
+        issued = session.execute(
+            select(Addendum.issued_on).where(Addendum.id == revision.addendum_id)
+        ).scalar_one_or_none()
+        if issued is not None:
+            return issued
+    if isinstance(revision, DocumentRevision):
+        return None
     return session.execute(
         select(TransmittalEntry.issued_on)
         .where(
@@ -167,9 +223,14 @@ def _issued(session: Session, revision: SheetRevision) -> date | None:
 
 
 def recompute_current(
-    session: Session, bid_id: uuid.UUID, sheet_number: str | None, actor: Actor = SYSTEM_ACTOR
-) -> SheetRevision | None:
-    """Make the latest revision of a drawing Current and supersede the rest.
+    session: Session,
+    bid_id: uuid.UUID,
+    sheet_number: str | None,
+    actor: Actor = SYSTEM_ACTOR,
+    *,
+    model: RevisionModel = SheetRevision,
+) -> Revision | None:
+    """Make the latest revision of a drawing (or document) Current and supersede the rest.
 
     When the scheme and the dates cannot say which is latest, nothing is guessed: the
     revisions still competing go to Conflict, the Current one included, so takeoff stops
@@ -177,14 +238,17 @@ def recompute_current(
     """
     if not sheet_number:
         return None
-    rows = list(
-        session.execute(
-            select(SheetRevision).where(
-                SheetRevision.bid_id == bid_id,
-                SheetRevision.sheet_number == sheet_number,
-                SheetRevision.state.in_(IN_THE_RUNNING),
-            )
-        ).scalars()
+    rows: list[Revision] = cast(
+        list[Revision],
+        list(
+            session.execute(
+                select(model).where(
+                    model.bid_id == bid_id,
+                    _key_column(model) == sheet_number,
+                    model.state.in_(IN_THE_RUNNING),
+                )
+            ).scalars()
+        ),
     )
     if not rows:
         return None
@@ -209,7 +273,7 @@ def recompute_current(
     chosen = by_key[winner.key]
     if chosen.state == str(State.SUPERSEDED):
         # Restoring a superseded revision undoes a decision; that is a person's to make.
-        _task(
+        revision_task(
             session,
             chosen,
             "revision_restore",
@@ -240,22 +304,26 @@ def recompute_current(
     return chosen
 
 
-def _flag(session: Session, revision: SheetRevision, actor: Actor, why: str, kind: str) -> None:
+def _flag(session: Session, revision: Revision, actor: Actor, why: str, kind: str) -> None:
     apply_transition(session, revision, target=State.CONFLICT, actor=actor, reason=why)
     revision.conflict_reason = why
     revision.sources = {**(revision.sources or {}), "conflict": kind}
-    _task(session, revision, "revision_conflict", why)
+    revision_task(session, revision, "revision_conflict", why)
     log.warning("revision_conflict", revision_id=str(revision.id), kind=kind)
 
 
-def _task(session: Session, revision: SheetRevision, kind: str, why: str) -> HumanTask:
+def _payload_key(revision: Revision) -> str:
+    return f"{type(revision).__tablename__}_id"
+
+
+def revision_task(session: Session, revision: Revision, kind: str, why: str) -> HumanTask:
     task = HumanTask(
         bid_id=revision.bid_id,
         kind=kind,
-        title=f"{revision.sheet_number or 'A sheet'} {revision.revision_label or ''}: "
+        title=f"{_key(revision) or 'An unidentified item'} {revision.revision_label or ''}: "
         + ("resolve the revision conflict" if kind == "revision_conflict" else "check"),
         required_role="estimator",
-        payload={"sheet_revision_id": str(revision.id), "why": why},
+        payload={_payload_key(revision): str(revision.id), "why": why},
     )
     session.add(task)
     session.flush()
@@ -264,7 +332,7 @@ def _task(session: Session, revision: SheetRevision, kind: str, why: str) -> Hum
 
 def resolve_conflict(
     session: Session,
-    revision: SheetRevision,
+    revision: Revision,
     *,
     outcome: SheetRevisionState,
     actor: Actor,
@@ -283,14 +351,18 @@ def resolve_conflict(
         revision.revision_label = revision_label.strip().upper()
         revision.sources = {**(revision.sources or {}), "person": revision.revision_label}
 
-    others = list(
-        session.execute(
-            select(SheetRevision).where(
-                SheetRevision.bid_id == revision.bid_id,
-                SheetRevision.sheet_number == revision.sheet_number,
-                SheetRevision.id != revision.id,
-            )
-        ).scalars()
+    model = type(revision)
+    others: list[Revision] = cast(
+        list[Revision],
+        list(
+            session.execute(
+                select(model).where(
+                    model.bid_id == revision.bid_id,
+                    _key_column(model) == _key(revision),
+                    model.id != revision.id,
+                )
+            ).scalars()
+        ),
     )
     if outcome is State.CURRENT:
         for other in others:
@@ -325,7 +397,7 @@ def resolve_conflict(
     session.flush()
 
 
-def _close_tasks(session: Session, revision: SheetRevision, actor: Actor) -> None:
+def _close_tasks(session: Session, revision: Revision, actor: Actor) -> None:
     from datetime import UTC, datetime
 
     for task in session.execute(
@@ -335,7 +407,7 @@ def _close_tasks(session: Session, revision: SheetRevision, actor: Actor) -> Non
             HumanTask.kind.in_(("revision_conflict", "revision_restore")),
         )
     ).scalars():
-        if task.payload.get("sheet_revision_id") == str(revision.id):
+        if task.payload.get(_payload_key(revision)) == str(revision.id):
             task.state = "done"
             task.completed_at = datetime.now(UTC)
             task.completed_by_id = actor.id

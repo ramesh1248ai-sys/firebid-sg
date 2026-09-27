@@ -19,6 +19,8 @@ class Action(StrEnum):
     BID_EDIT = "bid.edit"
     BID_MEMBER_MANAGE = "bid.member.manage"
     DOCUMENT_UPLOAD = "document.upload"
+    DOCUMENT_REVIEW = "document.review"  # confirm a reading or a type, resolve a conflict
+    REGISTER_CONFIRM = "register.confirm"  # stage S1's output
     GATE_G0_APPROVE = "gate.G0.approve"  # bid / no-bid
     GATE_G1_APPROVE = "gate.G1.approve"  # QTO verified
     GATE_G2_APPROVE = "gate.G2.approve"  # estimate approved
@@ -46,6 +48,10 @@ _MATRIX: dict[Action, frozenset[str]] = {
     Action.DOCUMENT_UPLOAD: frozenset(
         {Role.BID_MANAGER, Role.SENIOR_ESTIMATOR, Role.ESTIMATOR, Role.DESIGN_MANAGER}
     ),
+    # The people the revision state machine lets resolve a conflict.
+    Action.DOCUMENT_REVIEW: frozenset({Role.ESTIMATOR, Role.SENIOR_ESTIMATOR, Role.BID_MANAGER}),
+    # "Register confirmed (Estimator)", requirements §5 stage S1.
+    Action.REGISTER_CONFIRM: frozenset({Role.ESTIMATOR, Role.SENIOR_ESTIMATOR}),
     Action.GATE_G0_APPROVE: frozenset({Role.COMMERCIAL_DIRECTOR}),
     Action.GATE_G1_APPROVE: frozenset({Role.SENIOR_ESTIMATOR}),
     Action.GATE_G2_APPROVE: frozenset({Role.SENIOR_ESTIMATOR}),

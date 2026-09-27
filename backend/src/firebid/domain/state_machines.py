@@ -240,6 +240,13 @@ SHEET_REVISION = StateMachine(
             _DOC_CONTROL,
         ),
         Transition(
+            SheetRevisionState.RECEIVED,
+            SheetRevisionState.WITHDRAWN,
+            "withdraw",
+            _DOC_RESOLVE,
+            note="A page that is not a drawing, such as a cover sheet, which nobody will identify.",
+        ),
+        Transition(
             SheetRevisionState.REGISTERED,
             SheetRevisionState.CURRENT,
             "mark current",

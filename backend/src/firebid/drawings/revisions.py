@@ -176,12 +176,21 @@ class Agreement:
     conflict: str | None
 
 
-def reconcile(title_block: str | None, filename: str | None, transmittal: str | None) -> Agreement:
-    """Do the sources agree on the revision? A source that says nothing does not disagree."""
+def reconcile(
+    title_block: str | None,
+    filename: str | None,
+    transmittal: str | None,
+    *,
+    first: str = "title block",
+) -> Agreement:
+    """Do the sources agree on the revision? A source that says nothing does not disagree.
+
+    `first` names the first source: a drawing's title block, or a document's own text.
+    """
     said = {
         name: value.strip().upper()
         for name, value in (
-            ("title block", title_block),
+            (first, title_block),
             ("filename", filename),
             ("transmittal", transmittal),
         )

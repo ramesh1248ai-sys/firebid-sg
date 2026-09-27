@@ -113,10 +113,12 @@ class SheetRevision(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     __table_args__ = (
         UniqueConstraint("bid_id", "sheet_number", "revision_label", name="uq_sheet_revision"),
         CheckConstraint(f"state IN {REVISION_STATES}", name="state_known"),
-        # Absent beats invented: an unread number or revision stays null, but only while the
-        # revision waits for a person; nothing unidentified is registered.
+        # Absent beats invented: an unread number or revision stays null while the revision
+        # waits for a person, or once a person has withdrawn it (a cover sheet, say). Nothing
+        # unidentified is ever registered.
         CheckConstraint(
-            "(sheet_number IS NOT NULL AND revision_label IS NOT NULL) OR state = 'received'",
+            "(sheet_number IS NOT NULL AND revision_label IS NOT NULL) "
+            "OR state IN ('received', 'withdrawn')",
             name="identified_unless_received",
         ),
         # Guardrail 6 in the database too: two workers cannot both make a revision Current.
@@ -216,3 +218,64 @@ class TransmittalEntry(UuidPk, BidScoped, Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class DocumentRevision(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
+    """A non-drawing document at one revision: the specification register's row (FR-DOC-03).
+
+    Follows the same state machine as a sheet revision. `doc_key` is the document's identity,
+    its document number or, failing that, its title, so revisions of one document compete for
+    Current and different documents do not.
+    """
+
+    __tablename__ = "document_revision"
+    __table_args__ = (
+        CheckConstraint(f"state IN {REVISION_STATES}", name="state_known"),
+        CheckConstraint(
+            "doc_key IS NOT NULL OR state IN ('received', 'withdrawn')",
+            name="identified_unless_received",
+        ),
+        Index(
+            "uq_document_revision_one_current",
+            "bid_id",
+            "doc_key",
+            unique=True,
+            postgresql_where=text("state = 'current'"),
+        ),
+    )
+
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("document.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    doc_type: Mapped[str | None] = mapped_column(String(32))
+    doc_key: Mapped[str | None] = mapped_column(String(200), index=True)
+    title: Mapped[str | None] = mapped_column(String(300))
+    revision_label: Mapped[str | None] = mapped_column(String(40))
+    revision_date: Mapped[date | None] = mapped_column()
+    state: Mapped[str] = mapped_column(
+        String(24), nullable=False, default=str(SheetRevisionState.RECEIVED), index=True
+    )
+    superseded_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("document_revision.id", ondelete="SET NULL")
+    )
+    addendum_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("addendum.id", ondelete="SET NULL")
+    )
+    sources: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    conflict_reason: Mapped[str | None] = mapped_column(Text)
+
+
+class RegisterConfirmation(UuidPk, BidScoped, Timestamped, Base):
+    """Stage S1's output: an Estimator confirmed the registers, and what they held then."""
+
+    __tablename__ = "register_confirmation"
+
+    confirmed_by_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("app_user.id", ondelete="RESTRICT"), nullable=False
+    )
+    confirmed_role: Mapped[str] = mapped_column(String(40), nullable=False)
+    confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    snapshot_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    drawings: Mapped[int] = mapped_column(Integer, nullable=False)
+    documents: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text)

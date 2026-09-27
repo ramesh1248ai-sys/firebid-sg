@@ -247,7 +247,11 @@ def _store(
         scale_text=_short(reading.value(Field.SCALE), 40),
         extraction_method=found.method,
         source_confidence=reading.confidence,
-        reading=reading_json(reading, found.method),
+        reading={
+            **reading_json(reading, found.method, found.page),
+            # Kept so a person's confirmation can remember this consultant's layout.
+            "fingerprint": sorted(list(mark) for mark in fingerprint(found.spans, found.page)),
+        },
         sources={"title_block": label},
         created_by_id=document.created_by_id,
     )
@@ -266,8 +270,12 @@ def _short(value: str | None, limit: int) -> str | None:
     return value[:limit] if value else value
 
 
-def reading_json(reading: TitleBlockReading, method: str) -> dict[str, Any]:
-    """A reading as stored: every field with its value, confidence, method and position."""
+def reading_json(reading: TitleBlockReading, method: str, page: Box) -> dict[str, Any]:
+    """A reading as stored: every field with its value, confidence, method and position.
+
+    The page box goes with it, so a person's confirmation can teach the layout later from
+    the stored reading alone, without opening the file again.
+    """
 
     def dump(found: FieldReading) -> dict[str, Any]:
         box = found.box
@@ -284,6 +292,7 @@ def reading_json(reading: TitleBlockReading, method: str) -> dict[str, Any]:
         "fields": {str(name): dump(found) for name, found in reading.fields.items()},
         "history": list(reading.history),
         "region": None if region is None else [region.x0, region.y0, region.x1, region.y1],
+        "page": [page.x0, page.y0, page.x1, page.y1],
     }
 
 

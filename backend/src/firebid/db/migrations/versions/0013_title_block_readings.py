@@ -54,7 +54,8 @@ def upgrade() -> None:
     op.create_check_constraint(
         op.f("ck_sheet_revision_identified_unless_received"),
         "sheet_revision",
-        "(sheet_number IS NOT NULL AND revision_label IS NOT NULL) OR state = 'received'",
+        "(sheet_number IS NOT NULL AND revision_label IS NOT NULL) "
+        "OR state IN ('received', 'withdrawn')",
     )
     op.create_index(
         "uq_sheet_revision_one_current",
