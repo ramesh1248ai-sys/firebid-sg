@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { api, apiErrorMessage } from "@/api/client";
+import { AuthorisedImage } from "@/components/AuthorisedImage";
 import { Button } from "@/components/ui/button";
 import { accessToken } from "@/auth/oidc";
 
@@ -219,45 +220,13 @@ function Counts({ progress }: { progress: Progress }) {
   );
 }
 
-/**
- * A thumbnail, fetched with the sign-in token. The API authorises every image, so a plain
- * `<img src>` would carry no token and be refused.
- */
+/** A sheet's thumbnail, fetched with the sign-in token. */
 function Thumbnail({ path }: { path: string }) {
-  const [url, setUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    let objectUrl: string | null = null;
-
-    async function load() {
-      const token = await accessToken();
-      const response = await fetch(new URL(path, window.location.origin), {
-        headers: token ? { authorization: `Bearer ${token}` } : {},
-      });
-      if (!response.ok || cancelled) return;
-      objectUrl = URL.createObjectURL(await response.blob());
-      if (cancelled) URL.revokeObjectURL(objectUrl);
-      else setUrl(objectUrl);
-    }
-
-    load().catch(() => {
-      // Without a preview the card still names the sheet and opens it.
-    });
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [path]);
-
-  return url ? (
-    <img
-      src={url}
-      alt=""
+  return (
+    <AuthorisedImage
+      path={path}
       className="h-32 w-full rounded border bg-white object-contain"
     />
-  ) : (
-    <div className="h-32 w-full rounded border bg-white" />
   );
 }
 

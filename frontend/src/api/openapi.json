@@ -867,6 +867,133 @@
         "title": "ConfirmationOut",
         "type": "object"
       },
+      "ConsultantOut": {
+        "properties": {
+          "confirmed": {
+            "title": "Confirmed",
+            "type": "integer"
+          },
+          "consultant": {
+            "title": "Consultant",
+            "type": "string"
+          },
+          "consultant_key": {
+            "title": "Consultant Key",
+            "type": "string"
+          },
+          "proposed": {
+            "title": "Proposed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "consultant",
+          "consultant_key",
+          "confirmed",
+          "proposed"
+        ],
+        "title": "ConsultantOut",
+        "type": "object"
+      },
+      "CountedOut": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "object_type": {
+            "title": "Object Type",
+            "type": "string"
+          },
+          "sheets": {
+            "title": "Sheets",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "object_type",
+          "label",
+          "count",
+          "sheets"
+        ],
+        "title": "CountedOut",
+        "type": "object"
+      },
+      "CountsOut": {
+        "properties": {
+          "counted": {
+            "items": {
+              "$ref": "#/components/schemas/CountedOut"
+            },
+            "title": "Counted",
+            "type": "array"
+          },
+          "not_objects": {
+            "title": "Not Objects",
+            "type": "integer"
+          },
+          "unmapped": {
+            "items": {
+              "$ref": "#/components/schemas/UnmappedOut"
+            },
+            "title": "Unmapped",
+            "type": "array"
+          }
+        },
+        "required": [
+          "counted",
+          "unmapped",
+          "not_objects"
+        ],
+        "title": "CountsOut",
+        "type": "object"
+      },
+      "DecisionRequest": {
+        "properties": {
+          "attributes": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "object_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "omit to confirm as proposed",
+            "title": "Object Type"
+          }
+        },
+        "title": "DecisionRequest",
+        "type": "object"
+      },
       "DocType": {
         "enum": [
           "drawing",
@@ -1389,6 +1516,65 @@
         "title": "IdentifyRequest",
         "type": "object"
       },
+      "LegendRowOut": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "has_crop": {
+            "title": "Has Crop",
+            "type": "boolean"
+          },
+          "heading": {
+            "title": "Heading",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mapping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MappingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sheet_id": {
+            "format": "uuid",
+            "title": "Sheet Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "symbol_box": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Symbol Box",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "sheet_id",
+          "heading",
+          "description",
+          "status",
+          "symbol_box",
+          "has_crop",
+          "mapping"
+        ],
+        "title": "LegendRowOut",
+        "type": "object"
+      },
       "Liveness": {
         "properties": {
           "status": {
@@ -1484,6 +1670,159 @@
           "zone"
         ],
         "title": "LocationOut",
+        "type": "object"
+      },
+      "MappingOut": {
+        "properties": {
+          "attributes": {
+            "additionalProperties": true,
+            "title": "Attributes",
+            "type": "object"
+          },
+          "change_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Note"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "confirmed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed By"
+          },
+          "consultant": {
+            "title": "Consultant",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "lineage_id": {
+            "format": "uuid",
+            "title": "Lineage Id",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "object_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Type"
+          },
+          "project_only": {
+            "title": "Project Only",
+            "type": "boolean"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "rule_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Version"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "lineage_id",
+          "version",
+          "state",
+          "source",
+          "object_type",
+          "attributes",
+          "consultant",
+          "project_only",
+          "description",
+          "confirmed_by",
+          "change_note",
+          "created_at"
+        ],
+        "title": "MappingOut",
         "type": "object"
       },
       "MeasureOut": {
@@ -1615,6 +1954,235 @@
           "max_output_tokens"
         ],
         "title": "ModelOut",
+        "type": "object"
+      },
+      "ObjectTypeChange": {
+        "properties": {
+          "attribute_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribute Schema"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "deprecate": {
+            "default": false,
+            "title": "Deprecate",
+            "type": "boolean"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "measure": {
+            "anyOf": [
+              {
+                "pattern": "^(count|length|none)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measure"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "restore": {
+            "default": false,
+            "title": "Restore",
+            "type": "boolean"
+          }
+        },
+        "title": "ObjectTypeChange",
+        "type": "object"
+      },
+      "ObjectTypeChoice": {
+        "properties": {
+          "attribute_schema": {
+            "additionalProperties": true,
+            "title": "Attribute Schema",
+            "type": "object"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "category",
+          "attribute_schema"
+        ],
+        "title": "ObjectTypeChoice",
+        "type": "object"
+      },
+      "ObjectTypeCreate": {
+        "properties": {
+          "attribute_schema": {
+            "additionalProperties": true,
+            "title": "Attribute Schema",
+            "type": "object"
+          },
+          "category": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Category",
+            "type": "string"
+          },
+          "key": {
+            "pattern": "^[a-z][a-z0-9_]{1,79}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "measure": {
+            "pattern": "^(count|length|none)$",
+            "title": "Measure",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "category",
+          "measure"
+        ],
+        "title": "ObjectTypeCreate",
+        "type": "object"
+      },
+      "ObjectTypeOut": {
+        "properties": {
+          "attribute_schema": {
+            "additionalProperties": true,
+            "title": "Attribute Schema",
+            "type": "object"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "change_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Note"
+          },
+          "changed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changed By"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "deprecated": {
+            "title": "Deprecated",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "measure": {
+            "title": "Measure",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "version",
+          "label",
+          "category",
+          "measure",
+          "attribute_schema",
+          "deprecated",
+          "change_note",
+          "changed_by",
+          "created_at"
+        ],
+        "title": "ObjectTypeOut",
         "type": "object"
       },
       "PresignOut": {
@@ -1891,6 +2459,24 @@
           "confirmation"
         ],
         "title": "RegisterStatus",
+        "type": "object"
+      },
+      "RejectRequest": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "title": "RejectRequest",
         "type": "object"
       },
       "ResolveRequest": {
@@ -2548,6 +3134,87 @@
           "doc_type"
         ],
         "title": "TypeRequest",
+        "type": "object"
+      },
+      "UnmappedOut": {
+        "properties": {
+          "block": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "instances": {
+            "title": "Instances",
+            "type": "integer"
+          },
+          "mapping_lineage_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapping Lineage Id"
+          },
+          "proposed_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed Type"
+          },
+          "sheet_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Sheet Ids",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "symbol_key": {
+            "title": "Symbol Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol_key",
+          "instances",
+          "status",
+          "description",
+          "block",
+          "mapping_lineage_id",
+          "proposed_type",
+          "sheet_ids"
+        ],
+        "title": "UnmappedOut",
         "type": "object"
       },
       "UploadReport": {
@@ -5764,6 +6431,416 @@
         ]
       }
     },
+    "/bids/{bid_id}/symbols/counts": {
+      "get": {
+        "description": "Counts of confirmed, countable types on Current sheets; everything else as unmapped.",
+        "operationId": "symbol_counts_bids__bid_id__symbols_counts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Symbol Counts",
+        "tags": [
+          "symbols"
+        ]
+      }
+    },
+    "/bids/{bid_id}/symbols/legend": {
+      "get": {
+        "description": "Every legend row on the bid's sheets, with the mapping it resolves to.",
+        "operationId": "legend_rows_bids__bid_id__symbols_legend_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LegendRowOut"
+                  },
+                  "title": "Response Legend Rows Bids  Bid Id  Symbols Legend Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Legend Rows",
+        "tags": [
+          "symbols"
+        ]
+      }
+    },
+    "/bids/{bid_id}/symbols/legend/{entry_id}/crop.png": {
+      "get": {
+        "operationId": "legend_crop_bids__bid_id__symbols_legend__entry_id__crop_png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entry Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Legend Crop",
+        "tags": [
+          "symbols"
+        ]
+      }
+    },
+    "/bids/{bid_id}/symbols/mappings/{lineage_id}/confirm": {
+      "post": {
+        "description": "Say what the symbol is: the proposal as it stands, or corrected.",
+        "operationId": "confirm_mapping_bids__bid_id__symbols_mappings__lineage_id__confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lineage_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lineage Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MappingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Confirm Mapping",
+        "tags": [
+          "symbols"
+        ]
+      }
+    },
+    "/bids/{bid_id}/symbols/mappings/{lineage_id}/history": {
+      "get": {
+        "operationId": "mapping_history_bids__bid_id__symbols_mappings__lineage_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lineage_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lineage Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MappingOut"
+                  },
+                  "title": "Response Mapping History Bids  Bid Id  Symbols Mappings  Lineage Id  History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mapping History",
+        "tags": [
+          "symbols"
+        ]
+      }
+    },
+    "/bids/{bid_id}/symbols/mappings/{lineage_id}/reject": {
+      "post": {
+        "operationId": "reject_mapping_bids__bid_id__symbols_mappings__lineage_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lineage_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lineage Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MappingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject Mapping",
+        "tags": [
+          "symbols"
+        ]
+      }
+    },
+    "/bids/{bid_id}/symbols/object-types": {
+      "get": {
+        "description": "The types a symbol may be mapped to now.",
+        "operationId": "object_type_choices_bids__bid_id__symbols_object_types_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ObjectTypeChoice"
+                  },
+                  "title": "Response Object Type Choices Bids  Bid Id  Symbols Object Types Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Object Type Choices",
+        "tags": [
+          "symbols"
+        ]
+      }
+    },
     "/bids/{bid_id}/tasks": {
       "get": {
         "operationId": "list_tasks_bids__bid_id__tasks_get",
@@ -5971,6 +7048,382 @@
         "summary": "Live",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/library/consultants": {
+      "get": {
+        "description": "Every consultant with mappings, and how many are confirmed.",
+        "operationId": "consultants_library_consultants_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConsultantOut"
+                  },
+                  "title": "Response Consultants Library Consultants Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Consultants",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/library/mappings": {
+      "get": {
+        "description": "One consultant's mappings, latest version of each.",
+        "operationId": "list_mappings_library_mappings_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "consultant_key",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Consultant Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MappingOut"
+                  },
+                  "title": "Response List Mappings Library Mappings Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Mappings",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/library/mappings/{lineage_id}/history": {
+      "get": {
+        "operationId": "library_mapping_history_library_mappings__lineage_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lineage_id",
+            "required": true,
+            "schema": {
+              "title": "Lineage Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MappingOut"
+                  },
+                  "title": "Response Library Mapping History Library Mappings  Lineage Id  History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Library Mapping History",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/library/object-types": {
+      "get": {
+        "description": "The current version of every type, deprecated ones included and marked.",
+        "operationId": "list_object_types_library_object_types_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ObjectTypeOut"
+                  },
+                  "title": "Response List Object Types Library Object Types Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Object Types",
+        "tags": [
+          "library"
+        ]
+      },
+      "post": {
+        "operationId": "add_object_type_library_object_types_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObjectTypeCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectTypeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Object Type",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/library/object-types/{key}": {
+      "post": {
+        "description": "A new version of the type: edited, deprecated or restored.",
+        "operationId": "change_object_type_library_object_types__key__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObjectTypeChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectTypeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Object Type",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/library/object-types/{key}/history": {
+      "get": {
+        "operationId": "object_type_history_library_object_types__key__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ObjectTypeOut"
+                  },
+                  "title": "Response Object Type History Library Object Types  Key  History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Object Type History",
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/library/object-types/{key}/versions/{number}": {
+      "get": {
+        "operationId": "object_type_version_library_object_types__key__versions__number__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "title": "Number",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectTypeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Object Type Version",
+        "tags": [
+          "library"
         ]
       }
     },

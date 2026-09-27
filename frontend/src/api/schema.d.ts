@@ -767,6 +767,137 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/symbols/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Symbol Counts
+         * @description Counts of confirmed, countable types on Current sheets; everything else as unmapped.
+         */
+        get: operations["symbol_counts_bids__bid_id__symbols_counts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/symbols/legend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Legend Rows
+         * @description Every legend row on the bid's sheets, with the mapping it resolves to.
+         */
+        get: operations["legend_rows_bids__bid_id__symbols_legend_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/symbols/legend/{entry_id}/crop.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Legend Crop */
+        get: operations["legend_crop_bids__bid_id__symbols_legend__entry_id__crop_png_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/symbols/mappings/{lineage_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Mapping
+         * @description Say what the symbol is: the proposal as it stands, or corrected.
+         */
+        post: operations["confirm_mapping_bids__bid_id__symbols_mappings__lineage_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/symbols/mappings/{lineage_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mapping History */
+        get: operations["mapping_history_bids__bid_id__symbols_mappings__lineage_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/symbols/mappings/{lineage_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Mapping */
+        post: operations["reject_mapping_bids__bid_id__symbols_mappings__lineage_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/symbols/object-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Object Type Choices
+         * @description The types a symbol may be mapped to now.
+         */
+        get: operations["object_type_choices_bids__bid_id__symbols_object_types_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/tasks": {
         parameters: {
             query?: never;
@@ -834,6 +965,138 @@ export interface paths {
          * @description Liveness: the process is serving requests. Used by container health checks.
          */
         get: operations["live_health_live_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/library/consultants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultants
+         * @description Every consultant with mappings, and how many are confirmed.
+         */
+        get: operations["consultants_library_consultants_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/library/mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Mappings
+         * @description One consultant's mappings, latest version of each.
+         */
+        get: operations["list_mappings_library_mappings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/library/mappings/{lineage_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Library Mapping History */
+        get: operations["library_mapping_history_library_mappings__lineage_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/library/object-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Object Types
+         * @description The current version of every type, deprecated ones included and marked.
+         */
+        get: operations["list_object_types_library_object_types_get"];
+        put?: never;
+        /** Add Object Type */
+        post: operations["add_object_type_library_object_types_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/library/object-types/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Object Type
+         * @description A new version of the type: edited, deprecated or restored.
+         */
+        post: operations["change_object_type_library_object_types__key__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/library/object-types/{key}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Object Type History */
+        get: operations["object_type_history_library_object_types__key__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/library/object-types/{key}/versions/{number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Object Type Version */
+        get: operations["object_type_version_library_object_types__key__versions__number__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1145,6 +1408,51 @@ export interface components {
             /** Snapshot Hash */
             snapshot_hash: string;
         };
+        /** ConsultantOut */
+        ConsultantOut: {
+            /** Confirmed */
+            confirmed: number;
+            /** Consultant */
+            consultant: string;
+            /** Consultant Key */
+            consultant_key: string;
+            /** Proposed */
+            proposed: number;
+        };
+        /** CountedOut */
+        CountedOut: {
+            /** Count */
+            count: number;
+            /** Label */
+            label: string;
+            /** Object Type */
+            object_type: string;
+            /** Sheets */
+            sheets: number;
+        };
+        /** CountsOut */
+        CountsOut: {
+            /** Counted */
+            counted: components["schemas"]["CountedOut"][];
+            /** Not Objects */
+            not_objects: number;
+            /** Unmapped */
+            unmapped: components["schemas"]["UnmappedOut"][];
+        };
+        /** DecisionRequest */
+        DecisionRequest: {
+            /** Attributes */
+            attributes?: {
+                [key: string]: unknown;
+            } | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Object Type
+             * @description omit to confirm as proposed
+             */
+            object_type?: string | null;
+        };
         /**
          * DocType
          * @enum {string}
@@ -1294,6 +1602,30 @@ export interface components {
             /** Revision */
             revision?: string | null;
         };
+        /** LegendRowOut */
+        LegendRowOut: {
+            /** Description */
+            description: string;
+            /** Has Crop */
+            has_crop: boolean;
+            /** Heading */
+            heading: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            mapping: components["schemas"]["MappingOut"] | null;
+            /**
+             * Sheet Id
+             * Format: uuid
+             */
+            sheet_id: string;
+            /** Status */
+            status: string;
+            /** Symbol Box */
+            symbol_box: number[];
+        };
         /** Liveness */
         Liveness: {
             /** Status */
@@ -1313,6 +1645,48 @@ export interface components {
             view_kind: string | null;
             /** Zone */
             zone: string | null;
+        };
+        /** MappingOut */
+        MappingOut: {
+            /** Attributes */
+            attributes: {
+                [key: string]: unknown;
+            };
+            /** Change Note */
+            change_note: string | null;
+            /** Confidence */
+            confidence?: number | null;
+            /** Confirmed By */
+            confirmed_by: string | null;
+            /** Consultant */
+            consultant: string;
+            /** Created At */
+            created_at: string;
+            /** Description */
+            description: string | null;
+            /**
+             * Lineage Id
+             * Format: uuid
+             */
+            lineage_id: string;
+            /** Model */
+            model?: string | null;
+            /** Object Type */
+            object_type: string | null;
+            /** Project Only */
+            project_only: boolean;
+            /** Prompt Version */
+            prompt_version?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Rule Version */
+            rule_version?: string | null;
+            /** Source */
+            source: string;
+            /** State */
+            state: string;
+            /** Version */
+            version: number;
         };
         /** MeasureOut */
         MeasureOut: {
@@ -1361,6 +1735,86 @@ export interface components {
             name: string;
             /** Provider */
             provider: string;
+        };
+        /** ObjectTypeChange */
+        ObjectTypeChange: {
+            /** Attribute Schema */
+            attribute_schema?: {
+                [key: string]: unknown;
+            } | null;
+            /** Category */
+            category?: string | null;
+            /**
+             * Deprecate
+             * @default false
+             */
+            deprecate: boolean;
+            /** Label */
+            label?: string | null;
+            /** Measure */
+            measure?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Restore
+             * @default false
+             */
+            restore: boolean;
+        };
+        /** ObjectTypeChoice */
+        ObjectTypeChoice: {
+            /** Attribute Schema */
+            attribute_schema: {
+                [key: string]: unknown;
+            };
+            /** Category */
+            category: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
+        /** ObjectTypeCreate */
+        ObjectTypeCreate: {
+            /** Attribute Schema */
+            attribute_schema?: {
+                [key: string]: unknown;
+            };
+            /** Category */
+            category: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Measure */
+            measure: string;
+            /** Note */
+            note?: string | null;
+        };
+        /** ObjectTypeOut */
+        ObjectTypeOut: {
+            /** Attribute Schema */
+            attribute_schema: {
+                [key: string]: unknown;
+            };
+            /** Category */
+            category: string;
+            /** Change Note */
+            change_note: string | null;
+            /** Changed By */
+            changed_by: string | null;
+            /** Created At */
+            created_at: string;
+            /** Deprecated */
+            deprecated: boolean;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Measure */
+            measure: string;
+            /** Version */
+            version: number;
         };
         /** PresignOut */
         PresignOut: {
@@ -1462,6 +1916,11 @@ export interface components {
             unidentified: number;
             /** Unsure Types */
             unsure_types: number;
+        };
+        /** RejectRequest */
+        RejectRequest: {
+            /** Note */
+            note?: string | null;
         };
         /** ResolveRequest */
         ResolveRequest: {
@@ -1671,6 +2130,25 @@ export interface components {
         /** TypeRequest */
         TypeRequest: {
             doc_type: components["schemas"]["DocType"];
+        };
+        /** UnmappedOut */
+        UnmappedOut: {
+            /** Block */
+            block: string | null;
+            /** Description */
+            description: string | null;
+            /** Instances */
+            instances: number;
+            /** Mapping Lineage Id */
+            mapping_lineage_id: string | null;
+            /** Proposed Type */
+            proposed_type: string | null;
+            /** Sheet Ids */
+            sheet_ids: string[];
+            /** Status */
+            status: string;
+            /** Symbol Key */
+            symbol_key: string;
         };
         /**
          * UploadReport
@@ -3249,6 +3727,235 @@ export interface operations {
             };
         };
     };
+    symbol_counts_bids__bid_id__symbols_counts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    legend_rows_bids__bid_id__symbols_legend_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegendRowOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    legend_crop_bids__bid_id__symbols_legend__entry_id__crop_png_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_mapping_bids__bid_id__symbols_mappings__lineage_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lineage_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mapping_history_bids__bid_id__symbols_mappings__lineage_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lineage_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_mapping_bids__bid_id__symbols_mappings__lineage_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lineage_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    object_type_choices_bids__bid_id__symbols_object_types_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectTypeChoice"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_tasks_bids__bid_id__tasks_get: {
         parameters: {
             query?: never;
@@ -3386,6 +4093,239 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Liveness"];
+                };
+            };
+        };
+    };
+    consultants_library_consultants_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsultantOut"][];
+                };
+            };
+        };
+    };
+    list_mappings_library_mappings_get: {
+        parameters: {
+            query: {
+                consultant_key: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    library_mapping_history_library_mappings__lineage_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lineage_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_object_types_library_object_types_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectTypeOut"][];
+                };
+            };
+        };
+    };
+    add_object_type_library_object_types_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObjectTypeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_object_type_library_object_types__key__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObjectTypeChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    object_type_history_library_object_types__key__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectTypeOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    object_type_version_library_object_types__key__versions__number__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectTypeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
