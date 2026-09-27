@@ -5,7 +5,7 @@ FROM python:3.12-slim-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends make git curl ca-certificates \
+ && apt-get install -y --no-install-recommends make git curl ca-certificates tesseract-ocr \
  && rm -rf /var/lib/apt/lists/*
 
 # Node.js LTS, copied from the official image
