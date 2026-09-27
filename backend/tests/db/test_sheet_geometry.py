@@ -72,7 +72,7 @@ class TestExtraction:
 
         assert record.method == "cad_entity"
         assert record.page == [0.0, 0.0, 420.0, 297.0]
-        assert record.counts["circle"] == 48
+        assert record.counts["circle"] == 48 + 9, "48 sprinklers and 9 grid bubbles"
         assert record.views and record.views[0]["denominator"] == 100.0
         assert not record.from_cache
         table = load(store, record)
@@ -125,7 +125,7 @@ class TestTheStageCache:
 
         assert parses == ["extract"], "no second parse"
         assert record.from_cache
-        assert record.counts["circle"] == 48
+        assert record.counts["circle"] == 57
         assert record.bid_id == second_bid.id
 
     def test_the_same_sheet_again_changes_nothing(

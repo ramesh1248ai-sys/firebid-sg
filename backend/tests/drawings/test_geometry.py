@@ -77,7 +77,12 @@ class TestLengths:
         self, from_dxf: dict[str, object], from_pdf: dict[str, object]
     ) -> None:
         dxf = table_of(from_dxf)
-        circles = dxf.filter(pc.equal(dxf.column("kind"), pa.scalar("circle")))
+        circles = dxf.filter(
+            pc.and_(
+                pc.equal(dxf.column("kind"), pa.scalar("circle")),
+                pc.equal(dxf.column("layer"), pa.scalar(synthetic.LAYER_SPRINKLER)),
+            )
+        )
         dxf_centres = np.column_stack(
             [circles.column("cx").to_numpy(), circles.column("cy").to_numpy()]
         )

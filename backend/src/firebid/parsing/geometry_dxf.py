@@ -349,3 +349,6 @@ def _dimension(
     override = entity.dxf.get("text", "")
     label = override if override and override != "<>" else f"{measured:g}"
     builder.dimension(x0, y0, x1, y1, group, value=measured, text=label, **style)
+    # And what it draws: its lines, ticks and figure, as the PDF export of it shows them.
+    for part in entity.virtual_entities():
+        _entity(part, placement, builder, depth=MAX_INSERT_DEPTH, group=group)
