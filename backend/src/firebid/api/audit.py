@@ -25,6 +25,8 @@ from firebid.api.deps import CurrentPrincipal, DbSession
 from firebid.auth.permissions import Action, may
 from firebid.auth.provisioning import Principal, is_member
 from firebid.db.audit import verify_chain
+from firebid.db.engine import session_scope
+from firebid.db.identity import set_transaction_identity
 from firebid.db.models.audit import AuditEvent
 from firebid.db.models.core import BidMember
 
@@ -187,23 +189,30 @@ def export_csv(
         writer = csv.writer(buffer, lineterminator="\n")
         writer.writerow(CSV_COLUMNS)
         yield buffer.getvalue()
-        for record in session.execute(statement).scalars().yield_per(500):
-            buffer.seek(0)
-            buffer.truncate(0)
-            writer.writerow(
-                [
-                    record.occurred_at.isoformat(),
-                    record.action,
-                    record.entity_type,
-                    record.entity_id,
-                    record.actor_label,
-                    record.bid_id or "",
-                    record.reason or "",
-                    record.before or "",
-                    record.after or "",
-                ]
-            )
-            yield buffer.getvalue()
+        # The stream is read after this endpoint returns, when the request's session has
+        # already committed and closed: it reads on its own session, acting as the caller so
+        # row-level security still applies.
+        with session_scope() as streaming:
+            # Set on this session's transaction, not a context variable: a streamed sync
+            # generator is advanced from a thread pool, in a fresh context each time.
+            set_transaction_identity(streaming, principal.user_id)
+            for record in streaming.execute(statement).scalars().yield_per(500):
+                buffer.seek(0)
+                buffer.truncate(0)
+                writer.writerow(
+                    [
+                        record.occurred_at.isoformat(),
+                        record.action,
+                        record.entity_type,
+                        record.entity_id,
+                        record.actor_label,
+                        record.bid_id or "",
+                        record.reason or "",
+                        record.before or "",
+                        record.after or "",
+                    ]
+                )
+                yield buffer.getvalue()
 
     return StreamingResponse(
         rows(),
