@@ -24,8 +24,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from firebid.db.base import Base
 from firebid.db.mixins import BidScoped, CreatedBy, Timestamped, UuidPk, personal
 from firebid.domain.state_machines import SheetRevisionState
+from firebid.ingest.classification import DocType
 
 REVISION_STATES = tuple(str(state) for state in SheetRevisionState)
+DOC_TYPES = tuple(str(doc_type) for doc_type in DocType)
 DOCUMENT_STATES = ("received", "awaiting_scan", "quarantined", "processing", "done", "rejected")
 
 
@@ -36,6 +38,7 @@ class Document(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     __table_args__ = (
         UniqueConstraint("bid_id", "sha256", name="uq_document_bid_sha256"),
         CheckConstraint(f"state IN {DOCUMENT_STATES}", name="state_known"),
+        CheckConstraint(f"doc_type IS NULL OR doc_type IN {DOC_TYPES}", name="doc_type_known"),
     )
 
     tender_package_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -60,6 +63,11 @@ class Document(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     derived_from_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("document.id", ondelete="SET NULL")
     )
+    # What kind of tender document it is (FR-DOC-02): a proposal until a person confirms it.
+    doc_type: Mapped[str | None] = mapped_column(String(32), index=True)
+    doc_type_confidence: Mapped[float | None] = mapped_column(Float)
+    # Who or what proposed it, why, and the digest it was decided from.
+    classification: Mapped[dict[str, object] | None] = mapped_column(JSONB)
 
 
 class Sheet(UuidPk, BidScoped, Timestamped, Base):

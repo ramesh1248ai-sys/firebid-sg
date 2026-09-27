@@ -100,11 +100,13 @@ def _report(outcome: IngestOutcome) -> UploadReport:
     )
 
 
-PARSEABLE_KINDS = frozenset({"pdf", "dxf"})
+# What the parse job reads. A legacy .doc or .xls is not here: its converted copy is, and
+# the original takes the copy's classification.
+PARSEABLE_KINDS = frozenset({"pdf", "dxf", "xlsx", "docx"})
 
 
 def _queue_parsing(session: Session, report: UploadReport, user_id: uuid.UUID) -> None:
-    """Queue a parse job for each newly stored document that becomes sheets.
+    """Queue a parse job for each newly stored document the pipeline can read.
 
     In the caller's transaction (the `jobs` convention): a rollback takes the jobs with it,
     so a job never runs against a document row that was never committed. The job acts as

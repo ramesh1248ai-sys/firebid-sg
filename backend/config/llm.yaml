@@ -95,6 +95,16 @@ routes:
     max_output_tokens: 2000
     prompt: title_block_read
 
+  # Says which kind of tender document a file is, when the rules could not (P1-02). Sent the
+  # opening text of a tender document, so it is confidential. Text only: no vision needed.
+  doc_classify:
+    requires: [structured_output]
+    data_class: confidential
+    models: [claude-opus-5, gpt-5.1, gemini-3-pro]
+    reasoning: low
+    max_output_tokens: 1000
+    prompt: doc_classify
+
   # Everyday internal text work with no tender content in it.
   internal_summary:
     requires: [structured_output]

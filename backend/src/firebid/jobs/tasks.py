@@ -16,6 +16,8 @@ from firebid.jobs.worker import PARSE_QUEUE
 log = structlog.get_logger(__name__)
 
 HEARTBEAT_NAME = "worker"
+# Kinds that become sheets. Everything the parse job reads is also classified.
+SHEET_KINDS = frozenset({"pdf", "dxf"})
 
 
 @app.task(name="system.add_example", pass_context=True, queue="default")
@@ -74,7 +76,7 @@ def heartbeat(timestamp: int) -> None:
 
 @app.task(name="parse.document", queue=PARSE_QUEUE, pass_context=True)
 def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[str, int]:
-    """Turn one stored document into sheets with tiles (FR-DOC-01).
+    """Read one stored document: sheets and title blocks for a drawing, and a type for all.
 
     On the `parse` queue, so only the sandbox pool takes it: this job opens a file that came
     from outside the company, and the pool is the only container allowed to do that.
@@ -82,13 +84,15 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
     Runs as `user_id`, the person who uploaded the file. Row-level security shows a
     transaction with no acting user nothing, so without it every document looks deleted.
 
-    Idempotent, because delivery is at-least-once. Sheets are keyed by document and page and
-    tiles by content hash, so running it twice re-uses everything and changes nothing.
+    Idempotent, because delivery is at-least-once. Sheets are keyed by document and page,
+    tiles by content hash, and title block proposals by sheet, so running it twice re-uses
+    everything and changes nothing.
     """
     import uuid as uuid_module
 
     from firebid.db.identity import acting_as
     from firebid.db.models.documents import Document
+    from firebid.services.classification import classify_in_sandbox
     from firebid.services.sheets import process_document
     from firebid.services.title_blocks import read_title_blocks
     from firebid.storage.object_store import get_object_store
@@ -101,15 +105,49 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
             return {"sheets": 0, "tiles": 0}
 
         store = get_object_store()
-        outcome = process_document(session, store, document)
-        if outcome.sheets:
-            # Straight after the sheets exist, in the same sandboxed job: reading a title
-            # block opens the tender file, so it cannot happen anywhere else.
-            read_title_blocks(session, store, document, outcome.sheets)
+        failure: str | None = None
+        sheets = 0
+        tiles = 0
+        if document.kind in SHEET_KINDS:
+            outcome = process_document(session, store, document)
+            failure = outcome.failure
+            sheets, tiles = len(outcome.sheets), outcome.tiles_written
+            if outcome.sheets:
+                # Straight after the sheets exist, in the same sandboxed job: reading a title
+                # block opens the tender file, so it cannot happen anywhere else.
+                read_title_blocks(session, store, document, outcome.sheets)
+        if failure is None and document.state in ("received", "done"):
+            classify_in_sandbox(session, document, store.get(document.storage_key))
+            # A workbook or a document becomes no sheets; being read and classified is
+            # what "done" means for it.
+            document.state = "done"
 
-    if outcome.failure:
-        log.warning("parse_failed", document_id=document_id, reason=outcome.failure)
-    return {"sheets": len(outcome.sheets), "tiles": outcome.tiles_written}
+    if failure:
+        log.warning("parse_failed", document_id=document_id, reason=failure)
+    return {"sheets": sheets, "tiles": tiles}
+
+
+@app.task(name="document.classify", queue="default", pass_context=True)
+def classify_document_with_model(context: JobContext, document_id: str, user_id: str) -> str:
+    """Ask the model which kind of document the rules could not place (FR-DOC-02).
+
+    On the ordinary worker: it calls a model, and it is given the stored digest, never the
+    file, so it has no need to be in the sandbox pool.
+    """
+    import uuid as uuid_module
+
+    from firebid.ai_gateway import gateway
+    from firebid.db.identity import acting_as
+    from firebid.db.models.documents import Document
+    from firebid.services.classification import classify_with_model
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        document = session.get(Document, uuid_module.UUID(document_id))
+        if document is None:
+            return "missing"
+        classify_with_model(session, document, gateway())
+        return document.doc_type or "unknown"
 
 
 @app.task(name="title_block.check", queue="default", pass_context=True)

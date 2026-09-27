@@ -33,6 +33,7 @@ dependencies = [
     "structlog>=26.1.0",
     "uvicorn[standard]>=0.53.0",
     "pytesseract>=0.3.13",
+    "python-docx>=1.2.0",
 ]
 
 [project.scripts]
