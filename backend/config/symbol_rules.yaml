@@ -1,0 +1,23 @@
+# Legend descriptions the platform can map without a model (P1-04, deterministic first).
+#
+# Each rule is a regular expression over the legend row's description (upper case, spaces
+# collapsed) and the canonical object type it proposes. A rule's answer is a proposal like
+# any other: a person still confirms it. When rules for different types match one row, none
+# applies, and the model is asked instead.
+#
+# The file's content hash is the rule version recorded on each proposal.
+
+rules:
+  - {match: '\bPENDENT\b', type: sprinkler_pendent}
+  - {match: '\bUPRIGHT\b', type: sprinkler_upright}
+  - {match: '\bSIDE\s*WALL\b', type: sprinkler_sidewall}
+  - {match: '\bCONCEALED\b.*\bSPRINKLER|\bSPRINKLER\b.*\bCONCEALED\b', type: sprinkler_concealed}
+  - {match: '\bGATE\s+VALVE\b|\bOS\s*&\s*Y\b', type: gate_valve}
+  - {match: '\bBUTTERFLY\s+VALVE\b', type: butterfly_valve}
+  - {match: '\b(CHECK|NON[-\s]?RETURN)\s+VALVE\b', type: check_valve}
+  - {match: '\bTEST\s+(AND|&)\s+DRAIN\b', type: test_and_drain_valve}
+  - {match: '\bPRESSURE\s+REDUCING\b|\bPRV\b', type: pressure_reducing_valve}
+  - {match: '\bINSTALLATION\s+CONTROL\s+VALVE\b|\bICV\b|\bALARM\s+VALVE\s+SET\b', type: installation_control_valve_set}
+  - {match: '\b(SUBSIDIARY|ZONE)\s+(CONTROL\s+)?VALVE\b|\bZCV\b|\bSCV\b', type: subsidiary_control_valve}
+  - {match: '\bFLOW\s+SWITCH\b', type: flow_switch}
+  - {match: '\bTAMPER\s+SWITCH\b|\bSUPERVISORY\s+SWITCH\b', type: tamper_switch}

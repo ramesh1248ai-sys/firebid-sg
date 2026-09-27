@@ -181,6 +181,7 @@ def upgrade() -> None:
         sa.Column("rotation", sa.Float(), nullable=True),
         sa.Column("scale", sa.Float(), nullable=True),
         sa.Column("match_distance", sa.Float(), nullable=True),
+        sa.Column("signature", postgresql.JSONB(), nullable=False),
         sa.Column("detector_version", sa.String(16), nullable=False),
         sa.ForeignKeyConstraint(
             ["bid_id"],

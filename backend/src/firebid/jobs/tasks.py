@@ -96,6 +96,7 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
     from firebid.services.geometry import extract_all
     from firebid.services.revisions import read_transmittal
     from firebid.services.sheets import process_document
+    from firebid.services.symbols import read_all as read_symbols
     from firebid.services.title_blocks import read_title_blocks
     from firebid.services.views import detect_all
     from firebid.storage.object_store import get_object_store
@@ -123,6 +124,8 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
                 extract_all(session, store, document, outcome.sheets)
                 # Views, their scales and grids, from that geometry (FR-VIS-05/07/08).
                 detect_all(session, store, outcome.sheets)
+                # Legends, symbol mappings and instances, from the same geometry (FR-VIS-02).
+                read_symbols(session, store, outcome.sheets, user_id=user_id)
         if failure is None and document.state in ("received", "done"):
             payload = store.get(document.storage_key)
             if document.kind == "xlsx":
@@ -160,6 +163,31 @@ def classify_document_with_model(context: JobContext, document_id: str, user_id:
             return "missing"
         classify_with_model(session, document, gateway())
         return document.doc_type or "unknown"
+
+
+@app.task(name="symbol.propose", queue="default", pass_context=True)
+def propose_symbol(context: JobContext, entry_id: str, user_id: str) -> str:
+    """Ask the model what a legend row's symbol is, when the keyword rules could not say.
+
+    On the ordinary worker, not the sandbox pool: it calls a model, and it is given a PNG of
+    the row drawn from the extracted geometry, not the tender file. Its answer is a proposal
+    that a person confirms (FR-VIS-02).
+    """
+    import uuid as uuid_module
+
+    from firebid.ai_gateway import gateway
+    from firebid.db.identity import acting_as
+    from firebid.db.models.symbols import LegendEntry
+    from firebid.services.symbols import propose_with_model
+    from firebid.storage.object_store import get_object_store
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        entry = session.get(LegendEntry, uuid_module.UUID(entry_id))
+        if entry is None:
+            log.info("symbol_propose_skipped_missing_entry", entry_id=entry_id)
+            return "missing"
+        return propose_with_model(session, get_object_store(), entry, gateway()).status
 
 
 @app.task(name="title_block.check", queue="default", pass_context=True)

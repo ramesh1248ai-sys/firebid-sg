@@ -45,7 +45,8 @@ ALPHA = Consultant(
     name="ALPHA CONSULTANTS PTE LTD",
     symbols=(
         Symbol("SPK-PEND", "PENDENT SPRINKLER", "sprinkler_pendent", "circle_cross"),
-        Symbol("SPK-UP", "UPRIGHT SPRINKLER", "sprinkler_upright", "circle_dot"),
+        # No keyword rule reads "UP TYPE": this row goes to the model.
+        Symbol("SPK-UP", "SPRINKLER - UP TYPE", "sprinkler_upright", "circle_dot"),
         Symbol("SPK-SW", "SIDEWALL SPRINKLER", "sprinkler_sidewall", "half_circle"),
         Symbol("VLV-GATE", "GATE VALVE", "gate_valve", "bow_tie"),
         Symbol("VLV-CHK", "NON-RETURN VALVE", "check_valve", "arrow_bar"),

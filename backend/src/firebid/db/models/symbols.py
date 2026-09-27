@@ -153,4 +153,6 @@ class SymbolInstance(BidScoped, Base):
     rotation: Mapped[float | None] = mapped_column(Float)
     scale: Mapped[float | None] = mapped_column(Float)
     match_distance: Mapped[float | None] = mapped_column(Float)
+    # Kept so an instance found before its legend was read can be matched once it is.
+    signature: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     detector_version: Mapped[str] = mapped_column(String(16), nullable=False)
