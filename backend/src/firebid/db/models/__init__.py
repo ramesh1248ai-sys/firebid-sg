@@ -42,6 +42,7 @@ from firebid.db.models.documents import (
     TransmittalEntry,
 )
 from firebid.db.models.drawings import GeometryFeature, SheetGeometry, SheetView
+from firebid.db.models.specs import SpecAttribute, SpecClause
 from firebid.db.models.symbols import (
     ConsultantProfile,
     LegendEntry,
@@ -102,6 +103,8 @@ __all__ = [
     "SheetGeometry",
     "SheetRevision",
     "SheetView",
+    "SpecAttribute",
+    "SpecClause",
     "SymbolInstance",
     "SymbolMapping",
     "SystemHeartbeat",

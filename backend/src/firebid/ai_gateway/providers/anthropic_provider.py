@@ -174,7 +174,11 @@ def _message(message: Message) -> dict[str, Any]:
     content: list[dict[str, Any]] = []
     for part in message.parts:
         if isinstance(part, TextPart):
-            content.append({"type": "text", "text": part.text})
+            block: dict[str, Any] = {"type": "text", "text": part.text}
+            if part.cache:
+                # Prompt caching: everything up to and including this block is cached.
+                block["cache_control"] = {"type": "ephemeral"}
+            content.append(block)
         elif isinstance(part, ImagePart):
             content.append(
                 {

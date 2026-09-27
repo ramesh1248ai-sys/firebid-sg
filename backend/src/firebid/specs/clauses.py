@@ -151,3 +151,8 @@ def find(clauses: list[Clause], number: str) -> Clause | None:
 
 def full_text(clause: Clause) -> str:
     return f"{clause.heading} {clause.text}".strip()
+
+
+def parse_json(payload: bytes, kind: str) -> list[dict[str, Any]]:
+    """`parse`, as plain data: what the sandbox hands back."""
+    return [clause.as_json() for clause in parse(payload, kind)]
