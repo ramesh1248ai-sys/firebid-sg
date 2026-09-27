@@ -164,6 +164,16 @@ def main(argv: list[str] | None = None) -> int:
     return _run_compare_models(arguments)
 
 
+def _metrics_for(suite: str) -> tuple[str, ...] | None:
+    if suite == DOC_SUITE:
+        return DOC_METRICS
+    if suite == DETECTION_SUITE:
+        from firebid.evals.p1_detection import METRICS
+
+        return METRICS
+    return None
+
+
 def _run_calibrate(arguments: argparse.Namespace) -> int:
     """Fit the calibration maps, write them to config, and fail if the hold-out misses."""
     from firebid.drawings.calibration import CONFIG
@@ -232,6 +242,15 @@ def _run_suite_command(arguments: argparse.Namespace) -> int:
 
         suite = load_golden(arguments.root) or generate(fixtures, seed=arguments.seed)
         result = run_suite(suite.golden_set, TitleBlockPredictor(suite.files))
+    elif arguments.suite == DETECTION_SUITE:
+        # Detection (FR-VIS-03, 09), with the platform's own pipeline: the golden set when
+        # one has been imported, synthetic installations otherwise.
+        from firebid.evals import p1_detection
+
+        detection = p1_detection.load_golden(arguments.root) or p1_detection.generate(
+            fixtures, seed=arguments.seed, tenders=arguments.tenders
+        )
+        result = run_suite(detection.golden_set, p1_detection.DetectionPredictor(detection))
     else:
         golden_set = _load_golden_set(
             arguments.suite, arguments.root, arguments.seed, arguments.tenders
@@ -241,9 +260,11 @@ def _run_suite_command(arguments: argparse.Namespace) -> int:
     if arguments.command == "run":
         result_path.parent.mkdir(parents=True, exist_ok=True)
         result_path.write_text(result.to_json(), encoding="utf-8")
-        report = markdown_report(
-            result, metrics=DOC_METRICS if arguments.suite == DOC_SUITE else None
-        )
+        report = markdown_report(result, metrics=_metrics_for(arguments.suite))
+        if arguments.suite == DETECTION_SUITE:
+            from firebid.evals.p1_detection import untyped_note
+
+            report += untyped_note(detection)
         if arguments.report:
             arguments.report.parent.mkdir(parents=True, exist_ok=True)
             arguments.report.write_text(report, encoding="utf-8")
