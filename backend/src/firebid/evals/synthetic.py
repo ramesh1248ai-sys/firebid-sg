@@ -151,6 +151,7 @@ def _title_block(
     scale: str,
     title: str = "FIRE SPRINKLER LAYOUT",
     drawing_scale: int = DRAWING_SCALE,
+    consultant: str = CONSULTANT_NAME,
 ) -> None:
     """A sheet border and a title block laid out the way consultants lay them out.
 
@@ -179,7 +180,7 @@ def _title_block(
     _cell(space, "DRAWING TITLE", title, (left, sy + 2_000, right, sy + 3_600))
     _cell(space, "PROJECT", PROJECT_NAME, (left, sy + 3_600, right, sy + 5_000), 220)
     _box(space, left, sy + 5_000, right, sy + 6_000)
-    _text(space, CONSULTANT_NAME, left + 150, sy + 5_350, 300)
+    _text(space, consultant, left + 150, sy + 5_350, 300)
 
     # The revision history, above the title block, newest at the top.
     base = sy + 6_000
