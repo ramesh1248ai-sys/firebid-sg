@@ -327,7 +327,8 @@ Entry template:
     - Thumbnails were plain `<img>` requests with no token, so every one returned 401. They are now fetched with the token.
     - Sheet cards and the viewer heading showed only "page 1" or "Model". The sheets API now returns the source `filename`, which the page shows.
     - The E2E EICAR fixture appended the test string to a PDF. Real ClamAV matches EICAR only at the start of a file, so it passed the scan (the unit test's fake scanner matched anywhere). The fixture is now a workbook carrying the file inside, which ClamAV flags, and the test asserts that row says Quarantined.
-    - Also: "1 file need attention", and three ambiguous selectors in the spec.
+    - Also: the failures heading read "1 file need attention", and the spec had three ambiguous selectors.
+  - **A file released by a rescan was never read.** `rescan` moved a held file to `received` but queued no parse job, and skipped the legacy conversion an upload would have done, so a PDF held during a ClamAV outage never became sheets. Rescan is now `Ingestor.release_held()`, which sends a released file down the rest of the upload path, and the API queues parsing for it as it does after an upload. Checked live: stopped ClamAV, uploaded a drawing (held), restarted ClamAV, rescanned; it became one sheet with a thumbnail, and a second rescan moved nothing.
 - **Known gaps and follow-ups:**
   - **The per-job network namespace is inert under Docker's default seccomp profile.** Tracked as open item 6 in the security baseline; the decision belongs to P1-10.
   - **DWG is still unreadable** pending ADR-003. Every DWG is refused with a message naming the DXF export as the way forward.
@@ -335,5 +336,4 @@ Entry template:
   - **No revision or sheet-number extraction yet** — `SheetRevision` is untouched here; that is P1-02.
   - **`tender_package_id` is accepted but never set by the API.** Packages arrive with P1-02's addenda handling.
   - **Failed parse jobs do not retry with backoff.** Procrastinate's retry strategy is not configured on `parse.document`; a failure lands in `rejected` with its reason instead, which is visible but final until the file is re-uploaded.
-  - **A file held by a scanner outage is never parsed after it is released.** `rescan` moves it on but does not queue `parse.document`, so a PDF held during an outage will not become sheets until it is re-uploaded.
   - **The EICAR unit test's fake scanner matches the string anywhere**, which real ClamAV does not; it proves the pipeline's handling of a verdict, not what ClamAV will flag.
