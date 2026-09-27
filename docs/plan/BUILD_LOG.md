@@ -404,3 +404,97 @@ Entry template:
   - **Opening an export in Excel by hand** is still to be done.
   - **The model checks are exercised with the fake adapter only.** A live run of `title_block_read` and `doc_classify` belongs with the credential-gated tests.
   - **No E2E test goes through the registers page yet.** The page has Vitest tests and the API has tests; an E2E path through upload, registers and confirmation should follow.
+
+## P1-03 · Sheet Geometry, Views and Scale · 2026-09-27
+
+- **Summary:** every vector sheet becomes one geometry model, whether it arrived as DXF or PDF. The model holds lines, polylines, arcs, circles, text, inserts, hatches and dimensions in sheet millimetres, and each primitive records how it was extracted. It is stored as Parquet, keyed by content hash and extractor version (the stage cache), and indexed by place in PostgreSQL. Scanned pages yield OCR words with confidences. Views, their stated scales and the structural grid are then found from the geometry. A scale counts as verified only when the drawing's own dimensions agree with it. Lengths are refused on any view that is not verified or calibrated, and a calibration names the person who made it. Built in parts A–E, committed separately.
+- **Key modules / files:**
+  - `backend/src/firebid/drawings/`:
+    - `geometry.py`: the model, `Builder`, vectorised `segments()`, Parquet.
+    - `stage_cache.py`.
+    - `scale.py`: stated scales, evidence, verdicts, `measure`, `calibrated`.
+    - `grids.py`: bubbles and lines, references, label-based grid coordinates, overlap.
+    - `views.py`: view titles and kinds, extents, the title block left out, `analyse`.
+  - `backend/src/firebid/parsing/`:
+    - `geometry_dxf.py`: paperspace, viewports clipped and transformed, modelspace placed at its stated scale, inserts and dimensions kept and exploded.
+    - `geometry_pdf.py`: pypdfium2 page objects with form recursion; pdfplumber fallback; OCR of scanned pages by word.
+  - `backend/src/firebid/services/`:
+    - `geometry.py`: extract, cache, index.
+    - `views.py`: detect views after geometry; `measure`, `calibrate` and `locate`.
+    - Both run in the parse job, after the title blocks.
+  - `backend/src/firebid/api/views.py`:
+    - `GET …/sheets/{id}/views`
+    - `POST …/views/{id}/measure`: 409 unless measurable.
+    - `POST …/views/{id}/calibrate`: needs `document.review`; audited.
+    - `GET …/sheets/{id}/locate?x&y`
+  - `backend/src/firebid/evals/pdf_benchmark.py`: `generate`, `run` and `throughput`.
+  - ADR-002.
+  - Migrations `0017` (`sheet_geometry`, and `geometry_feature` with a GiST `box` index) and `0018` (`sheet_view`). Both have RLS per bid.
+  - The synthetic fixtures now carry a structural grid, dimensions and view titles, each at its true scale. The enlarged plan is a true 1:50.
+- **How to run and demo:**
+  1. `make up`, then upload a DXF or PDF plan.
+  2. Once parsed, `GET /bids/{bid}/sheets/{sheet}/views` shows each view's kind, scale status and evidence, and its grid.
+  3. `POST …/measure` with sheet-mm points returns a length, or a 409 that says why and how to unlock it.
+  4. `python -m firebid.evals.pdf_benchmark generate --out DIR`, then `throughput --sheets DIR`, gives the NFR-01 figures below.
+- **Requirement IDs covered (test names):**
+  - FR-VIS-01:
+    - `tests/drawings/test_geometry.py`: lengths, cross-format agreement, methods, the fallback, the model.
+    - `tests/db/test_sheet_geometry.py`: stored, indexed by place, cache hit with no parsing, version bump re-extracts.
+    - `test_views.py::TestMeasurement::test_a_verified_plan_measures_known_lengths_within_half_a_percent[dxf|pdf]`
+  - FR-VIS-05:
+    - `tests/drawings/test_views.py::TestMeasurement`: 0.5% on DXF and PDF; unverified, NTS and conflicting refused; calibration unlocks.
+    - `tests/db/test_sheet_views.py::TestMeasuring`: the API's 409s.
+    - `tests/db/test_sheet_views.py::TestCalibration`: the calibrator recorded and audited, role-gated, and surviving re-detection.
+  - FR-VIS-06: `test_geometry.py::TestRasterText`, covering OCR words with confidences, and vector spans with positions and no OCR.
+  - FR-VIS-07:
+    - `test_views.py::TestWhereThingsAre`: "Grid B2", "Grid B1–C2" and L05, on both formats.
+    - `test_sheet_views.py::TestLocating`: the same through the API.
+  - FR-VIS-08:
+    - `test_views.py::TestViews`: kinds from titles; the enlarged plan is more than 95% inside the general plan in grid space, on both formats.
+    - `test_sheet_views.py::TestDetectedViews`
+  - NFR-01: `tests/evals/test_geometry_budget.py`.
+- **PDF engine benchmark (ADR-002):**
+  - Synthetic dense A1 and A0 sheets:
+
+    | Engine | Time per sheet | Peak memory | Line work | Text |
+    |---|---|---|---|---|
+    | pypdfium2 | 0.40–0.81 s | 152–187 MB | 100% | 100% |
+    | pdfplumber | 1.35–2.52 s | 176–211 MB | 100% | 99.0–99.6% |
+    | PyMuPDF | 0.25–0.43 s | 111–126 MB | 100% | 100% |
+
+  - Recommendation: no PyMuPDF licence now; re-measure on the real sheets.
+- **NFR-01 calculation:**
+  - The budget: 300 sheets within 3,600 s on 4 workers, so each sheet may use at most 3,600 × 4 / 300 = **48 worker-seconds** for everything.
+  - The run: `pdf_benchmark throughput` put 300 dense sheets (3 × A1, 2 × A0, cycled; no cache, so every sheet is extracted) through geometry extraction and view analysis on 4 processes.
+  - Per-sheet geometry and views: **p50 1.68 s, p95 3.60 s, max 4.49 s**.
+  - Wall time: **151 s**. That is **4.2% of the hour**, leaving about 44 worker-seconds per sheet for rendering, title blocks and classification.
+  - On its own, analysing views took 0.12 s on A1 and 0.22 s on A0.
+  - Measured on the development host (16 cores, Windows), not in the sandbox pool; the pool's CPU quota should be checked against these figures when it is sized.
+- **Deviations and decisions:**
+  - **Coordinates are sheet millimetres with y pointing down**, for every source. A DXF modelspace without a viewport or page setup is placed at the scale its own text states (`1:N`, most common first), else fitted to the page and marked so.
+  - **Every primitive is exploded, but its parent is kept.** An insert is recorded and exploded, because symbols match on the insert (P1-04). A dimension is recorded with its measured value and also exploded, which is the exact evidence a scale is verified from.
+  - **A PDF dimension is found by pairing.** A numeric figure is paired with a parallel line whose midpoint lies within a quarter of the line's length along it and three text heights across it, so a pipe running past does not count.
+  - **Grid spacing checks a scale only when it is dimensioned.** An undimensioned grid does not state its true spacing, so it cannot confirm a scale by itself.
+  - **Grid coordinates count by label, not by line**: A is 1, B is 2, and so on. Two sheets that show different parts of one grid then give the same coordinates for the same place, which is how an enlarged plan is found inside its general arrangement whatever its scale.
+  - **The grid is found once per sheet** and given to its plan-type views; schematics, sections and details get none.
+  - **A calibration survives re-detection** when a view of the same kind is still in the same place. A view marked NTS cannot be calibrated.
+  - **Level comes from the view title first** (`LEVEL 5 …` becomes L05), then from the drawing number read in P1-02. The zone comes only from P1-02; drawn zone boundaries are not detected yet.
+  - **Views are found by their titles unless the source defines them.** A DXF viewport is taken exactly. Otherwise line work goes to the nearest title, and the title block is left out.
+  - **The hot loops are NumPy arrays, not STRtree.** Shapely is used for clipping to viewports; figure pairing and grid search are array operations over all segments and are fast enough (above).
+- **Manual checks and results:**
+  - Probed the four fixtures in both formats: each gives the same views, level, scale status and grid in DXF and PDF, with extents equal to the millimetre.
+  - The benchmark and throughput runs above.
+- **Defects found and fixed during the step:**
+  - pypdfium2's text-page rectangles merged separate text objects on one line. Text is now read per text object, which took recall from 95–98% to 100%.
+  - Benchmark walls that ran off the page counted as missed line work; the rooms now stay on the page.
+  - ezdxf applied `dimscale` as a length factor, so figures read 300,000. It was replaced with explicit dimension style overrides.
+  - An MTEXT dimension figure was placed by its left edge; attachment points are now honoured.
+  - PDF circles, which matplotlib draws as closed curves with no close operator, were not marked closed, so no grid bubble was found in a PDF. A path that ends where it began is now closed.
+  - A closed polyline that also repeats its first point gave a zero-length closing segment, which stretched view extents to the page edge. Extents now come from primitive boxes.
+  - The sandbox's `/scratch` was owned by root (see P1-02).
+- **Known gaps and follow-ups:**
+  - **Every figure is from synthetic sheets.** The Done-when items name the real dense sheets, and the benchmark, the NFR-01 run and the scale and grid heuristics must be re-run on the D3 golden set when it arrives. ADR-002's recommendation depends on that run.
+  - **No viewer UI yet** for views, calibration or measurement; the API is ready for it.
+  - **Drawn zone boundaries** are not detected.
+  - **Multi-view sheets** are split by nearest title, which has been tested only on single-view fixtures and title parsing. A fixture with a plan, a key plan and a section on one sheet should follow.
+  - The `doc_classification` baseline from P1-02 still awaits a named approver.

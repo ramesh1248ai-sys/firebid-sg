@@ -16,6 +16,7 @@ annotation on every branch and head. Real sheets are denser still; see ADR-002.
 
     python -m firebid.evals.pdf_benchmark generate --out DIR
     python -m firebid.evals.pdf_benchmark run --sheets DIR [--pymupdf DIR]
+    python -m firebid.evals.pdf_benchmark throughput --sheets DIR [--count 300] [--workers 4]
 """
 
 from __future__ import annotations
@@ -289,6 +290,51 @@ def _text_recall(found: list[str], expected: list[str]) -> float:
     )
 
 
+# --- Throughput against NFR-01 -------------------------------------------------------------
+
+# NFR-01: a 300-sheet tender is through drawing understanding within an hour on 4 workers.
+NFR01_SHEETS, NFR01_SECONDS, NFR01_WORKERS = 300, 3600.0, 4
+
+
+def _one_sheet(pdf: str) -> float:
+    """Geometry and views for one sheet, as the parse job does them, timed."""
+    from firebid.drawings import geometry, views
+    from firebid.parsing import geometry_pdf
+
+    started = time.perf_counter()
+    result = geometry_pdf.extract(Path(pdf).read_bytes(), 0)
+    table = geometry.from_parquet(result["parquet"])
+    width, height = PAPER["A0"] if "-A0" in pdf else PAPER["A1"]
+    views.analyse(table, (0.0, 0.0, width, height), f"1:{SCALE}", None)
+    return time.perf_counter() - started
+
+
+def throughput(sheets: list[Path], count: int, workers: int) -> dict[str, Any]:
+    """`count` sheets through `workers` processes, cycling the dense sheets given.
+
+    No stage cache: every sheet is extracted, which is the worst case (a first upload).
+    """
+    from concurrent.futures import ProcessPoolExecutor
+
+    work = [str(sheets[index % len(sheets)]) for index in range(count)]
+    started = time.perf_counter()
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        seconds = sorted(pool.map(_one_sheet, work))
+    wall = time.perf_counter() - started
+    projected = wall * (NFR01_SHEETS / count) * (workers / NFR01_WORKERS)
+    return {
+        "sheets": count,
+        "workers": workers,
+        "wall_seconds": round(wall, 1),
+        "per_sheet_p50": round(seconds[len(seconds) // 2], 2),
+        "per_sheet_p95": round(seconds[int(len(seconds) * 0.95) - 1], 2),
+        "per_sheet_max": round(seconds[-1], 2),
+        "projected_300_on_4_workers_seconds": round(projected, 1),
+        "budget_seconds": NFR01_SECONDS,
+        "within_budget": projected <= NFR01_SECONDS,
+    }
+
+
 # --- The command line -------------------------------------------------------------------------
 
 
@@ -301,6 +347,10 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--sheets", type=Path, required=True)
     run.add_argument("--pymupdf", type=Path, help="a directory PyMuPDF was installed into")
     run.add_argument("--report", type=Path)
+    rate = commands.add_parser("throughput")
+    rate.add_argument("--sheets", type=Path, required=True)
+    rate.add_argument("--count", type=int, default=NFR01_SHEETS)
+    rate.add_argument("--workers", type=int, default=NFR01_WORKERS)
     one = commands.add_parser("engine")
     one.add_argument("engine", choices=ENGINES)
     one.add_argument("pdf", type=Path)
@@ -315,6 +365,11 @@ def main(argv: list[str] | None = None) -> int:
                 f"dense-{seed}-{paper}.pdf: {reference['entities']} entities, "
                 f"{len(reference['long_runs'])} long runs, {len(reference['texts'])} texts"
             )
+        return 0
+
+    if arguments.command == "throughput":
+        found = sorted(arguments.sheets.glob("*.pdf"))
+        print(json.dumps(throughput(found, arguments.count, arguments.workers), indent=2))
         return 0
 
     if arguments.command == "engine":

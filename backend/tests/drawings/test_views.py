@@ -58,6 +58,7 @@ FORMS = ["dxf", "pdf"]
 
 @pytest.mark.req("FR-VIS-05")
 class TestMeasurement:
+    @pytest.mark.req("FR-VIS-01")
     @pytest.mark.parametrize("form", FORMS)
     def test_a_verified_plan_measures_known_lengths_within_half_a_percent(
         self, form: str, tmp_path: Path
