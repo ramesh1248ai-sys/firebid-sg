@@ -172,6 +172,14 @@ def _path(raw: Any, obj: Any, matrix: Matrix, builder: Builder, to_sheet: Any) -
 
     def flush(closed: bool) -> None:
         nonlocal current
+        # A path that ends where it began is closed, whether or not it says so: matplotlib and
+        # many CAD exporters draw circles that way.
+        if (
+            len(current) >= 6
+            and math.isclose(current[0], current[-2], abs_tol=1e-6)
+            and (math.isclose(current[1], current[-1], abs_tol=1e-6))
+        ):
+            closed = True
         if len(current) >= 4:
             if not stroke.value and fill_mode.value:
                 builder.hatch(current, group, **style)  # a fill with no outline

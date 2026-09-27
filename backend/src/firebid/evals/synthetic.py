@@ -254,11 +254,27 @@ def _dimensions(space: Modelspace) -> None:
     """Head spacing and grid spacing, dimensioned the way a consultant dimensions them."""
     across, _ = grid_lines(8, 6)
     style = {"layer": LAYER_DIMENSION}
+    # Sized in drawing units to print as a consultant's do at 1:100: a 2.5 mm figure and
+    # arrows. DIMLFAC stays 1, so the figure is the measured length itself.
+    paper = DRAWING_SCALE
+    printed = {
+        "dimtxt": 2.5 * paper,
+        "dimasz": 2.5 * paper,
+        "dimgap": 0.6 * paper,
+        "dimexo": 1.0 * paper,
+        "dimexe": 1.0 * paper,
+        "dimlfac": 1.0,
+        "dimdec": 0,
+    }
     space.add_aligned_dim(
-        p1=(2_000, 2_000), p2=(5_000, 2_000), distance=-600, dxfattribs=style
+        p1=(2_000, 2_000), p2=(5_000, 2_000), distance=-600, dxfattribs=style, override=printed
     ).render()
     space.add_aligned_dim(
-        p1=(across[0][1], 16_000), p2=(across[1][1], 16_000), distance=600, dxfattribs=style
+        p1=(across[0][1], 16_000),
+        p2=(across[1][1], 16_000),
+        distance=600,
+        dxfattribs=style,
+        override=printed,
     ).render()
 
 
@@ -548,18 +564,39 @@ def _draw_live_text(axes: Any, document: Drawing) -> None:
     """Write every text as text, and every dimension from its parts, at printed size."""
     points_per_unit = 72 / 25.4 / drawing_scale_of(document)
 
-    def write(x: float, y: float, value: str, height: float, rotation: float = 0.0) -> None:
+    def write(
+        x: float,
+        y: float,
+        value: str,
+        height: float,
+        rotation: float = 0.0,
+        anchor: tuple[str, str] = ("left", "baseline"),
+    ) -> None:
         # A TEXT height is the capital height; a font size is about 1.4 times that.
         axes.text(
             x,
             y,
             value,
             fontsize=height * points_per_unit * 1.4,
-            ha="left",
-            va="baseline",
+            ha=anchor[0],
+            va=anchor[1],
             rotation=rotation,
             rotation_mode="anchor",
         )
+
+    # MTEXT is placed by an attachment point, 1 to 9: top, middle, bottom by left, centre,
+    # right. A dimension's figure is attached at its middle-centre.
+    attachments = {
+        1: ("left", "top"),
+        2: ("center", "top"),
+        3: ("right", "top"),
+        4: ("left", "center"),
+        5: ("center", "center"),
+        6: ("right", "center"),
+        7: ("left", "bottom"),
+        8: ("center", "bottom"),
+        9: ("right", "bottom"),
+    }
 
     for entity in document.modelspace():
         kind = entity.dxftype()
@@ -578,9 +615,14 @@ def _draw_live_text(axes: Any, document: Drawing) -> None:
                     )
                 elif part_kind in ("MTEXT", "TEXT"):
                     x, y, _ = part.dxf.insert
-                    value = part.plain_text() if part_kind == "MTEXT" else part.dxf.text
-                    height = part.dxf.char_height if part_kind == "MTEXT" else part.dxf.height
-                    write(x, y, value, height, part.dxf.get("rotation", 0.0))
+                    rotation = part.dxf.get("rotation", 0.0)
+                    if part_kind == "MTEXT":
+                        anchor = attachments.get(
+                            part.dxf.get("attachment_point", 1), ("left", "top")
+                        )
+                        write(x, y, part.plain_text(), part.dxf.char_height, rotation, anchor)
+                    else:
+                        write(x, y, part.dxf.text, part.dxf.height, rotation)
 
 
 def write_raster(document: Drawing, path: Path, dpi: int = 72) -> Path:
