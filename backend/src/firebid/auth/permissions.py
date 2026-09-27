@@ -27,6 +27,8 @@ class Action(StrEnum):
     GATE_G3_APPROVE = "gate.G3.approve"  # commercial approval
     GATE_G4_APPROVE = "gate.G4.approve"  # submission
     MEASUREMENT_RULES_CHANGE = "measurement_rules.change"
+    OBJECT_LIBRARY_CHANGE = "object_library.change"  # the canonical object types (FR-ADM-02)
+    SYMBOL_MAPPING_CONFIRM = "symbol_mapping.confirm"  # what a consultant's symbol is
     SUPPLIER_PRICE_SELECT = "supplier_price.select"
     LABOUR_PRODUCTIVITY_ADJUST = "labour_productivity.adjust"
     ENGINEERING_OPTION_APPROVE = "engineering_option.approve"
@@ -58,6 +60,11 @@ _MATRIX: dict[Action, frozenset[str]] = {
     Action.GATE_G3_APPROVE: frozenset({Role.COMMERCIAL_DIRECTOR}),
     Action.GATE_G4_APPROVE: frozenset({Role.COMMERCIAL_DIRECTOR}),
     Action.MEASUREMENT_RULES_CHANGE: frozenset({Role.SENIOR_ESTIMATOR}),
+    Action.OBJECT_LIBRARY_CHANGE: frozenset({Role.SENIOR_ESTIMATOR, Role.SYSTEM_ADMIN}),
+    # The people who confirm a drawing's other readings confirm its symbols too.
+    Action.SYMBOL_MAPPING_CONFIRM: frozenset(
+        {Role.ESTIMATOR, Role.SENIOR_ESTIMATOR, Role.BID_MANAGER}
+    ),
     Action.SUPPLIER_PRICE_SELECT: frozenset({Role.SENIOR_ESTIMATOR}),
     Action.LABOUR_PRODUCTIVITY_ADJUST: frozenset({Role.SENIOR_ESTIMATOR}),
     Action.ENGINEERING_OPTION_APPROVE: frozenset({Role.DESIGN_MANAGER}),
