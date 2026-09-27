@@ -396,6 +396,8 @@ Entry template:
   - `_issued` preferred the title block's date, so an addendum's date never broke a tie.
   - The golden set's files were to live in `eval/files/`, which git did not ignore. It does now.
   - Workbooks and Word files (from P1-01) were never processed, stayed `received` for good, and kept a set's progress from ever showing as finished. They are now read and classified.
+  - **Found by PR #10's end-to-end run:** a job running in the worker could not queue another (the parse job queueing the title block check), because Procrastinate's connector is async inside the worker and `enqueue` handed it a synchronous connection. `enqueue` now always defers through a synchronous job manager on the caller's connection, pinned by `tests/db/test_enqueue.py`.
+  - The sandbox's `/scratch` tmpfs was mounted as root, so its `HOME`, matplotlib's cache and LibreOffice had nowhere to write (a P1-01 defect, missed because P1-01 checked conversion with a plain `docker run`). It is now owned by the sandbox user.
 - **Known gaps and follow-ups:**
   - **The `doc_classification` suite has no accepted baseline, so `make eval-gate` does not check it.** A named approver should accept one (`firebid-eval --root ../eval accept --suite doc_classification --approver "Name"`), and the suite should then be added to the gate.
   - **Clause-level addendum links wait for P1-06**; a revised specification is linked as a whole document.
