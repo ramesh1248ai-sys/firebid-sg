@@ -13,6 +13,7 @@ import { NewBidPage } from "@/pages/NewBidPage";
 import { RegistersPage } from "@/pages/RegistersPage";
 import { SheetViewerPage } from "@/pages/SheetViewerPage";
 import { SignInPage } from "@/pages/SignInPage";
+import { SpecificationPage } from "@/pages/SpecificationPage";
 import { SymbolsPage } from "@/pages/SymbolsPage";
 
 export const routes: RouteObject[] = [
@@ -31,6 +32,7 @@ export const routes: RouteObject[] = [
           { path: "bids/:bidId/documents", element: <DocumentsPage /> },
           { path: "bids/:bidId/registers", element: <RegistersPage /> },
           { path: "bids/:bidId/symbols", element: <SymbolsPage /> },
+          { path: "bids/:bidId/specification", element: <SpecificationPage /> },
           { path: "bids/:bidId/sheets/:sheetId", element: <SheetViewerPage /> },
           { path: "audit", element: <AuditPage /> },
           { path: "library", element: <LibraryPage /> },

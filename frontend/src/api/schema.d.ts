@@ -804,6 +804,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/spec/attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Attributes
+         * @description Every attribute's latest version: flagged citations and doubtful ones first.
+         */
+        get: operations["list_attributes_bids__bid_id__spec_attributes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/spec/attributes/{lineage_id}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide */
+        post: operations["decide_bids__bid_id__spec_attributes__lineage_id__decide_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/spec/clauses/{clause_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Clause */
+        get: operations["get_clause_bids__bid_id__spec_clauses__clause_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/spec/for": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Attributes For
+         * @description What takeoff reads for one system and size: verified values or "not specified".
+         */
+        get: operations["attributes_for_bids__bid_id__spec_for_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/symbols/counts": {
         parameters: {
             query?: never;
@@ -1208,6 +1282,15 @@ export interface components {
             /** State */
             state: string;
         };
+        /** AnswerOut */
+        AnswerOut: {
+            /** Attribute */
+            attribute: string;
+            /** Citations */
+            citations: components["schemas"]["CitationOut"][];
+            /** Value */
+            value: string;
+        };
         /** AuditEventOut */
         AuditEventOut: {
             /** Action */
@@ -1419,6 +1502,60 @@ export interface components {
             /** Ok */
             ok: boolean;
         };
+        /** CitationOut */
+        CitationOut: {
+            /** Anchor */
+            anchor: {
+                [key: string]: number;
+            };
+            /** Clause */
+            clause: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /**
+             * Document Revision Id
+             * Format: uuid
+             */
+            document_revision_id: string;
+            /** Quote */
+            quote: string;
+            /** Revision Label */
+            revision_label: string | null;
+            /** Title */
+            title: string | null;
+        };
+        /** ClauseOut */
+        ClauseOut: {
+            /** Anchor */
+            anchor: {
+                [key: string]: number;
+            };
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Document Title */
+            document_title: string | null;
+            /** Heading */
+            heading: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Number */
+            number: string;
+            /** Revision Label */
+            revision_label: string | null;
+            /** System */
+            system: string;
+            /** Text */
+            text: string;
+        };
         /** CompleteRequest */
         CompleteRequest: {
             /** Filename */
@@ -1483,6 +1620,26 @@ export interface components {
             not_objects: number;
             /** Unmapped */
             unmapped: components["schemas"]["UnmappedOut"][];
+        };
+        /** DecisionIn */
+        DecisionIn: {
+            /** Clause Number */
+            clause_number?: string | null;
+            /** Condition */
+            condition?: string | null;
+            /** Dn Max */
+            dn_max?: number | null;
+            /** Dn Min */
+            dn_min?: number | null;
+            /** Note */
+            note?: string | null;
+            /** Value */
+            value?: string | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "confirm" | "edit" | "reject";
         };
         /** DecisionRequest */
         DecisionRequest: {
@@ -2223,6 +2380,64 @@ export interface components {
             } | null;
             /** Width Mm */
             width_mm: number | null;
+        };
+        /** SpecAttributeOut */
+        SpecAttributeOut: {
+            /** Attribute */
+            attribute: string;
+            /** Citation Ok */
+            citation_ok: boolean;
+            /** Citation Reason */
+            citation_reason: string;
+            /** Clause Id */
+            clause_id: string | null;
+            /** Clause Number */
+            clause_number: string;
+            /** Condition */
+            condition: string | null;
+            /** Confidence */
+            confidence: number;
+            /** Dn Max */
+            dn_max: number | null;
+            /** Dn Min */
+            dn_min: number | null;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /**
+             * Document Revision Id
+             * Format: uuid
+             */
+            document_revision_id: string;
+            /** Document Title */
+            document_title: string | null;
+            /**
+             * Lineage Id
+             * Format: uuid
+             */
+            lineage_id: string;
+            /** Method */
+            method: string;
+            /** Model */
+            model?: string | null;
+            /** Prompt Version */
+            prompt_version?: string | null;
+            /** Quote */
+            quote: string;
+            /** Revision Label */
+            revision_label: string | null;
+            /** State */
+            state: string;
+            /** System */
+            system: string;
+            /** Value */
+            value: string;
+            /** Verified By */
+            verified_by: string | null;
+            /** Version */
+            version: number;
         };
         /** SpendRow */
         SpendRow: {
@@ -3928,6 +4143,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeasureOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_attributes_bids__bid_id__spec_attributes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecAttributeOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_bids__bid_id__spec_attributes__lineage_id__decide_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lineage_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecAttributeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_clause_bids__bid_id__spec_clauses__clause_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clause_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClauseOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    attributes_for_bids__bid_id__spec_for_get: {
+        parameters: {
+            query: {
+                system: string;
+                dn?: number | null;
+                condition?: string | null;
+            };
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnswerOut"][];
                 };
             };
             /** @description Validation Error */

@@ -1,3 +1,4 @@
+# ruff: noqa: F811  (the fixtures below are imported by name and requested by name)
 """Specification attributes through the database: read, cited, checked, verified, queried
 (FR-SPEC-01, FR-SPEC-05).
 
@@ -32,6 +33,7 @@ from firebid.services import specs
 from firebid.services.classification import classify_in_sandbox
 from firebid.services.ingestion import Ingestor
 from firebid.storage.object_store import MemoryObjectStore
+from tests.db.test_sheet_views import app, sign_in  # noqa: F401
 
 ESTIMATOR = Actor(label="Esther Tan", roles=frozenset({"estimator"}))
 
@@ -293,3 +295,53 @@ def test_a_decision_is_a_new_version_and_an_edit_is_checked_too(
     assert (edited.method, edited.verified_by) == ("person", "Esther Tan")
     assert edited.citation_ok is False, "the clause still says screwed, and the record says so"
     _ = session.execute(select(SpecAttribute)).scalars()
+
+
+@pytest.mark.req("FR-SPEC-05")
+def test_the_api_resolves_every_citation_to_its_clause_text(
+    session: Session, bid: Bid, store: MemoryObjectStore, sign_in: Any, organisation: Any
+) -> None:
+    from firebid.domain.state_machines import Role
+    from tests.db.test_sheet_views import member
+
+    read(session, bid, store)
+    client = sign_in(member(session, organisation, bid, "ethan", Role.ESTIMATOR))
+
+    rows = client.get(f"/bids/{bid.id}/spec/attributes").json()
+
+    assert len(rows) == len(EXPECTED)
+    for row in rows:
+        clause = client.get(f"/bids/{bid.id}/spec/clauses/{row['clause_id']}").json()
+        assert clause["number"] == row["clause_number"]
+        assert row["quote"] in f"{clause['heading']} {clause['text']}"
+        assert row["document_title"] and row["revision_label"] is not None
+
+
+@pytest.mark.req("FR-SPEC-01")
+def test_the_takeoff_view_shows_only_what_a_person_verified(
+    session: Session, bid: Bid, store: MemoryObjectStore, sign_in: Any, organisation: Any
+) -> None:
+    from firebid.domain.state_machines import Role
+    from tests.db.test_sheet_views import member
+
+    read(session, bid, store)
+    client = sign_in(member(session, organisation, bid, "ethan", Role.ESTIMATOR))
+    before = client.get(f"/bids/{bid.id}/spec/for", params={"system": "sprinkler", "dn": 80})
+
+    [joining] = [
+        row
+        for row in client.get(f"/bids/{bid.id}/spec/attributes").json()
+        if row["attribute"] == "joining_method" and row["dn_min"] == 65
+    ]
+    decided = client.post(
+        f"/bids/{bid.id}/spec/attributes/{joining['lineage_id']}/decide",
+        json={"verdict": "confirm"},
+    )
+    after = client.get(f"/bids/{bid.id}/spec/for", params={"system": "sprinkler", "dn": 80})
+
+    assert {a["value"] for a in before.json()} == {"not specified"}
+    assert decided.status_code == 200 and decided.json()["verified_by"] == "Ethan"
+    by_name = {a["attribute"]: a for a in after.json()}
+    assert by_name["joining_method"]["value"] == "grooved"
+    assert by_name["joining_method"]["citations"][0]["clause"] == "2.1.2"
+    assert by_name["pipe_material"]["value"] == "not specified"
