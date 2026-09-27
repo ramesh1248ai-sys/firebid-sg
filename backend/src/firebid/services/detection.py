@@ -216,6 +216,7 @@ def detect_sheet(session: Session, store: ObjectStore, record: SheetGeometry) ->
     maps = calibration_maps.load()
     calibration_maps.calibrate(found, maps)
     _replace(session, sheet, found, maps.version)
+    queue_vision(session, store, sheet, table, placed, excluded)
     log.info(
         "sheet_detected",
         sheet_id=str(sheet.id),
@@ -240,9 +241,12 @@ def _current_revision(session: Session, sheet_id: uuid.UUID) -> uuid.UUID | None
 
 
 def _replace(session: Session, sheet: Sheet, found: SheetDetections, version: str) -> None:
+    # Vision detections are kept: they are the model's work, and asking again is not free.
     session.execute(
         delete(DetectedObject).where(
-            DetectedObject.bid_id == sheet.bid_id, DetectedObject.sheet_id == sheet.id
+            DetectedObject.bid_id == sheet.bid_id,
+            DetectedObject.sheet_id == sheet.id,
+            DetectedObject.extraction_method != "vision",
         )
     )
     session.execute(delete(PipeRun).where(PipeRun.sheet_id == sheet.id))
@@ -332,3 +336,168 @@ def detect_bid(session: Session, store: ObjectStore, bid_id: uuid.UUID) -> list[
     """Every sheet of a bid again: after a mapping is confirmed, changed or rejected."""
     records = session.execute(select(SheetGeometry).where(SheetGeometry.bid_id == bid_id)).scalars()
     return [detect_sheet(session, store, record) for record in records]
+
+
+# --- Vision assist (optional, off by default: config/detection.yaml) -----------------------
+
+
+def queue_vision(
+    session: Session,
+    store: ObjectStore,
+    sheet: Sheet,
+    table: Any,
+    placed: list[Placed],
+    excluded: list[tuple[float, float, float, float]],
+    user_id: str = "",
+) -> int:
+    """Queue the model for clusters nearly like a legend entry. Returns how many were queued.
+
+    Only clusters the deterministic matcher did not place, outside its tolerance but within
+    `near_factor` times it, and at most `max_per_sheet` of them. The model is asked on the
+    ordinary worker (`detection.vision`), with a crop drawn from the geometry.
+    """
+    import contextlib
+    import hashlib
+
+    from firebid.drawings import crops
+    from firebid.jobs.enqueue import enqueue
+    from firebid.jobs.tasks import classify_with_vision_job
+    from firebid.storage.object_store import ObjectExists
+
+    options = settings().get("vision_assist") or {}
+    if not options.get("enabled"):
+        return 0
+    factor = float(options.get("near_factor", 2.0))
+    limit = int(options.get("max_per_sheet", 20))
+    entries = list(
+        session.execute(select(LegendEntry).where(LegendEntry.bid_id == sheet.bid_id)).scalars()
+    )
+    references = [Signature.from_json(entry.signature) for entry in entries]
+    taken = {(round(p.cx, 2), round(p.cy, 2)) for p in placed}
+    queued = 0
+    for cluster in symbols.clusters(table, excluding=excluded):
+        if queued >= limit:
+            break
+        centre = (round(cluster.centre[0], 2), round(cluster.centre[1], 2))
+        if cluster.signature is None or centre in taken:
+            continue
+        near = symbols.near_match(cluster.signature, references, factor)
+        if near is None:
+            continue
+        image = crops.render(table, cluster.box, margin_mm=3.0)
+        key = f"detections/vision/{hashlib.sha256(image).hexdigest()}.png"
+        with contextlib.suppress(ObjectExists):
+            store.put_once(key, image, content_type="image/png")
+        enqueue(
+            session,
+            classify_with_vision_job,
+            sheet_id=str(sheet.id),
+            entry_id=str(entries[near.index].id),
+            box=[round(v, 3) for v in cluster.box],
+            rows=list(cluster.rows),
+            crop_key=key,
+            distance=round(near.distance, 4),
+            user_id=user_id,
+        )
+        queued += 1
+    return queued
+
+
+def classify_with_vision(
+    session: Session,
+    store: ObjectStore,
+    router: Any,
+    *,
+    sheet_id: uuid.UUID,
+    entry_id: uuid.UUID,
+    box: list[float],
+    rows: list[int],
+    crop_key: str,
+    distance: float,
+) -> DetectedObject | None:
+    """Ask the model what a nearly-matching symbol is; store it as a capped proposal."""
+    from firebid.agents.base import AgentInput
+    from firebid.agents.runtime import Escalated, run_agent_with_result
+    from firebid.agents.symbol_mapper import LegendRowInput, SymbolMapper, SymbolProposal
+    from firebid.drawings.detection import _where
+
+    sheet = session.get(Sheet, sheet_id)
+    entry = session.get(LegendEntry, entry_id)
+    if sheet is None or entry is None:
+        return None
+    consultant = symbol_service.consultant_of(session, sheet.bid_id)
+    kinds = {kind.key: kind for kind in object_library.usable(session, consultant.organisation_id)}
+    image = store.get(crop_key)
+    description = (
+        "A symbol found on a plan, not in its legend. It resembles the legend entry "
+        + repr(entry.description)
+        + " but does not match it exactly."
+    )
+    request = AgentInput(
+        bid_id=sheet.bid_id,
+        idempotency_key=f"vision:{sheet.id}:{crop_key.rsplit('/', 1)[-1]}",
+        payload=LegendRowInput(
+            description=description,
+            image_png=image,
+            choices=[(kind.key, kind.label) for kind in kinds.values()],
+            consultant=consultant.name,
+        ),
+    )
+    try:
+        run, result = run_agent_with_result(session, SymbolMapper(router), request)
+    except Escalated:
+        return None  # a person reviews the escalation; nothing is detected
+    if result is None or not isinstance(result.output, SymbolProposal):
+        return None  # asked before: its detection, if any, is already stored
+    answer = result.output
+    kind = kinds.get(answer.object_type or "")
+    if kind is None or kind.measure != "count":
+        return None
+    cap = float((settings().get("vision_assist") or {}).get("confidence_cap", 0.5))
+    views = _views(session, sheet.id)
+    cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+    view, grid_reference = _where(views, cx, cy)
+    gaps: dict[str, str] = {}
+    if view is None:
+        gaps["view"] = "outside every view on the sheet"
+    if grid_reference is None:
+        gaps["grid_reference"] = (
+            "outside the structural grid"
+            if view is not None and view.grid is not None
+            else "the view shows no structural grid"
+        )
+    detection = DetectedObject(
+        bid_id=sheet.bid_id,
+        sheet_id=sheet.id,
+        sheet_revision_id=_current_revision(session, sheet.id),
+        kind="object",
+        object_type=kind.key,
+        attributes=dict(answer.attributes),
+        geometry_ref={"x": round(cx, 3), "y": round(cy, 3), "box": box},
+        source_ref={
+            "geometry_rows": rows,
+            "crop_key": crop_key,
+            "resembles_legend_entry": str(entry.id),
+            "agent_run_id": str(run.id),
+            "model": run.model,
+            "prompt_version": run.prompt_version,
+        },
+        extraction_method="vision",
+        confidence=round(min(answer.confidence, cap), 4),
+        raw_confidence=round(answer.confidence, 4),
+        features={
+            "match_distance": distance,
+            "vision_confidence": answer.confidence,
+            "reason": answer.reason,
+        },
+        calibration_version=f"vision-cap-{cap}",
+        detector_version=DETECTOR_VERSION,
+        view_id=view.id if view else None,
+        grid_reference=grid_reference,
+        level=view.level if view else None,
+        gaps=gaps,
+        state="proposed",
+    )
+    session.add(detection)
+    session.flush()
+    return detection

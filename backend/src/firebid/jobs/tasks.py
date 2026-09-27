@@ -186,6 +186,44 @@ def run_detection(context: JobContext, bid_id: str, user_id: str) -> int:
         return sum(outcome.objects + outcome.runs for outcome in outcomes)
 
 
+@app.task(name="detection.vision", queue="default", pass_context=True)
+def classify_with_vision_job(
+    context: JobContext,
+    sheet_id: str,
+    entry_id: str,
+    box: list[float],
+    rows: list[int],
+    crop_key: str,
+    distance: float,
+    user_id: str,
+) -> str:
+    """Vision assist: ask the model about a symbol nearly like a legend entry (P1-05).
+
+    On the ordinary worker: it calls a model, with a crop drawn from the geometry.
+    """
+    import uuid as uuid_module
+
+    from firebid.ai_gateway import gateway
+    from firebid.db.identity import acting_as
+    from firebid.services.detection import classify_with_vision
+    from firebid.storage.object_store import get_object_store
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        found = classify_with_vision(
+            session,
+            get_object_store(),
+            gateway(),
+            sheet_id=uuid_module.UUID(sheet_id),
+            entry_id=uuid_module.UUID(entry_id),
+            box=box,
+            rows=rows,
+            crop_key=crop_key,
+            distance=distance,
+        )
+        return found.object_type if found else "none"
+
+
 @app.task(name="symbol.propose", queue="default", pass_context=True)
 def propose_symbol(context: JobContext, entry_id: str, user_id: str) -> str:
     """Ask the model what a legend row's symbol is, when the keyword rules could not say.

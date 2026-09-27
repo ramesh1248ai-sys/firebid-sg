@@ -428,3 +428,17 @@ def best_match(signature: Signature, candidates: list[Signature]) -> Match | Non
         ):
             best = Match(index, gap, "shape")
     return best
+
+
+def near_match(signature: Signature, candidates: list[Signature], factor: float) -> Match | None:
+    """The closest candidate a shape is *nearly* like: outside its tolerance, within
+    `factor` times it. What vision assist may be asked about; never a match by itself."""
+    best: Match | None = None
+    for index, candidate in enumerate(candidates):
+        if not candidate.descriptor:
+            continue
+        tolerance = min(signature.tolerance, candidate.tolerance)
+        gap = distance(signature.descriptor, candidate.descriptor)
+        if tolerance < gap <= factor * tolerance and (best is None or gap < best.distance):
+            best = Match(index, gap, "near")
+    return best
