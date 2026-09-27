@@ -201,7 +201,9 @@ export interface paths {
         put?: never;
         /**
          * Rescan
-         * @description Retry the files an outage held. Safe to call repeatedly.
+         * @description Retry the files an outage held, and queue the released ones to be read.
+         *
+         *     Safe to call repeatedly: a file is released once, so it is queued once.
          */
         post: operations["rescan_bids__bid_id__documents_rescan_post"];
         delete?: never;
