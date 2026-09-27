@@ -90,6 +90,7 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
     from firebid.db.identity import acting_as
     from firebid.db.models.documents import Document
     from firebid.services.sheets import process_document
+    from firebid.services.title_blocks import read_title_blocks
     from firebid.storage.object_store import get_object_store
 
     with acting_as(uuid_module.UUID(user_id)), session_scope() as session:
@@ -99,8 +100,38 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
             log.info("parse_skipped_missing_document", document_id=document_id)
             return {"sheets": 0, "tiles": 0}
 
-        outcome = process_document(session, get_object_store(), document)
+        store = get_object_store()
+        outcome = process_document(session, store, document)
+        if outcome.sheets:
+            # Straight after the sheets exist, in the same sandboxed job: reading a title
+            # block opens the tender file, so it cannot happen anywhere else.
+            read_title_blocks(session, store, document, outcome.sheets)
 
     if outcome.failure:
         log.warning("parse_failed", document_id=document_id, reason=outcome.failure)
     return {"sheets": len(outcome.sheets), "tiles": outcome.tiles_written}
+
+
+@app.task(name="title_block.check", queue="default", pass_context=True)
+def check_title_block(context: JobContext, revision_id: str, user_id: str) -> str:
+    """Ask the model about a title block the deterministic reader was unsure of (FR-DOC-02).
+
+    On the ordinary worker, not the sandbox pool: it calls a model, which the pool cannot
+    reach, and it is given a PNG the pool rendered rather than the tender file.
+    """
+    import uuid as uuid_module
+
+    from firebid.ai_gateway import gateway
+    from firebid.db.identity import acting_as
+    from firebid.db.models.documents import SheetRevision
+    from firebid.services.title_blocks import check_with_model
+    from firebid.storage.object_store import get_object_store
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        revision = session.get(SheetRevision, uuid_module.UUID(revision_id))
+        if revision is None:
+            log.info("title_block_check_skipped_missing_revision", revision_id=revision_id)
+            return "missing"
+        check_with_model(session, get_object_store(), revision, gateway())
+        return revision.extraction_method or "unknown"

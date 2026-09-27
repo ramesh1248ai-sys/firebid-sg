@@ -10,11 +10,13 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -102,14 +104,28 @@ class SheetRevision(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     __table_args__ = (
         UniqueConstraint("bid_id", "sheet_number", "revision_label", name="uq_sheet_revision"),
         CheckConstraint(f"state IN {REVISION_STATES}", name="state_known"),
+        # Absent beats invented: an unread number or revision stays null, but only while the
+        # revision waits for a person; nothing unidentified is registered.
+        CheckConstraint(
+            "(sheet_number IS NOT NULL AND revision_label IS NOT NULL) OR state = 'received'",
+            name="identified_unless_received",
+        ),
+        # Guardrail 6 in the database too: two workers cannot both make a revision Current.
+        Index(
+            "uq_sheet_revision_one_current",
+            "bid_id",
+            "sheet_number",
+            unique=True,
+            postgresql_where=text("state = 'current'"),
+        ),
     )
 
     sheet_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("sheet.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    sheet_number: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    sheet_number: Mapped[str | None] = mapped_column(String(120), index=True)
     title: Mapped[str | None] = mapped_column(String(300))
-    revision_label: Mapped[str] = mapped_column(String(40), nullable=False)
+    revision_label: Mapped[str | None] = mapped_column(String(40))
     revision_date: Mapped[date | None] = mapped_column()
     discipline: Mapped[str | None] = mapped_column(String(40))
     level: Mapped[str | None] = mapped_column(String(40))
@@ -126,6 +142,32 @@ class SheetRevision(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     )
     source_confidence: Mapped[float | None] = mapped_column(Float)
     extraction_method: Mapped[str | None] = mapped_column(String(24))
+    # How each field was read: value, confidence, method and position (a proposal's provenance).
+    reading: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    # What each source said the revision was: title block, filename, transmittal.
+    sources: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    conflict_reason: Mapped[str | None] = mapped_column(Text)
+    # The same drawing supplied again in another format: one revision, several renditions.
+    alternate_sheet_ids: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+
+
+class TitleBlockLayout(UuidPk, Timestamped, CreatedBy, Base):
+    """Where one consultant puts each title block field, learnt from a confirmed reading.
+
+    Organisation-level: it holds positions and a consultant's name, not tender content.
+    """
+
+    __tablename__ = "title_block_layout"
+
+    organisation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organisation.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    consultant: Mapped[str] = mapped_column(String(200), nullable=False)
+    fingerprint: Mapped[list[list[object]]] = mapped_column(JSONB, nullable=False)
+    layout: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    times_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
 
 class Addendum(UuidPk, BidScoped, Timestamped, CreatedBy, Base):

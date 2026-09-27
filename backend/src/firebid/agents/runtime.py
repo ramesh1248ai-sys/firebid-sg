@@ -55,6 +55,22 @@ def run_agent(
     now: Callable[[], datetime] | None = None,
 ) -> AgentRun:
     """Run one agent to a conclusion: a finished run, or a run that raised a human task."""
+    run, _ = run_agent_with_result(session, agent, request, now=now)
+    return run
+
+
+def run_agent_with_result(
+    session: Session,
+    agent: Agent,  # type: ignore[type-arg]
+    request: AgentInput,
+    *,
+    now: Callable[[], datetime] | None = None,
+) -> tuple[AgentRun, AgentResult | None]:  # type: ignore[type-arg]
+    """`run_agent`, also returning what the agent produced, for callers that use it.
+
+    The result is None when this delivery found the run already finished: at-least-once
+    delivery means the first one used the result, and the caller has nothing more to do.
+    """
     clock = now or (lambda: datetime.now(UTC))
 
     already = existing_run(session, request.idempotency_key)
@@ -65,7 +81,7 @@ def run_agent(
             agent=agent.name,
             state=already.state,
         )
-        return already
+        return already, None
 
     run = already or AgentRun(
         bid_id=request.bid_id,
@@ -146,7 +162,7 @@ def run_agent(
         provider=run.provider,
         model=run.model,
     )
-    return run
+    return run, result
 
 
 def _stamp_provenance(run: AgentRun, result: AgentResult) -> None:  # type: ignore[type-arg]

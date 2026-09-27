@@ -190,3 +190,18 @@ def _region_image(
         )
         image = scan.crop(box).convert("L")
     return image, [0.0, 0.0, float(width), float(height)], 1.0
+
+
+# Resolution of the crop a model is shown. Enough for 2 mm text; a model sees no more at 300.
+CROP_DPI = 200
+
+
+def crop_png(payload: bytes, kind: str, index: int, region: list[float]) -> bytes:
+    """The title block's region as a PNG, for the model to read when the text could not be.
+
+    Rendered here, in the sandbox, so the worker that calls the model never opens the file.
+    """
+    image, _, _ = _region_image(payload, kind, index, region, CROP_DPI)
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG", optimize=True)
+    return buffer.getvalue()
