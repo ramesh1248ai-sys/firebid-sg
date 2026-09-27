@@ -1,0 +1,17 @@
+# Detection settings (P1-05). Pipe layers and colours per consultant live in the consultant
+# profile (the `consultant_profile` table), beside the consultant's symbol mappings; with none
+# named, each sheet teaches its own.
+
+# Two pipe endpoints this close on paper, in millimetres, are one joint.
+snap_mm: 0.6
+
+vision_assist:
+  # Off by default. When on, a symbol-sized cluster that is close to a legend entry but not
+  # within its matching tolerance is shown to the model (route symbol_map) to classify.
+  enabled: false
+  # How far outside the matching tolerance a cluster may be and still be asked about.
+  near_factor: 2.0
+  # A detection found only by vision never starts above this confidence.
+  confidence_cap: 0.5
+  # At most this many clusters per sheet are sent, so a noisy sheet cannot run up a bill.
+  max_per_sheet: 20

@@ -263,7 +263,16 @@ def confirm_mapping(
         )
     except service.MappingError as refusal:
         raise HTTPException(status.HTTP_409_CONFLICT, str(refusal)) from refusal
+    _detect_again(session, context, principal)
     return mapping_out(row)
+
+
+def _detect_again(session: DbSession, context: CurrentBid, principal: Principal) -> None:
+    """What a symbol is decides whether it is detected: detect the bid's sheets again."""
+    from firebid.jobs.enqueue import enqueue
+    from firebid.jobs.tasks import run_detection
+
+    enqueue(session, run_detection, bid_id=str(context.bid.id), user_id=str(principal.user_id))
 
 
 @router.post("/mappings/{lineage_id}/reject", response_model=MappingOut)
@@ -281,4 +290,5 @@ def reject_mapping(
         )
     except service.MappingError as refusal:
         raise HTTPException(status.HTTP_409_CONFLICT, str(refusal)) from refusal
+    _detect_again(session, context, principal)
     return mapping_out(row)

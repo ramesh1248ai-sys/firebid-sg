@@ -93,6 +93,7 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
     from firebid.db.identity import acting_as
     from firebid.db.models.documents import Document
     from firebid.services.classification import classify_in_sandbox
+    from firebid.services.detection import detect_all as detect_sheets
     from firebid.services.geometry import extract_all
     from firebid.services.revisions import read_transmittal
     from firebid.services.sheets import process_document
@@ -126,6 +127,8 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
                 detect_all(session, store, outcome.sheets)
                 # Legends, symbol mappings and instances, from the same geometry (FR-VIS-02).
                 read_symbols(session, store, outcome.sheets, user_id=user_id)
+                # Detections from the symbols already confirmed for this consultant (FR-VIS-03).
+                detect_sheets(session, store, outcome.sheets)
         if failure is None and document.state in ("received", "done"):
             payload = store.get(document.storage_key)
             if document.kind == "xlsx":
@@ -163,6 +166,24 @@ def classify_document_with_model(context: JobContext, document_id: str, user_id:
             return "missing"
         classify_with_model(session, document, gateway())
         return document.doc_type or "unknown"
+
+
+@app.task(name="detection.run", queue="default", pass_context=True)
+def run_detection(context: JobContext, bid_id: str, user_id: str) -> int:
+    """Detect every sheet of a bid again, after a symbol mapping was confirmed or changed.
+
+    On the ordinary worker: it reads stored geometry, never the tender file.
+    """
+    import uuid as uuid_module
+
+    from firebid.db.identity import acting_as
+    from firebid.services.detection import detect_bid
+    from firebid.storage.object_store import get_object_store
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        outcomes = detect_bid(session, get_object_store(), uuid_module.UUID(bid_id))
+        return sum(outcome.objects + outcome.runs for outcome in outcomes)
 
 
 @app.task(name="symbol.propose", queue="default", pass_context=True)
