@@ -47,8 +47,13 @@ services:
 
   seaweedfs:
     build: ./seaweedfs
+    # The volume limits are explicit because the defaults are sized from free disk. Each
+    # collection grows 7 volumes at a time, and the filer's own log takes 7 about a minute after
+    # start. On a CI runner with little disk left that exhausted every slot, and every write to
+    # the bucket failed with InternalError. 64 MB volumes keep a hundred slots cheap.
     command: >
       server -dir=/data -ip=seaweedfs -ip.bind=0.0.0.0
+      -volume.max=100 -master.volumeSizeLimitMB=64
       -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
     ports:
       - "${FIREBID_S3_PORT:-8333}:8333"
