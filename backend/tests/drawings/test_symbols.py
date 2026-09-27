@@ -125,6 +125,10 @@ class TestMatchingALegend:
             assert symbols.best_match(row.symbol.signature, alpha_entries) is None  # type: ignore[arg-type]
 
 
+def hashes(table: Any) -> dict[str | None, str | None]:
+    return {c.block: c.block_hash for c in symbols.clusters(table)}
+
+
 class TestBlockHashes:
     def test_a_block_hashes_the_same_in_every_drawing_and_under_another_name(self) -> None:
         first = geometry.from_parquet(
@@ -135,7 +139,6 @@ class TestBlockHashes:
                 "parquet"
             ]
         )
-        hashes = lambda table: {c.block: c.block_hash for c in symbols.clusters(table)}  # noqa: E731
         assert hashes(first)["SPK-PEND"] == hashes(second)["SPK-PEND"]
         # Both consultants' mystery symbols are the same star under different names.
         beta = geometry.from_parquet(
@@ -198,7 +201,8 @@ def _arrow_bar() -> tuple[float, ...]:
     builder.polyline(
         _transform([(-2.5, -1.25), (-2.5, 1.25), (2.5, 0.0)], 0, 1, 0, 0), 1, closed=True
     )
-    builder.line(*_transform([(2.5, -1.25), (2.5, 1.25)], 0, 1, 0, 0), 1)  # type: ignore[call-arg]
+    x0, y0, x1, y1 = _transform([(2.5, -1.25), (2.5, 1.25)], 0, 1, 0, 0)
+    builder.line(x0, y0, x1, y1, 1)
     return _descriptor(builder)
 
 
