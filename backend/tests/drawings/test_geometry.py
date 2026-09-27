@@ -7,6 +7,7 @@ same length and in the same place.
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 from typing import cast
 
@@ -171,3 +172,44 @@ class TestTheModel:
         builder = Builder(Method.CAD)
         with pytest.raises(TypeError, match="unknown primitive fields"):
             builder.line(0, 0, 1, 1, builder.group(), colour=3)
+
+
+def scan(plan: object, tmp_path: Path, dpi: int) -> bytes:
+    from PIL import Image
+
+    png = synthetic.write_raster(plan, tmp_path / "scan.png", dpi=dpi)  # type: ignore[arg-type]
+    pdf = tmp_path / "scan.pdf"
+    with Image.open(png) as image:
+        image.convert("RGB").save(pdf, "PDF", resolution=float(dpi))
+    return pdf.read_bytes()
+
+
+class TestRasterText:
+    @pytest.mark.req("FR-VIS-06")
+    @pytest.mark.skipif(shutil.which("tesseract") is None, reason="Tesseract is not installed")
+    def test_a_scan_yields_ocr_words_with_confidences(self, plan: object, tmp_path: Path) -> None:
+        result = geometry_pdf.extract(scan(plan, tmp_path, 200), 0)
+
+        spans = geometry.texts(table_of(result))
+        assert spans, "a scan's text comes from OCR"
+        assert {span["method"] for span in spans} == {str(Method.OCR)}
+        assert all(0 < span["confidence"] <= 1 for span in spans)
+        # Raw words, as read: interpreting them (O for 0 in a drawing number) is the
+        # title block reader's job, not the geometry's.
+        assert {"REV", "DATE", "DESCRIPTION"} <= {span["text"] for span in spans}
+
+    @pytest.mark.req("FR-VIS-06")
+    def test_vector_text_has_positions_and_no_ocr(self, from_pdf: dict[str, object]) -> None:
+        spans = geometry.texts(table_of(from_pdf))
+        assert spans
+        assert all(span["method"] == str(Method.PDF_VECTOR) for span in spans)
+        assert all(span["maxx"] > span["minx"] for span in spans)
+
+    @pytest.mark.skipif(shutil.which("tesseract") is not None, reason="checks the missing case")
+    def test_without_ocr_a_scan_says_so_rather_than_failing(
+        self, plan: object, tmp_path: Path
+    ) -> None:
+        result = geometry_pdf.extract(scan(plan, tmp_path, 100), 0)
+
+        assert "could not be read" in str(result["ocr_note"])
+        assert geometry.texts(table_of(result)) == []

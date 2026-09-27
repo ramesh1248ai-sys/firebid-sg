@@ -74,7 +74,7 @@ def extract_sheet(
     record.views = list(meta.get("views") or [])
     record.seconds = round(seconds, 4)
     record.from_cache = from_cache
-    record.note = meta.get("primary_failure")
+    record.note = meta.get("primary_failure") or meta.get("ocr_note")
     if existing is None:
         session.add(record)
     _index(session, sheet, table)

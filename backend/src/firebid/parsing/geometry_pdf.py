@@ -20,6 +20,10 @@ from firebid.drawings.geometry import Builder, Method, bezier_points, to_parquet
 from firebid.parsing.pdf import PdfUnreadable, _open
 
 POINTS_TO_MM = 25.4 / 72
+# A page this much covered by images, with no text layer, is a scan: its text is OCR'd.
+SCAN_COVERAGE = 0.5
+# OCR'd in quadrants, each within the OCR pixel cap, so an A0 scan never renders whole.
+OCR_TILES = ((0.0, 0.0, 0.5, 0.5), (0.5, 0.0, 1.0, 0.5), (0.0, 0.5, 0.5, 1.0), (0.5, 0.5, 1.0, 1.0))
 # Nesting deeper than this is either a pathological file or an attack; stop descending.
 MAX_FORM_DEPTH = 12
 
@@ -44,7 +48,11 @@ def _compose(inner: Matrix, outer: Matrix) -> Matrix:
 def extract(payload: bytes, index: int) -> dict[str, Any]:
     """Geometry of one page, as Parquet, with how it was obtained."""
     try:
-        return {"parquet": _pdfium(payload, index), "method": str(Method.PDF_VECTOR)}
+        parquet, note = _pdfium(payload, index)
+        result: dict[str, Any] = {"parquet": parquet, "method": str(Method.PDF_VECTOR)}
+        if note:
+            result["ocr_note"] = note
+        return result
     except PdfUnreadable:
         raise
     except Exception as failure:
@@ -55,7 +63,7 @@ def extract(payload: bytes, index: int) -> dict[str, Any]:
         }
 
 
-def _pdfium(payload: bytes, index: int) -> bytes:
+def _pdfium(payload: bytes, index: int) -> tuple[bytes, str | None]:
     import pypdfium2.raw as raw
 
     document = _open(payload)
@@ -63,7 +71,7 @@ def _pdfium(payload: bytes, index: int) -> bytes:
         if not 0 <= index < len(document):
             raise PdfUnreadable(f"this PDF has no page {index + 1}")
         page = document[index]
-        left, _bottom, _right, top = page.get_cropbox()
+        left, bottom, right, top = page.get_cropbox()
         builder = Builder(Method.PDF_VECTOR)
 
         def to_sheet(x: float, y: float, matrix: Matrix) -> tuple[float, float]:
@@ -89,12 +97,58 @@ def _pdfium(payload: bytes, index: int) -> bytes:
                     _path(raw, obj, _compose(matrix, parent), builder, to_sheet)
                 elif kind == raw.FPDF_PAGEOBJ_TEXT:
                     _text_object(raw, obj, textpage, matrix, parent, builder, to_sheet)
+                elif kind == raw.FPDF_PAGEOBJ_IMAGE and depth == 0:
+                    image_area[0] += _area(raw, obj)
 
         textpage = page.get_textpage()
+        image_area = [0.0]
         walk(page.raw, raw.FPDFPage_CountObjects(page.raw), raw.FPDFPage_GetObject, IDENTITY, 0)
-        return to_parquet(builder.table())
+        page_area = max(abs(right - left) * abs(top - bottom), 1.0)
+        note = None
+        has_text = "text" in builder.columns["kind"]
+        if not has_text and image_area[0] / page_area >= SCAN_COVERAGE:
+            note = _ocr_words(payload, index, builder)
+        return to_parquet(builder.table()), note
     finally:
         document.close()
+
+
+def _area(raw: Any, obj: Any) -> float:
+    left, bottom, right, top = (ctypes.c_float() for _ in range(4))
+    if not raw.FPDFPageObj_GetBounds(
+        obj, ctypes.byref(left), ctypes.byref(bottom), ctypes.byref(right), ctypes.byref(top)
+    ):
+        return 0.0
+    return abs(right.value - left.value) * abs(top.value - bottom.value)
+
+
+def _ocr_words(payload: bytes, index: int, builder: Builder) -> str | None:
+    """A scan's text, word by word, each with Tesseract's confidence (FR-VIS-06).
+
+    A word straddling two quadrants is read in both; the second reading is dropped when its
+    box overlaps one already kept.
+    """
+    from firebid.parsing.text import ocr_text
+
+    kept: list[tuple[float, float, float, float]] = []
+    try:
+        for tile in OCR_TILES:
+            data = ocr_text(payload, "pdf", index, list(tile), by_word=True)
+            for text, x0, y0, x1, y1, confidence in data["spans"]:
+                if any(x0 < b[2] and x1 > b[0] and y0 < b[3] and y1 > b[1] for b in kept):
+                    continue
+                kept.append((x0, y0, x1, y1))
+                builder.text(
+                    text,
+                    (x0, y0, x1, y1),
+                    builder.group(),
+                    height=y1 - y0,
+                    confidence=round(confidence, 3),
+                    method=Method.OCR,
+                )
+    except Exception as failure:
+        return f"the scan's text could not be read: {type(failure).__name__}: {failure}"[:300]
+    return None
 
 
 def _matrix(raw: Any, obj: Any) -> Matrix:

@@ -172,7 +172,7 @@ def _engine_pypdfium2(payload: bytes) -> tuple[list[list[float]], list[str]]:
     from firebid.drawings import geometry
     from firebid.parsing.geometry_pdf import _pdfium
 
-    table = geometry.from_parquet(_pdfium(payload, 0))
+    table = geometry.from_parquet(_pdfium(payload, 0)[0])
     found = geometry.segments(table)
     lines = [
         [a, b, c, d] for a, b, c, d in zip(found.x0, found.y0, found.x1, found.y1, strict=True)
