@@ -80,6 +80,8 @@ class Project(UuidPk, Timestamped, CreatedBy, Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     developer: Mapped[str | None] = mapped_column(String(200))
     consultant: Mapped[str | None] = mapped_column(String(200))
+    # The scheme in config/revisions.yaml that orders this project's revisions; None: default.
+    revision_scheme: Mapped[str | None] = mapped_column(String(64))
 
 
 class Bid(UuidPk, Timestamped, CreatedBy, Base):

@@ -16,6 +16,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    func,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -190,3 +191,28 @@ class Addendum(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
         Uuid, ForeignKey("tender_package.id", ondelete="SET NULL")
     )
     summary: Mapped[str | None] = mapped_column(Text)
+
+
+class TransmittalEntry(UuidPk, BidScoped, Base):
+    """One line of a drawing list or transmittal: what it says was issued (FR-DOC-04)."""
+
+    __tablename__ = "transmittal_entry"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_id", "sheet_number", "revision_label", name="uq_transmittal_entry_document_id"
+        ),
+    )
+
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("document.id", ondelete="CASCADE"), nullable=False
+    )
+    tender_package_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("tender_package.id", ondelete="SET NULL")
+    )
+    sheet_number: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    revision_label: Mapped[str] = mapped_column(String(40), nullable=False)
+    issued_on: Mapped[date | None] = mapped_column()
+    title: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

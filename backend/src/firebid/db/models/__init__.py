@@ -37,6 +37,7 @@ from firebid.db.models.documents import (
     Sheet,
     SheetRevision,
     TitleBlockLayout,
+    TransmittalEntry,
 )
 from firebid.db.models.takeoff import DetectedObject, Evidence, MeasurementRule, QtoItem
 from firebid.db.models.workflow import AgentRun, Approval, DeadlineAlert, HumanTask
@@ -80,5 +81,6 @@ __all__ = [
     "SystemJobResult",
     "TenderPackage",
     "TitleBlockLayout",
+    "TransmittalEntry",
     "UserRole",
 ]

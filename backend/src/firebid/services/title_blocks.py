@@ -125,6 +125,10 @@ def read_sheet(
 
     if found.reading.needs_help(DEFAULT_THRESHOLD):
         _ask_for_help(session, store, document, sheet, payload, revision, found)
+    else:
+        from firebid.services.revisions import settle
+
+        settle(session, revision)
     session.flush()
     return revision
 
@@ -396,6 +400,10 @@ def check_with_model(
         return revision  # a redelivery: the first delivery merged the result already
     _merge_model_reading(revision, result.output, str(run.id))
     session.flush()
+    if (revision.source_confidence or 0.0) >= DEFAULT_THRESHOLD:
+        from firebid.services.revisions import settle
+
+        settle(session, revision)
     return revision
 
 

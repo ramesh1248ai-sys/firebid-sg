@@ -129,7 +129,10 @@ class TestReadingFromTheFile:
         [revision] = read_title_blocks(session, store, document, sheets)
 
         assert (revision.sheet_number, revision.revision_label) == ("FP-L05-201", "R04")
-        assert revision.state == "received", "a reading is a proposal, not a register entry"
+        # Confident and uncontested, so the platform registered it and, being the only
+        # revision of its drawing, made it Current. The Estimator's register confirmation
+        # is the person's decision on the set (FR-DOC-03).
+        assert revision.state == "current"
         assert revision.extraction_method == "text_layer"
         assert revision.source_confidence == pytest.approx(0.97)
         assert revision.title == "FIRE SPRINKLER LAYOUT"
@@ -139,7 +142,7 @@ class TestReadingFromTheFile:
         assert revision.revision_date is not None
         assert revision.reading is not None
         assert reading_of(revision)["fields"]["revision"]["how"] == "label"
-        assert revision.sources == {"title_block": "R04"}
+        assert revision.sources == {"title_block": "R04", "filename": None, "transmittal": None}
         assert "crop_key" not in reading_of(revision), "nothing to ask the model"
 
     def test_a_dxf_is_read_from_its_entities(
@@ -291,7 +294,8 @@ class TestTheModelCheck:
 
         assert (revision.sheet_number, revision.revision_label) == ("FP-L05-201", "R04")
         assert revision.extraction_method == "model"
-        assert revision.state == "received", "still a proposal: a person registers it"
+        # Confident once the model read it, so it is settled like any confident reading.
+        assert revision.state == "current"
         assert revision.reading is not None
         assert reading_of(revision)["fields"]["sheet_number"]["how"] == "model"
         assert reading_of(revision)["fields"]["sheet_number"]["agent_run_id"]

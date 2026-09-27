@@ -93,6 +93,7 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
     from firebid.db.identity import acting_as
     from firebid.db.models.documents import Document
     from firebid.services.classification import classify_in_sandbox
+    from firebid.services.revisions import read_transmittal
     from firebid.services.sheets import process_document
     from firebid.services.title_blocks import read_title_blocks
     from firebid.storage.object_store import get_object_store
@@ -117,7 +118,12 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
                 # block opens the tender file, so it cannot happen anywhere else.
                 read_title_blocks(session, store, document, outcome.sheets)
         if failure is None and document.state in ("received", "done"):
-            classify_in_sandbox(session, document, store.get(document.storage_key))
+            payload = store.get(document.storage_key)
+            if document.kind == "xlsx":
+                # A drawing list or transmittal: the third source every revision is checked
+                # against. Read before classifying, which then knows the workbook is one.
+                read_transmittal(session, document, payload)
+            classify_in_sandbox(session, document, payload)
             # A workbook or a document becomes no sheets; being read and classified is
             # what "done" means for it.
             document.state = "done"

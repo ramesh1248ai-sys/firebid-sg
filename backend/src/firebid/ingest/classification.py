@@ -142,6 +142,11 @@ def classify(digest: Digest) -> Classification:
     elif clauses >= 15 and digest.kind in ("docx", "pdf"):
         candidates.append((0.75, DocType.SPECIFICATION, f"{clauses} numbered clauses"))
 
+    if _is_drawing_list(digest.header_rows):
+        candidates.append(
+            (0.92, DocType.SCHEDULE, "a drawing list or transmittal: drawing numbers and revisions")
+        )
+
     schedule_columns = _best_schedule_header(digest.header_rows)
     if schedule_columns >= 3 and boq < 4:
         candidates.append(
@@ -182,6 +187,20 @@ def _best_boq_header(rows: Sequence[Sequence[str]]) -> int:
         }
         best = max(best, len(found))
     return best
+
+
+DRAWING_NUMBER_COLUMN = re.compile(r"^(DRAWING|DWG|DRG|SHEET)\s*(NO\.?|NUMBER|REF\.?)$", re.I)
+REVISION_COLUMN = re.compile(r"^REV(ISION)?\.?$", re.I)
+
+
+def _is_drawing_list(rows: Sequence[Sequence[str]]) -> bool:
+    for row in rows:
+        cells = [cell.strip() for cell in row if cell and cell.strip()]
+        if any(DRAWING_NUMBER_COLUMN.match(cell) for cell in cells) and any(
+            REVISION_COLUMN.match(cell) for cell in cells
+        ):
+            return True
+    return False
 
 
 def _best_schedule_header(rows: Sequence[Sequence[str]]) -> int:
