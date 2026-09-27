@@ -212,7 +212,9 @@ services:
     security_opt:
       - no-new-privileges:true
     tmpfs:
-      - /scratch:rw,noexec,nosuid,size=4g
+      # Owned by the sandbox user: a tmpfs is mounted as root, and /scratch is its HOME, so
+      # without this LibreOffice and matplotlib had nowhere to write.
+      - /scratch:rw,noexec,nosuid,size=4g,uid=10001,gid=10001,mode=0700
       - /tmp:rw,noexec,nosuid,size=1g
     deploy:
       resources:
