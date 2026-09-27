@@ -106,27 +106,41 @@ def dxf_text(payload: bytes, layout_name: str | None) -> dict[str, Any]:
 
 
 def ocr_text(
-    payload: bytes, kind: str, index: int, region: list[float], dpi: int = OCR_DPI
+    payload: bytes,
+    kind: str,
+    index: int,
+    region: list[float],
+    dpi: int = OCR_DPI,
+    *,
+    by_word: bool = False,
 ) -> dict[str, Any]:
     """OCR one region of a page, given as fractions of it: ``[x0, y0, x1, y1]``.
 
     For a PDF the region is rendered at `dpi` and coordinates come back in paper millimetres,
     like `pdf_text`. For a scanned image the pixels are the page and coordinates are pixels.
     The mean word confidence comes back too, as the legibility measure FR-DOC-06 asks for.
+    With `by_word`, each word is its own span with its own confidence (FR-VIS-06); otherwise
+    words are joined into lines, which is what a title block is read by.
     """
     import pytesseract
 
     image, page, scale = _region_image(payload, kind, index, region, dpi)
     data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT, config="--psm 11")
 
-    lines: dict[tuple[int, int, int], list[int]] = {}
+    lines: dict[tuple[int, ...], list[int]] = {}
     confidences = []
     for word, text in enumerate(data["text"]):
         confidence = float(data["conf"][word])
         if not text.strip() or confidence < OCR_MIN_WORD_CONFIDENCE:
             continue
         confidences.append(confidence)
-        key = (data["block_num"][word], data["par_num"][word], data["line_num"][word])
+        key: tuple[int, ...] = (
+            data["block_num"][word],
+            data["par_num"][word],
+            data["line_num"][word],
+        )
+        if by_word:
+            key = (*key, word)
         lines.setdefault(key, []).append(word)
 
     left_offset = region[0] * (page[2] - page[0])

@@ -28,7 +28,7 @@ import random
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import ezdxf
 from ezdxf.document import Drawing
@@ -91,6 +91,10 @@ def _new_drawing() -> tuple[Drawing, Modelspace]:
 # corner, where consultants put it. Everything a plan draws sits inside the border.
 SHEET_ORIGIN = (-4_000.0, -1_000.0)
 SHEET_SIZE = (42_000.0, 29_700.0)
+# The border above is drawn at 1:100, so a sheet prints on paper a hundredth of its size: A3.
+# A sheet at another scale has its border and title block scaled to match.
+DRAWING_SCALE = 100
+PAPER_MM = (SHEET_SIZE[0] / DRAWING_SCALE, SHEET_SIZE[1] / DRAWING_SCALE)
 TITLE_BLOCK_WIDTH = 14_000.0
 CONSULTANT_NAME = "SYNTHETIC CONSULTANTS PTE LTD"
 PROJECT_NAME = "PROPOSED COMMERCIAL DEVELOPMENT AT MARINA BAY"
@@ -146,6 +150,7 @@ def _title_block(
     revision: str,
     scale: str,
     title: str = "FIRE SPRINKLER LAYOUT",
+    drawing_scale: int = DRAWING_SCALE,
 ) -> None:
     """A sheet border and a title block laid out the way consultants lay them out.
 
@@ -153,6 +158,9 @@ def _title_block(
     and a revision history listing every issue. The history is a trap for a careless reader:
     it holds several revision labels, and only the REV cell says which one this sheet is.
     """
+    # Laid out at 1:100, then scaled to the sheet's own scale: a 1:50 sheet's border and
+    # title block are half the size in drawing units, so they print the same on paper.
+    first = len(space)
     sx, sy = SHEET_ORIGIN
     width, height = SHEET_SIZE
     _box(space, sx, sy, sx + width, sy + height)
@@ -186,6 +194,108 @@ def _title_block(
         _text(space, label, left + 150, y, 180)
         _text(space, when.strftime("%d.%m.%Y"), left + 2_150, y, 180)
         _text(space, description, left + 5_150, y, 180)
+
+    if drawing_scale != DRAWING_SCALE:
+        from ezdxf.math import Matrix44
+
+        factor = drawing_scale / DRAWING_SCALE
+        for entity in list(space)[first:]:
+            entity.transform(Matrix44.scale(factor, factor, factor))
+
+
+# The structural grid: lines every 6 m, offset from the heads so they never coincide with
+# pipework, lettered left to right and numbered bottom to top, as Singapore plans are.
+GRID_SPACING = 6_000
+GRID_ORIGIN = (500.0, 500.0)
+LAYER_GRID = "S-GRID"
+LAYER_DIMENSION = "FP-DIM"
+
+
+def grid_lines(columns: int, rows: int) -> tuple[list[tuple[str, float]], list[tuple[str, float]]]:
+    """The grid a plan of this size is drawn on: (label, x) across and (label, y) up."""
+    width = (columns - 1) * SPACING_MM + 3_000
+    height = (rows - 1) * SPACING_MM + 3_000
+    across = [
+        (chr(ord("A") + index), GRID_ORIGIN[0] + index * GRID_SPACING)
+        for index in range(int(width // GRID_SPACING) + 1)
+    ]
+    up = [
+        (str(index + 1), GRID_ORIGIN[1] + index * GRID_SPACING)
+        for index in range(int(height // GRID_SPACING) + 1)
+    ]
+    return across, up
+
+
+def _structural_grid(
+    space: Modelspace, columns: int, rows: int, drawing_scale: int = DRAWING_SCALE
+) -> None:
+    across, up = grid_lines(columns, rows)
+    bottom, top = up[0][1] - 1_000, up[-1][1] + 1_000
+    left, right = across[0][1] - 1_000, across[-1][1] + 1_000
+    # A bubble is 8 mm across on paper whatever the scale, so its size in drawing units is not.
+    radius = 4 * drawing_scale
+    text = 2.5 * drawing_scale
+    attributes = {"layer": LAYER_GRID}
+    for label, x in across:
+        space.add_line((x, bottom), (x, top), dxfattribs=attributes)
+        space.add_circle((x, top + radius), radius, dxfattribs=attributes)
+        space.add_text(label, height=text, dxfattribs=attributes).set_placement(
+            (x - text * 0.35, top + radius - text / 2)
+        )
+    for label, y in up:
+        space.add_line((left, y), (right, y), dxfattribs=attributes)
+        space.add_circle((left - radius, y), radius, dxfattribs=attributes)
+        space.add_text(label, height=text, dxfattribs=attributes).set_placement(
+            (left - radius - text * 0.35, y - text / 2)
+        )
+
+
+def _dimensions(space: Modelspace) -> None:
+    """Head spacing and grid spacing, dimensioned the way a consultant dimensions them."""
+    across, _ = grid_lines(8, 6)
+    style = {"layer": LAYER_DIMENSION}
+    # Sized in drawing units to print as a consultant's do at 1:100: a 2.5 mm figure and
+    # arrows. DIMLFAC stays 1, so the figure is the measured length itself.
+    paper = DRAWING_SCALE
+    printed = {
+        "dimtxt": 2.5 * paper,
+        "dimasz": 2.5 * paper,
+        "dimgap": 0.6 * paper,
+        "dimexo": 1.0 * paper,
+        "dimexe": 1.0 * paper,
+        "dimlfac": 1.0,
+        "dimdec": 0,
+    }
+    space.add_aligned_dim(
+        p1=(2_000, 2_000), p2=(5_000, 2_000), distance=-600, dxfattribs=style, override=printed
+    ).render()
+    space.add_aligned_dim(
+        p1=(across[0][1], 16_000),
+        p2=(across[1][1], 16_000),
+        distance=600,
+        dxfattribs=style,
+        override=printed,
+    ).render()
+
+
+def _view_title(
+    space: Modelspace, title: str, scale: str, drawing_scale: int = DRAWING_SCALE
+) -> None:
+    """A view's title with its scale beneath, in the top-left of the sheet.
+
+    Placed 45 mm down and 15 mm in on paper at any scale, clear of the plan, the grid bubbles
+    and the title block.
+    """
+    factor = drawing_scale / DRAWING_SCALE
+    frame_left = SHEET_ORIGIN[0] * factor
+    frame_top = (SHEET_ORIGIN[1] + SHEET_SIZE[1]) * factor
+    x, y = frame_left + 15 * drawing_scale, frame_top - 45 * drawing_scale
+    size = 3.5 * drawing_scale
+    attributes = {"layer": LAYER_TEXT}
+    space.add_text(title, height=size, dxfattribs=attributes).set_placement((x, y))
+    space.add_text(f"SCALE {scale}", height=size * 0.7, dxfattribs=attributes).set_placement(
+        (x, y - 1.8 * size)
+    )
 
 
 def _sprinkler_grid(
@@ -232,12 +342,27 @@ def general_arrangement(
     revision: str = "R04",
     columns: int = 8,
     rows: int = 6,
+    *,
+    with_grid: bool = True,
+    with_dimensions: bool = True,
+    view_title: str | None = "LEVEL 5 FIRE SPRINKLER LAYOUT PLAN",
 ) -> tuple[Drawing, SheetTruth]:
-    """A floor plan: a grid of heads, a branch per row, and a sized main."""
+    """A floor plan: a grid of heads, a branch per row, and a sized main.
+
+    With a structural grid, dimensions and a view title by default, which is what a scale is
+    verified from and a grid reference read against. Without them it is a sheet whose stated
+    scale nothing on it can confirm.
+    """
     document, space = _new_drawing()
     heads = _sprinkler_grid(space, columns, rows)
     branch_mm = _branches(space, columns, rows)
     main_mm = _main(space, rows)
+    if with_grid:
+        _structural_grid(space, columns, rows)
+    if with_dimensions:
+        _dimensions(space)
+    if view_title:
+        _view_title(space, view_title, "1:100")
     _title_block(space, sheet_number, revision, "1:100")
 
     truth = SheetTruth(
@@ -261,11 +386,19 @@ def enlarged_plan(
     columns: int = 3,
     rows: int = 2,
 ) -> tuple[Drawing, SheetTruth]:
-    """Part of the general arrangement, drawn larger. The double-counting trap."""
+    """Part of the general arrangement, drawn larger. The double-counting trap.
+
+    Drawn at a true 1:50: the same heads in the same place as on the general arrangement, on
+    a sheet half the size in drawing units, titled as an enlarged plan.
+    """
     document, space = _new_drawing()
     heads = _sprinkler_grid(space, columns, rows)
     branch_mm = _branches(space, columns, rows)
-    _title_block(space, sheet_number, revision, "1:50")
+    _structural_grid(space, columns, rows, drawing_scale=50)
+    _view_title(space, "ENLARGED PLAN - RISER AREA", "1:50", drawing_scale=50)
+    _title_block(
+        space, sheet_number, revision, "1:50", title="ENLARGED SPRINKLER PLAN", drawing_scale=50
+    )
 
     truth = SheetTruth(
         sheet_number=sheet_number,
@@ -349,12 +482,17 @@ def write_dxf(document: Drawing, path: Path) -> Path:
 
 
 # The border is drawn at 1:100, so the sheet prints on paper a hundredth of its size: A3.
-DRAWING_SCALE = 100
-PAPER_MM = (SHEET_SIZE[0] / DRAWING_SCALE, SHEET_SIZE[1] / DRAWING_SCALE)
+
+
+def drawing_scale_of(document: Drawing) -> int:
+    """The scale a fixture states (`1:50`), which it is printed at; 1:100 when it states none."""
+    from firebid.parsing.dxf import stated_scale
+
+    return stated_scale(document.modelspace()) or DRAWING_SCALE
 
 
 def _plot(document: Drawing, *, outlines_only: bool = True) -> tuple[Any, Any]:
-    """Draw the sheet onto a figure the size of its paper, at its true scale.
+    """Draw the sheet onto a figure the size of its paper, at its own stated scale.
 
     Left to itself, ezdxf fits the figure to the drawing, which prints an A3 sheet at a third
     of its size and makes 2.5 mm title-block text less than a millimetre. Pinning the axes to
@@ -368,12 +506,14 @@ def _plot(document: Drawing, *, outlines_only: bool = True) -> tuple[Any, Any]:
     from ezdxf.addons.drawing.config import BackgroundPolicy, Configuration
     from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
 
+    factor = drawing_scale_of(document) / DRAWING_SCALE
     figure = plt.figure(figsize=(PAPER_MM[0] / 25.4, PAPER_MM[1] / 25.4))
     axes = figure.add_axes((0, 0, 1, 1))
     axes.set_axis_off()
 
     def drawn(entity: DXFGraphic) -> bool:
-        return outlines_only or not _is_title_text(entity)
+        # With live text, text and dimensions are written separately, as real text.
+        return outlines_only or entity.dxftype() not in ("TEXT", "MTEXT", "DIMENSION")
 
     try:
         # Printed on white, the way a tender sheet is. The default background is modelspace's
@@ -385,8 +525,8 @@ def _plot(document: Drawing, *, outlines_only: bool = True) -> tuple[Any, Any]:
         figure.set_size_inches(PAPER_MM[0] / 25.4, PAPER_MM[1] / 25.4)
         axes.set_aspect("auto")
         axes.set_position((0, 0, 1, 1))
-        axes.set_xlim(SHEET_ORIGIN[0], SHEET_ORIGIN[0] + SHEET_SIZE[0])
-        axes.set_ylim(SHEET_ORIGIN[1], SHEET_ORIGIN[1] + SHEET_SIZE[1])
+        axes.set_xlim(SHEET_ORIGIN[0] * factor, (SHEET_ORIGIN[0] + SHEET_SIZE[0]) * factor)
+        axes.set_ylim(SHEET_ORIGIN[1] * factor, (SHEET_ORIGIN[1] + SHEET_SIZE[1]) * factor)
     except BaseException:
         plt.close(figure)
         raise
@@ -394,11 +534,12 @@ def _plot(document: Drawing, *, outlines_only: bool = True) -> tuple[Any, Any]:
 
 
 def write_pdf(document: Drawing, path: Path, *, live_text: bool = False) -> Path:
-    """Render to vector PDF on A3 paper, which is what a vector tender looks like.
+    """Render to vector PDF on A3 paper at the sheet's scale, as a vector tender looks.
 
     By default every character is drawn as outlines, as an AutoCAD export with SHX fonts is:
-    the page has no text layer and has to be read by OCR. With `live_text`, the title block is
-    written as real text, as a TrueType export is, so it can be read straight from the page.
+    the page has no text layer and has to be read by OCR. With `live_text`, every piece of
+    text (title block, labels, view titles, dimension figures) is written as real text, as a
+    TrueType export is, so it can be read straight from the page.
     """
     import matplotlib
     import matplotlib.pyplot as plt
@@ -420,14 +561,68 @@ def _is_title_text(entity: DXFGraphic) -> bool:
 
 
 def _draw_live_text(axes: Any, document: Drawing) -> None:
-    """Write the title block's text as text, at the size it would have had as outlines."""
-    points_per_unit = 72 / 25.4 / DRAWING_SCALE
+    """Write every text as text, and every dimension from its parts, at printed size."""
+    points_per_unit = 72 / 25.4 / drawing_scale_of(document)
+
+    def write(
+        x: float,
+        y: float,
+        value: str,
+        height: float,
+        rotation: float = 0.0,
+        anchor: tuple[str, str] = ("left", "baseline"),
+    ) -> None:
+        # A TEXT height is the capital height; a font size is about 1.4 times that.
+        axes.text(
+            x,
+            y,
+            value,
+            fontsize=height * points_per_unit * 1.4,
+            ha=anchor[0],
+            va=anchor[1],
+            rotation=rotation,
+            rotation_mode="anchor",
+        )
+
+    # MTEXT is placed by an attachment point, 1 to 9: top, middle, bottom by left, centre,
+    # right. A dimension's figure is attached at its middle-centre.
+    attachments = {
+        1: ("left", "top"),
+        2: ("center", "top"),
+        3: ("right", "top"),
+        4: ("left", "center"),
+        5: ("center", "center"),
+        6: ("right", "center"),
+        7: ("left", "bottom"),
+        8: ("center", "bottom"),
+        9: ("right", "bottom"),
+    }
+
     for entity in document.modelspace():
-        if _is_title_text(entity):
+        kind = entity.dxftype()
+        if kind == "TEXT":
             x, y, _ = entity.dxf.insert
-            # A TEXT height is the capital height; a font size is about 1.4 times that.
-            size = entity.dxf.height * points_per_unit * 1.4
-            axes.text(x, y, entity.dxf.text, fontsize=size, ha="left", va="baseline")
+            write(x, y, entity.dxf.text, entity.dxf.height, entity.dxf.get("rotation", 0.0))
+        elif kind == "DIMENSION":
+            for part in cast(Any, entity).virtual_entities():
+                part_kind = part.dxftype()
+                if part_kind == "LINE":
+                    axes.plot(
+                        [part.dxf.start.x, part.dxf.end.x],
+                        [part.dxf.start.y, part.dxf.end.y],
+                        color="black",
+                        linewidth=0.25,
+                    )
+                elif part_kind in ("MTEXT", "TEXT"):
+                    x, y, _ = part.dxf.insert
+                    rotation = part.dxf.get("rotation", 0.0)
+                    if part_kind == "MTEXT":
+                        anchor = attachments.get(
+                            part.dxf.get("attachment_point", 1), ("left", "top")
+                        )
+                        write(x, y, part.plain_text(), part.dxf.char_height, rotation, anchor)
+                    else:
+                        write(x, y, part.dxf.text, part.dxf.height, rotation)
 
 
 def write_raster(document: Drawing, path: Path, dpi: int = 72) -> Path:

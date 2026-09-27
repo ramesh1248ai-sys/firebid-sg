@@ -93,9 +93,11 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
     from firebid.db.identity import acting_as
     from firebid.db.models.documents import Document
     from firebid.services.classification import classify_in_sandbox
+    from firebid.services.geometry import extract_all
     from firebid.services.revisions import read_transmittal
     from firebid.services.sheets import process_document
     from firebid.services.title_blocks import read_title_blocks
+    from firebid.services.views import detect_all
     from firebid.storage.object_store import get_object_store
 
     with acting_as(uuid_module.UUID(user_id)), session_scope() as session:
@@ -117,6 +119,10 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
                 # Straight after the sheets exist, in the same sandboxed job: reading a title
                 # block opens the tender file, so it cannot happen anywhere else.
                 read_title_blocks(session, store, document, outcome.sheets)
+                # Geometry for symbol matching, pipe tracing and measurement (FR-VIS-01).
+                extract_all(session, store, document, outcome.sheets)
+                # Views, their scales and grids, from that geometry (FR-VIS-05/07/08).
+                detect_all(session, store, outcome.sheets)
         if failure is None and document.state in ("received", "done"):
             payload = store.get(document.storage_key)
             if document.kind == "xlsx":

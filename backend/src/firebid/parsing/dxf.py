@@ -19,6 +19,7 @@ before it reaches this module, or refused at ingest with a message asking for th
 from __future__ import annotations
 
 import io
+import re
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -46,7 +47,7 @@ class LayoutFacts:
     label: str
     space: str  # paper | model
     entity_count: int
-    sized_from: str  # page_setup | extents | fallback
+    sized_from: str  # page_setup | stated_scale | extents | fallback
     extents_mm: list[float] | None
 
     def as_dict(self) -> dict[str, Any]:
@@ -91,6 +92,19 @@ def _layout_size(layout: Any) -> tuple[float, float, str, list[float] | None]:
     if extents is not None and extents.has_data:
         width = float(extents.size.x)
         height = float(extents.size.y)
+        # Modelspace is drawn full size. When the drawing states the scale it is plotted at,
+        # that puts it on paper exactly as its PDF export would be, so the two formats of one
+        # drawing share their sheet coordinates.
+        denominator = stated_scale(layout) if layout.name.lower() == "model" else None
+        if denominator and _plausible(width / denominator) and _plausible(height / denominator):
+            width, height = width / denominator, height / denominator
+            box = [
+                float(extents.extmin.x),
+                float(extents.extmin.y),
+                float(extents.extmax.x),
+                float(extents.extmax.y),
+            ]
+            return width, height, "stated_scale", box
         box = [
             float(extents.extmin.x),
             float(extents.extmin.y),
@@ -107,6 +121,24 @@ def _layout_size(layout: Any) -> tuple[float, float, str, list[float] | None]:
             return width * shrink, height * shrink, "extents", box
 
     return FALLBACK_SIZE_MM[0], FALLBACK_SIZE_MM[1], "fallback", None
+
+
+SCALE_TEXT = re.compile(r"^\s*1\s*:\s*(\d{1,5})(?:\s*@\s*A\d)?\s*$", re.I)
+
+
+def stated_scale(layout: Any) -> int | None:
+    """The plot scale a layout's own text states (`1:100`), as its denominator, if any.
+
+    The commonest one wins: a sheet whose title block says 1:100 may carry a 1:20 detail.
+    """
+    found: dict[int, int] = {}
+    for entity in layout.query("TEXT MTEXT"):
+        text = entity.dxf.text if entity.dxftype() == "TEXT" else entity.plain_text()
+        match = SCALE_TEXT.match(text or "")
+        if match and int(match.group(1)) > 0:
+            denominator = int(match.group(1))
+            found[denominator] = found.get(denominator, 0) + 1
+    return max(found, key=lambda key: found[key]) if found else None
 
 
 def _plausible(value: float) -> bool:

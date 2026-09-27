@@ -695,6 +695,35 @@
         "title": "BreakerOut",
         "type": "object"
       },
+      "CalibrateRequest": {
+        "properties": {
+          "distance_mm": {
+            "exclusiveMinimum": 0.0,
+            "title": "Distance Mm",
+            "type": "number"
+          },
+          "points": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Points",
+            "type": "array"
+          }
+        },
+        "required": [
+          "points",
+          "distance_mm"
+        ],
+        "title": "CalibrateRequest",
+        "type": "object"
+      },
       "ChainStatus": {
         "properties": {
           "chain_key": {
@@ -1371,6 +1400,136 @@
           "status"
         ],
         "title": "Liveness",
+        "type": "object"
+      },
+      "LocationOut": {
+        "properties": {
+          "grid_index": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grid Index"
+          },
+          "grid_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grid Reference"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "view_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View Id"
+          },
+          "view_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View Kind"
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone"
+          }
+        },
+        "required": [
+          "view_id",
+          "view_kind",
+          "grid_reference",
+          "grid_index",
+          "level",
+          "zone"
+        ],
+        "title": "LocationOut",
+        "type": "object"
+      },
+      "MeasureOut": {
+        "properties": {
+          "denominator": {
+            "title": "Denominator",
+            "type": "number"
+          },
+          "length_mm": {
+            "title": "Length Mm",
+            "type": "number"
+          },
+          "scale_status": {
+            "title": "Scale Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "length_mm",
+          "denominator",
+          "scale_status"
+        ],
+        "title": "MeasureOut",
+        "type": "object"
+      },
+      "MeasureRequest": {
+        "properties": {
+          "points": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "maxItems": 10000,
+            "minItems": 2,
+            "title": "Points",
+            "type": "array"
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "title": "MeasureRequest",
         "type": "object"
       },
       "MemberIn": {
@@ -2504,6 +2663,178 @@
           "env"
         ],
         "title": "VersionInfo",
+        "type": "object"
+      },
+      "ViewOut": {
+        "properties": {
+          "calibrated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calibrated By"
+          },
+          "calibration": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calibration"
+          },
+          "denominator": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Denominator"
+          },
+          "extent": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Extent",
+            "type": "array"
+          },
+          "grid": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grid"
+          },
+          "grid_box": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grid Box"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "measurable": {
+            "default": false,
+            "title": "Measurable",
+            "type": "boolean"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "scale_evidence": {
+            "additionalProperties": true,
+            "title": "Scale Evidence",
+            "type": "object"
+          },
+          "scale_status": {
+            "title": "Scale Status",
+            "type": "string"
+          },
+          "sheet_id": {
+            "format": "uuid",
+            "title": "Sheet Id",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "stated_denominator": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stated Denominator"
+          },
+          "stated_scale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stated Scale"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "id",
+          "sheet_id",
+          "ordinal",
+          "kind",
+          "title",
+          "source",
+          "extent",
+          "level",
+          "stated_scale",
+          "stated_denominator",
+          "scale_status",
+          "denominator",
+          "scale_evidence",
+          "grid",
+          "grid_box",
+          "calibration",
+          "calibrated_by"
+        ],
+        "title": "ViewOut",
         "type": "object"
       },
       "WithdrawRequest": {
@@ -4986,6 +5317,87 @@
         ]
       }
     },
+    "/bids/{bid_id}/sheets/{sheet_id}/locate": {
+      "get": {
+        "description": "A sheet point as an estimator says it: grid reference, level and zone.",
+        "operationId": "locate_point_bids__bid_id__sheets__sheet_id__locate_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "sheet millimetres from the left",
+            "in": "query",
+            "name": "x",
+            "required": true,
+            "schema": {
+              "description": "sheet millimetres from the left",
+              "title": "X",
+              "type": "number"
+            }
+          },
+          {
+            "description": "sheet millimetres from the top",
+            "in": "query",
+            "name": "y",
+            "required": true,
+            "schema": {
+              "description": "sheet millimetres from the top",
+              "title": "Y",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Locate Point",
+        "tags": [
+          "views"
+        ]
+      }
+    },
     "/bids/{bid_id}/sheets/{sheet_id}/thumbnail.webp": {
       "get": {
         "operationId": "thumbnail_bids__bid_id__sheets__sheet_id__thumbnail_webp_get",
@@ -5129,6 +5541,226 @@
         "summary": "Tile",
         "tags": [
           "sheets"
+        ]
+      }
+    },
+    "/bids/{bid_id}/sheets/{sheet_id}/views": {
+      "get": {
+        "operationId": "list_views_bids__bid_id__sheets__sheet_id__views_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ViewOut"
+                  },
+                  "title": "Response List Views Bids  Bid Id  Sheets  Sheet Id  Views Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Views",
+        "tags": [
+          "views"
+        ]
+      }
+    },
+    "/bids/{bid_id}/sheets/{sheet_id}/views/{view_id}/calibrate": {
+      "post": {
+        "description": "Two sheet points and the real distance between them: the view becomes measurable.",
+        "operationId": "calibrate_view_bids__bid_id__sheets__sheet_id__views__view_id__calibrate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "view_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "View Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalibrateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Calibrate View",
+        "tags": [
+          "views"
+        ]
+      }
+    },
+    "/bids/{bid_id}/sheets/{sheet_id}/views/{view_id}/measure": {
+      "post": {
+        "description": "A length along sheet points, in millimetres. 409 unless the scale is measurable.",
+        "operationId": "measure_on_view_bids__bid_id__sheets__sheet_id__views__view_id__measure_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "view_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "View Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeasureRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasureOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Measure On View",
+        "tags": [
+          "views"
         ]
       }
     },

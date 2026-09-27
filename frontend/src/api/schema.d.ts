@@ -650,6 +650,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/sheets/{sheet_id}/locate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Locate Point
+         * @description A sheet point as an estimator says it: grid reference, level and zone.
+         */
+        get: operations["locate_point_bids__bid_id__sheets__sheet_id__locate_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/sheets/{sheet_id}/thumbnail.webp": {
         parameters: {
             query?: never;
@@ -684,6 +704,63 @@ export interface paths {
         get: operations["tile_bids__bid_id__sheets__sheet_id__tiles__level___column___row__webp_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/sheets/{sheet_id}/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Views */
+        get: operations["list_views_bids__bid_id__sheets__sheet_id__views_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/sheets/{sheet_id}/views/{view_id}/calibrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calibrate View
+         * @description Two sheet points and the real distance between them: the view becomes measurable.
+         */
+        post: operations["calibrate_view_bids__bid_id__sheets__sheet_id__views__view_id__calibrate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/sheets/{sheet_id}/views/{view_id}/measure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Measure On View
+         * @description A length along sheet points, in millimetres. 409 unless the scale is measurable.
+         */
+        post: operations["measure_on_view_bids__bid_id__sheets__sheet_id__views__view_id__measure_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1003,6 +1080,13 @@ export interface components {
             /** Open */
             open: boolean;
         };
+        /** CalibrateRequest */
+        CalibrateRequest: {
+            /** Distance Mm */
+            distance_mm: number;
+            /** Points */
+            points: number[][];
+        };
         /** ChainStatus */
         ChainStatus: {
             /**
@@ -1214,6 +1298,35 @@ export interface components {
         Liveness: {
             /** Status */
             status: string;
+        };
+        /** LocationOut */
+        LocationOut: {
+            /** Grid Index */
+            grid_index: number[] | null;
+            /** Grid Reference */
+            grid_reference: string | null;
+            /** Level */
+            level: string | null;
+            /** View Id */
+            view_id: string | null;
+            /** View Kind */
+            view_kind: string | null;
+            /** Zone */
+            zone: string | null;
+        };
+        /** MeasureOut */
+        MeasureOut: {
+            /** Denominator */
+            denominator: number;
+            /** Length Mm */
+            length_mm: number;
+            /** Scale Status */
+            scale_status: string;
+        };
+        /** MeasureRequest */
+        MeasureRequest: {
+            /** Points */
+            points: number[][];
         };
         /** MemberIn */
         MemberIn: {
@@ -1616,6 +1729,60 @@ export interface components {
             git_sha: string;
             /** Version */
             version: string;
+        };
+        /** ViewOut */
+        ViewOut: {
+            /** Calibrated By */
+            calibrated_by: string | null;
+            /** Calibration */
+            calibration: {
+                [key: string]: unknown;
+            } | null;
+            /** Denominator */
+            denominator: number | null;
+            /** Extent */
+            extent: number[];
+            /** Grid */
+            grid: {
+                [key: string]: unknown;
+            } | null;
+            /** Grid Box */
+            grid_box: number[] | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Level */
+            level: string | null;
+            /**
+             * Measurable
+             * @default false
+             */
+            measurable: boolean;
+            /** Ordinal */
+            ordinal: number;
+            /** Scale Evidence */
+            scale_evidence: {
+                [key: string]: unknown;
+            };
+            /** Scale Status */
+            scale_status: string;
+            /**
+             * Sheet Id
+             * Format: uuid
+             */
+            sheet_id: string;
+            /** Source */
+            source: string;
+            /** Stated Denominator */
+            stated_denominator: number | null;
+            /** Stated Scale */
+            stated_scale: string | null;
+            /** Title */
+            title: string | null;
         };
         /** WithdrawRequest */
         WithdrawRequest: {
@@ -2872,6 +3039,43 @@ export interface operations {
             };
         };
     };
+    locate_point_bids__bid_id__sheets__sheet_id__locate_get: {
+        parameters: {
+            query: {
+                /** @description sheet millimetres from the left */
+                x: number;
+                /** @description sheet millimetres from the top */
+                y: number;
+            };
+            header?: never;
+            path: {
+                sheet_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     thumbnail_bids__bid_id__sheets__sheet_id__thumbnail_webp_get: {
         parameters: {
             query?: never;
@@ -2926,6 +3130,112 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_views_bids__bid_id__sheets__sheet_id__views_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheet_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calibrate_view_bids__bid_id__sheets__sheet_id__views__view_id__calibrate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheet_id: string;
+                view_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalibrateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    measure_on_view_bids__bid_id__sheets__sheet_id__views__view_id__measure_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheet_id: string;
+                view_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MeasureRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeasureOut"];
                 };
             };
             /** @description Validation Error */
