@@ -199,27 +199,32 @@ def _transmittal_says(
 
 
 def _issued(session: Session, revision: Revision) -> date | None:
-    """When a revision was issued: its own date, else its addendum's, else a transmittal's."""
-    if revision.revision_date is not None:
-        return revision.revision_date
+    """When a revision was issued, for breaking a tie the scheme cannot.
+
+    The addendum's date first, then the transmittal's: those are when the revision reached
+    the tenderer, which is what decides which one they must price. The title block's own date
+    only when neither exists, because consultants often leave it at the date of first issue.
+    """
     if revision.addendum_id is not None:
         issued = session.execute(
             select(Addendum.issued_on).where(Addendum.id == revision.addendum_id)
         ).scalar_one_or_none()
         if issued is not None:
             return issued
-    if isinstance(revision, DocumentRevision):
-        return None
-    return session.execute(
-        select(TransmittalEntry.issued_on)
-        .where(
-            TransmittalEntry.bid_id == revision.bid_id,
-            TransmittalEntry.sheet_number == revision.sheet_number,
-            TransmittalEntry.revision_label == revision.revision_label,
-            TransmittalEntry.issued_on.is_not(None),
-        )
-        .limit(1)
-    ).scalar_one_or_none()
+    if isinstance(revision, SheetRevision):
+        transmitted = session.execute(
+            select(TransmittalEntry.issued_on)
+            .where(
+                TransmittalEntry.bid_id == revision.bid_id,
+                TransmittalEntry.sheet_number == revision.sheet_number,
+                TransmittalEntry.revision_label == revision.revision_label,
+                TransmittalEntry.issued_on.is_not(None),
+            )
+            .limit(1)
+        ).scalar_one_or_none()
+        if transmitted is not None:
+            return transmitted
+    return revision.revision_date
 
 
 def recompute_current(

@@ -17,7 +17,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -129,14 +129,31 @@ def _merge(into: UploadReport, addition: UploadReport) -> None:
     into.accounted_for += addition.accounted_for
 
 
-def _ingestor(session: Session, context: BidContext) -> Ingestor:
+def _ingestor(
+    session: Session, context: BidContext, addendum_id: uuid.UUID | None = None
+) -> Ingestor:
     return Ingestor(
         session,
         get_object_store(),
         get_scanner(),
         bid_id=context.bid.id,
         created_by_id=context.principal.user_id,
+        tender_package_id=_package_of(session, context, addendum_id),
     )
+
+
+def _package_of(
+    session: Session, context: BidContext, addendum_id: uuid.UUID | None
+) -> uuid.UUID | None:
+    """The tender package of the addendum an upload belongs to (FR-DOC-05)."""
+    if addendum_id is None:
+        return None
+    from firebid.db.models.documents import Addendum
+
+    addendum = session.get(Addendum, addendum_id)
+    if addendum is None or addendum.bid_id != context.bid.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "addendum not found")
+    return addendum.tender_package_id
 
 
 @router.post("", response_model=UploadReport, status_code=status.HTTP_201_CREATED)
@@ -145,9 +162,14 @@ def upload(
     session: DbSession,
     _: Annotated[Principal, require(Action.DOCUMENT_UPLOAD)],
     files: Annotated[list[UploadFile], File()],
+    addendum_id: Annotated[uuid.UUID | None, Form()] = None,
 ) -> UploadReport:
-    """Upload one or more files, or one archive holding a whole set."""
-    ingestor = _ingestor(session, context)
+    """Upload one or more files, or one archive holding a whole set.
+
+    With `addendum_id`, the files are that addendum's: every revision read from them is
+    linked to it, and its date orders them against what they replace.
+    """
+    ingestor = _ingestor(session, context, addendum_id)
     report = UploadReport()
 
     for upload_file in files:

@@ -234,9 +234,13 @@ def _store(
             log.info("title_block_rendition", sheet_id=str(sheet.id), revision_id=str(same.id))
             return same
 
+    from firebid.services.addenda import addendum_for_document
+
+    addendum = addendum_for_document(session, document)
     revision = SheetRevision(
         bid_id=document.bid_id,
         sheet_id=sheet.id,
+        addendum_id=addendum.id if addendum is not None else None,
         sheet_number=number,
         revision_label=label,
         title=_short(reading.value(Field.TITLE), 300),

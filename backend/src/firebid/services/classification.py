@@ -198,9 +198,13 @@ def register_document(session: Session, document: Document) -> DocumentRevision 
     digest = cast(dict[str, Any], (document.classification or {}).get("digest") or {})
     text = str(digest.get("text") or "")
     identity = identify(document.filename, text)
+    from firebid.services.addenda import addendum_for_document
+
+    addendum = addendum_for_document(session, document)
     revision = DocumentRevision(
         bid_id=document.bid_id,
         document_id=document.id,
+        addendum_id=addendum.id if addendum is not None else None,
         doc_type=document.doc_type,
         doc_key=identity.key,
         title=identity.title,

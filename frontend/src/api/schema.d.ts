@@ -166,6 +166,47 @@ export interface paths {
         patch: operations["update_bid_bids__bid_id__patch"];
         trace?: never;
     };
+    "/bids/{bid_id}/addenda": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Addenda */
+        get: operations["list_addenda_bids__bid_id__addenda_get"];
+        put?: never;
+        /**
+         * Create
+         * @description Register an addendum; its files are then uploaded with its id.
+         */
+        post: operations["create_bids__bid_id__addenda_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/addenda/{addendum_id}/affected": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Affected
+         * @description Everything this addendum changed: the new revisions, and what each one replaced.
+         */
+        get: operations["affected_bids__bid_id__addenda__addendum_id__affected_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/document-revisions/{revision_id}/identify": {
         parameters: {
             query?: never;
@@ -233,6 +274,9 @@ export interface paths {
         /**
          * Upload
          * @description Upload one or more files, or one archive holding a whole set.
+         *
+         *     With `addendum_id`, the files are that addendum's: every revision read from them is
+         *     linked to it, and its date orders them against what they replace.
          */
         post: operations["upload_bids__bid_id__documents_post"];
         delete?: never;
@@ -742,6 +786,51 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AddendumIn */
+        AddendumIn: {
+            /** Issued On */
+            issued_on?: string | null;
+            /** Number */
+            number: string;
+            /** Summary */
+            summary?: string | null;
+        };
+        /** AddendumOut */
+        AddendumOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Issued On */
+            issued_on: string | null;
+            /** Number */
+            number: string;
+            /** Summary */
+            summary: string | null;
+        };
+        /** AffectedItemOut */
+        AffectedItemOut: {
+            /** Detail */
+            detail: {
+                [key: string]: unknown;
+            };
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Reference */
+            reference: string;
+            /** Replaces */
+            replaces: string | null;
+            /** Revision */
+            revision: string | null;
+            /** State */
+            state: string;
+        };
         /** AuditEventOut */
         AuditEventOut: {
             /** Action */
@@ -900,6 +989,8 @@ export interface components {
         };
         /** Body_upload_bids__bid_id__documents_post */
         Body_upload_bids__bid_id__documents_post: {
+            /** Addendum Id */
+            addendum_id?: string | null;
             /** Files */
             files: string[];
         };
@@ -1811,6 +1902,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BidOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_addenda_bids__bid_id__addenda_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddendumOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_bids__bid_id__addenda_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddendumIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddendumOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    affected_bids__bid_id__addenda__addendum_id__affected_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                addendum_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AffectedItemOut"][];
                 };
             };
             /** @description Validation Error */
