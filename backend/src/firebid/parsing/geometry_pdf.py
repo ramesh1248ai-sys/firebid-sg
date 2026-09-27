@@ -87,9 +87,11 @@ def _pdfium(payload: bytes, index: int) -> bytes:
                         )
                 elif kind == raw.FPDF_PAGEOBJ_PATH:
                     _path(raw, obj, _compose(matrix, parent), builder, to_sheet)
+                elif kind == raw.FPDF_PAGEOBJ_TEXT:
+                    _text_object(raw, obj, textpage, matrix, parent, builder, to_sheet)
 
+        textpage = page.get_textpage()
         walk(page.raw, raw.FPDFPage_CountObjects(page.raw), raw.FPDFPage_GetObject, IDENTITY, 0)
-        _text(page, builder, left, top)
         return to_parquet(builder.table())
     finally:
         document.close()
@@ -167,30 +169,62 @@ def _style(raw: Any, obj: Any, matrix: Matrix) -> dict[str, Any]:
     return {"color": color, "lineweight": lineweight}
 
 
-def _text(page: Any, builder: Builder, left: float, top: float) -> None:
-    """Text as spans with boxes, through PDFium's text page, which resolves forms itself."""
-    import pypdfium2.raw as raw
+def _text_object(
+    raw: Any,
+    obj: Any,
+    textpage: Any,
+    matrix: Matrix,
+    parent: Matrix,
+    builder: Builder,
+    to_sheet: Any,
+) -> None:
+    """One text object as one span, as a DXF TEXT entity is.
 
-    textpage = page.get_textpage()
-    for rect in range(textpage.count_rects()):
-        x0, y0, x1, y1 = textpage.get_rect(rect)
-        content = textpage.get_text_bounded(x0, y0, x1, y1).strip()
-        if not content:
-            continue
-        char = raw.FPDFText_GetCharIndexAtPos(textpage.raw, (x0 + x1) / 2, (y0 + y1) / 2, 2, 2)
-        angle = math.degrees(raw.FPDFText_GetCharAngle(textpage.raw, char)) if char >= 0 else 0.0
-        box = (
-            (x0 - left) * POINTS_TO_MM,
-            (top - y1) * POINTS_TO_MM,
-            (x1 - left) * POINTS_TO_MM,
-            (top - y0) * POINTS_TO_MM,
+    Not the text page's rectangles: those merge separate objects that happen to share a line,
+    so a head label and the branch label beside it became one string ("SP0300 DN4"), and
+    the benchmark found 3-5% of labels lost that way.
+    """
+    length = raw.FPDFTextObj_GetText(obj, textpage.raw, None, 0)
+    if length <= 2:
+        return
+    buffer = (ctypes.c_ushort * (length // 2))()
+    raw.FPDFTextObj_GetText(obj, textpage.raw, buffer, length)
+    content = bytes(buffer)[: length - 2].decode("utf-16-le", errors="replace").strip()
+    if not content:
+        return
+
+    left, bottom, right, top = (ctypes.c_float() for _ in range(4))
+    if not raw.FPDFPageObj_GetBounds(
+        obj, ctypes.byref(left), ctypes.byref(bottom), ctypes.byref(right), ctypes.byref(top)
+    ):
+        return
+    # Bounds include the object's own matrix; the parent forms' matrices remain to apply.
+    corners = [
+        to_sheet(x, y, parent)
+        for x, y in (
+            (left.value, bottom.value),
+            (right.value, bottom.value),
+            (right.value, top.value),
+            (left.value, top.value),
         )
-        height = (
-            (y1 - y0) * POINTS_TO_MM
-            if abs(angle) < 45 or abs(angle) > 135
-            else ((x1 - x0) * POINTS_TO_MM)
-        )
-        builder.text(content, box, builder.group(), height=height, rotation=round(angle, 2))
+    ]
+    xs, ys = [x for x, _ in corners], [y for _, y in corners]
+    placed = _compose(matrix, parent)
+    rotation = math.degrees(math.atan2(placed[1], placed[0]))
+    size = ctypes.c_float()
+    scale = math.sqrt(abs(placed[0] * placed[3] - placed[1] * placed[2])) or 1.0
+    height = (
+        size.value * scale * POINTS_TO_MM
+        if raw.FPDFTextObj_GetFontSize(obj, ctypes.byref(size)) and size.value > 0
+        else max(ys) - min(ys)
+    )
+    builder.text(
+        content,
+        (min(xs), min(ys), max(xs), max(ys)),
+        builder.group(),
+        height=round(height, 3),
+        rotation=round(rotation, 2),
+    )
 
 
 def _pdfplumber(payload: bytes, index: int) -> bytes:
