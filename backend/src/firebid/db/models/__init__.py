@@ -41,6 +41,7 @@ from firebid.db.models.documents import (
     TitleBlockLayout,
     TransmittalEntry,
 )
+from firebid.db.models.drawings import GeometryFeature, SheetGeometry
 from firebid.db.models.takeoff import DetectedObject, Evidence, MeasurementRule, QtoItem
 from firebid.db.models.workflow import AgentRun, Approval, DeadlineAlert, HumanTask
 from firebid.db.system import SystemHeartbeat, SystemJobResult
@@ -67,6 +68,7 @@ __all__ = [
     "Document",
     "DocumentRevision",
     "Evidence",
+    "GeometryFeature",
     "HumanTask",
     "IdCounter",
     "LlmPayload",
@@ -80,6 +82,7 @@ __all__ = [
     "Rate",
     "RegisterConfirmation",
     "Sheet",
+    "SheetGeometry",
     "SheetRevision",
     "SystemHeartbeat",
     "SystemJobResult",
