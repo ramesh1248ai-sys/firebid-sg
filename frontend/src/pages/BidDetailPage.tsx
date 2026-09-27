@@ -68,6 +68,7 @@ export function BidDetailPage() {
         </h1>
         <p className="text-sm text-muted-foreground">
           {bid.data.client_name} · {bid.data.tender_reference}
+          {bid.data.consultant ? ` · drawings by ${bid.data.consultant}` : ""}
         </p>
       </div>
       <Link

@@ -295,6 +295,18 @@
             "title": "Client Name",
             "type": "string"
           },
+          "consultant": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consultant"
+          },
           "project_id": {
             "anyOf": [
               {
@@ -364,6 +376,17 @@
           "client_name": {
             "title": "Client Name",
             "type": "string"
+          },
+          "consultant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consultant"
           },
           "human_id": {
             "title": "Human Id",
@@ -459,6 +482,17 @@
           "client_name": {
             "title": "Client Name",
             "type": "string"
+          },
+          "consultant": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consultant"
           },
           "days_to_clarification_cutoff": {
             "anyOf": [
@@ -588,6 +622,18 @@
               }
             ],
             "title": "Client Name"
+          },
+          "consultant": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consultant"
           },
           "stage": {
             "anyOf": [

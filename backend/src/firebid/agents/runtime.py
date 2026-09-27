@@ -123,6 +123,22 @@ def run_agent_with_result(
             detail=str(error),
         )
         raise Escalated(str(error), task) from error
+    except Exception as error:
+        # Anything else (a provider SDK refusing to start without credentials, a bug) must
+        # not leave the run "running" and the work waiting for ever: a person takes it.
+        log.exception("agent_run_failed", agent=agent.name)
+        run.state = "escalated"
+        run.error_type = type(error).__name__
+        run.finished_at = clock()
+        task = _raise_task(
+            session,
+            request,
+            agent,
+            run,
+            title=f"{agent.name} failed",
+            detail=f"{type(error).__name__}: {error}"[:2000],
+        )
+        raise Escalated(str(error), task) from error
 
     uncertain = result.low_confidence(agent.confidence_threshold)
     _stamp_provenance(run, result)

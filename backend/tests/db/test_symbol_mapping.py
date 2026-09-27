@@ -429,3 +429,32 @@ def test_consultant_names_are_normalised() -> None:
     assert service.consultant_key("Alpha Consultants Pte. Ltd.") == "ALPHA CONSULTANTS"
     assert service.consultant_key("ALPHA CONSULTANTS PTE LTD") == "ALPHA CONSULTANTS"
     assert service.consultant_key("Beta Engineering (S) Private Limited") == "BETA ENGINEERING"
+
+
+class _Broken:
+    """A gateway whose provider cannot even start, as with no credentials configured."""
+
+    def generate(self, *_args: Any, **_kwargs: Any) -> Any:
+        raise TypeError("Could not resolve authentication method")
+
+
+@pytest.mark.req("FR-VIS-02")
+def test_a_failing_model_leaves_the_row_with_a_person_not_waiting_for_ever(
+    session: Session, bid: Bid, store: MemoryObjectStore
+) -> None:
+    from firebid.db.models.workflow import AgentRun, HumanTask
+
+    from_consultant(session, bid, "Alpha Consultants")
+    read(session, bid, store, "FP-LEG-001", fixtures.legend_sheet(fixtures.ALPHA))
+    upright = next(e for e in entries(session, bid) if "UP TYPE" in e.description)
+
+    service.propose_with_model(session, store, upright, _Broken())
+    session.commit()
+
+    assert upright.status == "proposed"
+    mapping = service.current(session, upright.mapping_lineage_id)  # type: ignore[arg-type]
+    assert mapping is not None and mapping.object_type_key is None
+    assert "authentication" in str(mapping.provenance["error"])
+    run = session.execute(select(AgentRun).where(AgentRun.agent == "symbol_mapper")).scalar_one()
+    assert (run.state, run.error_type) == ("escalated", "TypeError")
+    assert session.execute(select(HumanTask)).scalars().first() is not None

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -75,7 +73,6 @@ class TestVersions:
     ) -> None:
         schema = dict(library.latest(session, seeded.id, "sprinkler_pendent").attribute_schema)  # type: ignore[union-attr]
         schema["orifice"] = {"type": "text"}
-        between = datetime.now(UTC)
 
         edited = library.change(
             session,
@@ -96,7 +93,10 @@ class TestVersions:
         assert [
             row.version for row in library.history(session, seeded.id, "sprinkler_pendent")
         ] == [1, 2]
-        as_it_was = {row.key: row for row in library.current(session, seeded.id, as_of=between)}
+        # As the library stood when version 1 was the latest.
+        as_it_was = {
+            row.key: row for row in library.current(session, seeded.id, as_of=first.created_at)
+        }
         assert as_it_was["sprinkler_pendent"].version == 1
 
     def test_every_edit_is_audited_with_before_and_after(

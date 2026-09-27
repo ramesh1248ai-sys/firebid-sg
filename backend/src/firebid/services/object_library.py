@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -214,7 +214,9 @@ def change(
     new_attributes = attributes if attributes is not None else dict(previous.attribute_schema)
     _check(new_measure, new_attributes)
     row = ObjectType(
-        created_at=datetime.now(UTC),
+        # Strictly after the version it supersedes, even within one tick of a coarse clock,
+        # so `current(as_of=...)` always tells the two apart.
+        created_at=max(datetime.now(UTC), previous.created_at + timedelta(microseconds=1)),
         organisation_id=organisation_id,
         key=key,
         version=previous.version + 1,

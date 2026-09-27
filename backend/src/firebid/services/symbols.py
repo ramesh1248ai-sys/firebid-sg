@@ -217,8 +217,12 @@ def confirm(
     object_type: str | None = None,
     attributes: dict[str, Any] | None = None,
     note: str | None = None,
+    bid_id: uuid.UUID | None = None,
 ) -> SymbolMapping:
-    """A person says what the symbol is: the proposal as it stands, or corrected."""
+    """A person says what the symbol is: the proposal as it stands, or corrected.
+
+    `bid_id` is the bid the decision was made on, which the audit event is recorded under.
+    """
     previous = current(session, lineage_id)
     if previous is None:
         raise MappingError("no such mapping")
@@ -252,13 +256,18 @@ def confirm(
         previous,
         row,
         note,
+        bid_id,
     )
     _settle_entries(session, lineage_id, CONFIRMED)
     return row
 
 
 def reject(
-    session: Session, lineage_id: uuid.UUID, actor: Actor, note: str | None = None
+    session: Session,
+    lineage_id: uuid.UUID,
+    actor: Actor,
+    note: str | None = None,
+    bid_id: uuid.UUID | None = None,
 ) -> SymbolMapping:
     """A person says the proposal is wrong and gives no answer yet: it stays unmapped."""
     previous = current(session, lineage_id)
@@ -275,7 +284,7 @@ def reject(
     )
     session.add(row)
     session.flush()
-    _audit(session, actor, "symbol mapping: rejected", previous, row, note)
+    _audit(session, actor, "symbol mapping: rejected", previous, row, note, bid_id)
     _settle_entries(session, lineage_id, REJECTED)
     return row
 
@@ -295,6 +304,7 @@ def _audit(
     before: SymbolMapping,
     after: SymbolMapping,
     note: str | None,
+    bid_id: uuid.UUID | None = None,
 ) -> None:
     def state(row: SymbolMapping) -> dict[str, Any]:
         return {
@@ -307,7 +317,7 @@ def _audit(
 
     record_event(
         session,
-        context=AuditContext(organisation_id=after.organisation_id),
+        context=AuditContext(organisation_id=after.organisation_id, bid_id=bid_id),
         actor=actor,
         action=action,
         entity_type=SymbolMapping.__tablename__,

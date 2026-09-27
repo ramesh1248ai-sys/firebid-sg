@@ -1219,6 +1219,8 @@ export interface components {
             clarification_cutoff?: string | null;
             /** Client Name */
             client_name: string;
+            /** Consultant */
+            consultant?: string | null;
             /** Project Id */
             project_id?: string | null;
             /** Project Name */
@@ -1239,6 +1241,8 @@ export interface components {
             clarification_cutoff: string | null;
             /** Client Name */
             client_name: string;
+            /** Consultant */
+            consultant?: string | null;
             /** Human Id */
             human_id: string;
             /**
@@ -1276,6 +1280,8 @@ export interface components {
             clarification_cutoff: string | null;
             /** Client Name */
             client_name: string;
+            /** Consultant */
+            consultant?: string | null;
             /** Days To Clarification Cutoff */
             days_to_clarification_cutoff: number | null;
             /** Days To Submission */
@@ -1318,6 +1324,8 @@ export interface components {
             clarification_cutoff?: string | null;
             /** Client Name */
             client_name?: string | null;
+            /** Consultant */
+            consultant?: string | null;
             /** Stage */
             stage?: string | null;
             /** Submission Deadline */

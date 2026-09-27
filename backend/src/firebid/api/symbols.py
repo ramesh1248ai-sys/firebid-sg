@@ -259,6 +259,7 @@ def confirm_mapping(
             object_type=body.object_type,
             attributes=body.attributes,
             note=body.note,
+            bid_id=context.bid.id,
         )
     except service.MappingError as refusal:
         raise HTTPException(status.HTTP_409_CONFLICT, str(refusal)) from refusal
@@ -275,7 +276,9 @@ def reject_mapping(
 ) -> MappingOut:
     _lineage_on_bid(session, context, lineage_id)
     try:
-        row = service.reject(session, lineage_id, principal.actor(), note=body.note)
+        row = service.reject(
+            session, lineage_id, principal.actor(), note=body.note, bid_id=context.bid.id
+        )
     except service.MappingError as refusal:
         raise HTTPException(status.HTTP_409_CONFLICT, str(refusal)) from refusal
     return mapping_out(row)

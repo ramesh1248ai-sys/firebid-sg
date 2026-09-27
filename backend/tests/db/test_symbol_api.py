@@ -209,3 +209,102 @@ class TestTheLibraryApi:
         assert {m["object_type"] for m in mappings} >= {"sprinkler_pendent", "gate_valve"}
         history = client.get(f"/library/mappings/{mappings[0]['lineage_id']}/history").json()
         assert history[0]["version"] == 1
+
+
+@pytest.fixture
+def as_app(as_application_role: None) -> Callable[[Principal], Any]:
+    """The API as it runs live: the application's database role, under row-level security,
+    with the caller's identity set on the transaction exactly as `get_principal` sets it."""
+    from fastapi import Depends
+    from fastapi.testclient import TestClient
+
+    from firebid.api.app import create_app
+    from firebid.api.deps import get_principal, get_session
+    from firebid.db.identity import set_transaction_identity
+    from firebid.settings import Settings
+
+    application = create_app(Settings(env="test"), health_checks={})
+
+    def client(principal: Principal) -> TestClient:
+        def signed_in(session: Session = Depends(get_session)) -> Principal:  # noqa: B008
+            set_transaction_identity(session, principal.user_id)
+            return principal
+
+        application.dependency_overrides[get_principal] = signed_in
+        return TestClient(application)
+
+    return client
+
+
+@pytest.mark.req("FR-ADM-02")
+class TestUnderRowLevelSecurity:
+    """What the owner-connected tests above cannot see: the live role's policies."""
+
+    def test_a_mapping_decision_is_saved_and_audited_under_its_bid(
+        self,
+        bid: Bid,
+        mapped: Any,
+        as_app: Callable[[Principal], Any],
+        estimator: Principal,
+        session: Session,
+    ) -> None:
+        from sqlalchemy import select
+
+        from firebid.db.models.audit import AuditEvent
+
+        client = as_app(estimator)
+        [row, *_] = client.get(f"/bids/{bid.id}/symbols/legend").json()
+
+        response = client.post(
+            f"/bids/{bid.id}/symbols/mappings/{row['mapping']['lineage_id']}/confirm", json={}
+        )
+
+        assert response.status_code == 200, response.text
+        session.expire_all()
+        event = session.execute(
+            select(AuditEvent).where(AuditEvent.action == "symbol mapping: confirmed")
+        ).scalar_one()
+        assert event.bid_id == bid.id
+
+    def test_a_senior_estimator_can_edit_the_library_and_it_is_audited(
+        self, as_app: Callable[[Principal], Any], senior: Principal, session: Session
+    ) -> None:
+        from sqlalchemy import select
+
+        from firebid.db.models.audit import AuditEvent
+
+        client = as_app(senior)
+        client.get("/library/object-types")
+
+        response = client.post(
+            "/library/object-types/gate_valve", json={"label": "Gate valve (OS&Y)"}
+        )
+
+        assert response.status_code == 200, response.text
+        session.expire_all()
+        event = session.execute(
+            select(AuditEvent).where(AuditEvent.action == "object library: changed")
+        ).scalar_one()
+        assert (event.bid_id, event.actor_label) == (None, "Sam")
+
+    def test_an_estimator_cannot_write_an_organisation_event_in_the_database(
+        self, app_role_engine: Any, estimator: Principal, organisation: Organisation
+    ) -> None:
+        """The database refuses it too, not only the permission check in the API."""
+        from sqlalchemy.orm import Session as OrmSession
+
+        from firebid.db.audit import record_event
+        from firebid.db.identity import set_transaction_identity
+        from firebid.domain.actors import AuditContext
+
+        with OrmSession(app_role_engine) as raw, pytest.raises(Exception, match="row-level"):
+            set_transaction_identity(raw, estimator.user_id)
+            record_event(
+                raw,
+                context=AuditContext(organisation_id=organisation.id),
+                actor=estimator.actor(),
+                action="object library: changed",
+                entity_type="object_type",
+                entity_id=estimator.user_id,
+            )
+            raw.commit()

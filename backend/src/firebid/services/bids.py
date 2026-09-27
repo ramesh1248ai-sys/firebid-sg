@@ -47,6 +47,9 @@ class NewBid:
     clarification_cutoff: datetime | None = None
     tender_validity_days: int | None = None
     project_id: uuid.UUID | None = None
+    # The design consultant whose drawings these are: symbol mappings are remembered per
+    # consultant and reused on their later tenders (FR-VIS-02).
+    consultant: str | None = None
 
 
 def create_bid(session: Session, principal: Principal, details: NewBid) -> Bid:
@@ -55,10 +58,13 @@ def create_bid(session: Session, principal: Principal, details: NewBid) -> Bid:
         project = session.get(Project, details.project_id)
         if project is None:
             raise ValueError("project not found")
+        if details.consultant and not project.consultant:
+            project.consultant = details.consultant.strip()
     else:
         project = Project(
             organisation_id=principal.organisation_id,
             name=details.project_name,
+            consultant=(details.consultant or "").strip() or None,
             created_by_id=principal.user_id,
         )
         session.add(project)
