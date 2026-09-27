@@ -108,6 +108,25 @@ class TestCreateAndComplete:
         assert created["human_id"].startswith("BID-")
         assert created["missing_mandatory_fields"] == []
 
+    @pytest.mark.req("FR-VIS-02")
+    def test_the_consultant_is_kept_on_the_project_and_can_be_changed(
+        self, sign_in: SignIn, bid_manager: Principal
+    ) -> None:
+        """Symbol mappings are remembered per consultant, so a bid must be able to say whose
+        drawings it holds."""
+        client = sign_in(bid_manager)
+        created = client.post(
+            "/bids", json=create_bid_payload(consultant="Alpha Consultants Pte Ltd")
+        ).json()
+        assert created["consultant"] == "Alpha Consultants Pte Ltd"
+
+        changed = client.patch(
+            f"/bids/{created['id']}", json={"consultant": "Beta Engineering"}
+        ).json()
+
+        assert changed["consultant"] == "Beta Engineering"
+        assert client.get(f"/bids/{created['id']}").json()["consultant"] == "Beta Engineering"
+
     @pytest.mark.req("FR-BID-01")
     def test_work_cannot_start_while_details_are_missing(
         self, sign_in: SignIn, bid_manager: Principal

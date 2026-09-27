@@ -17,7 +17,7 @@ from sqlalchemy import select
 from firebid.api.deps import CurrentBid, CurrentPrincipal, DbSession, require
 from firebid.auth.permissions import Action
 from firebid.auth.provisioning import Principal
-from firebid.db.models.core import AppUser, Bid, BidMember
+from firebid.db.models.core import AppUser, Bid, BidMember, Project
 from firebid.db.models.workflow import HumanTask
 from firebid.domain.state_machines import BidState, Role, TransitionError
 from firebid.services.bids import NewBid, create_bid, dashboard, missing_mandatory_fields
@@ -34,6 +34,7 @@ class BidCreate(BaseModel):
     clarification_cutoff: datetime | None = None
     tender_validity_days: int | None = Field(default=None, ge=1, le=365)
     project_id: uuid.UUID | None = None
+    consultant: str | None = Field(default=None, max_length=200)
 
 
 class BidUpdate(BaseModel):
@@ -43,6 +44,8 @@ class BidUpdate(BaseModel):
     clarification_cutoff: datetime | None = None
     tender_validity_days: int | None = Field(default=None, ge=1, le=365)
     stage: str | None = Field(default=None, pattern=r"^S[0-9]$")
+    # The project's consultant: shared by every bid on the project.
+    consultant: str | None = Field(default=None, max_length=200)
 
 
 class BidOut(BaseModel):
@@ -55,6 +58,7 @@ class BidOut(BaseModel):
     submission_deadline: datetime
     clarification_cutoff: datetime | None
     tender_validity_days: int | None
+    consultant: str | None = None
     missing_mandatory_fields: list[str] = []
 
     model_config = {"from_attributes": True}
@@ -142,7 +146,13 @@ def update_bid(body: BidUpdate, context: CurrentBid, session: DbSession) -> BidO
     bid = context.bid
     if bid.state == str(BidState.SUBMITTED):
         raise HTTPException(status.HTTP_409_CONFLICT, "a submitted bid is frozen")
-    for field, value in body.model_dump(exclude_unset=True).items():
+    changes = body.model_dump(exclude_unset=True)
+    if "consultant" in changes:
+        consultant = (changes.pop("consultant") or "").strip() or None
+        project = session.get(Project, bid.project_id)
+        if project is not None:
+            project.consultant = consultant
+    for field, value in changes.items():
         setattr(bid, field, value)
     session.flush()
     return _as_out(session, bid)
@@ -235,5 +245,7 @@ def _task_out(task: HumanTask) -> TaskOut:
 
 def _as_out(session: DbSession, bid: Bid) -> BidOut:
     out = BidOut.model_validate(bid)
+    project = session.get(Project, bid.project_id)
+    out.consultant = project.consultant if project else None
     out.missing_mandatory_fields = missing_mandatory_fields(session, bid)
     return out

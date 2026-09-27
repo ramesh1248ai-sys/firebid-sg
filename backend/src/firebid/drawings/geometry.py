@@ -37,7 +37,8 @@ import pyarrow.parquet as pq
 
 # Bump when extraction changes what it produces: the stage cache is keyed on it, so every
 # sheet is re-extracted once, and never again until the next bump.
-EXTRACTOR_VERSION = "1"
+# 2: inserts carry their block's geometry hash (`text`) and scale (`value`).
+EXTRACTOR_VERSION = "2"
 
 # How finely a Bézier is flattened. A 5 mm sprinkler circle stays round at eight per curve.
 BEZIER_STEPS = 8

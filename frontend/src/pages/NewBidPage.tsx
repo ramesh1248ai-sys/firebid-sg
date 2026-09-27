@@ -15,6 +15,7 @@ const fieldClass =
 
 interface Form {
   project_name: string;
+  consultant: string;
   client_name: string;
   tender_reference: string;
   submission_deadline: string;
@@ -24,6 +25,7 @@ interface Form {
 
 const EMPTY: Form = {
   project_name: "",
+  consultant: "",
   client_name: "",
   tender_reference: "",
   submission_deadline: "",
@@ -34,10 +36,13 @@ const EMPTY: Form = {
 function toPayload(form: Form): BidCreate {
   return {
     project_name: form.project_name.trim(),
+    consultant: form.consultant.trim() || null,
     client_name: form.client_name.trim(),
     tender_reference: form.tender_reference.trim(),
     submission_deadline: asInstant(form.submission_deadline),
-    clarification_cutoff: form.clarification_cutoff ? asInstant(form.clarification_cutoff) : null,
+    clarification_cutoff: form.clarification_cutoff
+      ? asInstant(form.clarification_cutoff)
+      : null,
     tender_validity_days: form.tender_validity_days
       ? Number(form.tender_validity_days)
       : null,
@@ -53,7 +58,8 @@ export function NewBidPage() {
   const create = useMutation({
     mutationFn: async (payload: BidCreate) => {
       const { data, error } = await api.POST("/bids", { body: payload });
-      if (error || !data) throw new Error(apiErrorMessage(error, "The bid could not be created"));
+      if (error || !data)
+        throw new Error(apiErrorMessage(error, "The bid could not be created"));
       return data;
     },
     onSuccess: async (bid) => {
@@ -70,10 +76,12 @@ export function NewBidPage() {
   return (
     <section className="max-w-xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Register a bid</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Register a bid
+        </h1>
         <p className="text-sm text-muted-foreground">
-          The clarification cut-off and tender validity can follow later; qualification waits until
-          every detail is in.
+          The clarification cut-off and tender validity can follow later;
+          qualification waits until every detail is in.
         </p>
       </div>
 
@@ -96,6 +104,23 @@ export function NewBidPage() {
             value={form.project_name}
             onChange={update("project_name")}
           />
+        </div>
+
+        <div className="space-y-1">
+          <label htmlFor="consultant" className="text-sm font-medium">
+            Design consultant
+          </label>
+          <input
+            id="consultant"
+            className={fieldClass}
+            value={form.consultant}
+            onChange={update("consultant")}
+            aria-describedby="consultant_hint"
+          />
+          <p id="consultant_hint" className="text-xs text-muted-foreground">
+            Whose drawings these are. Symbols confirmed on one of their tenders
+            are reused on the next.
+          </p>
         </div>
 
         <div className="space-y-1">
@@ -140,7 +165,8 @@ export function NewBidPage() {
 
         <div className="space-y-1">
           <label htmlFor="clarification_cutoff" className="text-sm font-medium">
-            Clarifications close <span className="text-muted-foreground">(optional)</span>
+            Clarifications close{" "}
+            <span className="text-muted-foreground">(optional)</span>
           </label>
           <input
             id="clarification_cutoff"
@@ -153,7 +179,8 @@ export function NewBidPage() {
 
         <div className="space-y-1">
           <label htmlFor="tender_validity_days" className="text-sm font-medium">
-            Tender validity (days) <span className="text-muted-foreground">(optional)</span>
+            Tender validity (days){" "}
+            <span className="text-muted-foreground">(optional)</span>
           </label>
           <input
             id="tender_validity_days"

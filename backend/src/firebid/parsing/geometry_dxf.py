@@ -209,7 +209,7 @@ def _entity(
     group: int | None,
     skip_viewports: bool = False,
 ) -> None:
-    kind = entity.dxftype()
+    kind = str(entity.dxftype())
     style = _style(entity)
     own = group if group is not None else builder.group()
     at = placement.to_sheet
@@ -325,12 +325,59 @@ def _insert(
         group,
         box=box,
         rotation=float(entity.dxf.get("rotation", 0.0)),
+        # The block definition's geometry, hashed: a renamed block with the same drawing is
+        # the same symbol, and the same name with a different drawing is not (P1-04).
+        text=block_hash(entity.doc, entity.dxf.name),
+        value=abs(float(entity.dxf.get("xscale", 1.0))) * placement.scale,
         **style,
     )
     if depth >= MAX_INSERT_DEPTH:
         return
     for part in entity.virtual_entities():
         _entity(part, placement, builder, depth=depth + 1, group=group)
+
+
+_HASHES: dict[tuple[int, str], str] = {}
+
+
+def block_hash(document: Any, name: str) -> str:
+    """A hash of a block definition's geometry, in its own coordinates, to 0.001 units."""
+    import hashlib
+
+    key = (id(document), name)
+    if key in _HASHES:
+        return _HASHES[key]
+    parts = sorted(_entity_key(entity) for entity in document.blocks.get(name) or [])
+    digest = hashlib.sha256("|".join(parts).encode()).hexdigest()[:20]
+    _HASHES[key] = digest
+    return digest
+
+
+def _entity_key(entity: Any) -> str:
+    def r(value: Any) -> str:
+        try:
+            return ",".join(f"{float(v):.3f}" for v in value)
+        except TypeError:
+            return f"{float(value):.3f}"
+
+    kind = str(entity.dxftype())
+    dxf = entity.dxf
+    if kind == "LINE":
+        # A line drawn either way round is the same line.
+        ends = sorted([r((dxf.start.x, dxf.start.y)), r((dxf.end.x, dxf.end.y))])
+        return f"LINE {ends[0]} {ends[1]}"
+    if kind == "CIRCLE":
+        return f"CIRCLE {r((dxf.center.x, dxf.center.y))} {r(dxf.radius)}"
+    if kind == "ARC":
+        angles = f"{r(dxf.start_angle)} {r(dxf.end_angle)}"
+        return f"ARC {r((dxf.center.x, dxf.center.y))} {r(dxf.radius)} {angles}"
+    if kind == "LWPOLYLINE":
+        points = ";".join(r(point[:2]) for point in entity.get_points())
+        return f"LWPOLYLINE {int(entity.closed)} {points}"
+    if kind == "INSERT":
+        where = r((dxf.insert.x, dxf.insert.y))
+        return f"INSERT {dxf.name} {where} {r(dxf.get('rotation', 0.0))}"
+    return kind
 
 
 def _dimension(

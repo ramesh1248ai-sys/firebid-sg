@@ -498,3 +498,95 @@ Entry template:
   - **Drawn zone boundaries** are not detected.
   - **Multi-view sheets** are split by nearest title, which has been tested only on single-view fixtures and title parsing. A fixture with a plan, a key plan and a section on one sheet should follow.
   - The `doc_classification` baseline from P1-02 still awaits a named approver.
+
+## P1-04 · Legend and Symbol Mapping · 2026-09-28
+
+- **Summary:** every symbol a consultant draws maps to one canonical object type, confirmed by a person once and then reused on that consultant's later tenders.
+  - Legends are read from the geometry: on dedicated legend sheets and in a plan's corner, but never the title block.
+  - Each legend row gets a signature: the DXF block's geometry hash, plus a shape descriptor that ignores position, rotation and uniform scale.
+  - A row is resolved in this order: the consultant's confirmed mappings, then keyword rules, then the `symbol_mapper` model. Every answer is a proposal; only a person confirms it.
+  - Symbols on the drawings are matched to legend rows or mappings. `counts()` counts only confirmed, countable types on Current sheets. Every other symbol is listed under "unmapped", never dropped.
+  - The object library and the mappings are both versioned with history (FR-ADM-02).
+  - Built in parts A–H, each committed separately.
+- **Key modules / files:**
+  - `backend/config/object_library.yaml`: the seed, 16 types, each with its attribute schema and how it is taken off (`count`, `length`, `none`).
+  - `backend/config/symbol_rules.yaml`: keyword rules. The file's content hash is the rule version.
+  - `backend/src/firebid/drawings/`:
+    - `symbols.py`: clusters, descriptor, signatures, matching.
+    - `legends.py`: headings and rows.
+    - `symbol_rules.py`
+    - `crops.py`: a legend row drawn from the geometry as a PNG.
+  - `parsing/geometry_dxf.py`: inserts now carry their block's geometry hash and scale (`EXTRACTOR_VERSION` 2).
+  - `backend/src/firebid/services/`:
+    - `object_library.py`: seed, current or as-of, history, create, change, deprecate, restore.
+    - `symbols.py`: consultant keys, legend resolution and reuse, instances, the model step, confirm, correct, reject, counts.
+  - `backend/src/firebid/agents/symbol_mapper.py`, route `symbol_map` in `llm.yaml`, prompt `symbol_map/v1`.
+  - The `symbol.propose` job, on the ordinary worker.
+  - `backend/src/firebid/api/`:
+    - `symbols.py`: legend rows, crops, counts, confirm and reject.
+    - `library.py`: object types with versions and history; consultants and mappings with history.
+  - Migration `0019`: `object_type`, `symbol_mapping`, `legend_entry` and `symbol_instance`, the last two under RLS.
+  - Two new permissions: `object_library.change` (senior estimator, system admin) and `symbol_mapping.confirm` (estimator, senior estimator, bid manager).
+  - `frontend/src/pages/SymbolsPage.tsx` and `LibraryPage.tsx`; the shared `AuthorisedImage` component.
+  - `backend/src/firebid/evals/synthetic_symbols.py`: two consultants, legend sheets and plans.
+- **How to run and demo:**
+  1. `make up`. Set the project's consultant, then upload a legend sheet and a plan.
+  2. On the bid, open **Symbols**. The top shows what is not counted and what is. Each legend row shows its crop, its proposal (keyword rule, model with its confidence, or an earlier tender) and Confirm, Correct and Reject.
+  3. Open **Library**: object types with each version's history, plus rename, deprecate and restore for editors; and each consultant's mappings with their history.
+- **Requirement IDs covered (test names):**
+  - FR-VIS-02:
+    - `tests/db/test_symbol_mapping.py::TestOneConfirmationThenReuse::test_a_legend_maps_after_one_pass_and_the_next_tender_needs_none`: one pass on tender 1, then tender 2 from the same consultant (spelt differently) is all `reused`, with no new proposals and no model calls.
+    - `TestUnmappedIsNeverCounted`: a plan with no legend counts nothing and lists every instance; a legend read after its plan still maps it; a rejected mapping stays unmapped.
+    - `tests/db/test_symbol_api.py::TestTheMappingScreen::test_counts_list_the_unmapped_symbol_and_count_nothing_unconfirmed`: counts requested through the API, with the mystery symbol under `unmapped`.
+    - `tests/drawings/test_symbols.py::TestMatchingALegend::test_a_rotated_and_scaled_pdf_instance_matches_its_legend_entry`: a PDF gate valve turned 90° and enlarged 1.6×.
+    - Every placement matches in DXF and PDF, and the mystery symbol matches nothing.
+    - Hypothesis property: the descriptor ignores rotation, scale and position.
+    - `Symbols.test.tsx`.
+  - Proposal provenance: `TestProposals`. A model proposal carries model, prompt version (the prompt's content hash) and confidence; a rule proposal carries the rule version; a model answer outside the library is no answer.
+  - FR-ADM-02:
+    - `tests/db/test_object_library.py`: seed, an edit as a new version, version 1 read back, as-of reads, audit, deprecate and restore.
+    - `test_symbol_mapping.py::TestMappingHistory`: confirm, then correct, with version 1 read back and the audit event.
+    - `test_symbol_api.py::TestTheLibraryApi`
+    - The library tests in `Symbols.test.tsx`.
+- **Descriptor separation (synthetic symbols, both consultants, DXF and PDF, four placements each):**
+  - The same symbol is always within **0.025** of itself.
+  - The closest two different symbols (a gate valve and a non-return valve) are **0.154** apart.
+  - The tolerance is **0.07**.
+- **Deviations and decisions:**
+  - **Rules before the model** (approved). Obvious descriptions are proposed by `symbol_rules.yaml`, recorded with its version; the model gets only the rows the rules cannot decide or disagree on.
+  - **Who decides** (approved). Senior estimators and system admins edit the library; estimators, senior estimators and bid managers confirm mappings.
+  - **Consultant identity** (approved). The project's consultant name, normalised (case, punctuation, Pte Ltd, Private Limited, (S)). With no consultant named, mappings are keyed to the bid, so nothing is reused across unknown consultants.
+  - **A changed symbol** (same signature, different description) is proposed **for that project only**, pre-filled with the consultant's answer. The consultant's confirmed mapping is left alone.
+  - **The descriptor is three histograms:** pairwise distances (D2), distance from the centroid, and the angle between line and radius. It comes from even resampling along the whole path. The third histogram was added because D2 alone put a bow-tie gate valve 0.08 from a non-return valve. Whole-path resampling was needed because per-segment sampling over-weighted a PDF's 32-segment circles.
+  - **The block hash is of the block definition itself**, in block coordinates. Consultants reuse names, so a name alone is never a match.
+  - **The model never escalates on confidence alone** (threshold 0). Every mapping reaches a person on the Symbols page, which shows the confidence. A model answer outside the library is recorded as no answer.
+  - **Crops are drawn from the extracted geometry**, not the tender file, so the model job never needs the file. What the model sees is exactly what was extracted.
+  - **What an instance is gets looked up when counting**, not stored on it, so a confirmation takes effect at once. Instances are re-matched after every sheet, because files arrive in any order.
+  - **A `not_an_object` type** lets a person say a recurring symbol (a grid bubble, a north point) is never taken off, so it stops being raised as unmapped.
+- **Manual checks and results:**
+  - **Live run through the stack:** a bid created with its consultant, and a legend sheet and a plan uploaded through the API.
+    - The real parse job in the sandbox pool found 12 legend rows. The rules proposed five types.
+    - With no model credentials in the dev stack, the upright row went to a person, as it should.
+    - Confirming through the API counted 4 of each confirmed type; the plan's own legend examples were not counted.
+    - The mystery symbol and the unconfirmed upright were listed as unmapped.
+    - The crop was served as a PNG, and a senior estimator edited the library.
+  - Legend detection and crop rendering ran inside the sandbox container, as the sandbox user.
+  - Probed descriptor distances across both consultants' symbols, in all placements and both formats (the separation figures above).
+  - Probed legend detection on both formats, on a legend sheet and on a plan's own legend: the same six rows in order, with the title block ("LEGEND AND SYMBOLS") correctly excluded.
+- **Defects found and fixed during the step:**
+  - **Found only by the live run: organisation-level audit events could not be written by the application role.** The `audit_event` policy's check allowed only bid events, so every object library edit and every mapping decision failed with a 500 in the running product. The tests connect as the table owner, which row-level security does not restrict, so they passed.
+    - Mapping decisions are now audited under the bid they were made on.
+    - Migration `0020` lets the object library's editors (system admin, senior estimator) write bid-less events, and read and write the organisation chain's links. A new link is hashed onto the previous one, so a writer must be able to read it. Only system admins may read organisation-level events, as before.
+    - New tests run the API as the application role (`test_symbol_api.py::TestUnderRowLevelSecurity`), including a database-level refusal for an estimator.
+  - **Found only by the live run: an agent that failed with an unexpected error left its run "running" and its work waiting for ever.** Here the Anthropic SDK refused to start without credentials.
+    - The agent runtime now escalates any such error to a person.
+    - This also fixes the same latent hang in the title-block and document-type checks.
+  - **Found only by the live run: nothing could set a bid's consultant.** Reuse per consultant depends on it. It is now a field on bid creation and editing (stored on the project), and on the New Bid form.
+  - **Timestamps.** Object library versions took `now()` from the transaction, so versions made in one transaction had one timestamp and an as-of read could not tell them apart. They now take the clock time.
+  - **Consultant names.** "(S)" survived normalisation, because `\b` does not match before a parenthesis.
+- **Known gaps and follow-ups:**
+  - **Every figure is from synthetic legends.** Reuse across real consultants, and the tolerance, must be measured on the D3 golden set (legends from several consultants).
+  - **Symbols drawn as loose line work in a DXF** are clustered like a PDF's. Inserts are preferred when present.
+  - **Unknown clusters are all recorded**, so a real plan may raise dimension ticks and similar marks as unmapped groups until a person maps them to "not an object". Measure on real sheets whether a recurrence threshold is needed.
+  - **Attributes such as the K-factor** are taken only from what the model reads in a legend row. Reading them from tags on the plan belongs to P1-05.
+  - **P1-07** is to take counts from `services.symbols.counts`, which already restricts to Current sheets and lists every unmapped symbol.

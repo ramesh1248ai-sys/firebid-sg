@@ -105,6 +105,16 @@ routes:
     max_output_tokens: 1000
     prompt: doc_classify
 
+  # Says which canonical object a legend row's symbol is, when the keyword rules could not
+  # (P1-04). Sent an image of the row and its description, so it is confidential.
+  symbol_map:
+    requires: [vision, structured_output]
+    data_class: confidential
+    models: [claude-opus-5, gpt-5.1, gemini-3-pro]
+    reasoning: low
+    max_output_tokens: 800
+    prompt: symbol_map
+
   # Everyday internal text work with no tender content in it.
   internal_summary:
     requires: [structured_output]

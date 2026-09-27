@@ -42,6 +42,7 @@ from firebid.db.models.documents import (
     TransmittalEntry,
 )
 from firebid.db.models.drawings import GeometryFeature, SheetGeometry, SheetView
+from firebid.db.models.symbols import LegendEntry, ObjectType, SymbolInstance, SymbolMapping
 from firebid.db.models.takeoff import DetectedObject, Evidence, MeasurementRule, QtoItem
 from firebid.db.models.workflow import AgentRun, Approval, DeadlineAlert, HumanTask
 from firebid.db.system import SystemHeartbeat, SystemJobResult
@@ -71,10 +72,12 @@ __all__ = [
     "GeometryFeature",
     "HumanTask",
     "IdCounter",
+    "LegendEntry",
     "LlmPayload",
     "LlmRateBucket",
     "LlmResponseCache",
     "MeasurementRule",
+    "ObjectType",
     "Organisation",
     "PayloadCapture",
     "Project",
@@ -85,6 +88,8 @@ __all__ = [
     "SheetGeometry",
     "SheetRevision",
     "SheetView",
+    "SymbolInstance",
+    "SymbolMapping",
     "SystemHeartbeat",
     "SystemJobResult",
     "TenderPackage",

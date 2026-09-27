@@ -68,6 +68,7 @@ export function BidDetailPage() {
         </h1>
         <p className="text-sm text-muted-foreground">
           {bid.data.client_name} · {bid.data.tender_reference}
+          {bid.data.consultant ? ` · drawings by ${bid.data.consultant}` : ""}
         </p>
       </div>
       <Link
@@ -81,6 +82,12 @@ export function BidDetailPage() {
         className="inline-block rounded-md border px-3 py-2 text-sm hover:bg-accent"
       >
         Registers
+      </Link>{" "}
+      <Link
+        to={`/bids/${bidId}/symbols`}
+        className="inline-block rounded-md border px-3 py-2 text-sm hover:bg-accent"
+      >
+        Symbols
       </Link>
       <dl className="grid gap-4 sm:grid-cols-3">
         <Detail label="State" value={bid.data.state.replaceAll("_", " ")} />

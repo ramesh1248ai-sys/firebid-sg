@@ -1,0 +1,66 @@
+# The canonical fire protection object library's seed (FR-ADM-02, P1-04).
+#
+# Loaded into an organisation's library the first time it is needed, as version 1 of each
+# type. After that the library is edited through the admin screen, and every edit is a new
+# version: this file is never read again for an organisation that has a library.
+#
+# `measure` is how the QTO engine takes a type off a drawing: `count` (each instance),
+# `length` (along its run) or `none` (not an installed object: nothing is taken off).
+# Attribute types are `enum` (with `values`), `number` (with `unit`) or `text`.
+
+sprinkler_attributes: &sprinkler
+  k_factor: {type: number, unit: "L/min/bar^0.5"}
+  temperature_rating_c: {type: number, unit: "degC"}
+  response: {type: enum, values: [standard, quick]}
+  finish: {type: enum, values: [brass, chrome, white, black, other]}
+
+valve_attributes: &valve
+  nominal_diameter_mm: {type: number, unit: mm}
+  end_connection: {type: enum, values: [flanged, grooved, threaded]}
+  supervised: {type: enum, values: ["yes", "no"]}
+
+types:
+  - {key: sprinkler_pendent, label: "Sprinkler, pendent", category: sprinkler, measure: count, attributes: *sprinkler}
+  - {key: sprinkler_upright, label: "Sprinkler, upright", category: sprinkler, measure: count, attributes: *sprinkler}
+  - {key: sprinkler_sidewall, label: "Sprinkler, sidewall", category: sprinkler, measure: count, attributes: *sprinkler}
+  - {key: sprinkler_concealed, label: "Sprinkler, concealed", category: sprinkler, measure: count, attributes: *sprinkler}
+  - key: pipe
+    label: "Pipe"
+    category: pipe
+    measure: length
+    attributes:
+      nominal_diameter_mm: {type: number, unit: mm}
+      material: {type: enum, values: [black_steel, galvanised_steel, cpvc, copper, other]}
+      schedule: {type: text}
+  - key: fitting
+    label: "Pipe fitting"
+    category: fitting
+    measure: count
+    attributes:
+      fitting: {type: enum, values: [elbow, tee, reducer, coupling, cap, flange, other]}
+      nominal_diameter_mm: {type: number, unit: mm}
+  - {key: installation_control_valve_set, label: "Installation control valve set", category: valve, measure: count, attributes: *valve}
+  - {key: subsidiary_control_valve, label: "Subsidiary / zone control valve", category: valve, measure: count, attributes: *valve}
+  - {key: gate_valve, label: "Gate valve", category: valve, measure: count, attributes: *valve}
+  - {key: butterfly_valve, label: "Butterfly valve", category: valve, measure: count, attributes: *valve}
+  - {key: check_valve, label: "Check valve", category: valve, measure: count, attributes: *valve}
+  - {key: test_and_drain_valve, label: "Test and drain valve", category: valve, measure: count, attributes: *valve}
+  - {key: pressure_reducing_valve, label: "Pressure reducing valve (PRV)", category: valve, measure: count, attributes: *valve}
+  - key: flow_switch
+    label: "Flow switch"
+    category: device
+    measure: count
+    attributes:
+      nominal_diameter_mm: {type: number, unit: mm}
+  - key: tamper_switch
+    label: "Tamper switch"
+    category: device
+    measure: count
+    attributes: {}
+  # Not an object: a grid bubble, a north point, a section mark. Mapping a symbol here is a
+  # decision that it is never taken off, and it stops the symbol being raised as unmapped.
+  - key: not_an_object
+    label: "Not an installed object (annotation)"
+    category: annotation
+    measure: none
+    attributes: {}

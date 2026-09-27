@@ -8,10 +8,12 @@ import { BidDetailPage } from "@/pages/BidDetailPage";
 import { CallbackPage } from "@/pages/CallbackPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { DocumentsPage } from "@/pages/DocumentsPage";
+import { LibraryPage } from "@/pages/LibraryPage";
 import { NewBidPage } from "@/pages/NewBidPage";
 import { RegistersPage } from "@/pages/RegistersPage";
 import { SheetViewerPage } from "@/pages/SheetViewerPage";
 import { SignInPage } from "@/pages/SignInPage";
+import { SymbolsPage } from "@/pages/SymbolsPage";
 
 export const routes: RouteObject[] = [
   {
@@ -28,8 +30,10 @@ export const routes: RouteObject[] = [
           { path: "bids/:bidId", element: <BidDetailPage /> },
           { path: "bids/:bidId/documents", element: <DocumentsPage /> },
           { path: "bids/:bidId/registers", element: <RegistersPage /> },
+          { path: "bids/:bidId/symbols", element: <SymbolsPage /> },
           { path: "bids/:bidId/sheets/:sheetId", element: <SheetViewerPage /> },
           { path: "audit", element: <AuditPage /> },
+          { path: "library", element: <LibraryPage /> },
           { path: "admin", element: <AdminPage /> },
         ],
       },
