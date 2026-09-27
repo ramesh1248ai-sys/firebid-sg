@@ -26,10 +26,13 @@ from __future__ import annotations
 import io
 import random
 from dataclasses import dataclass
+from datetime import date, timedelta
 from pathlib import Path
+from typing import Any
 
 import ezdxf
 from ezdxf.document import Drawing
+from ezdxf.entities import DXFGraphic
 from ezdxf.layouts import Modelspace
 
 from firebid.evals.schema import (
@@ -84,14 +87,105 @@ def _new_drawing() -> tuple[Drawing, Modelspace]:
     return document, document.modelspace()
 
 
-def _title_block(space: Modelspace, sheet_number: str, revision: str, scale: str) -> None:
-    """A minimal title block, so title-block reading has something to read."""
-    for index, text in enumerate((f"SHEET: {sheet_number}", f"REV: {revision}", f"SCALE: {scale}")):
-        space.add_text(
-            text,
-            height=200,
-            dxfattribs={"layer": LAYER_TITLE},
-        ).set_placement((30_000, 1_000 + index * 400))
+# The sheet: an A3 border at 1:100 in drawing units, with the title block in its bottom-right
+# corner, where consultants put it. Everything a plan draws sits inside the border.
+SHEET_ORIGIN = (-4_000.0, -1_000.0)
+SHEET_SIZE = (42_000.0, 29_700.0)
+TITLE_BLOCK_WIDTH = 14_000.0
+CONSULTANT_NAME = "SYNTHETIC CONSULTANTS PTE LTD"
+PROJECT_NAME = "PROPOSED COMMERCIAL DEVELOPMENT AT MARINA BAY"
+LABEL_HEIGHT = 150
+VALUE_HEIGHT = 260
+FIRST_ISSUE = date(2026, 5, 1)
+
+
+def revision_history(revision: str) -> list[tuple[str, date]]:
+    """Every issue up to and including `revision`, oldest first, two weeks apart.
+
+    `R04` has R01 to R04; a revision without a trailing number has only itself. The dates are
+    what a transmittal would carry.
+    """
+    prefix = revision.rstrip("0123456789")
+    digits = revision[len(prefix) :]
+    if not digits:
+        return [(revision, FIRST_ISSUE)]
+    width = len(digits)
+    return [
+        (f"{prefix}{number:0{width}d}", FIRST_ISSUE + timedelta(days=14 * (number - 1)))
+        for number in range(1, int(digits) + 1)
+    ]
+
+
+def _text(space: Modelspace, text: str, x: float, y: float, height: float) -> None:
+    space.add_text(text, height=height, dxfattribs={"layer": LAYER_TITLE}).set_placement((x, y))
+
+
+def _box(space: Modelspace, x0: float, y0: float, x1: float, y1: float) -> None:
+    space.add_lwpolyline(
+        [(x0, y0), (x1, y0), (x1, y1), (x0, y1)], close=True, dxfattribs={"layer": LAYER_TITLE}
+    )
+
+
+def _cell(
+    space: Modelspace,
+    label: str,
+    value: str,
+    box: tuple[float, float, float, float],
+    value_height: float = VALUE_HEIGHT,
+) -> None:
+    """A labelled cell: the label small in the top-left corner, the value below it."""
+    x0, y0, x1, y1 = box
+    _box(space, x0, y0, x1, y1)
+    _text(space, label, x0 + 150, y1 - 300, LABEL_HEIGHT)
+    _text(space, value, x0 + 150, y0 + 250, value_height)
+
+
+def _title_block(
+    space: Modelspace,
+    sheet_number: str,
+    revision: str,
+    scale: str,
+    title: str = "FIRE SPRINKLER LAYOUT",
+) -> None:
+    """A sheet border and a title block laid out the way consultants lay them out.
+
+    Labelled cells for drawing number, revision, scale and date; the title and project above;
+    and a revision history listing every issue. The history is a trap for a careless reader:
+    it holds several revision labels, and only the REV cell says which one this sheet is.
+    """
+    sx, sy = SHEET_ORIGIN
+    width, height = SHEET_SIZE
+    _box(space, sx, sy, sx + width, sy + height)
+
+    right = sx + width
+    left = right - TITLE_BLOCK_WIDTH
+    history = revision_history(revision)
+    issued = history[-1][1]
+
+    # Bottom row: the four fields an estimator needs.
+    row = (sy, sy + 2_000)
+    _cell(space, "DRAWING NO.", sheet_number, (left, row[0], left + 7_000, row[1]), 400)
+    _cell(space, "REV", revision, (left + 7_000, row[0], left + 9_000, row[1]), 400)
+    _cell(space, "SCALE", scale, (left + 9_000, row[0], left + 11_500, row[1]))
+    _cell(space, "DATE", issued.strftime("%d.%m.%Y"), (left + 11_500, row[0], right, row[1]))
+    _cell(space, "DRAWING TITLE", title, (left, sy + 2_000, right, sy + 3_600))
+    _cell(space, "PROJECT", PROJECT_NAME, (left, sy + 3_600, right, sy + 5_000), 220)
+    _box(space, left, sy + 5_000, right, sy + 6_000)
+    _text(space, CONSULTANT_NAME, left + 150, sy + 5_350, 300)
+
+    # The revision history, above the title block, newest at the top.
+    base = sy + 6_000
+    line = 400
+    top = base + line * (len(history) + 1)
+    _box(space, left, base, right, top)
+    for column, heading in ((0, "REV"), (2_000, "DATE"), (5_000, "DESCRIPTION")):
+        _text(space, heading, left + 150 + column, top - 300, LABEL_HEIGHT)
+    for index, (label, when) in enumerate(reversed(history)):
+        y = top - line * (index + 2) + 120
+        description = "ISSUED FOR TENDER" if index == 0 else "SUPERSEDED ISSUE"
+        _text(space, label, left + 150, y, 180)
+        _text(space, when.strftime("%d.%m.%Y"), left + 2_150, y, 180)
+        _text(space, description, left + 5_150, y, 180)
 
 
 def _sprinkler_grid(
@@ -254,48 +348,95 @@ def write_dxf(document: Drawing, path: Path) -> Path:
     return path
 
 
-def write_pdf(document: Drawing, path: Path) -> Path:
-    """Render to vector PDF through matplotlib, which is what a vector tender looks like."""
-    import matplotlib
-
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    from ezdxf.addons.drawing import RenderContext
-    from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    figure = plt.figure(figsize=(16.5, 11.7))  # A3 landscape, in inches
-    axes = figure.add_axes((0, 0, 1, 1))
-    axes.set_axis_off()
-    try:
-        from ezdxf.addons.drawing import Frontend
-
-        Frontend(RenderContext(document), MatplotlibBackend(axes)).draw_layout(
-            document.modelspace(), finalize=True
-        )
-        figure.savefig(path, format="pdf")
-    finally:
-        plt.close(figure)
-    return path
+# The border is drawn at 1:100, so the sheet prints on paper a hundredth of its size: A3.
+DRAWING_SCALE = 100
+PAPER_MM = (SHEET_SIZE[0] / DRAWING_SCALE, SHEET_SIZE[1] / DRAWING_SCALE)
 
 
-def write_raster(document: Drawing, path: Path, dpi: int = 72) -> Path:
-    """A low-resolution scan, which is where accuracy usually falls over."""
+def _plot(document: Drawing, *, outlines_only: bool = True) -> tuple[Any, Any]:
+    """Draw the sheet onto a figure the size of its paper, at its true scale.
+
+    Left to itself, ezdxf fits the figure to the drawing, which prints an A3 sheet at a third
+    of its size and makes 2.5 mm title-block text less than a millimetre. Pinning the axes to
+    the border and the figure to the paper keeps text the size a real sheet prints it.
+    """
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from ezdxf.addons.drawing import Frontend, RenderContext
+    from ezdxf.addons.drawing.config import BackgroundPolicy, Configuration
     from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    figure = plt.figure(figsize=(16.5, 11.7))
+    figure = plt.figure(figsize=(PAPER_MM[0] / 25.4, PAPER_MM[1] / 25.4))
     axes = figure.add_axes((0, 0, 1, 1))
     axes.set_axis_off()
+
+    def drawn(entity: DXFGraphic) -> bool:
+        return outlines_only or not _is_title_text(entity)
+
     try:
-        Frontend(RenderContext(document), MatplotlibBackend(axes)).draw_layout(
-            document.modelspace(), finalize=True
+        # Printed on white, the way a tender sheet is. The default background is modelspace's
+        # black, which draws colour 7 (the title block's) white and so invisible on paper.
+        printed = Configuration(background_policy=BackgroundPolicy.WHITE)
+        Frontend(RenderContext(document), MatplotlibBackend(axes), config=printed).draw_layout(
+            document.modelspace(), finalize=True, filter_func=drawn
         )
+        figure.set_size_inches(PAPER_MM[0] / 25.4, PAPER_MM[1] / 25.4)
+        axes.set_aspect("auto")
+        axes.set_position((0, 0, 1, 1))
+        axes.set_xlim(SHEET_ORIGIN[0], SHEET_ORIGIN[0] + SHEET_SIZE[0])
+        axes.set_ylim(SHEET_ORIGIN[1], SHEET_ORIGIN[1] + SHEET_SIZE[1])
+    except BaseException:
+        plt.close(figure)
+        raise
+    return figure, axes
+
+
+def write_pdf(document: Drawing, path: Path, *, live_text: bool = False) -> Path:
+    """Render to vector PDF on A3 paper, which is what a vector tender looks like.
+
+    By default every character is drawn as outlines, as an AutoCAD export with SHX fonts is:
+    the page has no text layer and has to be read by OCR. With `live_text`, the title block is
+    written as real text, as a TrueType export is, so it can be read straight from the page.
+    """
+    import matplotlib
+    import matplotlib.pyplot as plt
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    figure, axes = _plot(document, outlines_only=not live_text)
+    try:
+        if live_text:
+            _draw_live_text(axes, document)
+        with matplotlib.rc_context({"pdf.fonttype": 42}):  # embedded TrueType: extractable
+            figure.savefig(path, format="pdf")
+    finally:
+        plt.close(figure)
+    return path
+
+
+def _is_title_text(entity: DXFGraphic) -> bool:
+    return entity.dxftype() == "TEXT" and entity.dxf.layer == LAYER_TITLE
+
+
+def _draw_live_text(axes: Any, document: Drawing) -> None:
+    """Write the title block's text as text, at the size it would have had as outlines."""
+    points_per_unit = 72 / 25.4 / DRAWING_SCALE
+    for entity in document.modelspace():
+        if _is_title_text(entity):
+            x, y, _ = entity.dxf.insert
+            # A TEXT height is the capital height; a font size is about 1.4 times that.
+            size = entity.dxf.height * points_per_unit * 1.4
+            axes.text(x, y, entity.dxf.text, fontsize=size, ha="left", va="baseline")
+
+
+def write_raster(document: Drawing, path: Path, dpi: int = 72) -> Path:
+    """A scan of the A3 sheet at `dpi`. The default is low, which is where accuracy falls over."""
+    import matplotlib.pyplot as plt
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    figure, _ = _plot(document)
+    try:
         figure.savefig(path, format="png", dpi=dpi)
     finally:
         plt.close(figure)

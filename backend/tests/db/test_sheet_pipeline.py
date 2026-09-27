@@ -21,7 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from firebid.db.models.core import AppUser, Bid
-from firebid.db.models.documents import Document, Sheet
+from firebid.db.models.documents import Document, Sheet, SheetRevision
 from firebid.evals.synthetic import dxf_bytes, general_arrangement, write_pdf, write_raster
 from firebid.imaging.pyramid import Pyramid, thumbnail_key, tile_key
 from firebid.ingest.scanning import AlwaysCleanScanner
@@ -355,3 +355,27 @@ class TestTheParseJob:
         session.expire_all()
         sheets = session.execute(select(Sheet).where(Sheet.document_id == document.id)).all()
         assert len(sheets) == 1
+
+    @pytest.mark.req("FR-DOC-02")
+    def test_each_sheet_gets_a_title_block_proposal(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        vector_pdf: bytes,
+        as_application_role: None,
+    ) -> None:
+        """Read in the same sandboxed job, under row-level security, as the uploader."""
+        document = ingest(session, bid, store, "FP-L05-201.pdf", vector_pdf)
+        session.commit()
+
+        parse_document(cast(JobContext, None), document_id=str(document.id), user_id=str(user.id))
+
+        session.expire_all()
+        sheet = session.execute(select(Sheet).where(Sheet.document_id == document.id)).scalar_one()
+        revision = session.execute(
+            select(SheetRevision).where(SheetRevision.sheet_id == sheet.id)
+        ).scalar_one()
+        assert revision.state == "received"
+        assert revision.reading is not None, "the proposal records how it was read"

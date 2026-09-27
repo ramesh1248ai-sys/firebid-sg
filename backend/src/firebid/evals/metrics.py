@@ -271,6 +271,40 @@ def sheet_classification_accuracy(truth: TenderTruth, prediction: TenderPredicti
     )
 
 
+def drawing_number_accuracy(truth: TenderTruth, prediction: TenderPrediction) -> MetricValue:
+    """Sheets whose drawing number was read / sheets (FR-DOC-02: target ≥ 95% on vector).
+
+    Matched by value, not by file: a register is right when it holds the right numbers, and a
+    golden set records numbers, not which file each came from.
+    """
+    if not truth.sheets:
+        return undefined("drawing_number_accuracy", "no sheets in this tender")
+    correct = sum(1 for sheet in truth.sheets if prediction.sheet(sheet.sheet_number) is not None)
+    return MetricValue(
+        name="drawing_number_accuracy",
+        value=correct / len(truth.sheets),
+        numerator=correct,
+        denominator=len(truth.sheets),
+    )
+
+
+def revision_accuracy(truth: TenderTruth, prediction: TenderPrediction) -> MetricValue:
+    """Sheets read at the right revision / sheets (FR-DOC-02: target ≥ 95% on vector)."""
+    if not truth.sheets:
+        return undefined("revision_accuracy", "no sheets in this tender")
+    correct = sum(
+        1
+        for sheet in truth.sheets
+        if prediction.sheet(sheet.sheet_number, sheet.revision) is not None
+    )
+    return MetricValue(
+        name="revision_accuracy",
+        value=correct / len(truth.sheets),
+        numerator=correct,
+        denominator=len(truth.sheets),
+    )
+
+
 # ---------------------------------------------------------------------------------------
 # BOQ
 # ---------------------------------------------------------------------------------------
@@ -415,6 +449,8 @@ class TenderScore:
     false_detection_rate: MetricValue
     duplicate_detection_rate: MetricValue
     sheet_classification_accuracy: MetricValue
+    drawing_number_accuracy: MetricValue
+    revision_accuracy: MetricValue
     boq_mapping_accuracy: MetricValue
     calibration_error: MetricValue
     reliability: list[ReliabilityBin] = field(default_factory=list)
@@ -428,6 +464,8 @@ class TenderScore:
             "false_detection_rate": self.false_detection_rate.value,
             "duplicate_detection_rate": self.duplicate_detection_rate.value,
             "sheet_classification_accuracy": self.sheet_classification_accuracy.value,
+            "drawing_number_accuracy": self.drawing_number_accuracy.value,
+            "revision_accuracy": self.revision_accuracy.value,
             "boq_mapping_accuracy": self.boq_mapping_accuracy.value,
             "calibration_error": self.calibration_error.value,
         }
@@ -447,6 +485,8 @@ def score_tender(truth: TenderTruth, prediction: TenderPrediction) -> TenderScor
         false_detection_rate=false_detection_rate(truth, prediction),
         duplicate_detection_rate=duplicate_detection_rate(truth, prediction),
         sheet_classification_accuracy=sheet_classification_accuracy(truth, prediction),
+        drawing_number_accuracy=drawing_number_accuracy(truth, prediction),
+        revision_accuracy=revision_accuracy(truth, prediction),
         boq_mapping_accuracy=boq_mapping_accuracy(truth, prediction),
         calibration_error=calibration_value,
         reliability=reliability,
@@ -461,6 +501,8 @@ HIGHER_IS_BETTER = {
     "false_detection_rate": False,
     "duplicate_detection_rate": True,
     "sheet_classification_accuracy": True,
+    "drawing_number_accuracy": True,
+    "revision_accuracy": True,
     "boq_mapping_accuracy": True,
     "calibration_error": False,
 }
@@ -473,4 +515,7 @@ PHASE_1_TARGETS = {
     "missed_item_rate": 0.05,
     "false_detection_rate": 0.05,
     "duplicate_detection_rate": 0.95,
+    # FR-DOC-02, on vector title blocks.
+    "drawing_number_accuracy": 0.95,
+    "revision_accuracy": 0.95,
 }

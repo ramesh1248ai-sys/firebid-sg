@@ -7,10 +7,13 @@
 FROM python:3.12-slim-bookworm
 
 # LibreOffice headless converts legacy Office formats (FR-DOC-01 item 5). The -nogui packages
-# keep this to what is needed to convert, rather than a desktop suite.
+# keep this to what is needed to convert, rather than a desktop suite. Tesseract reads title
+# blocks drawn as outlines or scanned, and measures legibility (FR-DOC-02, FR-DOC-06).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libreoffice-writer-nogui \
         libreoffice-calc-nogui \
+        tesseract-ocr \
+        tesseract-ocr-eng \
         fonts-dejavu-core \
         libgl1 \
         libglib2.0-0 \

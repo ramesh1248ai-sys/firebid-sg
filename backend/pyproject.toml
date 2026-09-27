@@ -32,6 +32,8 @@ dependencies = [
     "sqlalchemy>=2",
     "structlog>=26.1.0",
     "uvicorn[standard]>=0.53.0",
+    "pytesseract>=0.3.13",
+    "python-docx>=1.2.0",
 ]
 
 [project.scripts]
@@ -74,7 +76,7 @@ files = ["src", "tests", "../scripts"]
 
 [[tool.mypy.overrides]]
 # These ship no type information.
-module = ["boto3.*", "botocore.*", "pypdfium2.*"]
+module = ["boto3.*", "botocore.*", "pypdfium2.*", "pytesseract.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

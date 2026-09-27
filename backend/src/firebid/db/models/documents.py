@@ -10,11 +10,14 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     Uuid,
+    func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -22,8 +25,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from firebid.db.base import Base
 from firebid.db.mixins import BidScoped, CreatedBy, Timestamped, UuidPk, personal
 from firebid.domain.state_machines import SheetRevisionState
+from firebid.ingest.classification import DocType
 
 REVISION_STATES = tuple(str(state) for state in SheetRevisionState)
+DOC_TYPES = tuple(str(doc_type) for doc_type in DocType)
 DOCUMENT_STATES = ("received", "awaiting_scan", "quarantined", "processing", "done", "rejected")
 
 
@@ -34,6 +39,7 @@ class Document(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     __table_args__ = (
         UniqueConstraint("bid_id", "sha256", name="uq_document_bid_sha256"),
         CheckConstraint(f"state IN {DOCUMENT_STATES}", name="state_known"),
+        CheckConstraint(f"doc_type IS NULL OR doc_type IN {DOC_TYPES}", name="doc_type_known"),
     )
 
     tender_package_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -58,6 +64,11 @@ class Document(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     derived_from_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("document.id", ondelete="SET NULL")
     )
+    # What kind of tender document it is (FR-DOC-02): a proposal until a person confirms it.
+    doc_type: Mapped[str | None] = mapped_column(String(32), index=True)
+    doc_type_confidence: Mapped[float | None] = mapped_column(Float)
+    # Who or what proposed it, why, and the digest it was decided from.
+    classification: Mapped[dict[str, object] | None] = mapped_column(JSONB)
 
 
 class Sheet(UuidPk, BidScoped, Timestamped, Base):
@@ -102,14 +113,30 @@ class SheetRevision(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     __table_args__ = (
         UniqueConstraint("bid_id", "sheet_number", "revision_label", name="uq_sheet_revision"),
         CheckConstraint(f"state IN {REVISION_STATES}", name="state_known"),
+        # Absent beats invented: an unread number or revision stays null while the revision
+        # waits for a person, or once a person has withdrawn it (a cover sheet, say). Nothing
+        # unidentified is ever registered.
+        CheckConstraint(
+            "(sheet_number IS NOT NULL AND revision_label IS NOT NULL) "
+            "OR state IN ('received', 'withdrawn')",
+            name="identified_unless_received",
+        ),
+        # Guardrail 6 in the database too: two workers cannot both make a revision Current.
+        Index(
+            "uq_sheet_revision_one_current",
+            "bid_id",
+            "sheet_number",
+            unique=True,
+            postgresql_where=text("state = 'current'"),
+        ),
     )
 
     sheet_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("sheet.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    sheet_number: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    sheet_number: Mapped[str | None] = mapped_column(String(120), index=True)
     title: Mapped[str | None] = mapped_column(String(300))
-    revision_label: Mapped[str] = mapped_column(String(40), nullable=False)
+    revision_label: Mapped[str | None] = mapped_column(String(40))
     revision_date: Mapped[date | None] = mapped_column()
     discipline: Mapped[str | None] = mapped_column(String(40))
     level: Mapped[str | None] = mapped_column(String(40))
@@ -126,6 +153,32 @@ class SheetRevision(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     )
     source_confidence: Mapped[float | None] = mapped_column(Float)
     extraction_method: Mapped[str | None] = mapped_column(String(24))
+    # How each field was read: value, confidence, method and position (a proposal's provenance).
+    reading: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    # What each source said the revision was: title block, filename, transmittal.
+    sources: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    conflict_reason: Mapped[str | None] = mapped_column(Text)
+    # The same drawing supplied again in another format: one revision, several renditions.
+    alternate_sheet_ids: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
+
+
+class TitleBlockLayout(UuidPk, Timestamped, CreatedBy, Base):
+    """Where one consultant puts each title block field, learnt from a confirmed reading.
+
+    Organisation-level: it holds positions and a consultant's name, not tender content.
+    """
+
+    __tablename__ = "title_block_layout"
+
+    organisation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organisation.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    consultant: Mapped[str] = mapped_column(String(200), nullable=False)
+    fingerprint: Mapped[list[list[object]]] = mapped_column(JSONB, nullable=False)
+    layout: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    times_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
 
 class Addendum(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
@@ -140,3 +193,89 @@ class Addendum(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
         Uuid, ForeignKey("tender_package.id", ondelete="SET NULL")
     )
     summary: Mapped[str | None] = mapped_column(Text)
+
+
+class TransmittalEntry(UuidPk, BidScoped, Base):
+    """One line of a drawing list or transmittal: what it says was issued (FR-DOC-04)."""
+
+    __tablename__ = "transmittal_entry"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_id", "sheet_number", "revision_label", name="uq_transmittal_entry_document_id"
+        ),
+    )
+
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("document.id", ondelete="CASCADE"), nullable=False
+    )
+    tender_package_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("tender_package.id", ondelete="SET NULL")
+    )
+    sheet_number: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    revision_label: Mapped[str] = mapped_column(String(40), nullable=False)
+    issued_on: Mapped[date | None] = mapped_column()
+    title: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class DocumentRevision(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
+    """A non-drawing document at one revision: the specification register's row (FR-DOC-03).
+
+    Follows the same state machine as a sheet revision. `doc_key` is the document's identity,
+    its document number or, failing that, its title, so revisions of one document compete for
+    Current and different documents do not.
+    """
+
+    __tablename__ = "document_revision"
+    __table_args__ = (
+        CheckConstraint(f"state IN {REVISION_STATES}", name="state_known"),
+        CheckConstraint(
+            "doc_key IS NOT NULL OR state IN ('received', 'withdrawn')",
+            name="identified_unless_received",
+        ),
+        Index(
+            "uq_document_revision_one_current",
+            "bid_id",
+            "doc_key",
+            unique=True,
+            postgresql_where=text("state = 'current'"),
+        ),
+    )
+
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("document.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    doc_type: Mapped[str | None] = mapped_column(String(32))
+    doc_key: Mapped[str | None] = mapped_column(String(200), index=True)
+    title: Mapped[str | None] = mapped_column(String(300))
+    revision_label: Mapped[str | None] = mapped_column(String(40))
+    revision_date: Mapped[date | None] = mapped_column()
+    state: Mapped[str] = mapped_column(
+        String(24), nullable=False, default=str(SheetRevisionState.RECEIVED), index=True
+    )
+    superseded_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("document_revision.id", ondelete="SET NULL")
+    )
+    addendum_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("addendum.id", ondelete="SET NULL")
+    )
+    sources: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    conflict_reason: Mapped[str | None] = mapped_column(Text)
+
+
+class RegisterConfirmation(UuidPk, BidScoped, Timestamped, Base):
+    """Stage S1's output: an Estimator confirmed the registers, and what they held then."""
+
+    __tablename__ = "register_confirmation"
+
+    confirmed_by_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("app_user.id", ondelete="RESTRICT"), nullable=False
+    )
+    confirmed_role: Mapped[str] = mapped_column(String(40), nullable=False)
+    confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    snapshot_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    drawings: Mapped[int] = mapped_column(Integer, nullable=False)
+    documents: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text)

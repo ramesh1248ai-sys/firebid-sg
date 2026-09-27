@@ -1,0 +1,35 @@
+# Revision ordering schemes (FR-DOC-04, P1-02). Configuration, not constants: a consultant's
+# numbering is a fact about a project, and it changes between projects.
+#
+# A scheme lists revision series in issue order. Every revision in an earlier series comes
+# before every revision in a later one; within a series, revisions are ordered by number.
+#
+#   P    prefixed series: P01, P02 ... (the prefix is the letters, the number the digits)
+#   #    plain numbers: 01, 02, 3
+#   A-Z  plain letters: A, B ... Z, AA, AB
+#
+# A revision whose series is not in the scheme cannot be ordered by it. The revision service
+# then falls back to dates (title block, transmittal, addendum), and when those do not settle
+# it either, the revision goes to Conflict for a person: guessing the order of drawings is how
+# a superseded sheet gets priced.
+#
+# A project that names no scheme uses `default`. When a scheme changes, add a new entry with a
+# later `effective_from` rather than editing the old one, so past decisions stay explainable.
+
+schemes:
+  default:
+    effective_from: 2026-01-01
+    description: >-
+      Preliminary, then tender, then construction issue; plain letters and numbers before any
+      prefixed series; R-numbered revisions as their own series.
+    series: ["#", "A-Z", "P", "R", "T", "C"]
+
+  tender-then-construction:
+    effective_from: 2026-01-01
+    description: Tender issues T1, T2 ... then construction issues C1, C2 ...
+    series: ["T", "C"]
+
+  letters:
+    effective_from: 2026-01-01
+    description: Plain letter revisions only, A, B, C ...
+    series: ["A-Z"]

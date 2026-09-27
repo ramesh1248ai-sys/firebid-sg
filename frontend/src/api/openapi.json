@@ -1,6 +1,148 @@
 {
   "components": {
     "schemas": {
+      "AddendumIn": {
+        "properties": {
+          "issued_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued On"
+          },
+          "number": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "required": [
+          "number"
+        ],
+        "title": "AddendumIn",
+        "type": "object"
+      },
+      "AddendumOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "issued_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued On"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "issued_on",
+          "summary"
+        ],
+        "title": "AddendumOut",
+        "type": "object"
+      },
+      "AffectedItemOut": {
+        "properties": {
+          "detail": {
+            "additionalProperties": true,
+            "title": "Detail",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "replaces": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "reference",
+          "revision",
+          "state",
+          "replaces",
+          "detail"
+        ],
+        "title": "AffectedItemOut",
+        "type": "object"
+      },
       "AuditEventOut": {
         "properties": {
           "action": {
@@ -503,6 +645,18 @@
       },
       "Body_upload_bids__bid_id__documents_post": {
         "properties": {
+          "addendum_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addendum Id"
+          },
           "files": {
             "items": {
               "contentMediaType": "application/octet-stream",
@@ -615,6 +769,89 @@
         "title": "CompleteRequest",
         "type": "object"
       },
+      "ConfirmRequest": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "title": "ConfirmRequest",
+        "type": "object"
+      },
+      "ConfirmationOut": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "confirmed_at": {
+            "title": "Confirmed At",
+            "type": "string"
+          },
+          "confirmed_by_id": {
+            "format": "uuid",
+            "title": "Confirmed By Id",
+            "type": "string"
+          },
+          "confirmed_role": {
+            "title": "Confirmed Role",
+            "type": "string"
+          },
+          "documents": {
+            "title": "Documents",
+            "type": "integer"
+          },
+          "drawings": {
+            "title": "Drawings",
+            "type": "integer"
+          },
+          "snapshot_hash": {
+            "title": "Snapshot Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmed_by_id",
+          "confirmed_role",
+          "confirmed_at",
+          "snapshot_hash",
+          "drawings",
+          "documents",
+          "comment"
+        ],
+        "title": "ConfirmationOut",
+        "type": "object"
+      },
+      "DocType": {
+        "enum": [
+          "drawing",
+          "specification",
+          "boq",
+          "schedule",
+          "addendum",
+          "clarification_response",
+          "contract_conditions",
+          "other"
+        ],
+        "title": "DocType",
+        "type": "string"
+      },
       "DocumentOut": {
         "properties": {
           "byte_size": {
@@ -675,6 +912,355 @@
           "state"
         ],
         "title": "DocumentOut",
+        "type": "object"
+      },
+      "DocumentRowOut": {
+        "properties": {
+          "addendum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addendum"
+          },
+          "conflict_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflict Reason"
+          },
+          "doc_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Key"
+          },
+          "doc_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Type"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "revision_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Date"
+          },
+          "revision_id": {
+            "format": "uuid",
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "type_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type Confidence"
+          },
+          "type_decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type Decided By"
+          }
+        },
+        "required": [
+          "revision_id",
+          "document_id",
+          "filename",
+          "doc_type",
+          "type_confidence",
+          "type_decided_by",
+          "doc_key",
+          "title",
+          "revision",
+          "revision_date",
+          "state",
+          "conflict_reason",
+          "addendum"
+        ],
+        "title": "DocumentRowOut",
+        "type": "object"
+      },
+      "DrawingRowOut": {
+        "properties": {
+          "addendum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addendum"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "conflict_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflict Reason"
+          },
+          "content_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Class"
+          },
+          "discipline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discipline"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "manual_takeoff_recommended": {
+            "title": "Manual Takeoff Recommended",
+            "type": "boolean"
+          },
+          "quality_band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Band"
+          },
+          "read_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read By"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "revision_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Date"
+          },
+          "revision_id": {
+            "format": "uuid",
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "scale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scale"
+          },
+          "sheet_id": {
+            "format": "uuid",
+            "title": "Sheet Id",
+            "type": "string"
+          },
+          "sheet_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheet Number"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone"
+          }
+        },
+        "required": [
+          "revision_id",
+          "sheet_id",
+          "document_id",
+          "filename",
+          "sheet_number",
+          "title",
+          "revision",
+          "revision_date",
+          "discipline",
+          "level",
+          "zone",
+          "scale",
+          "state",
+          "confidence",
+          "read_by",
+          "conflict_reason",
+          "addendum",
+          "content_class",
+          "quality_band",
+          "manual_takeoff_recommended"
+        ],
+        "title": "DrawingRowOut",
         "type": "object"
       },
       "FailedDocument": {
@@ -745,6 +1331,33 @@
           "checks"
         ],
         "title": "HealthReport",
+        "type": "object"
+      },
+      "IdentifyRequest": {
+        "properties": {
+          "document": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Document",
+            "type": "string"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          }
+        },
+        "required": [
+          "document"
+        ],
+        "title": "IdentifyRequest",
         "type": "object"
       },
       "Liveness": {
@@ -1017,6 +1630,53 @@
         "title": "ProviderOut",
         "type": "object"
       },
+      "ReadingRequest": {
+        "properties": {
+          "consultant": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Remember this title block layout for this consultant's later sheets.",
+            "title": "Consultant"
+          },
+          "revision": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Revision",
+            "type": "string"
+          },
+          "sheet_number": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Sheet Number",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "sheet_number",
+          "revision"
+        ],
+        "title": "ReadingRequest",
+        "type": "object"
+      },
       "RefusedOut": {
         "properties": {
           "filename": {
@@ -1033,6 +1693,82 @@
           "reason"
         ],
         "title": "RefusedOut",
+        "type": "object"
+      },
+      "RegisterStatus": {
+        "properties": {
+          "confirmation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfirmationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conflicts": {
+            "title": "Conflicts",
+            "type": "integer"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "unidentified": {
+            "title": "Unidentified",
+            "type": "integer"
+          },
+          "unsure_types": {
+            "title": "Unsure Types",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "conflicts",
+          "unidentified",
+          "unsure_types",
+          "ready",
+          "confirmation"
+        ],
+        "title": "RegisterStatus",
+        "type": "object"
+      },
+      "ResolveRequest": {
+        "properties": {
+          "outcome": {
+            "enum": [
+              "current",
+              "superseded",
+              "withdrawn"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          }
+        },
+        "required": [
+          "outcome",
+          "reason"
+        ],
+        "title": "ResolveRequest",
         "type": "object"
       },
       "Role": {
@@ -1226,6 +1962,11 @@
             ],
             "title": "Layout Name"
           },
+          "manual_takeoff_recommended": {
+            "default": false,
+            "title": "Manual Takeoff Recommended",
+            "type": "boolean"
+          },
           "max_level": {
             "anyOf": [
               {
@@ -1236,6 +1977,17 @@
               }
             ],
             "title": "Max Level"
+          },
+          "quality_band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Band"
           },
           "quality_detail": {
             "anyOf": [
@@ -1381,6 +2133,11 @@
             ],
             "title": "Layout Name"
           },
+          "manual_takeoff_recommended": {
+            "default": false,
+            "title": "Manual Takeoff Recommended",
+            "type": "boolean"
+          },
           "max_level": {
             "anyOf": [
               {
@@ -1391,6 +2148,17 @@
               }
             ],
             "title": "Max Level"
+          },
+          "quality_band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Band"
           },
           "source_ref": {
             "anyOf": [
@@ -1611,6 +2379,18 @@
         "title": "TransitionIn",
         "type": "object"
       },
+      "TypeRequest": {
+        "properties": {
+          "doc_type": {
+            "$ref": "#/components/schemas/DocType"
+          }
+        },
+        "required": [
+          "doc_type"
+        ],
+        "title": "TypeRequest",
+        "type": "object"
+      },
       "UploadReport": {
         "description": "Every file, accounted for. `accounted_for` should equal what the client sent.",
         "properties": {
@@ -1724,6 +2504,21 @@
           "env"
         ],
         "title": "VersionInfo",
+        "type": "object"
+      },
+      "WithdrawRequest": {
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "WithdrawRequest",
         "type": "object"
       }
     },
@@ -2440,6 +3235,382 @@
         ]
       }
     },
+    "/bids/{bid_id}/addenda": {
+      "get": {
+        "operationId": "list_addenda_bids__bid_id__addenda_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AddendumOut"
+                  },
+                  "title": "Response List Addenda Bids  Bid Id  Addenda Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Addenda",
+        "tags": [
+          "addenda"
+        ]
+      },
+      "post": {
+        "description": "Register an addendum; its files are then uploaded with its id.",
+        "operationId": "create_bids__bid_id__addenda_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddendumIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddendumOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create",
+        "tags": [
+          "addenda"
+        ]
+      }
+    },
+    "/bids/{bid_id}/addenda/{addendum_id}/affected": {
+      "get": {
+        "description": "Everything this addendum changed: the new revisions, and what each one replaced.",
+        "operationId": "affected_bids__bid_id__addenda__addendum_id__affected_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "addendum_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Addendum Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AffectedItemOut"
+                  },
+                  "title": "Response Affected Bids  Bid Id  Addenda  Addendum Id  Affected Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Affected",
+        "tags": [
+          "addenda"
+        ]
+      }
+    },
+    "/bids/{bid_id}/document-revisions/{revision_id}/identify": {
+      "post": {
+        "operationId": "identify_document_bids__bid_id__document_revisions__revision_id__identify_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRowOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Identify Document",
+        "tags": [
+          "registers"
+        ]
+      }
+    },
+    "/bids/{bid_id}/document-revisions/{revision_id}/resolve": {
+      "post": {
+        "operationId": "resolve_document_bids__bid_id__document_revisions__revision_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRowOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resolve Document",
+        "tags": [
+          "registers"
+        ]
+      }
+    },
+    "/bids/{bid_id}/document-revisions/{revision_id}/withdraw": {
+      "post": {
+        "operationId": "withdraw_document_bids__bid_id__document_revisions__revision_id__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRowOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Withdraw Document",
+        "tags": [
+          "registers"
+        ]
+      }
+    },
     "/bids/{bid_id}/documents": {
       "get": {
         "description": "Everything on this bid, including what was refused \u2014 the refusals are the point.",
@@ -2493,7 +3664,7 @@
         ]
       },
       "post": {
-        "description": "Upload one or more files, or one archive holding a whole set.",
+        "description": "Upload one or more files, or one archive holding a whole set.\n\nWith `addendum_id`, the files are that addendum's: every revision read from them is\nlinked to it, and its date orders them against what they replace.",
         "operationId": "upload_bids__bid_id__documents_post",
         "parameters": [
           {
@@ -2854,6 +4025,79 @@
         ]
       }
     },
+    "/bids/{bid_id}/documents/{document_id}/type": {
+      "post": {
+        "description": "Confirm or correct what kind of document a file is.",
+        "operationId": "confirm_type_bids__bid_id__documents__document_id__type_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TypeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentRowOut"
+                  },
+                  "title": "Response Confirm Type Bids  Bid Id  Documents  Document Id  Type Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Confirm Type",
+        "tags": [
+          "registers"
+        ]
+      }
+    },
     "/bids/{bid_id}/members": {
       "get": {
         "operationId": "list_members_bids__bid_id__members_get",
@@ -3055,6 +4299,562 @@
         "summary": "Progress Stream",
         "tags": [
           "documents"
+        ]
+      }
+    },
+    "/bids/{bid_id}/registers/confirm": {
+      "post": {
+        "description": "The Estimator's \"Register confirmed\": stage S1's output (requirements \u00a75).",
+        "operationId": "confirm_bids__bid_id__registers_confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Confirm",
+        "tags": [
+          "registers"
+        ]
+      }
+    },
+    "/bids/{bid_id}/registers/documents": {
+      "get": {
+        "operationId": "documents_bids__bid_id__registers_documents_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "doc_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Doc Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 24,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentRowOut"
+                  },
+                  "title": "Response Documents Bids  Bid Id  Registers Documents Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Documents",
+        "tags": [
+          "registers"
+        ]
+      }
+    },
+    "/bids/{bid_id}/registers/drawings": {
+      "get": {
+        "operationId": "drawings_bids__bid_id__registers_drawings_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "discipline",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Discipline"
+            }
+          },
+          {
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Level"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 24,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DrawingRowOut"
+                  },
+                  "title": "Response Drawings Bids  Bid Id  Registers Drawings Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Drawings",
+        "tags": [
+          "registers"
+        ]
+      }
+    },
+    "/bids/{bid_id}/registers/status": {
+      "get": {
+        "operationId": "register_status_bids__bid_id__registers_status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Register Status",
+        "tags": [
+          "registers"
+        ]
+      }
+    },
+    "/bids/{bid_id}/registers/{kind}.xlsx": {
+      "get": {
+        "description": "Download a register as a workbook. A named user's explicit action (guardrail 7).",
+        "operationId": "export_bids__bid_id__registers__kind__xlsx_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "drawings",
+                "documents"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export",
+        "tags": [
+          "registers"
+        ]
+      }
+    },
+    "/bids/{bid_id}/sheet-revisions/{revision_id}/confirm": {
+      "post": {
+        "description": "Say what a sheet is: its number and revision, confirmed or corrected.",
+        "operationId": "confirm_reading_bids__bid_id__sheet_revisions__revision_id__confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawingRowOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Confirm Reading",
+        "tags": [
+          "registers"
+        ]
+      }
+    },
+    "/bids/{bid_id}/sheet-revisions/{revision_id}/resolve": {
+      "post": {
+        "operationId": "resolve_sheet_bids__bid_id__sheet_revisions__revision_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawingRowOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resolve Sheet",
+        "tags": [
+          "registers"
+        ]
+      }
+    },
+    "/bids/{bid_id}/sheet-revisions/{revision_id}/withdraw": {
+      "post": {
+        "operationId": "withdraw_sheet_bids__bid_id__sheet_revisions__revision_id__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawingRowOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Withdraw Sheet",
+        "tags": [
+          "registers"
         ]
       }
     },

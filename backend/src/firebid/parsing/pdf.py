@@ -49,6 +49,9 @@ class PageFacts:
     other_objects: int
     image_coverage: float
     label: str
+    # The resolution of the largest image on the page, in pixels per inch of paper: what a
+    # scan's legibility mostly comes down to (FR-DOC-06). None when the page has no image.
+    image_dpi: float | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -116,6 +119,8 @@ def _page_facts(document: Any, index: int) -> PageFacts:
     page_area = max(width_points * height_points, 1.0)
     counts = {"path": 0, "text": 0, "image": 0, "other": 0}
     image_area = 0.0
+    largest_area = 0.0
+    image_dpi: float | None = None
 
     for obj in page.get_objects():
         if obj.type == raw.FPDF_PAGEOBJ_PATH:
@@ -126,7 +131,12 @@ def _page_facts(document: Any, index: int) -> PageFacts:
             counts["image"] += 1
             try:
                 obj_left, obj_bottom, obj_right, obj_top = obj.get_bounds()
-                image_area += abs(obj_right - obj_left) * abs(obj_top - obj_bottom)
+                width, height = abs(obj_right - obj_left), abs(obj_top - obj_bottom)
+                image_area += width * height
+                if width * height > largest_area and width > 0:
+                    largest_area = width * height
+                    pixels_wide, _ = obj.get_px_size()
+                    image_dpi = round(pixels_wide / (width / 72), 1)
             except Exception:  # noqa: S110 - an image with no usable bounds counts as none
                 pass
         else:
@@ -147,6 +157,7 @@ def _page_facts(document: Any, index: int) -> PageFacts:
         other_objects=counts["other"],
         image_coverage=round(coverage, 4),
         label=f"page {index + 1}",
+        image_dpi=image_dpi,
     )
 
 

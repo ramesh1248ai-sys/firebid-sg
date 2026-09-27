@@ -47,6 +47,9 @@ class SheetOut(BaseModel):
     base_height_px: int | None
     has_thumbnail: bool = False
     source_ref: dict[str, object] | None = None
+    # What the source lets the platform promise (FR-DOC-06).
+    quality_band: str | None = None
+    manual_takeoff_recommended: bool = False
 
     model_config = {"from_attributes": True}
 

@@ -29,3 +29,28 @@ workbook is clean.
 
 `docs/decisions/D3-golden-dataset.md` sets out what to collect, what "verified" has to mean,
 and what the data owner is accountable for.
+
+## Title block reading: the `doc_classification` suite
+
+```bash
+make eval-docs            # writes eval/results/doc_classification.md
+```
+
+Scores the platform's own title block reader (FR-DOC-02: drawing number and revision
+accuracy, target at least 95% on vector title blocks) rather than a dummy predictor. Every
+file is opened in the sandbox, and OCR needs Tesseract, which the Dev Container, CI and the
+sandbox image have; without it the outlined and scanned tenders read nothing.
+
+By default it generates synthetic fixtures: the same seeded set of drawings as CAD, as a PDF
+with a text layer, as a PDF with outlined text, and as a 150 dpi scan, reported per tender.
+When a real golden set exists it is used instead:
+
+- truth: `eval/truth/doc_classification/<tender>.json` (from `firebid-eval import`)
+- files: `eval/files/doc_classification/<tender id>/` (git-ignored: these are client drawings)
+
+The suite has no accepted baseline yet, so `make eval-gate` does not check it. Accept one
+once the numbers have been reviewed:
+
+```bash
+cd backend && uv run firebid-eval --root ../eval accept --suite doc_classification --approver "Name"
+```

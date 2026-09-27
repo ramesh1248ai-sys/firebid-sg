@@ -19,7 +19,12 @@ type Progress = {
   counts: Record<string, number>;
   sheets: number;
   finished: boolean;
-  failures: { id: string; filename: string; state: string; reason: string | null }[];
+  failures: {
+    id: string;
+    filename: string;
+    state: string;
+    reason: string | null;
+  }[];
 };
 
 type Sheet = {
@@ -34,7 +39,10 @@ type Sheet = {
 };
 
 /** How each state reads to a person, and whether it needs attention. */
-const STATE_LABELS: Record<string, { label: string; tone: "good" | "working" | "bad" }> = {
+const STATE_LABELS: Record<
+  string,
+  { label: string; tone: "good" | "working" | "bad" }
+> = {
   done: { label: "Ready", tone: "good" },
   processing: { label: "Being read", tone: "working" },
   received: { label: "Queued", tone: "working" },
@@ -68,7 +76,8 @@ function useProgress(bidId: string) {
       return data as Progress;
     },
     // Only while something is still moving: a settled bid does not need polling.
-    refetchInterval: (query) => (query.state.data?.finished === false ? 4000 : false),
+    refetchInterval: (query) =>
+      query.state.data?.finished === false ? 4000 : false,
   });
 
   useEffect(() => {
@@ -85,7 +94,9 @@ function useProgress(bidId: string) {
         },
       );
       if (!response.body) return;
-      const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+      const reader = response.body
+        .pipeThrough(new TextDecoderStream())
+        .getReader();
       let buffer = "";
       while (!cancelled) {
         const { done, value } = await reader.read();
@@ -95,9 +106,14 @@ function useProgress(bidId: string) {
         const frames = buffer.split("\n\n");
         buffer = frames.pop() ?? "";
         for (const frame of frames) {
-          const line = frame.split("\n").find((candidate) => candidate.startsWith("data: "));
+          const line = frame
+            .split("\n")
+            .find((candidate) => candidate.startsWith("data: "));
           if (!line) continue;
-          queryClient.setQueryData(["progress", bidId], JSON.parse(line.slice(6)) as Progress);
+          queryClient.setQueryData(
+            ["progress", bidId],
+            JSON.parse(line.slice(6)) as Progress,
+          );
           queryClient.invalidateQueries({ queryKey: ["sheets", bidId] });
         }
       }
@@ -120,7 +136,8 @@ function useSheets(bidId: string, readyCount: number | undefined) {
   // Refetch whenever the count of ready sheets moves, whether the stream or the polling
   // noticed; otherwise a page without the stream would count sheets it never lists.
   useEffect(() => {
-    if (readyCount !== undefined) queryClient.invalidateQueries({ queryKey: ["sheets", bidId] });
+    if (readyCount !== undefined)
+      queryClient.invalidateQueries({ queryKey: ["sheets", bidId] });
   }, [bidId, readyCount, queryClient]);
 
   return useQuery({
@@ -138,9 +155,17 @@ function useSheets(bidId: string, readyCount: number | undefined) {
 function useUpload(bidId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (files: FileList) => {
+    mutationFn: async ({
+      files,
+      addendumId,
+    }: {
+      files: FileList;
+      addendumId: string;
+    }) => {
       const body = new FormData();
       for (const file of files) body.append("files", file);
+      // An addendum's files are linked to it, and its date orders what they replace.
+      if (addendumId) body.append("addendum_id", addendumId);
       const token = await accessToken();
       const response = await fetch(
         new URL(`/api/bids/${bidId}/documents`, window.location.origin),
@@ -151,7 +176,12 @@ function useUpload(bidId: string) {
         },
       );
       if (!response.ok) {
-        throw new Error(apiErrorMessage(await response.json().catch(() => null), "Upload failed"));
+        throw new Error(
+          apiErrorMessage(
+            await response.json().catch(() => null),
+            "Upload failed",
+          ),
+        );
       }
       return response.json();
     },
@@ -163,18 +193,25 @@ function useUpload(bidId: string) {
 }
 
 function Counts({ progress }: { progress: Progress }) {
-  const shown = Object.entries(progress.counts).filter(([, count]) => count > 0);
+  const shown = Object.entries(progress.counts).filter(
+    ([, count]) => count > 0,
+  );
   if (shown.length === 0) return null;
   return (
     <dl className="flex flex-wrap gap-x-6 gap-y-2">
       {shown.map(([state, count]) => {
-        const meta = STATE_LABELS[state] ?? { label: state, tone: "working" as const };
+        const meta = STATE_LABELS[state] ?? {
+          label: state,
+          tone: "working" as const,
+        };
         return (
           <div key={state}>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">
               {meta.label}
             </dt>
-            <dd className={`text-lg font-semibold ${TONE_CLASSES[meta.tone]}`}>{count}</dd>
+            <dd className={`text-lg font-semibold ${TONE_CLASSES[meta.tone]}`}>
+              {count}
+            </dd>
           </div>
         );
       })}
@@ -214,7 +251,11 @@ function Thumbnail({ path }: { path: string }) {
   }, [path]);
 
   return url ? (
-    <img src={url} alt="" className="h-32 w-full rounded border bg-white object-contain" />
+    <img
+      src={url}
+      alt=""
+      className="h-32 w-full rounded border bg-white object-contain"
+    />
   ) : (
     <div className="h-32 w-full rounded border bg-white" />
   );
@@ -232,14 +273,18 @@ function SheetCard({ bidId, sheet }: { bidId: string; sheet: Sheet }) {
         className="block space-y-2 p-3 hover:bg-accent"
       >
         {sheet.has_thumbnail ? (
-          <Thumbnail path={`/api/bids/${bidId}/sheets/${sheet.id}/thumbnail.webp`} />
+          <Thumbnail
+            path={`/api/bids/${bidId}/sheets/${sheet.id}/thumbnail.webp`}
+          />
         ) : (
           <div className="flex h-32 items-center justify-center rounded border text-xs text-muted-foreground">
             No preview yet
           </div>
         )}
         <div>
-          <p className="truncate text-sm font-medium">{sheet.filename || "Sheet"}</p>
+          <p className="truncate text-sm font-medium">
+            {sheet.filename || "Sheet"}
+          </p>
           <p className="text-xs text-muted-foreground">
             {sheet.layout_name ? `${sheet.layout_name} · ` : ""}
             {size} · {sheet.content_class ?? "unclassified"}
@@ -257,13 +302,17 @@ export function DocumentsPage() {
   const upload = useUpload(bidId);
   const fileInput = useRef<HTMLInputElement>(null);
   const [chosen, setChosen] = useState(0);
+  const [addendumId, setAddendumId] = useState("");
 
   return (
     <section className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Tender documents</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Tender documents
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Drawings, specifications and schedules. A whole set can be sent as one zip.
+          Drawings, specifications and schedules. A whole set can be sent as one
+          zip.
         </p>
       </div>
 
@@ -272,7 +321,7 @@ export function DocumentsPage() {
         onSubmit={(event) => {
           event.preventDefault();
           const files = fileInput.current?.files;
-          if (files && files.length > 0) upload.mutate(files);
+          if (files && files.length > 0) upload.mutate({ files, addendumId });
         }}
       >
         <input
@@ -282,6 +331,11 @@ export function DocumentsPage() {
           aria-label="Files to upload"
           className="text-sm"
           onChange={(event) => setChosen(event.target.files?.length ?? 0)}
+        />
+        <AddendumChoice
+          bidId={bidId}
+          value={addendumId}
+          onChange={setAddendumId}
         />
         <Button type="submit" disabled={chosen === 0 || upload.isPending}>
           {upload.isPending ? "Sending…" : "Upload"}
@@ -329,7 +383,9 @@ export function DocumentsPage() {
                       {STATE_LABELS[failure.state]?.label ?? failure.state}
                     </span>
                     {failure.reason && (
-                      <p className="text-xs text-muted-foreground">{failure.reason}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {failure.reason}
+                      </p>
                     )}
                   </li>
                 ))}
@@ -354,5 +410,105 @@ export function DocumentsPage() {
         Back to the bid
       </Link>
     </section>
+  );
+}
+
+type Addendum = { id: string; number: string; issued_on: string | null };
+
+/**
+ * Which issue an upload belongs to: the original tender set, or an addendum (FR-DOC-05).
+ * A new addendum is registered here, with its number and date, before its files are sent.
+ */
+function AddendumChoice({
+  bidId,
+  value,
+  onChange,
+}: {
+  bidId: string;
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [adding, setAdding] = useState(false);
+  const [number, setNumber] = useState("");
+  const [issuedOn, setIssuedOn] = useState("");
+  const addenda = useQuery({
+    queryKey: ["addenda", bidId],
+    queryFn: async (): Promise<Addendum[]> => {
+      const { data, error } = await api.GET("/bids/{bid_id}/addenda", {
+        params: { path: { bid_id: bidId } },
+      });
+      if (error || !data) throw new Error("Could not load the addenda");
+      return data;
+    },
+  });
+  const create = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await api.POST("/bids/{bid_id}/addenda", {
+        params: { path: { bid_id: bidId } },
+        body: { number, issued_on: issuedOn || null },
+      });
+      if (error || !data)
+        throw new Error(apiErrorMessage(error, "Could not add the addendum"));
+      return data;
+    },
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["addenda", bidId] });
+      onChange(created.id);
+      setAdding(false);
+      setNumber("");
+      setIssuedOn("");
+    },
+  });
+
+  if (adding) {
+    return (
+      <span className="inline-flex flex-wrap items-center gap-2 text-sm">
+        <input
+          aria-label="Addendum number"
+          placeholder="Addendum no."
+          className="w-28 rounded-md border bg-background px-2 py-1"
+          value={number}
+          onChange={(event) => setNumber(event.target.value)}
+        />
+        <input
+          aria-label="Addendum date"
+          type="date"
+          className="rounded-md border bg-background px-2 py-1"
+          value={issuedOn}
+          onChange={(event) => setIssuedOn(event.target.value)}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!number || create.isPending}
+          onClick={() => create.mutate()}
+        >
+          Add addendum
+        </Button>
+        {create.isError && (
+          <span className="text-destructive">{create.error.message}</span>
+        )}
+      </span>
+    );
+  }
+  return (
+    <select
+      aria-label="This upload is"
+      className="rounded-md border bg-background px-2 py-1 text-sm"
+      value={value}
+      onChange={(event) => {
+        if (event.target.value === "new") setAdding(true);
+        else onChange(event.target.value);
+      }}
+    >
+      <option value="">The original tender set</option>
+      {(addenda.data ?? []).map((addendum) => (
+        <option key={addendum.id} value={addendum.id}>
+          Addendum {addendum.number}
+        </option>
+      ))}
+      <option value="new">A new addendum…</option>
+    </select>
   );
 }

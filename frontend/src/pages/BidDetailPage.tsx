@@ -22,7 +22,9 @@ function useBid(bidId: string) {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+        {label}
+      </dt>
       <dd className="text-sm">{value}</dd>
     </div>
   );
@@ -61,33 +63,45 @@ export function BidDetailPage() {
   return (
     <section className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{bid.data.human_id}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {bid.data.human_id}
+        </h1>
         <p className="text-sm text-muted-foreground">
           {bid.data.client_name} · {bid.data.tender_reference}
         </p>
       </div>
-
       <Link
         to={`/bids/${bidId}/documents`}
         className="inline-block rounded-md border px-3 py-2 text-sm hover:bg-accent"
       >
         Tender documents
+      </Link>{" "}
+      <Link
+        to={`/bids/${bidId}/registers`}
+        className="inline-block rounded-md border px-3 py-2 text-sm hover:bg-accent"
+      >
+        Registers
       </Link>
-
       <dl className="grid gap-4 sm:grid-cols-3">
         <Detail label="State" value={bid.data.state.replaceAll("_", " ")} />
         <Detail label="Stage" value={bid.data.stage} />
-        <Detail label="Submission" value={formatDeadline(bid.data.submission_deadline, null)} />
+        <Detail
+          label="Submission"
+          value={formatDeadline(bid.data.submission_deadline, null)}
+        />
         <Detail
           label="Clarifications close"
           value={formatDeadline(bid.data.clarification_cutoff, null)}
         />
         <Detail
           label="Tender validity"
-          value={bid.data.tender_validity_days ? `${bid.data.tender_validity_days} days` : "not set"}
+          value={
+            bid.data.tender_validity_days
+              ? `${bid.data.tender_validity_days} days`
+              : "not set"
+          }
         />
       </dl>
-
       {bid.data.missing_mandatory_fields.length > 0 && (
         <p role="status" className="text-sm text-amber-700 dark:text-amber-400">
           Qualification is blocked until these are in:{" "}

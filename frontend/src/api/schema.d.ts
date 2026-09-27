@@ -166,6 +166,98 @@ export interface paths {
         patch: operations["update_bid_bids__bid_id__patch"];
         trace?: never;
     };
+    "/bids/{bid_id}/addenda": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Addenda */
+        get: operations["list_addenda_bids__bid_id__addenda_get"];
+        put?: never;
+        /**
+         * Create
+         * @description Register an addendum; its files are then uploaded with its id.
+         */
+        post: operations["create_bids__bid_id__addenda_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/addenda/{addendum_id}/affected": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Affected
+         * @description Everything this addendum changed: the new revisions, and what each one replaced.
+         */
+        get: operations["affected_bids__bid_id__addenda__addendum_id__affected_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/document-revisions/{revision_id}/identify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Identify Document */
+        post: operations["identify_document_bids__bid_id__document_revisions__revision_id__identify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/document-revisions/{revision_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Document */
+        post: operations["resolve_document_bids__bid_id__document_revisions__revision_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/document-revisions/{revision_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw Document */
+        post: operations["withdraw_document_bids__bid_id__document_revisions__revision_id__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/documents": {
         parameters: {
             query?: never;
@@ -182,6 +274,9 @@ export interface paths {
         /**
          * Upload
          * @description Upload one or more files, or one archive holding a whole set.
+         *
+         *     With `addendum_id`, the files are that addendum's: every revision read from them is
+         *     linked to it, and its date orders them against what they replace.
          */
         post: operations["upload_bids__bid_id__documents_post"];
         delete?: never;
@@ -295,6 +390,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/documents/{document_id}/type": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Type
+         * @description Confirm or correct what kind of document a file is.
+         */
+        post: operations["confirm_type_bids__bid_id__documents__document_id__type_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/members": {
         parameters: {
             query?: never;
@@ -347,6 +462,151 @@ export interface paths {
         get: operations["progress_stream_bids__bid_id__progress_stream_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/registers/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm
+         * @description The Estimator's "Register confirmed": stage S1's output (requirements §5).
+         */
+        post: operations["confirm_bids__bid_id__registers_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/registers/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Documents */
+        get: operations["documents_bids__bid_id__registers_documents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/registers/drawings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Drawings */
+        get: operations["drawings_bids__bid_id__registers_drawings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/registers/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Register Status */
+        get: operations["register_status_bids__bid_id__registers_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/registers/{kind}.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export
+         * @description Download a register as a workbook. A named user's explicit action (guardrail 7).
+         */
+        get: operations["export_bids__bid_id__registers__kind__xlsx_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/sheet-revisions/{revision_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Reading
+         * @description Say what a sheet is: its number and revision, confirmed or corrected.
+         */
+        post: operations["confirm_reading_bids__bid_id__sheet_revisions__revision_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/sheet-revisions/{revision_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Sheet */
+        post: operations["resolve_sheet_bids__bid_id__sheet_revisions__revision_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/sheet-revisions/{revision_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw Sheet */
+        post: operations["withdraw_sheet_bids__bid_id__sheet_revisions__revision_id__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -526,6 +786,51 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AddendumIn */
+        AddendumIn: {
+            /** Issued On */
+            issued_on?: string | null;
+            /** Number */
+            number: string;
+            /** Summary */
+            summary?: string | null;
+        };
+        /** AddendumOut */
+        AddendumOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Issued On */
+            issued_on: string | null;
+            /** Number */
+            number: string;
+            /** Summary */
+            summary: string | null;
+        };
+        /** AffectedItemOut */
+        AffectedItemOut: {
+            /** Detail */
+            detail: {
+                [key: string]: unknown;
+            };
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Reference */
+            reference: string;
+            /** Replaces */
+            replaces: string | null;
+            /** Revision */
+            revision: string | null;
+            /** State */
+            state: string;
+        };
         /** AuditEventOut */
         AuditEventOut: {
             /** Action */
@@ -684,6 +989,8 @@ export interface components {
         };
         /** Body_upload_bids__bid_id__documents_post */
         Body_upload_bids__bid_id__documents_post: {
+            /** Addendum Id */
+            addendum_id?: string | null;
             /** Files */
             files: string[];
         };
@@ -729,6 +1036,36 @@ export interface components {
             /** Storage Key */
             storage_key: string;
         };
+        /** ConfirmRequest */
+        ConfirmRequest: {
+            /** Comment */
+            comment?: string | null;
+        };
+        /** ConfirmationOut */
+        ConfirmationOut: {
+            /** Comment */
+            comment: string | null;
+            /** Confirmed At */
+            confirmed_at: string;
+            /**
+             * Confirmed By Id
+             * Format: uuid
+             */
+            confirmed_by_id: string;
+            /** Confirmed Role */
+            confirmed_role: string;
+            /** Documents */
+            documents: number;
+            /** Drawings */
+            drawings: number;
+            /** Snapshot Hash */
+            snapshot_hash: string;
+        };
+        /**
+         * DocType
+         * @enum {string}
+         */
+        DocType: "drawing" | "specification" | "boq" | "schedule" | "addendum" | "clarification_response" | "contract_conditions" | "other";
         /** DocumentOut */
         DocumentOut: {
             /** Byte Size */
@@ -750,6 +1087,93 @@ export interface components {
             sha256: string;
             /** State */
             state: string;
+        };
+        /** DocumentRowOut */
+        DocumentRowOut: {
+            /** Addendum */
+            addendum: string | null;
+            /** Conflict Reason */
+            conflict_reason: string | null;
+            /** Doc Key */
+            doc_key: string | null;
+            /** Doc Type */
+            doc_type: string | null;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+            /** Revision */
+            revision: string | null;
+            /** Revision Date */
+            revision_date: string | null;
+            /**
+             * Revision Id
+             * Format: uuid
+             */
+            revision_id: string;
+            /** State */
+            state: string;
+            /** Title */
+            title: string | null;
+            /** Type Confidence */
+            type_confidence: number | null;
+            /** Type Decided By */
+            type_decided_by: string | null;
+        };
+        /** DrawingRowOut */
+        DrawingRowOut: {
+            /** Addendum */
+            addendum: string | null;
+            /** Confidence */
+            confidence: number | null;
+            /** Conflict Reason */
+            conflict_reason: string | null;
+            /** Content Class */
+            content_class: string | null;
+            /** Discipline */
+            discipline: string | null;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+            /** Level */
+            level: string | null;
+            /** Manual Takeoff Recommended */
+            manual_takeoff_recommended: boolean;
+            /** Quality Band */
+            quality_band: string | null;
+            /** Read By */
+            read_by: string | null;
+            /** Revision */
+            revision: string | null;
+            /** Revision Date */
+            revision_date: string | null;
+            /**
+             * Revision Id
+             * Format: uuid
+             */
+            revision_id: string;
+            /** Scale */
+            scale: string | null;
+            /**
+             * Sheet Id
+             * Format: uuid
+             */
+            sheet_id: string;
+            /** Sheet Number */
+            sheet_number: string | null;
+            /** State */
+            state: string;
+            /** Title */
+            title: string | null;
+            /** Zone */
+            zone: string | null;
         };
         /** FailedDocument */
         FailedDocument: {
@@ -778,6 +1202,13 @@ export interface components {
             };
             /** Status */
             status: string;
+        };
+        /** IdentifyRequest */
+        IdentifyRequest: {
+            /** Document */
+            document: string;
+            /** Revision */
+            revision?: string | null;
         };
         /** Liveness */
         Liveness: {
@@ -886,12 +1317,50 @@ export interface components {
             /** Retention */
             retention: string | null;
         };
+        /** ReadingRequest */
+        ReadingRequest: {
+            /**
+             * Consultant
+             * @description Remember this title block layout for this consultant's later sheets.
+             */
+            consultant?: string | null;
+            /** Revision */
+            revision: string;
+            /** Sheet Number */
+            sheet_number: string;
+            /** Title */
+            title?: string | null;
+        };
         /** RefusedOut */
         RefusedOut: {
             /** Filename */
             filename: string;
             /** Reason */
             reason: string;
+        };
+        /** RegisterStatus */
+        RegisterStatus: {
+            confirmation: components["schemas"]["ConfirmationOut"] | null;
+            /** Conflicts */
+            conflicts: number;
+            /** Ready */
+            ready: boolean;
+            /** Unidentified */
+            unidentified: number;
+            /** Unsure Types */
+            unsure_types: number;
+        };
+        /** ResolveRequest */
+        ResolveRequest: {
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "current" | "superseded" | "withdrawn";
+            /** Reason */
+            reason: string;
+            /** Revision */
+            revision?: string | null;
         };
         /**
          * Role
@@ -961,8 +1430,15 @@ export interface components {
             index_in_document: number;
             /** Layout Name */
             layout_name: string | null;
+            /**
+             * Manual Takeoff Recommended
+             * @default false
+             */
+            manual_takeoff_recommended: boolean;
             /** Max Level */
             max_level: number | null;
+            /** Quality Band */
+            quality_band?: string | null;
             /** Quality Detail */
             quality_detail?: {
                 [key: string]: unknown;
@@ -1012,8 +1488,15 @@ export interface components {
             index_in_document: number;
             /** Layout Name */
             layout_name: string | null;
+            /**
+             * Manual Takeoff Recommended
+             * @default false
+             */
+            manual_takeoff_recommended: boolean;
             /** Max Level */
             max_level: number | null;
+            /** Quality Band */
+            quality_band?: string | null;
             /** Source Ref */
             source_ref?: {
                 [key: string]: unknown;
@@ -1072,6 +1555,10 @@ export interface components {
             reason?: string | null;
             target: components["schemas"]["BidState"];
         };
+        /** TypeRequest */
+        TypeRequest: {
+            doc_type: components["schemas"]["DocType"];
+        };
         /**
          * UploadReport
          * @description Every file, accounted for. `accounted_for` should equal what the client sent.
@@ -1129,6 +1616,11 @@ export interface components {
             git_sha: string;
             /** Version */
             version: string;
+        };
+        /** WithdrawRequest */
+        WithdrawRequest: {
+            /** Reason */
+            reason: string;
         };
     };
     responses: never;
@@ -1437,6 +1929,212 @@ export interface operations {
             };
         };
     };
+    list_addenda_bids__bid_id__addenda_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddendumOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_bids__bid_id__addenda_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddendumIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddendumOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    affected_bids__bid_id__addenda__addendum_id__affected_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                addendum_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AffectedItemOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    identify_document_bids__bid_id__document_revisions__revision_id__identify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                revision_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentRowOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_document_bids__bid_id__document_revisions__revision_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                revision_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentRowOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_document_bids__bid_id__document_revisions__revision_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                revision_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentRowOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_documents_bids__bid_id__documents_get: {
         parameters: {
             query?: never;
@@ -1672,6 +2370,42 @@ export interface operations {
             };
         };
     };
+    confirm_type_bids__bid_id__documents__document_id__type_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TypeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentRowOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_members_bids__bid_id__members_get: {
         parameters: {
             query?: never;
@@ -1787,6 +2521,279 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_bids__bid_id__registers_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    documents_bids__bid_id__registers_documents_get: {
+        parameters: {
+            query?: {
+                doc_type?: string | null;
+                state?: string | null;
+            };
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentRowOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    drawings_bids__bid_id__registers_drawings_get: {
+        parameters: {
+            query?: {
+                discipline?: string | null;
+                level?: string | null;
+                state?: string | null;
+            };
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DrawingRowOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_status_bids__bid_id__registers_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisterStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_bids__bid_id__registers__kind__xlsx_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "drawings" | "documents";
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_reading_bids__bid_id__sheet_revisions__revision_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                revision_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DrawingRowOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_sheet_bids__bid_id__sheet_revisions__revision_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                revision_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DrawingRowOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_sheet_bids__bid_id__sheet_revisions__revision_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                revision_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DrawingRowOut"];
                 };
             };
             /** @description Validation Error */

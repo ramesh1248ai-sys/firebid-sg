@@ -82,11 +82,13 @@ def create_app(
     def version() -> VersionInfo:
         return VersionInfo(version=__version__, git_sha=settings.git_sha, env=settings.env)
 
-    from firebid.api import admin, audit, bids, documents, progress, sheets
+    from firebid.api import addenda, admin, audit, bids, documents, progress, registers, sheets
 
     app.include_router(bids.router)
     app.include_router(documents.router)
     app.include_router(sheets.router)
+    app.include_router(registers.router)
+    app.include_router(addenda.router)
     app.include_router(progress.router)
     app.include_router(audit.router)
     app.include_router(admin.router)

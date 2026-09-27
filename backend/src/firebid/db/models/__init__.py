@@ -31,7 +31,16 @@ from firebid.db.models.core import (
     TenderPackage,
     UserRole,
 )
-from firebid.db.models.documents import Addendum, Document, Sheet, SheetRevision
+from firebid.db.models.documents import (
+    Addendum,
+    Document,
+    DocumentRevision,
+    RegisterConfirmation,
+    Sheet,
+    SheetRevision,
+    TitleBlockLayout,
+    TransmittalEntry,
+)
 from firebid.db.models.takeoff import DetectedObject, Evidence, MeasurementRule, QtoItem
 from firebid.db.models.workflow import AgentRun, Approval, DeadlineAlert, HumanTask
 from firebid.db.system import SystemHeartbeat, SystemJobResult
@@ -56,6 +65,7 @@ __all__ = [
     "DeadlineAlert",
     "DetectedObject",
     "Document",
+    "DocumentRevision",
     "Evidence",
     "HumanTask",
     "IdCounter",
@@ -68,10 +78,13 @@ __all__ = [
     "Project",
     "QtoItem",
     "Rate",
+    "RegisterConfirmation",
     "Sheet",
     "SheetRevision",
     "SystemHeartbeat",
     "SystemJobResult",
     "TenderPackage",
+    "TitleBlockLayout",
+    "TransmittalEntry",
     "UserRole",
 ]
