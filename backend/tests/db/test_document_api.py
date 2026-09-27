@@ -15,7 +15,7 @@ from typing import Any
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from firebid.api import documents as documents_api
@@ -246,6 +246,43 @@ def test_a_file_held_by_an_outage_is_not_downloadable_until_it_is_scanned(
     monkeypatch.setattr(documents_api, "get_scanner", AlwaysCleanScanner)
     assert client.post(f"/bids/{bid.id}/documents/rescan").json() == {"moved": 1}
     assert client.get(f"/bids/{bid.id}/documents/{document['id']}/content").status_code == 200
+
+
+@pytest.mark.req("FR-DOC-01")
+def test_a_file_released_by_a_rescan_is_queued_to_be_read(
+    sign_in: SignIn,
+    estimator_principal: Principal,
+    bid: Bid,
+    session: Session,
+    store: MemoryObjectStore,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Held, then released: without a parse job it would sit at "received" for good."""
+    monkeypatch.setattr(documents_api, "get_scanner", UnavailableScanner)
+    client = sign_in(estimator_principal)
+    upload(client, bid, [("A-01.pdf", PDF)])
+    document = client.get(f"/bids/{bid.id}/documents").json()[0]
+    assert parse_jobs(session, document["id"]) == [], "nothing is read while it waits for a scan"
+
+    monkeypatch.setattr(documents_api, "get_scanner", AlwaysCleanScanner)
+    client.post(f"/bids/{bid.id}/documents/rescan")
+
+    assert parse_jobs(session, document["id"]) == [
+        {"document_id": document["id"], "user_id": str(estimator_principal.user_id)}
+    ]
+
+
+def parse_jobs(session: Session, document_id: str) -> list[dict[str, Any]]:
+    """The parse jobs queued for one document. The job table outlives each test's cleanup."""
+    session.rollback()  # see what the API committed
+    rows = session.execute(
+        text(
+            "SELECT args FROM procrastinate_jobs WHERE task_name = 'parse.document' "
+            "AND args->>'document_id' = :document_id ORDER BY id"
+        ),
+        {"document_id": document_id},
+    )
+    return [dict(args) for (args,) in rows]
 
 
 @pytest.mark.req("FR-DOC-01")

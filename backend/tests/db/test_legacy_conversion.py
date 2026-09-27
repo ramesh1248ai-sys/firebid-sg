@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from firebid.db.models.core import Bid
 from firebid.db.models.documents import Document
-from firebid.ingest.scanning import AlwaysCleanScanner
+from firebid.ingest.scanning import AlwaysCleanScanner, UnavailableScanner
 from firebid.sandbox.office import ConversionFailed, Converted
 from firebid.services.ingestion import Ingestor, IngestOutcome
 from firebid.storage.object_store import MemoryObjectStore
@@ -176,3 +176,17 @@ def test_the_converter_version_is_recorded_against_the_conversion(
     outcome = ingest(session, bid, store, "rates.xls", LEGACY_XLS)
 
     assert outcome.converted == [("rates.xls", "libreoffice:25.2.1.2")]
+
+
+def test_a_legacy_workbook_held_by_an_outage_gains_its_copy_when_released(
+    session: Session, bid: Bid, store: MemoryObjectStore, converter: None
+) -> None:
+    """A release is the rest of an upload, so it does what the upload would have done."""
+    Ingestor(session, store, UnavailableScanner(), bid_id=bid.id).ingest("rates.xls", LEGACY_XLS)
+
+    outcome = Ingestor(session, store, AlwaysCleanScanner(), bid_id=bid.id).release_held()
+
+    assert [name for name, _ in outcome.converted] == ["rates.xls"]
+    assert outcome.moved == 1, "the copy is something the platform made, not a released file"
+    kinds = {document.kind for document in session.execute(select(Document)).scalars()}
+    assert kinds == {"xls", "xlsx"}

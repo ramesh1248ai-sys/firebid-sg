@@ -27,7 +27,6 @@ from firebid.services.ingestion import (
     REASON_DWG_UNAVAILABLE,
     Ingestor,
     checksum,
-    rescan_held,
     storage_key,
 )
 from firebid.storage.object_store import MemoryObjectStore
@@ -138,10 +137,11 @@ def test_a_held_file_moves_on_when_the_scanner_returns(
 ) -> None:
     ingestor(session, bid, store, UnavailableScanner()).ingest("A-01.pdf", PDF)
 
-    moved = rescan_held(session, store, AlwaysCleanScanner(), bid.id)
+    outcome = ingestor(session, bid, store, AlwaysCleanScanner()).release_held()
 
-    assert moved == 1
     document = session.execute(select(Document)).scalar_one()
+    assert outcome.stored == [document], "released like a fresh upload, so it is parsed next"
+    assert outcome.moved == 1
     assert document.state == "received"
     assert document.rejected_reason is None
     assert document.scanned_at is not None
@@ -153,7 +153,11 @@ def test_a_rescan_that_finds_malware_quarantines_the_held_file(
 ) -> None:
     ingestor(session, bid, store, UnavailableScanner()).ingest("late.pdf", PDF + EICAR)
 
-    assert rescan_held(session, store, EicarScanner(), bid.id) == 1
+    outcome = ingestor(session, bid, store, EicarScanner()).release_held()
+
+    assert outcome.quarantined == [("late.pdf", "Eicar-Test-Signature")]
+    assert outcome.stored == [], "a quarantined file is never handed on to be parsed"
+    assert outcome.moved == 1
 
     document = session.execute(select(Document)).scalar_one()
     assert document.state == "quarantined"
@@ -166,7 +170,10 @@ def test_a_rescan_during_a_continuing_outage_leaves_the_file_held(
 ) -> None:
     ingestor(session, bid, store, UnavailableScanner()).ingest("A-01.pdf", PDF)
 
-    assert rescan_held(session, store, UnavailableScanner(), bid.id) == 0
+    outcome = ingestor(session, bid, store, UnavailableScanner()).release_held()
+
+    assert outcome.moved == 0
+    assert outcome.stored == []
     assert session.execute(select(Document)).scalar_one().state == "awaiting_scan"
 
 

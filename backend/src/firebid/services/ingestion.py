@@ -55,6 +55,8 @@ class IngestOutcome:
     held: list[tuple[str, str]] = field(default_factory=list)
     # (original filename, converter) for each legacy file given a modern copy.
     converted: list[tuple[str, str]] = field(default_factory=list)
+    # Files a rescan released from `awaiting_scan`, clean or not. Only a release sets it.
+    moved: int = 0
 
     @property
     def accounted_for(self) -> int:
@@ -177,11 +179,62 @@ class Ingestor:
             return
 
         document = self._register(filename, payload, digest, detected, state="received")
+        self._accept(document, payload, detected, outcome)
+
+    def _accept(
+        self, document: Document, payload: bytes, detected: Detected, outcome: IngestOutcome
+    ) -> None:
+        """A file that scanned clean: ready to be read, and given a modern copy if it needs one."""
+        document.state = "received"
+        document.rejected_reason = None
         document.scanned_at = datetime.now(UTC)
         outcome.stored.append(document)
 
         if detected.kind in LEGACY_OFFICE:
             self._convert_legacy(document, payload, detected, outcome)
+
+    def release_held(self) -> IngestOutcome:
+        """Scan again the files an outage held, and carry on with them as an upload would.
+
+        Without this an outage would leave a tender set stuck for good: the point of holding
+        is that the scan happens later, not never. A released file takes the rest of the
+        upload path, so it is converted if it needs to be and handed on to be read; the caller
+        queues the reading, exactly as it does after an upload.
+        """
+        outcome = IngestOutcome()
+        held = (
+            self._session.execute(
+                select(Document).where(
+                    Document.bid_id == self._bid_id, Document.state == "awaiting_scan"
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        for document in held:
+            payload = self._store.get(document.storage_key)
+            result = self._scanner.scan(payload)
+            if result.verdict is Verdict.UNAVAILABLE:
+                outcome.held.append((document.filename, result.detail))
+                continue
+            outcome.moved += 1
+            if result.verdict is Verdict.INFECTED:
+                document.state = "quarantined"
+                document.rejected_reason = f"malware found: {result.signature}"
+                document.scanned_at = datetime.now(UTC)
+                document.scan_signature = result.signature[:200]
+                outcome.quarantined.append((document.filename, result.signature))
+                log.warning(
+                    "file_quarantined", filename=document.filename, signature=result.signature
+                )
+                continue
+            self._accept(document, payload, detect(payload, document.filename), outcome)
+
+        self._session.flush()
+        if outcome.moved:
+            log.info("rescan_completed", bid_id=str(self._bid_id), moved=outcome.moved)
+        return outcome
 
     def _refusal_for(self, detected: Detected) -> str | None:
         """Whether this kind can be read at all, before spending a scan on it."""
@@ -291,41 +344,6 @@ class Ingestor:
             byte_size=len(payload),
         )
         return document
-
-
-def rescan_held(session: Session, store: ObjectStore, scanner: Scanner, bid_id: uuid.UUID) -> int:
-    """Retry files held by an outage. Returns how many moved on.
-
-    Without this, an outage would leave a tender set stuck for good: the point of holding is
-    that the scan happens later, not never.
-    """
-    held = (
-        session.execute(
-            select(Document).where(Document.bid_id == bid_id, Document.state == "awaiting_scan")
-        )
-        .scalars()
-        .all()
-    )
-
-    moved = 0
-    for document in held:
-        result = scanner.scan(store.get(document.storage_key))
-        if result.verdict is Verdict.UNAVAILABLE:
-            continue
-        document.scanned_at = datetime.now(UTC)
-        if result.verdict is Verdict.INFECTED:
-            document.state = "quarantined"
-            document.rejected_reason = f"malware found: {result.signature}"
-            document.scan_signature = result.signature[:200]
-        else:
-            document.state = "received"
-            document.rejected_reason = None
-        moved += 1
-
-    session.flush()
-    if moved:
-        log.info("rescan_completed", bid_id=str(bid_id), moved=moved)
-    return moved
 
 
 def legacy_needs_conversion(document: Document) -> bool:

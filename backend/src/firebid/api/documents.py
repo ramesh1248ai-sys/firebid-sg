@@ -32,7 +32,6 @@ from firebid.services.ingestion import (
     IngestOutcome,
     checksum,
     existing_document,
-    rescan_held,
     storage_key,
 )
 from firebid.storage.object_store import get_object_store
@@ -109,7 +108,7 @@ def _queue_parsing(session: Session, report: UploadReport, user_id: uuid.UUID) -
 
     In the caller's transaction (the `jobs` convention): a rollback takes the jobs with it,
     so a job never runs against a document row that was never committed. The job acts as
-    the uploader, since row-level security shows it nothing otherwise.
+    whoever sent or released the file, since row-level security shows it nothing otherwise.
     """
     from firebid.jobs.enqueue import enqueue
     from firebid.jobs.tasks import parse_document
@@ -301,6 +300,10 @@ def rescan(
     session: DbSession,
     _: Annotated[Principal, require(Action.DOCUMENT_UPLOAD)],
 ) -> dict[str, int]:
-    """Retry the files an outage held. Safe to call repeatedly."""
-    moved = rescan_held(session, get_object_store(), get_scanner(), context.bid.id)
-    return {"moved": moved}
+    """Retry the files an outage held, and queue the released ones to be read.
+
+    Safe to call repeatedly: a file is released once, so it is queued once.
+    """
+    outcome = _ingestor(session, context).release_held()
+    _queue_parsing(session, _report(outcome), context.principal.user_id)
+    return {"moved": outcome.moved}
