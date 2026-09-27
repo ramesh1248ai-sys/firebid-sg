@@ -26,23 +26,36 @@ export interface Call {
   body: string | null;
 }
 
-/**
- * Answer requests by path, and record what was asked. Keys are matched as substrings of the
- * URL, longest first, so "/bids/" wins over "/bids".
- */
+/** What was asked, from either shape of `fetch`, without touching a multipart body. */
+async function describe(input: Request | URL | string, init?: RequestInit): Promise<Call> {
+  if (input instanceof Request) {
+    return {
+      url: input.url,
+      method: input.method,
+      authorization: input.headers.get("authorization"),
+      body: input.body ? await input.clone().text() : null,
+    };
+  }
+  const headers = new Headers(init?.headers);
+  const body = init?.body;
+  return {
+    url: new URL(input, window.location.origin).toString(),
+    method: init?.method ?? "GET",
+    authorization: headers.get("authorization"),
+    // A FormData body is not readable as text under jsdom, and no test needs it.
+    body: typeof body === "string" ? body : body ? "<multipart body>" : null,
+  };
+}
+
 export function stubApi(routeTable: Record<string, () => Response>): Call[] {
   const calls: Call[] = [];
   const keys = Object.keys(routeTable).sort((a, b) => b.length - a.length);
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (request: Request) => {
-      calls.push({
-        url: request.url,
-        method: request.method,
-        authorization: request.headers.get("authorization"),
-        body: request.body ? await request.clone().text() : null,
-      });
-      const key = keys.find((candidate) => new URL(request.url).pathname.includes(candidate));
+    vi.fn(async (input: Request | URL | string, init?: RequestInit) => {
+      const call = await describe(input, init);
+      calls.push(call);
+      const key = keys.find((candidate) => new URL(call.url).pathname.includes(candidate));
       const handler = key === undefined ? undefined : routeTable[key];
       if (!handler) return new Response("no stub", { status: 404 });
       return handler();

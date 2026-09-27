@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from testcontainers.community.postgres import PostgresContainer
 
 from firebid.db.base import Base
-from firebid.db.engine import get_engine, sqlalchemy_url
+from firebid.db.engine import clear_engine_caches, sqlalchemy_url
 from firebid.db.models.core import AppUser, Bid, BidMember, Organisation, Project
 from firebid.domain.actors import Actor
 from firebid.domain.state_machines import Role
@@ -45,12 +45,12 @@ def database_url() -> Iterator[str]:
         os.environ["FIREBID_APP_DB_PASSWORD"] = APP_ROLE_PASSWORD
         # Settings and the engine are cached; an earlier test may have cached the defaults.
         get_settings.cache_clear()
-        get_engine.cache_clear()
+        clear_engine_caches()
         config = Config(ALEMBIC_INI)
         command.upgrade(config, "head")
         yield url
         get_settings.cache_clear()
-        get_engine.cache_clear()
+        clear_engine_caches()
 
 
 @pytest.fixture(scope="session")
@@ -69,6 +69,26 @@ def app_role_engine(database_url: str) -> Iterator[Engine]:
     engine = create_engine(url, future=True)
     yield engine
     engine.dispose()
+
+
+@pytest.fixture
+def as_application_role(database_url: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Make `session_scope` connect as the application role, under row-level security.
+
+    Most tests connect as the table owner, which row-level security does not restrict. Code
+    that opens its own session (a job, a stream) must be tested this way, or a session that
+    forgets to act as someone passes here and sees nothing in production.
+    """
+    monkeypatch.setenv(
+        "FIREBID_DATABASE_URL",
+        database_url.replace("firebid:firebid@", f"firebid_app:{APP_ROLE_PASSWORD}@"),
+    )
+    get_settings.cache_clear()
+    clear_engine_caches()
+    yield
+    monkeypatch.undo()
+    get_settings.cache_clear()
+    clear_engine_caches()
 
 
 @pytest.fixture(autouse=True)
@@ -142,6 +162,27 @@ def bid(session: Session, organisation: Organisation, user: AppUser) -> Bid:
         submission_deadline=datetime.now(UTC) + timedelta(days=14),
         clarification_cutoff=datetime.now(UTC) + timedelta(days=7),
         tender_validity_days=90,
+    )
+    session.add(bid)
+    session.flush()
+    session.add(BidMember(bid_id=bid.id, user_id=user.id, role=str(Role.BID_MANAGER)))
+    session.commit()
+    return bid
+
+
+@pytest.fixture
+def second_bid(session: Session, organisation: Organisation, user: AppUser) -> Bid:
+    """Another bid in the same organisation, for testing that bids stay separate."""
+    project = Project(organisation_id=organisation.id, name="Another Tower")
+    session.add(project)
+    session.flush()
+    bid = Bid(
+        organisation_id=organisation.id,
+        project_id=project.id,
+        human_id="BID-2026-015",
+        client_name="Another Contractor Pte Ltd",
+        tender_reference="AC/2026/FP/015",
+        submission_deadline=datetime.now(UTC) + timedelta(days=21),
     )
     session.add(bid)
     session.flush()

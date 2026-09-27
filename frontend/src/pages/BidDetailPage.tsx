@@ -67,6 +67,13 @@ export function BidDetailPage() {
         </p>
       </div>
 
+      <Link
+        to={`/bids/${bidId}/documents`}
+        className="inline-block rounded-md border px-3 py-2 text-sm hover:bg-accent"
+      >
+        Tender documents
+      </Link>
+
       <dl className="grid gap-4 sm:grid-cols-3">
         <Detail label="State" value={bid.data.state.replaceAll("_", " ")} />
         <Detail label="Stage" value={bid.data.stage} />

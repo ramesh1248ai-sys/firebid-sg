@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import (
     CheckConstraint,
+    DateTime,
     Float,
     ForeignKey,
     Integer,
@@ -50,6 +51,10 @@ class Document(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
     state: Mapped[str] = mapped_column(String(24), nullable=False, default="received", index=True)
     rejected_reason: Mapped[str | None] = mapped_column(Text)
+    # Evidence that the scan happened, kept separately from `state` so "cleared at 10:04 by
+    # signature set X" survives a later state change (NFR-06).
+    scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    scan_signature: Mapped[str | None] = mapped_column(String(200))
     derived_from_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("document.id", ondelete="SET NULL")
     )
@@ -72,6 +77,19 @@ class Sheet(UuidPk, BidScoped, Timestamped, Base):
     quality_band: Mapped[str | None] = mapped_column(String(16))  # high | medium | low
     manual_takeoff_recommended: Mapped[bool] = mapped_column(default=False, nullable=False)
     quality_detail: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+
+    # Where this sheet came from (FR-DOC-07). Every quantity measured on it inherits this.
+    source_ref: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+
+    # The tile pyramid. `content_hash` keys the tiles in object storage and is derived from
+    # the document's digest and this page, so identical sheets share one set of tiles across
+    # bids; the API checks membership before serving any of them.
+    content_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    base_width_px: Mapped[int | None] = mapped_column(Integer)
+    base_height_px: Mapped[int | None] = mapped_column(Integer)
+    max_level: Mapped[int | None] = mapped_column(Integer)
+    renderer_version: Mapped[str | None] = mapped_column(String(16))
+    thumbnail_key: Mapped[str | None] = mapped_column(String(512))
 
 
 class SheetRevision(UuidPk, BidScoped, Timestamped, CreatedBy, Base):

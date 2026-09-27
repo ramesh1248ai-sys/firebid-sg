@@ -501,6 +501,23 @@
         "title": "BidUpdate",
         "type": "object"
       },
+      "Body_upload_bids__bid_id__documents_post": {
+        "properties": {
+          "files": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "Body_upload_bids__bid_id__documents_post",
+        "type": "object"
+      },
       "BreakerOut": {
         "properties": {
           "consecutive_failures": {
@@ -568,6 +585,132 @@
           "ok"
         ],
         "title": "CheckResult",
+        "type": "object"
+      },
+      "CompleteRequest": {
+        "properties": {
+          "filename": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Filename",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "storage_key": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Storage Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename",
+          "storage_key",
+          "sha256"
+        ],
+        "title": "CompleteRequest",
+        "type": "object"
+      },
+      "DocumentOut": {
+        "properties": {
+          "byte_size": {
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "media_type": {
+            "title": "Media Type",
+            "type": "string"
+          },
+          "rejected_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected Reason"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "media_type",
+          "kind",
+          "sha256",
+          "byte_size",
+          "state"
+        ],
+        "title": "DocumentOut",
+        "type": "object"
+      },
+      "FailedDocument": {
+        "properties": {
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "state",
+          "reason"
+        ],
+        "title": "FailedDocument",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -702,6 +845,113 @@
         "title": "ModelOut",
         "type": "object"
       },
+      "PresignOut": {
+        "properties": {
+          "already_uploaded": {
+            "default": false,
+            "title": "Already Uploaded",
+            "type": "boolean"
+          },
+          "expires_in": {
+            "default": 3600,
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "storage_key": {
+            "title": "Storage Key",
+            "type": "string"
+          },
+          "upload_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upload Url"
+          }
+        },
+        "required": [
+          "filename",
+          "storage_key",
+          "upload_url"
+        ],
+        "title": "PresignOut",
+        "type": "object"
+      },
+      "PresignRequest": {
+        "properties": {
+          "byte_size": {
+            "exclusiveMinimum": 0.0,
+            "title": "Byte Size",
+            "type": "integer"
+          },
+          "filename": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Filename",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename",
+          "byte_size",
+          "sha256"
+        ],
+        "title": "PresignRequest",
+        "type": "object"
+      },
+      "Progress": {
+        "description": "Where a bid's documents have got to. The counts always sum to `total`.",
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "failures": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FailedDocument"
+            },
+            "title": "Failures",
+            "type": "array"
+          },
+          "finished": {
+            "title": "Finished",
+            "type": "boolean"
+          },
+          "sheets": {
+            "title": "Sheets",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "counts",
+          "sheets",
+          "finished"
+        ],
+        "title": "Progress",
+        "type": "object"
+      },
       "ProviderOut": {
         "properties": {
           "approved_data_classes": {
@@ -765,6 +1015,24 @@
           "no_training"
         ],
         "title": "ProviderOut",
+        "type": "object"
+      },
+      "RefusedOut": {
+        "properties": {
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename",
+          "reason"
+        ],
+        "title": "RefusedOut",
         "type": "object"
       },
       "Role": {
@@ -875,6 +1143,292 @@
           "routes"
         ],
         "title": "RoutingOut",
+        "type": "object"
+      },
+      "SheetDetail": {
+        "properties": {
+          "base_height_px": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Height Px"
+          },
+          "base_width_px": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Width Px"
+          },
+          "content_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Class"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "filename": {
+            "default": "",
+            "title": "Filename",
+            "type": "string"
+          },
+          "has_thumbnail": {
+            "default": false,
+            "title": "Has Thumbnail",
+            "type": "boolean"
+          },
+          "height_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Mm"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "index_in_document": {
+            "title": "Index In Document",
+            "type": "integer"
+          },
+          "layout_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Layout Name"
+          },
+          "max_level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Level"
+          },
+          "quality_detail": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Detail"
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref"
+          },
+          "tile_source": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tile Source"
+          },
+          "width_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width Mm"
+          }
+        },
+        "required": [
+          "id",
+          "document_id",
+          "index_in_document",
+          "layout_name",
+          "width_mm",
+          "height_mm",
+          "content_class",
+          "max_level",
+          "base_width_px",
+          "base_height_px"
+        ],
+        "title": "SheetDetail",
+        "type": "object"
+      },
+      "SheetOut": {
+        "properties": {
+          "base_height_px": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Height Px"
+          },
+          "base_width_px": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Width Px"
+          },
+          "content_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Class"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "filename": {
+            "default": "",
+            "title": "Filename",
+            "type": "string"
+          },
+          "has_thumbnail": {
+            "default": false,
+            "title": "Has Thumbnail",
+            "type": "boolean"
+          },
+          "height_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Mm"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "index_in_document": {
+            "title": "Index In Document",
+            "type": "integer"
+          },
+          "layout_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Layout Name"
+          },
+          "max_level": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Level"
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref"
+          },
+          "width_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width Mm"
+          }
+        },
+        "required": [
+          "id",
+          "document_id",
+          "index_in_document",
+          "layout_name",
+          "width_mm",
+          "height_mm",
+          "content_class",
+          "max_level",
+          "base_width_px",
+          "base_height_px"
+        ],
+        "title": "SheetOut",
         "type": "object"
       },
       "SpendRow": {
@@ -1055,6 +1609,58 @@
           "target"
         ],
         "title": "TransitionIn",
+        "type": "object"
+      },
+      "UploadReport": {
+        "description": "Every file, accounted for. `accounted_for` should equal what the client sent.",
+        "properties": {
+          "accounted_for": {
+            "default": 0,
+            "title": "Accounted For",
+            "type": "integer"
+          },
+          "awaiting_scan": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RefusedOut"
+            },
+            "title": "Awaiting Scan",
+            "type": "array"
+          },
+          "duplicates": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DocumentOut"
+            },
+            "title": "Duplicates",
+            "type": "array"
+          },
+          "quarantined": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RefusedOut"
+            },
+            "title": "Quarantined",
+            "type": "array"
+          },
+          "rejected": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RefusedOut"
+            },
+            "title": "Rejected",
+            "type": "array"
+          },
+          "stored": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DocumentOut"
+            },
+            "title": "Stored",
+            "type": "array"
+          }
+        },
+        "title": "UploadReport",
         "type": "object"
       },
       "ValidationError": {
@@ -1834,6 +2440,420 @@
         ]
       }
     },
+    "/bids/{bid_id}/documents": {
+      "get": {
+        "description": "Everything on this bid, including what was refused \u2014 the refusals are the point.",
+        "operationId": "list_documents_bids__bid_id__documents_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentOut"
+                  },
+                  "title": "Response List Documents Bids  Bid Id  Documents Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Documents",
+        "tags": [
+          "documents"
+        ]
+      },
+      "post": {
+        "description": "Upload one or more files, or one archive holding a whole set.",
+        "operationId": "upload_bids__bid_id__documents_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_bids__bid_id__documents_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upload",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/bids/{bid_id}/documents/rescan": {
+      "post": {
+        "description": "Retry the files an outage held, and queue the released ones to be read.\n\nSafe to call repeatedly: a file is released once, so it is queued once.",
+        "operationId": "rescan_bids__bid_id__documents_rescan_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Rescan Bids  Bid Id  Documents Rescan Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rescan",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/bids/{bid_id}/documents/uploads": {
+      "post": {
+        "description": "Ask for somewhere to put each file. A digest already on this bid needs no upload.",
+        "operationId": "presign_bids__bid_id__documents_uploads_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/PresignRequest"
+                },
+                "title": "Body",
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PresignOut"
+                  },
+                  "title": "Response Presign Bids  Bid Id  Documents Uploads Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Presign",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/bids/{bid_id}/documents/uploads/complete": {
+      "post": {
+        "description": "Register bytes that went straight to object storage.\n\nThe digest is recomputed here rather than trusted: the browser computed the one it sent,\nand this is the point where the file stops being the client's word and becomes ours.",
+        "operationId": "complete_bids__bid_id__documents_uploads_complete_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/CompleteRequest"
+                },
+                "title": "Body",
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Complete",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/bids/{bid_id}/documents/{document_id}": {
+      "get": {
+        "operationId": "get_document_bids__bid_id__documents__document_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Document",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/bids/{bid_id}/documents/{document_id}/content": {
+      "get": {
+        "description": "A short-lived link to the original.\n\nA quarantined file is never handed out: the whole point of quarantine is that nothing\ndownstream \u2014 including a browser \u2014 opens it.",
+        "operationId": "download_bids__bid_id__documents__document_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Download Bids  Bid Id  Documents  Document Id  Content Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
     "/bids/{bid_id}/members": {
       "get": {
         "operationId": "list_members_bids__bid_id__members_get",
@@ -1939,6 +2959,376 @@
         "summary": "Add Member",
         "tags": [
           "bids"
+        ]
+      }
+    },
+    "/bids/{bid_id}/progress": {
+      "get": {
+        "description": "Where this bid's documents have got to, once.",
+        "operationId": "progress_bids__bid_id__progress_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Progress"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Progress",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/bids/{bid_id}/progress/stream": {
+      "get": {
+        "description": "The same thing, as it changes. Sends an event only when something has moved.",
+        "operationId": "progress_stream_bids__bid_id__progress_stream_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Progress Stream",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/bids/{bid_id}/sheets": {
+      "get": {
+        "description": "Every sheet on the bid, or just one document's, in the order they appear in the file.",
+        "operationId": "list_sheets_bids__bid_id__sheets_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "document_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SheetOut"
+                  },
+                  "title": "Response List Sheets Bids  Bid Id  Sheets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Sheets",
+        "tags": [
+          "sheets"
+        ]
+      }
+    },
+    "/bids/{bid_id}/sheets/{sheet_id}": {
+      "get": {
+        "operationId": "get_sheet_bids__bid_id__sheets__sheet_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SheetDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Sheet",
+        "tags": [
+          "sheets"
+        ]
+      }
+    },
+    "/bids/{bid_id}/sheets/{sheet_id}/thumbnail.webp": {
+      "get": {
+        "operationId": "thumbnail_bids__bid_id__sheets__sheet_id__thumbnail_webp_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Thumbnail",
+        "tags": [
+          "sheets"
+        ]
+      }
+    },
+    "/bids/{bid_id}/sheets/{sheet_id}/tiles/{level}/{column}_{row}.webp": {
+      "get": {
+        "description": "One tile. Served from the cache, or rendered in the sandbox on first request.\n\nA level that was pre-rendered is always a cache read. A close-up level is rendered here\nthe first time anyone looks at that part of the sheet, and cached for everyone after.",
+        "operationId": "tile_bids__bid_id__sheets__sheet_id__tiles__level___column___row__webp_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "level",
+            "required": true,
+            "schema": {
+              "maximum": 32,
+              "minimum": 0,
+              "title": "Level",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "column",
+            "required": true,
+            "schema": {
+              "maximum": 100000,
+              "minimum": 0,
+              "title": "Column",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "row",
+            "required": true,
+            "schema": {
+              "maximum": 100000,
+              "minimum": 0,
+              "title": "Row",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Tile",
+        "tags": [
+          "sheets"
         ]
       }
     },

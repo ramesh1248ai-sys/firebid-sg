@@ -47,6 +47,54 @@ Rows marked **Phase 1+** are not built yet; they name the step that will build t
 | Cross-origin requests are refused unless an origin is configured; the app and API share an origin | `backend/src/firebid/api/app.py` | 14.5.3 | `test_security_baseline.py::TestCrossOrigin` |
 | TLS terminates at the ingress; **not yet configured** — the local stack is plain HTTP | infrastructure | 9.1.1 | Phase 1, step P1-10 (deployment) |
 
+## Untrusted files
+
+A tender set comes from outside the company and is read by parsers (`pypdfium2`, `ezdxf`,
+Pillow, LibreOffice) that were written to be useful rather than to be attacked. Every one of
+them runs in the sandbox pool, after the malware scan, and never in the API or the ordinary
+worker (guardrail 9).
+
+| Control | Where | ASVS | Evidence |
+|---|---|---|---|
+| Every uploaded file is scanned before any parser opens it; an outage holds files rather than passing them | `backend/src/firebid/ingest/scanning.py` | 12.4.2 | `test_document_ingestion.py` (EICAR quarantined, outage holds) |
+| Type is decided by content signature, never by extension | `backend/src/firebid/ingest/detection.py` | 12.3.3 | `test_detection_and_archives.py::TestDetection` |
+| Archive limits — total size, entry count, nesting depth, per-entry compression ratio — checked against declared sizes before anything is decompressed | `backend/src/firebid/ingest/archives.py` | 12.1.1 | `TestArchiveLimits` |
+| Entry names are neutered, never used as paths | `ingest/archives.py` | 12.3.1 | `test_a_traversing_name_is_neutered_not_obeyed` |
+| XML entity expansion and external entities refused (`defusedxml`) | `backend/src/firebid/sandbox/safety.py` | 5.5.2 | `TestHostileContent` |
+| Image pixel limits (400 Mpx, warning raised as an error) | `sandbox/safety.py` | 12.1.1 | `test_an_oversized_image_is_refused` |
+| Each parse runs in a fresh process with memory, CPU and wall-clock limits; a breach kills the job, never the pool | `backend/src/firebid/sandbox/runner.py` | 12.1.1 | `TestLimits` (each asserts the next job still runs) |
+| The pool container is non-root, `cap_drop: ALL`, `no-new-privileges`, read-only except a `noexec,nosuid` tmpfs scratch | `infra/sandbox/Dockerfile`, `infra/docker-compose.yml` | 14.1.1 | `docker compose config` |
+| **The pool has no route to the internet**: its network is `internal: true`, so it reaches postgres and seaweedfs and nothing else | `infra/docker-compose.yml` | 12.1.1 | verified with a connection attempt from the internal network |
+| A parse child holds no credentials: the platform's environment is stripped before the file is opened | `sandbox/limits.py::drop_environment` | 2.10.4 | `test_a_job_does_not_inherit_the_platform_credentials` |
+| Which walls actually stood is probed at startup and reported by `/health` | `sandbox/probe.py`, `api/checks.py` | 7.1.1 | `parser_sandbox` health check |
+
+### What the per-job network wall is, and is not
+
+Each parse child asks the kernel for its own empty network namespace
+(`unshare(CLONE_NEWUSER | CLONE_NEWNET)`, with an identity uid map so the job keeps access to
+its scratch). Where that is granted, the job genuinely has no network.
+
+**Under Docker's default seccomp profile it is not granted** — `unshare` returns `EPERM` — so
+in the local stack, and in any deployment using that profile, the per-job namespace does not
+engage and the fallback is Python's socket layer being blocked. That fallback stops a parser
+*using Python* to reach the network; it does not stop a C extension calling `connect(2)`
+directly. This was measured, not assumed: a `ctypes` call to `connect(2)` from inside the
+sandbox reached the network on a container with a default profile.
+
+The wall that holds in every configuration is therefore the container's: the pool sits on an
+`internal` Docker network with no gateway, so there is no route off it whatever a parser
+does. The namespace is defence in depth on top of that, and `/health` reports whether it is
+actually in force rather than assuming it.
+
+Two ways to gain the stronger per-job wall, neither taken yet:
+
+1. `security_opt: [seccomp=<profile>]` with Docker's default profile plus `unshare`. Targeted,
+   at the cost of vendoring and maintaining a copy of that profile.
+2. `seccomp=unconfined` with `cap_drop: ALL`, which permits `unshare` at the cost of the
+   default syscall filter.
+
+Open item 7 below tracks the decision.
+
 ## Availability
 
 | Control | Where | ASVS | Evidence |
@@ -92,4 +140,5 @@ These are known gaps, not oversights. Each names where it is closed.
 3. **Dependency scanning** — Renovate keeps versions current but does not fail a build on a known vulnerability (P1-10).
 4. **Retention and deletion** — PDPA retention is Phase 3 (P3-05).
 5. **Provider data terms** — decision D2 must record what each LLM provider may retain before any confidential data class is routed to it.
-6. **`main` is not protected server-side.** GitHub refuses branch protection and rulesets on a private repository on the Free plan. `.githooks/pre-push` refuses a direct push to `main` so work goes through a pull request, but it is client-side and `--no-verify` bypasses it. Enforcement needs GitHub Pro; until then, treat a green PR as a convention rather than a gate.
+6. **The per-job network namespace does not engage under Docker's default seccomp profile.** The pool's `internal` network is the wall that holds; the namespace is defence in depth and is currently inert locally. Closing it means choosing between a vendored seccomp profile and `seccomp=unconfined`, which is a security trade-off rather than a bug, and is decided in P1-10 (deployment). `/health` reports which walls are actually in force.
+7. **`main` is not protected server-side.** GitHub refuses branch protection and rulesets on a private repository on the Free plan. `.githooks/pre-push` refuses a direct push to `main` so work goes through a pull request, but it is client-side and `--no-verify` bypasses it. Enforcement needs GitHub Pro; until then, treat a green PR as a convention rather than a gate.

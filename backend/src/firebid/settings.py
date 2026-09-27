@@ -49,6 +49,15 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 200 * 1024 * 1024
     rate_limit_per_minute: int = 300
 
+    # Malware scanning. Every uploaded file is scanned before any parser opens it; an
+    # outage holds files rather than letting them through (guardrail 9).
+    clamav_host: str = "clamav"
+    clamav_port: int = 3310
+
+    # DWG conversion. Empty until ADR-003 records a converter licence, which is why DWG
+    # files are recorded as awaiting conversion rather than rejected as unreadable.
+    dwg_converter_command: str = ""
+
     # Object storage (SeaweedFS locally, cloud object storage in production).
     s3_bucket: str = "firebid-dev"
     s3_endpoint_url: str = "http://localhost:8333"
