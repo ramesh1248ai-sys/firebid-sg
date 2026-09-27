@@ -207,6 +207,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/detections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Detections */
+        get: operations["list_detections_bids__bid_id__detections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/detections/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Detection Again
+         * @description Queue detection of every sheet again, as confirming a mapping does.
+         */
+        post: operations["run_detection_again_bids__bid_id__detections_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/document-revisions/{revision_id}/identify": {
         parameters: {
             query?: never;
@@ -1461,6 +1498,64 @@ export interface components {
              */
             object_type?: string | null;
         };
+        /** DetectionOut */
+        DetectionOut: {
+            /** Attributes */
+            attributes: {
+                [key: string]: unknown;
+            };
+            /** Calibration Version */
+            calibration_version: string | null;
+            /** Confidence */
+            confidence: number | null;
+            /** Evidence */
+            evidence: {
+                [key: string]: unknown;
+            };
+            /** Gaps */
+            gaps: {
+                [key: string]: string;
+            };
+            /** Grid Reference */
+            grid_reference: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Level */
+            level: string | null;
+            /** Method */
+            method: string;
+            /** Object Type */
+            object_type: string;
+            /** Orientation */
+            orientation: number | null;
+            /** Position */
+            position: {
+                [key: string]: unknown;
+            } | null;
+            /** Raw Confidence */
+            raw_confidence: number | null;
+            /**
+             * Sheet Id
+             * Format: uuid
+             */
+            sheet_id: string;
+            /** State */
+            state: string;
+            /** View Id */
+            view_id: string | null;
+        };
+        /** DetectionsOut */
+        DetectionsOut: {
+            /** Objects */
+            objects: components["schemas"]["DetectionOut"][];
+            /** Runs */
+            runs: components["schemas"]["PipeRunOut"][];
+        };
         /**
          * DocType
          * @enum {string}
@@ -1823,6 +1918,51 @@ export interface components {
             measure: string;
             /** Version */
             version: number;
+        };
+        /** PipeRunOut */
+        PipeRunOut: {
+            /** Confidence */
+            confidence: number;
+            /** Gaps */
+            gaps: {
+                [key: string]: string;
+            };
+            /** Grid Reference */
+            grid_reference: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Labels */
+            labels: {
+                [key: string]: unknown;
+            }[];
+            /** Length Mm */
+            length_mm: number | null;
+            /** Level */
+            level: string | null;
+            /** Nominal Dn */
+            nominal_dn: number | null;
+            /** Paper Length Mm */
+            paper_length_mm: number;
+            /** Points */
+            points: number[][];
+            /** Run Class */
+            run_class: string;
+            /**
+             * Sheet Id
+             * Format: uuid
+             */
+            sheet_id: string;
+            /** Size Reason */
+            size_reason: string | null;
+            /** Size Status */
+            size_status: string;
+            /** State */
+            state: string;
+            /** View Id */
+            view_id: string | null;
         };
         /** PresignOut */
         PresignOut: {
@@ -2667,6 +2807,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AffectedItemOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_detections_bids__bid_id__detections_get: {
+        parameters: {
+            query?: {
+                sheet_id?: string | null;
+            };
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectionsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_detection_again_bids__bid_id__detections_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
             /** @description Validation Error */
