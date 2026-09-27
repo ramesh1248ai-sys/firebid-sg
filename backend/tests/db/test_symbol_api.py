@@ -215,18 +215,17 @@ class TestTheLibraryApi:
 def as_app(as_application_role: None) -> Callable[[Principal], Any]:
     """The API as it runs live: the application's database role, under row-level security,
     with the caller's identity set on the transaction exactly as `get_principal` sets it."""
-    from fastapi import Depends
     from fastapi.testclient import TestClient
 
     from firebid.api.app import create_app
-    from firebid.api.deps import get_principal, get_session
+    from firebid.api.deps import SESSION, get_principal
     from firebid.db.identity import set_transaction_identity
     from firebid.settings import Settings
 
     application = create_app(Settings(env="test"), health_checks={})
 
     def client(principal: Principal) -> TestClient:
-        def signed_in(session: Session = Depends(get_session)) -> Principal:  # noqa: B008
+        def signed_in(session: Session = SESSION) -> Principal:
             set_transaction_identity(session, principal.user_id)
             return principal
 

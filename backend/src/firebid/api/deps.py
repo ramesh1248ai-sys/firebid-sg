@@ -32,13 +32,21 @@ def get_session() -> Iterator[Session]:
         yield session
 
 
+# Function scope: the session commits when the endpoint returns, *before* the response is
+# sent. With FastAPI's default (request) scope a yield dependency's teardown runs after the
+# response has gone, so a client told "201 Created" could ask for the new row before it was
+# committed and be told it does not exist (found by an end-to-end run on PR #18). Every
+# dependant uses this one object, so a request still has exactly one session.
+SESSION = Depends(get_session, scope="function")
+
+
 def settings_dep() -> Settings:
     return get_settings()
 
 
 def get_principal(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
-    session: Annotated[Session, Depends(get_session)],
+    session: Annotated[Session, SESSION],
     settings: Annotated[Settings, Depends(settings_dep)],
 ) -> Principal:
     """Verify the token, provision the person, and set the acting user on this transaction."""
@@ -57,7 +65,7 @@ def get_principal(
 
 
 CurrentPrincipal = Annotated[Principal, Depends(get_principal)]
-DbSession = Annotated[Session, Depends(get_session)]
+DbSession = Annotated[Session, SESSION]
 
 
 def require(action: Action) -> Any:
