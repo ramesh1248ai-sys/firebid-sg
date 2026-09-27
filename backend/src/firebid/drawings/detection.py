@@ -136,15 +136,58 @@ def symbol_score(symbol: Placed, on_network: bool) -> tuple[float, dict[str, flo
     }
 
 
-def run_score(size: pipe_sizes.RunSize) -> tuple[float, dict[str, float | str | bool]]:
+def run_score(
+    size: pipe_sizes.RunSize, consistency: float = 1.0
+) -> tuple[float, dict[str, float | str | bool]]:
+    """A run's raw confidence: how its size was found, times how well it fits its network."""
     best = max((label.confidence for label in size.labels), default=0.0)
+    # A size carried along its size group rests on the same annotation as the run it was
+    # written on, so both score by that annotation; a doubtful one is caught by consistency.
     score = {
         "labelled": 0.6 + 0.4 * best,
-        "propagated": 0.85,
+        "propagated": 0.6 + 0.4 * best,
         "conflict": 0.15,
         "unknown": 0.25,
     }[size.status]
-    return round(score, 4), {"size_status": size.status, "label_confidence": round(best, 3)}
+    return round(score * consistency, 4), {
+        "size_status": size.status,
+        "label_confidence": round(best, 3),
+        "topology_consistency": round(consistency, 3),
+    }
+
+
+def consistency(network: Network, sizes: dict[int, pipe_sizes.RunSize]) -> dict[int, float]:
+    """How plausible each branch's size is beside the rest of the network.
+
+    Two checks a person makes at a glance: a branch sized unlike most of its sibling
+    branches is suspect (often a mistyped label), and a branch bigger than the main that
+    feeds it is almost certainly wrong. Mains are not checked this way: 1.0.
+    """
+    branches = [run for run in network.runs if run.sprinklers and sizes[run.id].dn]
+    sized = [sizes[run.id].dn for run in branches]
+    majority = max(set(sized), key=sized.count) if len(sized) >= 3 else None
+    feeding: dict[int, int | None] = {}
+    for run in branches:
+        feeding[run.id] = None
+        for end in (run.nodes[0], run.nodes[-1]):
+            for other in network.runs:
+                if (
+                    other.id != run.id
+                    and not other.sprinklers
+                    and end in (other.nodes[0], other.nodes[-1])
+                ):
+                    feeding[run.id] = sizes[other.id].dn
+    result = {run.id: 1.0 for run in network.runs}
+    for run in branches:
+        dn = sizes[run.id].dn
+        factor = 1.0
+        if majority is not None and dn != majority and sized.count(majority) > len(sized) / 2:
+            factor *= 0.65
+        main = feeding.get(run.id)
+        if main is not None and dn is not None and dn > main:
+            factor *= 0.5
+        result[run.id] = factor
+    return result
 
 
 def detect(
@@ -171,6 +214,7 @@ def detect(
         and str(placed[index].attributes.get("fitting", "reducer")) == "reducer"
     }
     sizes = pipe_sizes.assign(network, labels, reducers)
+    fits = consistency(network, sizes)
 
     run_of_sprinkler: dict[int, int] = {}
     for run in network.runs:
@@ -217,7 +261,9 @@ def detect(
         if symbol.category == "sprinkler" and on_network:
             run_id = run_of_sprinkler.get(index)
             size = sizes.get(run_id) if run_id is not None else None
-            run_raw = run_score(size)[0] if size else 0.25
+            run_raw = (
+                run_score(size, fits.get(run_id, 1.0))[0] if size and run_id is not None else 0.25
+            )
             objects.append(
                 Detected(
                     kind="drop",
@@ -248,7 +294,7 @@ def detect(
         middle = _middle(network, run)
         view, grid_reference = _where(views, *middle)
         paper = run.length(network)
-        raw, features = run_score(size)
+        raw, features = run_score(size, fits[run.id])
         runs.append(
             DetectedRun(
                 run_id=run.id,
