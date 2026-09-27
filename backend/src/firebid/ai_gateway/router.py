@@ -39,7 +39,7 @@ from firebid.ai_gateway.errors import (
     OutputInvalid,
     ProviderError,
 )
-from firebid.ai_gateway.metering import CallContext, Meter, NullMeter
+from firebid.ai_gateway.metering import CallContext, Meter, NullMeter, current_context
 from firebid.ai_gateway.prompts import family_of, prompt_for
 from firebid.ai_gateway.providers.base import Adapter
 from firebid.ai_gateway.ratelimit import NullRateLimiter, RateLimiter
@@ -100,7 +100,7 @@ class Router:
         """`regenerate` bypasses the cache: the caller wants a fresh answer, and will pay."""
         route = self.config.route(route_name)
         request = _apply_route_defaults(request, route.max_output_tokens, route.reasoning)
-        context = context or CallContext()
+        context = context or current_context() or CallContext()
         # Budgets are checked before a provider is called, not after the money is spent.
         self.meter.check(context)
 

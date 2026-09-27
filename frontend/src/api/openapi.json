@@ -143,6 +143,32 @@
         "title": "AffectedItemOut",
         "type": "object"
       },
+      "AnswerOut": {
+        "properties": {
+          "attribute": {
+            "title": "Attribute",
+            "type": "string"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/CitationOut"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attribute",
+          "value",
+          "citations"
+        ],
+        "title": "AnswerOut",
+        "type": "object"
+      },
       "AuditEventOut": {
         "properties": {
           "action": {
@@ -816,6 +842,140 @@
         "title": "CheckResult",
         "type": "object"
       },
+      "CitationOut": {
+        "properties": {
+          "anchor": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Anchor",
+            "type": "object"
+          },
+          "clause": {
+            "title": "Clause",
+            "type": "string"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_revision_id": {
+            "format": "uuid",
+            "title": "Document Revision Id",
+            "type": "string"
+          },
+          "quote": {
+            "title": "Quote",
+            "type": "string"
+          },
+          "revision_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Label"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "document_id",
+          "document_revision_id",
+          "title",
+          "revision_label",
+          "clause",
+          "anchor",
+          "quote"
+        ],
+        "title": "CitationOut",
+        "type": "object"
+      },
+      "ClauseOut": {
+        "properties": {
+          "anchor": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Anchor",
+            "type": "object"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Title"
+          },
+          "heading": {
+            "title": "Heading",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "revision_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Label"
+          },
+          "system": {
+            "title": "System",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "heading",
+          "text",
+          "anchor",
+          "system",
+          "document_id",
+          "document_title",
+          "revision_label"
+        ],
+        "title": "ClauseOut",
+        "type": "object"
+      },
       "CompleteRequest": {
         "properties": {
           "filename": {
@@ -996,6 +1156,98 @@
           "not_objects"
         ],
         "title": "CountsOut",
+        "type": "object"
+      },
+      "DecisionIn": {
+        "properties": {
+          "clause_number": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clause Number"
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition"
+          },
+          "dn_max": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dn Max"
+          },
+          "dn_min": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dn Min"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "verdict": {
+            "enum": [
+              "confirm",
+              "edit",
+              "reject"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "verdict"
+        ],
+        "title": "DecisionIn",
         "type": "object"
       },
       "DecisionRequest": {
@@ -3316,6 +3568,194 @@
           "base_height_px"
         ],
         "title": "SheetOut",
+        "type": "object"
+      },
+      "SpecAttributeOut": {
+        "properties": {
+          "attribute": {
+            "title": "Attribute",
+            "type": "string"
+          },
+          "citation_ok": {
+            "title": "Citation Ok",
+            "type": "boolean"
+          },
+          "citation_reason": {
+            "title": "Citation Reason",
+            "type": "string"
+          },
+          "clause_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clause Id"
+          },
+          "clause_number": {
+            "title": "Clause Number",
+            "type": "string"
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "dn_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dn Max"
+          },
+          "dn_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dn Min"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "document_revision_id": {
+            "format": "uuid",
+            "title": "Document Revision Id",
+            "type": "string"
+          },
+          "document_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Title"
+          },
+          "lineage_id": {
+            "format": "uuid",
+            "title": "Lineage Id",
+            "type": "string"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "quote": {
+            "title": "Quote",
+            "type": "string"
+          },
+          "revision_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Label"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "system": {
+            "title": "System",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          },
+          "verified_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified By"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "lineage_id",
+          "version",
+          "system",
+          "attribute",
+          "value",
+          "dn_min",
+          "dn_max",
+          "condition",
+          "state",
+          "method",
+          "confidence",
+          "citation_ok",
+          "citation_reason",
+          "clause_id",
+          "clause_number",
+          "quote",
+          "document_id",
+          "document_revision_id",
+          "document_title",
+          "revision_label",
+          "verified_by"
+        ],
+        "title": "SpecAttributeOut",
         "type": "object"
       },
       "SpendRow": {
@@ -6920,6 +7360,283 @@
         "summary": "Measure On View",
         "tags": [
           "views"
+        ]
+      }
+    },
+    "/bids/{bid_id}/spec/attributes": {
+      "get": {
+        "description": "Every attribute's latest version: flagged citations and doubtful ones first.",
+        "operationId": "list_attributes_bids__bid_id__spec_attributes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SpecAttributeOut"
+                  },
+                  "title": "Response List Attributes Bids  Bid Id  Spec Attributes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Attributes",
+        "tags": [
+          "specification"
+        ]
+      }
+    },
+    "/bids/{bid_id}/spec/attributes/{lineage_id}/decide": {
+      "post": {
+        "operationId": "decide_bids__bid_id__spec_attributes__lineage_id__decide_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lineage_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lineage Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecAttributeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decide",
+        "tags": [
+          "specification"
+        ]
+      }
+    },
+    "/bids/{bid_id}/spec/clauses/{clause_id}": {
+      "get": {
+        "operationId": "get_clause_bids__bid_id__spec_clauses__clause_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "clause_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Clause Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClauseOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Clause",
+        "tags": [
+          "specification"
+        ]
+      }
+    },
+    "/bids/{bid_id}/spec/for": {
+      "get": {
+        "description": "What takeoff reads for one system and size: verified values or \"not specified\".",
+        "operationId": "attributes_for_bids__bid_id__spec_for_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "system",
+            "required": true,
+            "schema": {
+              "maxLength": 24,
+              "title": "System",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dn",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dn"
+            }
+          },
+          {
+            "in": "query",
+            "name": "condition",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Condition"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AnswerOut"
+                  },
+                  "title": "Response Attributes For Bids  Bid Id  Spec For Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Attributes For",
+        "tags": [
+          "specification"
         ]
       }
     },

@@ -406,3 +406,42 @@ class TestErrorsAreClassifiedForTheRouter:
             with pytest.raises(expected) as caught:
                 adapter.generate(request(), MODEL)
             assert caught.value.retryable is retryable
+
+
+CACHED = request(
+    messages=(
+        Message(
+            role="user",
+            parts=(
+                TextPart("A long specification that later calls repeat.", cache=True),
+                TextPart("What joining method is specified for DN 50?"),
+            ),
+        ),
+    )
+)
+
+
+@pytest.mark.req("FR-SPEC-01")
+class TestTheCacheHint:
+    def test_anthropic_marks_the_cached_prefix(self) -> None:
+        stub = StubAnthropic()
+        anthropic_adapter(stub).generate(CACHED, MODEL)
+
+        [message] = stub.captured["messages"]
+        first, second = message["content"]
+        assert first["cache_control"] == {"type": "ephemeral"}
+        assert "cache_control" not in second
+
+    @pytest.mark.parametrize(
+        ("stub_class", "build"),
+        [ADAPTERS[1], ADAPTERS[2]],
+    )
+    def test_other_providers_ignore_it_and_answer_the_same(
+        self, stub_class: type, build: Any
+    ) -> None:
+        stub = stub_class()
+
+        response = build(stub).generate(CACHED, MODEL)
+
+        assert response.text == "ok"
+        assert "cache_control" not in str(stub.captured)

@@ -12,7 +12,9 @@ would drift, and this figure ends up in front of a commercial director.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -52,6 +54,25 @@ class CallContext:
     run_id: uuid.UUID | None = None
     run_budget_sgd: Decimal | None = None
     owner_email: str | None = None
+
+
+# The call context of the agent run in progress, set by the agent runtime around an agent's
+# work so the gateway attributes every call it makes to that run and its bid without each
+# agent having to pass it along (a call made outside any run has none).
+_CURRENT: ContextVar[CallContext | None] = ContextVar("firebid_call_context", default=None)
+
+
+@contextmanager
+def calling_as(context: CallContext) -> Iterator[None]:
+    token = _CURRENT.set(context)
+    try:
+        yield
+    finally:
+        _CURRENT.reset(token)
+
+
+def current_context() -> CallContext | None:
+    return _CURRENT.get()
 
 
 def cost_of(model: ModelConfig, usage: Usage, on: date | None = None) -> Decimal:

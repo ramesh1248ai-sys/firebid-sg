@@ -224,6 +224,64 @@ def classify_with_vision_job(
         return found.object_type if found else "none"
 
 
+@app.task(name="spec.read", queue="parse", pass_context=True)
+def read_specification_job(context: JobContext, document_id: str, user_id: str) -> int:
+    """A specification's clause tree and rule attributes (FR-SPEC-01, 05).
+
+    In the sandbox pool: it opens the tender file. Model work it cannot do is queued on.
+    """
+    import uuid as uuid_module
+
+    from firebid.db.identity import acting_as
+    from firebid.db.models.documents import Document
+    from firebid.services.specs import read_specification
+    from firebid.storage.object_store import get_object_store
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        document = session.get(Document, uuid_module.UUID(document_id))
+        if document is None:
+            return 0
+        revision = read_specification(session, get_object_store(), document, user_id=user_id)
+        return 1 if revision is not None else 0
+
+
+@app.task(name="spec.sections", queue="default", pass_context=True)
+def find_spec_sections_job(context: JobContext, revision_id: str, user_id: str) -> int:
+    """The model places specification sections the heading rules could not."""
+    import uuid as uuid_module
+
+    from firebid.ai_gateway import gateway
+    from firebid.db.identity import acting_as
+    from firebid.services.specs import find_sections_with_model
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        return find_sections_with_model(
+            session, uuid_module.UUID(revision_id), gateway(), user_id=user_id
+        )
+
+
+@app.task(name="spec.attributes", queue="default", pass_context=True)
+def read_spec_attributes_job(
+    context: JobContext, revision_id: str, system: str, clause_numbers: list[str], user_id: str
+) -> int:
+    """The model reads fire protection clauses the rules read nothing from."""
+    import uuid as uuid_module
+
+    from firebid.ai_gateway import gateway
+    from firebid.db.identity import acting_as
+    from firebid.services.specs import read_attributes_with_model
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        return len(
+            read_attributes_with_model(
+                session, uuid_module.UUID(revision_id), system, clause_numbers, gateway()
+            )
+        )
+
+
 @app.task(name="symbol.propose", queue="default", pass_context=True)
 def propose_symbol(context: JobContext, entry_id: str, user_id: str) -> str:
     """Ask the model what a legend row's symbol is, when the keyword rules could not say.

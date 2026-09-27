@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from firebid.agents.base import Agent, AgentInput, AgentResult
 from firebid.ai_gateway.errors import GatewayError, NoModelAvailable
-from firebid.ai_gateway.metering import BudgetExceeded
+from firebid.ai_gateway.metering import BudgetExceeded, CallContext, calling_as
 from firebid.db.models.workflow import AgentRun, HumanTask
 
 log = structlog.get_logger("firebid.agents")
@@ -95,7 +95,10 @@ def run_agent_with_result(
     session.flush()
 
     try:
-        result = agent.run(request)
+        # Every model call the agent makes is attributed to this run and its bid: cost,
+        # tokens and budgets (FR-ADM-05).
+        with calling_as(CallContext(bid_id=request.bid_id, agent=agent.name, run_id=run.id)):
+            result = agent.run(request)
     except BudgetExceeded as error:
         # The meter has already paused the run and told the owner.
         run.state = "escalated"

@@ -59,6 +59,10 @@ class StopReason(StrEnum):
 @dataclass(frozen=True)
 class TextPart:
     text: str
+    # A cache hint: this text is a long, stable prefix (a specification, say) that later
+    # calls will repeat. Adapters whose provider supports prompt caching mark it; others
+    # ignore it, and the call is the same either way.
+    cache: bool = False
 
 
 @dataclass(frozen=True)

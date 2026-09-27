@@ -193,6 +193,7 @@ def register_document(session: Session, document: Document) -> DocumentRevision 
     ).scalar_one_or_none()
     if existing is not None:
         existing.doc_type = document.doc_type
+        _read_if_specification(session, document)
         return existing
 
     digest = cast(dict[str, Any], (document.classification or {}).get("digest") or {})
@@ -220,4 +221,13 @@ def register_document(session: Session, document: Document) -> DocumentRevision 
         revision_task(session, revision, "document_identity", "Say what this document is.")
     else:
         settle_document(session, revision)
+    _read_if_specification(session, document)
     return revision
+
+
+def _read_if_specification(session: Session, document: Document) -> None:
+    """A specification is read for its attributes once registered (P1-06)."""
+    from firebid.services.specs import queue_reading
+
+    session.flush()
+    queue_reading(session, document)

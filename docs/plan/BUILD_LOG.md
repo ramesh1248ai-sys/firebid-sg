@@ -705,3 +705,77 @@ Entry template:
   - **Schematics are not read for riser heights,** and **attributes on plan tags** (such as K-factor labels beside heads) are not associated with detections. Both go to P1-07 and P1-08 as needed.
   - **No workbench UI for detections yet.** That is P1-08; the API is ready.
   - Printing a report containing "≥" fails on a Windows console (cp1252) for every suite. Use `--report` there. The Dev Container and CI are unaffected.
+
+## P1-06 · Specification Attribute Extraction · 2026-09-28
+
+- **Summary:** each fire protection specification becomes a clause tree, and the attributes takeoff needs are read from it, each citing its clause:
+  - pipe material, standard and class or schedule, by system and DN range;
+  - joining method by DN range;
+  - sprinkler type, response, K-factor, temperature and finish;
+  - approved makes.
+
+  Rules read the common phrasings; the model is asked only for what the rules can't place or read. Every citation is checked against its clause's words, and one that doesn't hold up is downgraded and flagged. A person confirms, edits or rejects each attribute. Takeoff reads verified values only, and "not specified" otherwise.
+
+  Built in parts A to F, each committed separately.
+- **Key modules / files:**
+  - `backend/src/firebid/specs/`:
+    - `clauses.py`: DOCX by heading styles and numbered paragraphs, PDF by numbering and font; anchors by paragraph or page and line.
+    - `sections.py`: heading rules into systems, other trades, or unknown.
+    - `attributes.py`: rule extraction with size ranges and place conditions.
+    - `citations.py`: the deterministic check.
+  - `backend/src/firebid/agents/spec_reader.py`: `spec_attribute_extractor` and `spec_section_finder`.
+    - Routes `spec_attribute_extract` and `spec_section_find` in `llm.yaml` (structured output, confidential).
+    - Prompts `v1`.
+  - Gateway: `TextPart.cache`, the cache hint. The Anthropic adapter sends `cache_control`; OpenAI and Google ignore it.
+  - `backend/src/firebid/services/specs.py`: reading, model steps, decisions, and `attributes_for` (the query P1-07 reads).
+  - Jobs:
+    - `spec.read`: sandbox pool, queued by `register_document` for every specification, whichever way its type was decided.
+    - `spec.sections` and `spec.attributes`: ordinary worker.
+  - `backend/src/firebid/api/specs.py`: attributes, clause text, decide (`document.review`), and the takeoff view `GET …/spec/for`.
+  - `frontend/src/pages/SpecificationPage.tsx`: each attribute's clause opens beside it, with the cited words marked.
+  - Migration `0022`: `spec_clause` and `spec_attribute`, both under RLS.
+  - `backend/src/firebid/evals/synthetic_spec.py`: the fixture, DOCX and PDF, with 29 known attributes and one contradiction clause for P2-03.
+- **How to run and demo:**
+  1. `make up`, then upload a fire protection specification (DOCX or PDF) to a bid.
+  2. Open **Specification**. Click a clause number to see the words each attribute rests on.
+  3. Confirm, edit or reject each attribute.
+  4. `GET /bids/{id}/spec/for?system=sprinkler&dn=80` shows what takeoff will use.
+- **Requirement IDs covered (test names):**
+  - FR-SPEC-01:
+    - `tests/specs/test_extraction.py`, both formats: the clause tree, sections, every attribute and nothing else, DN-range joining, the conditional car-park clause, and size ranges as consultants write them.
+    - `tests/db/test_spec_attributes.py`: classification queues reading; the clause tree and 29 proposals are stored; reading twice changes nothing; nothing is specified until verified; verified attributes follow the DN ranges; conditional attributes apply only where asked; decisions are versioned and edits checked; the takeoff API.
+    - The model call records route, provider, model, prompt version and cost.
+    - `Specification.test.tsx` (confirm).
+    - The cache hint: `tests/ai_gateway/test_adapter_contract.py::TestTheCacheHint`.
+  - FR-SPEC-05:
+    - Every rule citation is supported.
+    - A wrong clause and a missing clause are flagged.
+    - A model answer citing the wrong clause is downgraded to 0.2 and flagged.
+    - Citations carry document, revision, clause, anchor and quote.
+    - The API resolves every citation to its clause text.
+    - `Specification.test.tsx`: the clause panel with the cited words marked, and a failed citation's reason.
+- **Deviations and decisions** (approved in the plan):
+  - **Rules first, then the model.** The model is asked only about sections the heading rules left unknown, and fire protection clauses the rules read nothing from. On the synthetic specification the rules read all 29 attributes, so no model call is needed there. The model path is tested with the fake adapter.
+  - **The cache hint is a flag on text parts.** The specification goes first in every `spec_attribute_extract` call, marked for caching. Only the Anthropic adapter acts on it (OpenAI caches automatically; the Google adapter has no explicit cache yet).
+  - **Tables:**
+    - `spec_clause`, one row per clause per specification revision.
+    - `spec_attribute`, versioned by `lineage_id`. A person's confirmation or edit is a new version, and an edit is re-checked. A person may confirm a value whose citation failed, and the failure stays on record.
+  - **Place-limited clauses become conditions.** "In the basement car park" is kept as a condition, and `attributes_for` applies such an attribute only when asked for that place. The car-park clause, which contradicts the drawings, is kept for P2-03.
+  - **Only Current specifications feed takeoff.** A superseded specification's verified attributes are not returned.
+- **Manual checks and results:**
+  - **Live run through the rebuilt stack.** The synthetic specification was uploaded through the API.
+    - Migration 0022 applied.
+    - The document was classified as a specification by rule and registered Current at revision B.
+    - The worker read all 29 attributes (sprinkler 22, hose reel 4, hydrant 3), with every citation checked.
+    - A clause opened with its paragraph anchor.
+    - The takeoff view said "not specified" until the DN 65 joining rule was confirmed, then "grooved".
+- **Defects found and fixed during the step:**
+  - **No agent run carried its cost, and model calls had no bid** (from P0-04, affecting every agent). Agents never passed a call context to the gateway, so each model call was metered as a separate record with no bid. Per-bid cost and budget alerts (FR-ADM-05) therefore missed agent calls. The agent runtime now sets the run's context around the agent's work, and the router uses it. The test asserts the call lands on the agent's own run, with its bid, and on no other record.
+  - The citation check treated "K80" as one word, so the K-factor 80 was reported unsupported. Letters and digits are now split.
+  - "≤ 50" wasn't read as a size range: a word boundary can't come before a symbol.
+- **Known gaps and follow-ups:**
+  - **Only a synthetic specification has been read.** A real one from the golden set must be checked: numbering styles, tables of pipe schedules, and multi-column PDFs are the likely gaps.
+  - **Tables in specifications** (a pipe schedule set out as a table) are not read yet; only clause text is.
+  - **Approved makes** are stored, not used, until later phases.
+  - **The Google adapter ignores the cache hint.** Explicit context caching there is a follow-up if Gemini becomes the route's model.
+  - **PR #20 (commit before response) is separate** and should be merged; it is not part of this step.

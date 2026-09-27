@@ -115,6 +115,27 @@ routes:
     max_output_tokens: 800
     prompt: symbol_map
 
+  # Reads the attributes takeoff needs from specification clauses the rules could not
+  # (P1-06). Sent the specification's text, so it is confidential; the specification is a
+  # cache-hinted prefix, repeated by every call about it.
+  spec_attribute_extract:
+    requires: [structured_output]
+    data_class: confidential
+    models: [claude-opus-5, gpt-5.1, gemini-3-pro]
+    reasoning: low
+    max_output_tokens: 4000
+    prompt: spec_attribute_extract
+
+  # Says which fire protection system a specification section heading is about, when the
+  # heading rules could not (P1-06). Headings only.
+  spec_section_find:
+    requires: [structured_output]
+    data_class: confidential
+    models: [claude-opus-5, gpt-5.1, gemini-3-pro]
+    reasoning: low
+    max_output_tokens: 1000
+    prompt: spec_section_find
+
   # Everyday internal text work with no tender content in it.
   internal_summary:
     requires: [structured_output]
