@@ -86,7 +86,9 @@ def read_title_blocks(
     revisions = []
     for sheet in sheets:
         try:
-            revisions.append(read_sheet(session, store, document, sheet, payload))
+            revision = read_sheet(session, store, document, sheet, payload)
+            grade(sheet, revision)
+            revisions.append(revision)
         except SandboxFailure as failure:
             log.warning("title_block_unreadable", sheet_id=str(sheet.id), reason=failure.reason)
             revision = SheetRevision(
@@ -100,6 +102,31 @@ def read_title_blocks(
             raise_review(session, revision, f"the title block could not be read: {failure.reason}")
             revisions.append(revision)
     return revisions
+
+
+def grade(sheet: Sheet, revision: SheetRevision) -> None:
+    """Set the sheet's expected accuracy band and manual takeoff flag (FR-DOC-06)."""
+    from firebid.drawings.quality import Measures, assess, scale_state
+
+    detail = dict(sheet.quality_detail or {})
+    dpi = detail.get("image_dpi")
+    ocr = detail.get("ocr_confidence")
+    measures = Measures(
+        content=sheet.content_class or "vector",
+        dpi=float(dpi) if isinstance(dpi, int | float) else None,
+        ocr=float(ocr) if isinstance(ocr, int | float) else None,
+        scale=scale_state(revision.scale_text),
+    )
+    verdict = assess(measures)
+    sheet.quality_band = verdict.band
+    sheet.manual_takeoff_recommended = verdict.manual_takeoff_recommended
+    detail["quality"] = {
+        "band": verdict.band,
+        "reasons": list(verdict.reasons),
+        "expectation": verdict.expectation,
+        "scale": measures.scale,
+    }
+    sheet.quality_detail = detail
 
 
 def read_sheet(

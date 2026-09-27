@@ -271,6 +271,34 @@ describe("the sheet viewer", () => {
     ).toBeInTheDocument();
   });
 
+  // req: FR-DOC-06
+  it("says a poor scan needs a manual takeoff, and why", async () => {
+    stubApi({
+      [`/sheets/${SHEET}`]: () =>
+        Response.json({
+          ...sheet(),
+          tile_source: null,
+          content_class: "raster",
+          quality_band: "low",
+          manual_takeoff_recommended: true,
+          quality_detail: {
+            quality: {
+              expectation: "The source is poor.",
+              reasons: ["a raster sheet", "72 dpi, below 200"],
+            },
+          },
+        }),
+    });
+    renderAt(`/bids/${BID}/sheets/${SHEET}`);
+
+    expect(
+      await screen.findByText(
+        /Low expected accuracy · Manual takeoff recommended/,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/72 dpi, below 200/)).toBeInTheDocument();
+  });
+
   it("says so when the sheet is not finished being read", async () => {
     stubApi({
       [`/sheets/${SHEET}`]: () =>

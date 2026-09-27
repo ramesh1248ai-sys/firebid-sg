@@ -1962,6 +1962,11 @@
             ],
             "title": "Layout Name"
           },
+          "manual_takeoff_recommended": {
+            "default": false,
+            "title": "Manual Takeoff Recommended",
+            "type": "boolean"
+          },
           "max_level": {
             "anyOf": [
               {
@@ -1972,6 +1977,17 @@
               }
             ],
             "title": "Max Level"
+          },
+          "quality_band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Band"
           },
           "quality_detail": {
             "anyOf": [
@@ -2117,6 +2133,11 @@
             ],
             "title": "Layout Name"
           },
+          "manual_takeoff_recommended": {
+            "default": false,
+            "title": "Manual Takeoff Recommended",
+            "type": "boolean"
+          },
           "max_level": {
             "anyOf": [
               {
@@ -2127,6 +2148,17 @@
               }
             ],
             "title": "Max Level"
+          },
+          "quality_band": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Band"
           },
           "source_ref": {
             "anyOf": [

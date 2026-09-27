@@ -45,3 +45,5 @@ eval/truth/
 eval/data/
 eval/results/
 eval/synthetic/
+# Golden-set drawings for a suite that reads files (doc_classification): client documents.
+eval/files/

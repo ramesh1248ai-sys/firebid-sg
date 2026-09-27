@@ -211,6 +211,8 @@ class FieldReading:
     how: str = "absent"
     # Where the value was on the page, so a person can be shown it and a layout remembered.
     box: Box | None = None
+    # Read by OCR rather than from a text layer: the only readings misreadings are undone in.
+    from_ocr: bool = False
 
 
 @dataclass(frozen=True)
@@ -352,8 +354,14 @@ def _history(spans: Sequence[Span]) -> tuple[set[int], tuple[str, ...]]:
                 break  # a field label: the table has ended and the title block begun
             taken.add(position)
             previous = cy
-            if abs(other.x0 - span.x0) < 2 * span.height and REVISION.fullmatch(other.clean):
-                listed.append(other.clean)
+            if abs(other.x0 - span.x0) < 2 * span.height:
+                # Cleaned exactly as the REV cell is, or the two would disagree over OCR's
+                # letter-for-digit swaps rather than over the revision.
+                label = normalise(Field.REVISION, other.clean)
+                if other.confidence < 1.0:
+                    label = ocr_digits(label)
+                if REVISION.fullmatch(label):
+                    listed.append(label)
     return taken, tuple(listed)
 
 
@@ -396,7 +404,8 @@ def _valid(name: Field, value: str) -> bool:
 def normalise(name: Field, value: str) -> str:
     value = " ".join(value.split())
     if name in (Field.SHEET_NUMBER, Field.REVISION, Field.LEVEL, Field.ZONE):
-        return value.upper()
+        # A code never ends in punctuation; OCR often adds a stray comma or full stop.
+        return value.upper().strip(" .,;:'\"")
     if name is Field.SCALE:
         compact = value.upper().replace(" ", "")
         if compact.replace(".", "") in ("NTS", "NOTTOSCALE"):
@@ -499,11 +508,14 @@ def read(
                 PATTERN_ONLY * tallest.confidence,
                 "pattern",
                 tallest.box,
+                from_ocr=tallest.confidence < 1.0,
             )
 
     # No REV cell but a history table: its newest row is a guess, and is scored as one.
     if fields.get(Field.REVISION, FieldReading()).value is None and history:
         fields[Field.REVISION] = FieldReading(history[0], 0.5, "history")
+    elif history and Field.REVISION in fields:
+        fields[Field.REVISION] = _against_history(fields[Field.REVISION], history)
 
     number = fields.get(Field.SHEET_NUMBER, FieldReading()).value
     for name, pattern in ((Field.LEVEL, LEVEL_IN_NUMBER), (Field.ZONE, ZONE_IN_NUMBER)):
@@ -546,6 +558,74 @@ def ocr_digits(value: str) -> str:
     return "".join(characters)
 
 
+# Characters OCR confuses with each other, both ways. Used only to reconcile a REV cell with
+# the revision history on the same title block, never to invent a value.
+OCR_CONFUSABLE: dict[str, str] = {
+    "1": "ILl|",
+    "I": "1L",
+    "L": "1I",
+    "0": "OQD",
+    "O": "0QD",
+    "D": "0O",
+    "Q": "0O",
+    "5": "S",
+    "S": "5",
+    "2": "Z",
+    "Z": "2",
+    "8": "B",
+    "B": "8",
+    "C": "G",
+    "G": "C",
+}
+# A revision the title block's own history does not list is doubtful; this is its ceiling.
+NOT_IN_HISTORY = 0.6
+
+
+def _variants(value: str, edits: int = 2) -> set[str]:
+    found = {value}
+    frontier = {value}
+    for _ in range(edits):
+        grown = set()
+        for text in frontier:
+            for index, character in enumerate(text):
+                for replacement in OCR_CONFUSABLE.get(character, ""):
+                    grown.add(text[:index] + replacement.upper() + text[index + 1 :])
+        found |= grown
+        frontier = grown
+    return found
+
+
+def _against_history(found: FieldReading, history: tuple[str, ...]) -> FieldReading:
+    """Check the REV cell against the revision history on the same title block.
+
+    The cell normally names a revision the history lists. From OCR, a value the history
+    lacks but a near variant it has (C1 read as CL, C5 as G5) is the variant: two readings of
+    the same label in two places agree. Otherwise, from OCR or a text layer alike, a revision
+    missing from its own history is a question for someone, not an answer.
+    """
+    value = found.value
+    if value is None or value in history:
+        return found
+    if found.from_ocr:
+        candidates = _variants(value) & set(history)
+        if len(candidates) == 1:
+            corrected = next(iter(candidates))
+            return FieldReading(
+                corrected,
+                round(found.confidence * 0.95, 4),
+                f"{found.how}+history",
+                found.box,
+                from_ocr=True,
+            )
+    return FieldReading(
+        value,
+        min(found.confidence, NOT_IN_HISTORY),
+        f"{found.how}, not in history",
+        found.box,
+        from_ocr=found.from_ocr,
+    )
+
+
 def _scored(name: Field, value: str, how: str, box: Box, text_confidence: float) -> FieldReading:
     if text_confidence < 1.0 and name in (Field.SHEET_NUMBER, Field.REVISION):
         value = ocr_digits(value)
@@ -554,7 +634,9 @@ def _scored(name: Field, value: str, how: str, box: Box, text_confidence: float)
         if _valid(name, value)
         else (LABELLED_BUT_ODD)
     )
-    return FieldReading(value, round(base * text_confidence, 4), how, box)
+    return FieldReading(
+        value, round(base * text_confidence, 4), how, box, from_ocr=text_confidence < 1.0
+    )
 
 
 # --- Remembered layouts --------------------------------------------------------------------

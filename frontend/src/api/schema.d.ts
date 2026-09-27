@@ -1430,8 +1430,15 @@ export interface components {
             index_in_document: number;
             /** Layout Name */
             layout_name: string | null;
+            /**
+             * Manual Takeoff Recommended
+             * @default false
+             */
+            manual_takeoff_recommended: boolean;
             /** Max Level */
             max_level: number | null;
+            /** Quality Band */
+            quality_band?: string | null;
             /** Quality Detail */
             quality_detail?: {
                 [key: string]: unknown;
@@ -1481,8 +1488,15 @@ export interface components {
             index_in_document: number;
             /** Layout Name */
             layout_name: string | null;
+            /**
+             * Manual Takeoff Recommended
+             * @default false
+             */
+            manual_takeoff_recommended: boolean;
             /** Max Level */
             max_level: number | null;
+            /** Quality Band */
+            quality_band?: string | null;
             /** Source Ref */
             source_ref?: {
                 [key: string]: unknown;

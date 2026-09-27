@@ -233,6 +233,57 @@ class TestOcrText:
         assert data["mean_confidence"] > 0.8
 
 
+class TestTheRevisionHistoryAsEvidence:
+    """The REV cell and the history table are two readings of the same label."""
+
+    def history_block(self, rev_cell: str, confidence: float = 1.0) -> list[Span]:
+        return [
+            span("REV", 700, 470, 2, confidence),
+            span("DESCRIPTION", 740, 470, 2, confidence),
+            span("C1", 700, 475, 2.5, confidence),
+            span("TENDER ISSUE", 740, 475, 2.5, confidence),
+            span("DRAWING NO.", 620, 560, 2, confidence),
+            span("FP-L03-357", 620, 572, 4, confidence),
+            span("REV", 720, 560, 2, confidence),
+            span(rev_cell, 720, 572, 4, confidence),
+        ]
+
+    def test_an_ocr_misreading_is_undone_by_the_history(self) -> None:
+        reading = read(self.history_block("CL", confidence=0.9), PAGE)
+
+        assert reading.value(Field.REVISION) == "C1"
+        assert reading.fields[Field.REVISION].how == "label+history"
+
+    def test_the_history_is_cleaned_like_the_cell(self) -> None:
+        """OCR reads R04 as RO4 in both places; the fix must not turn the right one wrong."""
+        spans = self.history_block("RO4", confidence=0.9)
+        spans[2] = span("RO4", 700, 475, 2.5, 0.9)
+
+        reading = read(spans, PAGE)
+
+        assert reading.value(Field.REVISION) == "R04"
+        assert reading.history == ("R04",)
+        assert not reading.fields[Field.REVISION].how.endswith("history")
+
+    def test_ocr_punctuation_is_dropped(self) -> None:
+        reading = read(self.history_block("C1,", confidence=0.9), PAGE)
+
+        assert reading.value(Field.REVISION) == "C1"
+
+    def test_a_revision_its_own_history_lacks_is_a_question(self) -> None:
+        """A text layer says what it says; C2 missing from the history is flagged, not changed."""
+        reading = read(self.history_block("C2"), PAGE)
+
+        assert reading.value(Field.REVISION) == "C2"
+        assert reading.needs_help()
+
+    def test_an_ocr_value_with_no_matching_variant_is_left_and_flagged(self) -> None:
+        reading = read(self.history_block("T4", confidence=0.9), PAGE)
+
+        assert reading.value(Field.REVISION) == "T4"
+        assert reading.needs_help()
+
+
 class TestValues:
     @pytest.mark.parametrize(
         ("text", "expected"),

@@ -43,6 +43,8 @@ TOLERANCES: dict[str, float] = {
     "false_detection_rate": 0.01,
     "duplicate_detection_rate": 0.02,
     "sheet_classification_accuracy": 0.01,
+    "drawing_number_accuracy": 0.01,
+    "revision_accuracy": 0.01,
     "boq_mapping_accuracy": 0.02,
     "calibration_error": 0.05,
 }
@@ -131,7 +133,13 @@ def _target_note(metric: str, value: float | None) -> str:
     return f"{'meets' if met else 'MISSES'} {direction}{target}"
 
 
-def markdown_report(result: SuiteResult) -> str:
+def markdown_report(result: SuiteResult, metrics: Sequence[str] | None = None) -> str:
+    """The report. `metrics` narrows it to what a suite measures, and adds a row per tender.
+
+    A suite that only reads title blocks predicts no sprinklers; showing its sprinkler
+    accuracy as zero would be noise that looks like a failure.
+    """
+    shown = list(metrics) if metrics else list(HIGHER_IS_BETTER)
     lines = [
         f"# Evaluation — {result.suite}",
         "",
@@ -147,20 +155,25 @@ def markdown_report(result: SuiteResult) -> str:
         lines.append(f"- Prompt versions: {', '.join(sorted(set(result.prompt_versions)))}")
     lines += ["", "## Overall", "", "| Metric | Value | Target |", "|---|---|---|"]
     for metric, value in result.overall.items():
-        lines.append(f"| {metric} | {_format(value)} | {_target_note(metric, value)} |")
+        if metric in shown:
+            lines.append(f"| {metric} | {_format(value)} | {_target_note(metric, value)} |")
 
-    for title, grouped in (
+    groups: list[tuple[str, dict[str, dict[str, float | None]]]] = [
         ("By input class", result.by_input_class),
         ("By consultant", result.by_consultant),
-    ):
+    ]
+    if metrics:
+        groups.append(
+            ("By tender", {score.tender_id: score.named_values() for score in result.tenders})
+        )
+    for title, grouped in groups:
         if not grouped:
             continue
         lines += ["", f"## {title}", ""]
-        metrics = list(HIGHER_IS_BETTER)
-        lines.append("| Group | " + " | ".join(metrics) + " |")
-        lines.append("|---" * (len(metrics) + 1) + "|")
+        lines.append("| Group | " + " | ".join(shown) + " |")
+        lines.append("|---" * (len(shown) + 1) + "|")
         for group, values in grouped.items():
-            row = " | ".join(_format(values.get(metric)) for metric in metrics)
+            row = " | ".join(_format(values.get(metric)) for metric in shown)
             lines.append(f"| {group} | {row} |")
 
     excluded = [

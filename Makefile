@@ -10,7 +10,7 @@ API_URL := http://$(STACK_HOST):$(or $(FIREBID_API_PORT),8000)
 PHASE ?=
 IDS ?=
 
-.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client data-inventory golden-template eval eval-gate ingest-benchmark req-coverage check
+.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client data-inventory golden-template eval eval-docs eval-gate ingest-benchmark req-coverage check
 
 help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -68,6 +68,9 @@ ingest-benchmark: ## Time a synthetic tender set through ingestion (NFR-01); SHE
 
 eval: ## Run the synthetic evaluation suite and write a report
 	cd backend && uv run firebid-eval --root ../eval run --report ../eval/results/synthetic.md
+
+eval-docs: ## Measure title block reading (FR-DOC-02); needs Tesseract for the OCR tenders
+	cd backend && uv run firebid-eval --root ../eval run --suite doc_classification 		--report ../eval/results/doc_classification.md
 
 eval-gate: ## Fail if any metric has regressed against the accepted baseline (FR-LRN-01)
 	cd backend && uv run firebid-eval --root ../eval compare

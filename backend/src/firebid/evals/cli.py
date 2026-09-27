@@ -4,6 +4,7 @@
     firebid-eval import    <workbook.xlsx>               validate a filled one
     firebid-eval generate  --out eval/synthetic          write the synthetic fixtures
     firebid-eval run       --suite synthetic             score a predictor, write a report
+    firebid-eval run       --suite doc_classification    title block reading (FR-DOC-02)
     firebid-eval accept    --approver "Name"             store the current result as baseline
     firebid-eval compare   --suite synthetic             fail if anything has regressed
     firebid-eval compare-models --route <r> --models a,b  evidence for changing a model
@@ -22,6 +23,9 @@ from firebid.evals.importer import ImportFailed, import_workbook
 from firebid.evals.template import write_template
 
 DEFAULT_SUITE = "synthetic"
+# Title block reading (FR-DOC-02), scored with the real reader: see evals/doc_classification.
+DOC_SUITE = "doc_classification"
+DOC_METRICS = ("drawing_number_accuracy", "revision_accuracy", "sheet_classification_accuracy")
 EVAL_ROOT = Path("eval")
 
 
@@ -189,16 +193,26 @@ def _run_suite_command(arguments: argparse.Namespace) -> int:
         run_suite,
     )
 
-    _, result_path, baseline_path = _suite_paths(arguments.suite, arguments.root)
-    golden_set = _load_golden_set(
-        arguments.suite, arguments.root, arguments.seed, arguments.tenders
-    )
-    result = run_suite(golden_set, _dummy(arguments))
+    fixtures, result_path, baseline_path = _suite_paths(arguments.suite, arguments.root)
+    if arguments.suite == DOC_SUITE:
+        # Title block reading, measured with the platform's own reader rather than a dummy:
+        # a real golden set when one has been imported, the synthetic fixtures otherwise.
+        from firebid.evals.doc_classification import TitleBlockPredictor, generate, load_golden
+
+        suite = load_golden(arguments.root) or generate(fixtures, seed=arguments.seed)
+        result = run_suite(suite.golden_set, TitleBlockPredictor(suite.files))
+    else:
+        golden_set = _load_golden_set(
+            arguments.suite, arguments.root, arguments.seed, arguments.tenders
+        )
+        result = run_suite(golden_set, _dummy(arguments))
 
     if arguments.command == "run":
         result_path.parent.mkdir(parents=True, exist_ok=True)
         result_path.write_text(result.to_json(), encoding="utf-8")
-        report = markdown_report(result)
+        report = markdown_report(
+            result, metrics=DOC_METRICS if arguments.suite == DOC_SUITE else None
+        )
         if arguments.report:
             arguments.report.parent.mkdir(parents=True, exist_ok=True)
             arguments.report.write_text(report, encoding="utf-8")

@@ -1,0 +1,29 @@
+# Input quality: what each sheet's source lets the platform promise (FR-DOC-06, P1-02).
+#
+# Configuration, not constants: these are policy about how much a scan can be trusted, and the
+# pilot will move them. Add a new entry with a later `effective_from` rather than editing one,
+# so a band shown last month stays explainable.
+#
+# The measures, per sheet:
+#   content      vector | mixed | raster (from the PDF's page objects, or CAD)
+#   dpi          the effective resolution of a raster sheet's image, pixels per inch of paper
+#   ocr          Tesseract's mean word confidence on the title block, 0 to 1, where OCR ran
+#   scale        stated | not_to_scale | absent (from the title block)
+#
+# A sheet is flagged "manual takeoff recommended" when it is raster (or mixed) and below
+# either raster floor: a scan an estimator cannot rely on the platform to read.
+
+policies:
+  - effective_from: 2026-01-01
+    raster:
+      # At or above both, a scan can be read about as well as a poor vector export.
+      good_dpi: 300
+      good_ocr: 0.80
+      # Below either, the platform does not claim it can read the sheet.
+      floor_dpi: 200
+      floor_ocr: 0.60
+    bands:
+      # What each band tells the estimator to expect of the takeoff on that sheet.
+      high: Vector with a stated scale. Counts and lengths are measured from geometry.
+      medium: Readable, but not everything can be measured; check lengths by hand.
+      low: The source is poor. Expect misses; a person should take off this sheet.

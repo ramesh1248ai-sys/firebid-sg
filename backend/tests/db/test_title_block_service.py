@@ -317,3 +317,39 @@ class TestTheModelCheck:
         task = session.get(HumanTask, reading_of(revision)["review_task_id"])
         assert task is not None
         assert task.state == "open"
+
+
+class TestInputQuality:
+    @pytest.mark.req("FR-DOC-06")
+    def test_the_low_resolution_scan_is_flagged_for_manual_takeoff(
+        self, session: Session, bid: Bid, store: MemoryObjectStore, tmp_path: Path
+    ) -> None:
+        """The acceptance test: a raster below the threshold says a person should take it off."""
+        from PIL import Image
+
+        drawing, _ = synthetic.general_arrangement()
+        png = synthetic.write_raster(drawing, tmp_path / "scan.png", dpi=72)
+        scan = tmp_path / "scan.pdf"
+        with Image.open(png) as image:
+            image.convert("RGB").save(scan, "PDF", resolution=72.0)
+        document, sheets = ingest(session, bid, store, "scan.pdf", scan.read_bytes())
+
+        read_title_blocks(session, store, document, sheets)
+
+        [sheet] = sheets
+        assert sheet.content_class == "raster"
+        assert sheet.quality_band == "low"
+        assert sheet.manual_takeoff_recommended is True
+        assert sheet.quality_detail is not None
+        quality = cast(dict[str, Any], sheet.quality_detail["quality"])
+        assert "72 dpi, below 200" in quality["reasons"]
+
+    @pytest.mark.req("FR-DOC-06")
+    def test_a_clean_vector_sheet_with_a_scale_is_high(
+        self, session: Session, bid: Bid, store: MemoryObjectStore, tmp_path: Path
+    ) -> None:
+        document, sheets = ingest(session, bid, store, "FP-L05-201.pdf", live_pdf(tmp_path))
+
+        read_title_blocks(session, store, document, sheets)
+
+        assert (sheets[0].quality_band, sheets[0].manual_takeoff_recommended) == ("high", False)

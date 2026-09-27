@@ -337,3 +337,68 @@ Entry template:
   - **`tender_package_id` is accepted but never set by the API.** Packages arrive with P1-02's addenda handling.
   - **Failed parse jobs do not retry with backoff.** Procrastinate's retry strategy is not configured on `parse.document`; a failure lands in `rejected` with its reason instead, which is visible but final until the file is re-uploaded.
   - **The EICAR unit test's fake scanner matches the string anywhere**, which real ClamAV does not; it proves the pipeline's handling of a verdict, not what ClamAV will flag.
+
+---
+
+## P1-02 · Classification, Registers and Revision Control · 2026-09-27
+
+- **Summary:** every drawing and document in a tender set is identified, classified and put in a register with exactly one Current revision each. Title blocks are read deterministically (text layer, DXF entities or OCR, then a remembered consultant layout), with the `title_block_reader` model as a fallback on a crop and a person after that. Revisions are ordered by a configurable scheme, sources that disagree send a revision to Conflict for a person, and only Current sheets are offered to takeoff. Addenda link the revisions they bring and answer "what changed". Every sheet carries an expected-accuracy band and, for poor scans, "manual takeoff recommended". Built in six sub-parts (A–F), each committed separately.
+- **Key modules / files:**
+  - `backend/src/firebid/drawings/`: `title_block.py` (locate, history table, label pairing, OCR digit fixes, remembered layouts), `revisions.py` (schemes, ordering, filename revisions, source reconciliation), `quality.py` (bands and the manual flag).
+  - `backend/src/firebid/parsing/`: `text.py` (text spans from PDF and DXF, OCR of a region, title block crops), `digest.py` (opening of a PDF, DOCX or XLSX), `transmittal.py` (drawing lists).
+  - `backend/src/firebid/ingest/`: `classification.py` (document type rules), `document_identity.py` (document number or normalised title, revision).
+  - `backend/src/firebid/services/`: `title_blocks.py`, `classification.py`, `revisions.py` (settle, recompute Current, conflict, resolve, `current_sheets`), `registers.py`, `addenda.py` (`affected_items` with providers).
+  - `backend/src/firebid/agents/doc_classifier.py` and route `doc_classify` with prompt `v1`; `run_agent_with_result` in the agent runtime.
+  - `backend/src/firebid/api/`: `registers.py`, `addenda.py`; `documents.py` takes `addendum_id`.
+  - `backend/src/firebid/evals/doc_classification.py`; metrics `drawing_number_accuracy` and `revision_accuracy`.
+  - `backend/config/revisions.yaml`, `backend/config/input_quality.yaml`.
+  - Migrations `0013`–`0016`; Tesseract in the sandbox image, the Dev Container and CI.
+  - `frontend/src/pages/RegistersPage.tsx`; the addendum choice on the upload form; the quality note in the viewer.
+- **How to run and demo:**
+  1. `make up`, open a bid, **Tender documents**: upload a set (choose "A new addendum…" to upload one as an addendum).
+  2. **Registers**: the drawing and specification registers, what blocks confirmation, the action on each blocking row, **Export to Excel**, and **Register confirmed** once nothing is undecided.
+  3. `make eval-docs` writes `eval/results/doc_classification.md`.
+- **Requirement IDs covered (test names):**
+  - FR-DOC-02 — `tests/drawings/test_title_block.py` (all), `tests/db/test_title_block_service.py`, `tests/ingest/test_classification.py`, `tests/db/test_document_classification.py`, `tests/evals/test_doc_classification.py`, `test_register_api.py::TestDecisions::test_a_confirmed_reading_teaches_the_consultants_layout`.
+  - FR-DOC-03 — `tests/db/test_register_api.py` (both registers and their filters, both exports reopened and checked column by column, confirmation refused and then accepted).
+  - FR-DOC-04 — `tests/drawings/test_revisions.py` (with Hypothesis properties), `tests/db/test_revision_control.py` (sampled arrival orders of R01–R04, disagreeing sources in and out of Conflict, labels that cannot be ordered, transmittals either side of the drawings).
+  - FR-DOC-05 — `tests/db/test_addenda.py`.
+  - FR-DOC-06 — `tests/drawings/test_quality.py`, `test_title_block_service.py::TestInputQuality`, the viewer test in `Documents.test.tsx`.
+- **Title block accuracy (FR-DOC-02, target ≥ 95% on vector title blocks):** measured with `firebid-eval run --suite doc_classification` in the sandbox image (Tesseract 5), four seeds of about ten sheets per form, deterministic reader only (no model):
+
+  | Form | Drawing number | Revision | Number, revision and Current/Superseded |
+  |---|---|---|---|
+  | CAD (DXF) | 100% | 100% | 100% |
+  | Vector PDF, text layer | 100% | 100% | 100% |
+  | Vector PDF, outlined text (OCR) | 100% | 91–100% | 91–100% |
+  | Scan, 150 dpi (OCR) | 100% | 82–100% | 73–100% |
+
+  **Vector title blocks meet the target on every seed.** The OCR misses are all of one kind, `C` read as `G` or `1` as `L` in a revision, and **every one was flagged** (confidence 0.61–0.70, below the 0.85 threshold), so in production each goes to the model check and then to a person rather than into the register. None was silent. These are synthetic fixtures: the figures that matter come from the D3 golden set, which the suite uses automatically once it is imported.
+- **Deviations and decisions:**
+  - **Model calls happen on the ordinary worker, never in the sandbox pool.** The pool has no network, so it crops the title block to a PNG and queues `title_block.check`; the worker sends only the crop and the text. An unclear DXF goes straight to a person: CAD text is exact, and a model cannot read an entity better than ezdxf did.
+  - **The platform registers a revision and makes it Current on its own when the evidence agrees**, as the P0-02 state machine allows (`SYSTEM` may register, supersede and flag a conflict). Only people resolve a conflict, restore or withdraw. The Estimator's "Register confirmed" is the human decision on the set, and it is refused while anything is in Conflict, unidentified, or of an unconfirmed type.
+  - **When two revisions cannot be ordered, both go to Conflict, the Current one included.** Takeoff stops using that drawing until someone decides, rather than pricing what might be the superseded sheet.
+  - **The tie-breaker is the addendum's date, then the transmittal's, and only then the title block's**, because consultants often leave the title block at the date of first issue.
+  - **Transmittals are read from workbooks with drawing number and revision columns.** CSV is not ingested (P1-01 has no CSV kind). A transmittal re-checks revisions already registered, because files in one upload are read in any order.
+  - **Document revisions share the sheet revision state machine** (requirements §7 names one model), keyed by document number or normalised title. A partial unique index enforces one Current per drawing and per document in the database as well as in the guard.
+  - **A Received revision may be withdrawn by a person**, so a cover sheet nobody will identify does not block confirmation for ever.
+  - **The REV cell is checked against the title block's own revision history.** An OCR value the history lacks, with a near variant the history has, takes the variant; otherwise it is capped below the threshold. A text-layer REV missing from its history is flagged, not changed.
+  - **Revision schemes and quality thresholds are configuration** (`config/revisions.yaml`, `config/input_quality.yaml`), with effective dates.
+  - **The synthetic fixtures were made realistic before they could measure anything:** a real title block with a revision history, printed on white (ezdxf drew colour 7 white on white), at true A3 scale (ezdxf shrank the page to a third, making 2.5 mm text less than 1 mm), with live text or outlines.
+- **Manual checks and results:**
+  - Ran the suite in the sandbox image over four seeds (results above), listed every OCR misread, and confirmed each was flagged rather than silent.
+  - The exported registers are checked through openpyxl in the tests (headers, date cells, frozen panes, the About sheet). Opening a file in Excel itself is still to be done by a person.
+- **Defects found and fixed during the step:**
+  - The title block reader first took the REV cell for the history table's header, because the bottom row also holds a DATE cell. DATE alone is now weak evidence of a history table.
+  - Fingerprints included the history table, which grows with each issue, so the same consultant's sheets did not match.
+  - The history check first corrected a right revision to a wrong one: history labels had not been cleaned of OCR swaps the way the REV cell was. The eval found it (seed 1 fell from 100% to 70%); it is fixed and pinned by a test.
+  - `AgentRun` keeps no output, so a successful model reading would have been lost. `run_agent_with_result` returns it.
+  - `_issued` preferred the title block's date, so an addendum's date never broke a tie.
+  - The golden set's files were to live in `eval/files/`, which git did not ignore. It does now.
+  - Workbooks and Word files (from P1-01) were never processed, stayed `received` for good, and kept a set's progress from ever showing as finished. They are now read and classified.
+- **Known gaps and follow-ups:**
+  - **The `doc_classification` suite has no accepted baseline, so `make eval-gate` does not check it.** A named approver should accept one (`firebid-eval --root ../eval accept --suite doc_classification --approver "Name"`), and the suite should then be added to the gate.
+  - **Clause-level addendum links wait for P1-06**; a revised specification is linked as a whole document.
+  - **Opening an export in Excel by hand** is still to be done.
+  - **The model checks are exercised with the fake adapter only.** A live run of `title_block_read` and `doc_classify` belongs with the credential-gated tests.
+  - **No E2E test goes through the registers page yet.** The page has Vitest tests and the API has tests; an E2E path through upload, registers and confirmation should follow.
