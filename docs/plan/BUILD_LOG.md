@@ -590,3 +590,118 @@ Entry template:
   - **Unknown clusters are all recorded**, so a real plan may raise dimension ticks and similar marks as unmapped groups until a person maps them to "not an object". Measure on real sheets whether a recurrence threshold is needed.
   - **Attributes such as the K-factor** are taken only from what the model reads in a legend row. Reading them from tags on the plan belongs to P1-05.
   - **P1-07** is to take counts from `services.symbols.counts`, which already restricts to Current sheets and lists every unmapped symbol.
+
+## P1-05 · Fire Protection Object Detection and Pipe Network · 2026-09-28
+
+- **Summary:** each sheet's confirmed symbols and its pipework become detections, all of them proposals:
+  - sprinklers (type, and orientation where the symbol shows one), valves, devices and fittings;
+  - risers and drops, both "vertical, not drawn";
+  - pipe runs, each with its class (main or branch), a size and a length.
+
+  Pipe is chosen by layer or colour and kept only where it connects to installed symbols. It is noded at symbols, tees and joints (not where lines merely cross) and cut into runs. Sizes are read from annotations and carried along each run; two that disagree are flagged, not guessed.
+
+  Every detection carries its method, evidence, view, grid reference, level and a calibrated confidence. The database refuses one that has neither a location nor a reason for lacking one.
+
+  Built in parts A to H, each committed separately.
+- **Key modules / files:**
+  - `backend/src/firebid/drawings/`:
+    - `pipe_network.py`: candidates, noding, topology, runs; networkx.
+    - `pipe_sizes.py`: parsing, attachment, size groups, conflicts.
+    - `detection.py`: objects, risers, drops and runs; confidence features; view, grid and level; completeness.
+    - `calibration.py`: isotonic regression by pool-adjacent-violators, a versioned map per family.
+    - `symbols.py`: angular profiles and `orientation()`; loose clusters now join only primitives drawn alike; `near_match`.
+  - `backend/src/firebid/services/detection.py`: detection from stored geometry, views, legend rows, instances and confirmed mappings; the replace-and-write step; vision assist.
+  - Jobs:
+    - `detection.run`: the whole bid again, queued when a mapping is confirmed or rejected.
+    - `detection.vision`
+    - Detection is also hooked into `parse_document` after symbols.
+  - `backend/src/firebid/api/detections.py`: `GET /bids/{id}/detections`, least confident first; `POST …/detections/run`.
+  - `backend/src/firebid/evals/`:
+    - `synthetic_network.py`: a wet-pipe installation, with optional mistakes.
+    - `detection_calibration.py`: labelled outcomes, and the fit and check.
+    - `p1_detection.py`: the suite and predictor.
+    - `firebid-eval calibrate`
+  - Configuration:
+    - `backend/config/detection.yaml`: snap tolerance; vision assist, off by default.
+    - `backend/config/calibration/p1_detection.json`: fitted, versioned, never hand-edited.
+    - `config/symbol_rules.yaml` gains reducer and riser rules.
+  - Migration `0021`: new `detected_object` columns (kind, grid_reference, level, orientation, raw_confidence, features, calibration_version, detector_version, gaps, state) and the `located_or_says_why` check; `pipe_run` under RLS; a versioned `consultant_profile` for pipe layers and colours.
+- **How to run and demo:**
+  1. `make up`. Create a bid with its design consultant and upload a plan with its legend.
+  2. Confirm its mappings on the **Symbols** page. Each confirmation queues `detection.run`.
+  3. `GET /bids/{id}/detections` lists every detection, least confident first.
+  4. `firebid-eval run --suite p1_detection --report eval/results/p1_detection.md` writes the accuracy report, and `firebid-eval calibrate --suite p1_detection` refits the calibration.
+- **Requirement IDs covered (test names):**
+  - FR-VIS-03:
+    - `tests/drawings/test_detection.py::TestCountsAndLengths` (DXF and PDF): exact sprinkler and valve counts; pipe length per DN within 0.5%; mains, branches and a drop per head; a stray line of the pipe colour isn't pipe; the consultant profile's layer is used.
+    - `TestOrientationAndPlace`: sidewall heads face 90°, including in PDF; symmetric PDF symbols claim no orientation; no length on an unverified view; off-network symbols score lower.
+    - `tests/db/test_detection_pipeline.py`: nothing is detected until mappings are confirmed; exact counts and lengths from the database; re-detection is queued on confirmation.
+    - `tests/evals/test_p1_detection_suite.py`
+  - FR-VIS-06:
+    - `tests/drawings/test_pipe_sizes.py`: parsing of DN150, 150Ø, Ø65, 150mm, 100 dia, 6", 2-1/2" and 1 1/4" dia; the size carried through valves and tees up to the reducer; disagreeing annotations flagged, both formats.
+    - `test_detection_pipeline.py::test_a_conflicting_size_is_stored_unsized_with_its_reason`
+  - FR-VIS-09:
+    - `test_detection_pipeline.py::TestCompleteness`: every stored detection has method, evidence, view, grid reference and calibrated confidence; the database refuses one that is neither located nor says why; a view without a grid records why.
+    - `tests/evals/test_detection_calibration.py`: isotonic properties, including tied scores; the committed calibration within tolerance on unseen seeds.
+    - `tests/db/test_vision_assist.py`
+    - The detections API lists least confident first.
+- **Calibration (synthetic hold-out, `firebid-eval calibrate`: 60 training seeds, 40 hold-out):**
+
+  | Family | Hold-out n | Accuracy | ECE raw | ECE calibrated |
+  |---|---|---|---|---|
+  | symbol | 1,337 | 84% | 0.087 | **0.015** |
+  | drop | 993 | 50% | 0.133 | **0.046** |
+  | run | 664 | 81% | 0.098 | **0.028** |
+  | overall | 2,994 | | 0.103 | **0.028** (tolerance 0.05) |
+
+  The test repeats the check on seeds 2000 to 2019, which neither the fit nor the hold-out used.
+- **Phase 1 accuracy (requirements §14), actuals against targets:**
+
+  | Metric | Target | Synthetic (3 tenders, DXF and PDF) | Golden set |
+  |---|---|---|---|
+  | Sprinkler count accuracy | ≥ 98% | **100%** | not yet measured |
+  | Pipe length error | ≤ 5% | **0.0%** (≤ 0.01% per tender) | not yet measured |
+  | Missed items | ≤ 5% | 0% | not yet measured |
+  | False detections | ≤ 5% | 0% | not yet measured |
+
+  **Gap analysis:** there is no golden set yet (decision D3), so no metric has a real-world actual. The suite runs on it automatically once files and truth are placed in `eval/files/p1_detection/` and `eval/truth/p1_detection/`. The expected gaps on real sheets, in likely order:
+  1. Legend rows that only the model or a person can type (the golden set path uses rules alone, and reports the untyped rows).
+  2. Pipes drawn in the same pen as other services, where learning the pipe layer or colour from the sheet picks up the wrong line work (a consultant profile then names it).
+  3. Sizes written as leaders, or in a schedule rather than beside the run.
+  4. Crossings that are real tees.
+  5. Symbols with text inside, which the descriptor ignores.
+- **Deviations and decisions** (all approved in the plan):
+  - **networkx** added (BSD licence), with types-networkx for mypy. **Isotonic regression is in NumPy**, not scikit-learn.
+  - **Consultant profile:** a versioned, organisation-level table. With no layers or colours named, pipe is learnt per sheet: whatever most lines touching installed sprinklers and valves are drawn on or with. The symbols' own strokes are excluded from that vote.
+  - **Vision assist is built and off by default.**
+    - Only near misses are sent: outside the matching tolerance, within twice it.
+    - At most 20 per sheet, answers capped at 0.5 confidence, and it reuses the `symbol_map` route.
+    - Vision detections survive re-detection, and a crop is never asked about twice.
+  - **Only confirmed mappings are detected.** An unconfirmed symbol stays listed as unmapped (FR-VIS-02).
+  - **Lines that cross are not joined.** In a plan they are usually at different heights. A real tee is drawn with a line ending on the other.
+  - **Risers come from riser symbols and annotations.** Heights and lengths come from schematics and rules in P1-07. Drops are recorded "vertical, not drawn", with the branch's DN.
+  - **Confidence features:**
+    - symbols: match distance and method, and whether the symbol is on the network;
+    - runs: how the size was found, and a topology-consistency check (a branch sized unlike most of its siblings, or bigger than its main, is suspect);
+    - drops: the lower of their sprinkler and run scores.
+  - **A size carried along a run scores by the label it came from.** Once raw scores ranked carried sizes below labelled ones although they were more reliable, the calibration map, which only ever rises, could not correct them.
+  - **Detections are replaced per sheet on each run** (except vision ones), stamped with detector and calibration versions.
+- **Manual checks and results:**
+  - **Live run through the rebuilt stack.** A network plan, with its conflicting label, was uploaded through the API.
+    - Migration 0021 applied.
+    - Five legend rows were reused from the consultant's earlier confirmations; the reducer, riser and upright rows were proposed and confirmed through the API.
+    - The worker re-detected on its own. The counts were exact: 16 pendent, 4 upright, 4 sidewall, 1 gate valve, 1 non-return valve, 1 reducer, 1 riser and 24 drops. DN150 was 8,050 mm and DN100 8,250 mm, with 60,000 mm at DN50 plus 12,000 mm flagged as a conflict.
+    - The flagged run headed the review list, with its reason.
+  - Probed noding, sizing and orientation on both formats while building. Each gave the same network, the same lengths to the millimetre, and the same orientation.
+- **Defects found and fixed during the step:**
+  - **On a PDF, pipe running into a valve became part of the valve's symbol cluster**, so valves and the riser did not match their legend. Loose clusters now join only primitives drawn alike (same layer and colour).
+  - **The pipe colour was once learnt as the symbols' own red.** Strokes that belong to placed symbols are now excluded from the vote.
+  - **A split at a symbol used the symbol's box centre**, which sits off the line for a half-round sidewall head, adding 0.01 mm per run. The split now uses the point on the line.
+  - **Symmetric PDF symbols reported an orientation**, because lines lying on histogram bin edges made a profile match itself more sharply than its turned copies. Profiles are now smoothed around the circle.
+  - **The first isotonic fit did not pool tied scores.** One score split into several blocks at the same point, and interpolation took the last, so calibrated drops said 1.0 and were right 73% of the time. Ties are now one point, scored by their share right.
+- **Known gaps and follow-ups:**
+  - **No golden set:** there is no real-world accuracy yet (see the gap analysis).
+  - **Calibration is fitted on synthetic outcomes only.** It must be refitted with golden-set outcomes (`firebid-eval calibrate`) before its confidences are relied on.
+  - **Schematics are not read for riser heights,** and **attributes on plan tags** (such as K-factor labels beside heads) are not associated with detections. Both go to P1-07 and P1-08 as needed.
+  - **No workbench UI for detections yet.** That is P1-08; the API is ready.
+  - Printing a report containing "≥" fails on a Windows console (cp1252) for every suite. Use `--report` there. The Dev Container and CI are unaffected.

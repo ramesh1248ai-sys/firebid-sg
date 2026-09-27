@@ -37,6 +37,7 @@ dependencies = [
     "pdfplumber>=0.11.10",
     "shapely>=2.1.2",
     "pyarrow>=25.0.1",
+    "networkx>=3.4",
 ]
 
 [project.scripts]
@@ -56,6 +57,7 @@ dev = [
     "ruff>=0.16.8",
     "testcontainers[postgres]>=4.15.0",
     "types-defusedxml>=0.7.0.20240218",
+    "types-networkx>=3.6.1.20260911",
     "types-openpyxl>=3.1.5.20260827",
     "types-pyyaml>=6.0.12.20260906",
     "types-shapely>=2.1.0.20260728",

@@ -156,3 +156,29 @@ class SymbolInstance(BidScoped, Base):
     # Kept so an instance found before its legend was read can be matched once it is.
     signature: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     detector_version: Mapped[str] = mapped_column(String(16), nullable=False)
+
+
+class ConsultantProfile(UuidPk, Timestamped, CreatedBy, Base):
+    """How one consultant draws pipework: the layers (DXF) and stroke colours (PDF) of pipe.
+
+    Beside the consultant's symbol mappings, and versioned the same way: an edit is a new
+    row with the next version. Empty lists mean "learn it from each sheet", which is the
+    default until someone names them.
+    """
+
+    __tablename__ = "consultant_profile"
+    __table_args__ = (UniqueConstraint("organisation_id", "consultant_key", "version"),)
+
+    organisation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organisation.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    consultant_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    consultant: Mapped[str] = mapped_column(String(200), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    supersedes_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("consultant_profile.id", ondelete="SET NULL")
+    )
+    pipe_layers: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    pipe_colours: Mapped[list[int]] = mapped_column(JSONB, nullable=False, default=list)
+    changed_by: Mapped[str | None] = mapped_column(String(200))
+    change_note: Mapped[str | None] = mapped_column(Text)

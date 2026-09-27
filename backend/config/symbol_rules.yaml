@@ -21,3 +21,7 @@ rules:
   - {match: '\b(SUBSIDIARY|ZONE)\s+(CONTROL\s+)?VALVE\b|\bZCV\b|\bSCV\b', type: subsidiary_control_valve}
   - {match: '\bFLOW\s+SWITCH\b', type: flow_switch}
   - {match: '\bTAMPER\s+SWITCH\b|\bSUPERVISORY\s+SWITCH\b', type: tamper_switch}
+  # Fittings and risers (P1-05): a reducer is where a run's size changes; a riser symbol marks
+  # a vertical pipe the plan cannot show the length of.
+  - {match: '\b(REDUCER|CONCENTRIC|ECCENTRIC)\b', type: fitting}
+  - {match: '\bRISER\b|\bRISING\s+MAIN\b', type: pipe}

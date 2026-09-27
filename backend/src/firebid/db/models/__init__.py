@@ -42,8 +42,20 @@ from firebid.db.models.documents import (
     TransmittalEntry,
 )
 from firebid.db.models.drawings import GeometryFeature, SheetGeometry, SheetView
-from firebid.db.models.symbols import LegendEntry, ObjectType, SymbolInstance, SymbolMapping
-from firebid.db.models.takeoff import DetectedObject, Evidence, MeasurementRule, QtoItem
+from firebid.db.models.symbols import (
+    ConsultantProfile,
+    LegendEntry,
+    ObjectType,
+    SymbolInstance,
+    SymbolMapping,
+)
+from firebid.db.models.takeoff import (
+    DetectedObject,
+    Evidence,
+    MeasurementRule,
+    PipeRun,
+    QtoItem,
+)
 from firebid.db.models.workflow import AgentRun, Approval, DeadlineAlert, HumanTask
 from firebid.db.system import SystemHeartbeat, SystemJobResult
 
@@ -64,6 +76,7 @@ __all__ = [
     "ClientBoq",
     "ClientBoqLine",
     "ClientBoqMapping",
+    "ConsultantProfile",
     "DeadlineAlert",
     "DetectedObject",
     "Document",
@@ -80,6 +93,7 @@ __all__ = [
     "ObjectType",
     "Organisation",
     "PayloadCapture",
+    "PipeRun",
     "Project",
     "QtoItem",
     "Rate",

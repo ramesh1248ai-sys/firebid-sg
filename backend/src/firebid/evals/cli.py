@@ -8,6 +8,7 @@
     firebid-eval accept    --approver "Name"             store the current result as baseline
     firebid-eval compare   --suite synthetic             fail if anything has regressed
     firebid-eval compare-models --route <r> --models a,b  evidence for changing a model
+    firebid-eval calibrate --suite p1_detection          fit detection confidence (FR-VIS-09)
 
 `import` and `compare` write nothing and exit non-zero when they are unhappy, which is what
 makes them usable in CI.
@@ -27,6 +28,8 @@ DEFAULT_SUITE = "synthetic"
 DOC_SUITE = "doc_classification"
 DOC_METRICS = ("drawing_number_accuracy", "revision_accuracy", "sheet_classification_accuracy")
 EVAL_ROOT = Path("eval")
+# Phase 1 detection: sprinklers, valves and pipe (FR-VIS-03, 09), see evals/p1_detection.
+DETECTION_SUITE = "p1_detection"
 
 
 def _suite_paths(suite: str, root: Path) -> tuple[Path, Path, Path]:
@@ -133,7 +136,17 @@ def main(argv: list[str] | None = None) -> int:
     compare_models_command.add_argument("--tenders", type=int, default=3)
     compare_models_command.add_argument("--report", type=Path, default=None)
 
+    calibrate = commands.add_parser(
+        "calibrate", help="fit detection confidence and check it on a hold-out set"
+    )
+    calibrate.add_argument("--suite", default=DETECTION_SUITE, choices=[DETECTION_SUITE])
+    calibrate.add_argument("--train", type=int, default=60)
+    calibrate.add_argument("--holdout", type=int, default=40)
+
     arguments = parser.parse_args(argv)
+
+    if arguments.command == "calibrate":
+        return _run_calibrate(arguments)
 
     if arguments.command == "template":
         print(f"wrote {write_template(arguments.out)}")
@@ -149,6 +162,34 @@ def main(argv: list[str] | None = None) -> int:
         return _run_suite_command(arguments)
 
     return _run_compare_models(arguments)
+
+
+def _metrics_for(suite: str) -> tuple[str, ...] | None:
+    if suite == DOC_SUITE:
+        return DOC_METRICS
+    if suite == DETECTION_SUITE:
+        from firebid.evals.p1_detection import METRICS
+
+        return METRICS
+    return None
+
+
+def _run_calibrate(arguments: argparse.Namespace) -> int:
+    """Fit the calibration maps, write them to config, and fail if the hold-out misses."""
+    from firebid.drawings.calibration import CONFIG
+    from firebid.evals.detection_calibration import fit_and_check
+
+    report = fit_and_check(train=arguments.train, holdout=arguments.holdout)
+    for family, found in report["families"].items():
+        print(
+            f"{family}: hold-out n={found['holdout']}, calibration error {found['ece']:.3f} "
+            f"(raw {found['raw_ece']:.3f})"
+        )
+    print(
+        f"overall: {report['ece']:.3f} against a tolerance of {report['tolerance']:.2f} "
+        f"-> wrote {CONFIG}"
+    )
+    return 0 if report["within_tolerance"] else 1
 
 
 def _run_import(arguments: argparse.Namespace) -> int:
@@ -201,6 +242,15 @@ def _run_suite_command(arguments: argparse.Namespace) -> int:
 
         suite = load_golden(arguments.root) or generate(fixtures, seed=arguments.seed)
         result = run_suite(suite.golden_set, TitleBlockPredictor(suite.files))
+    elif arguments.suite == DETECTION_SUITE:
+        # Detection (FR-VIS-03, 09), with the platform's own pipeline: the golden set when
+        # one has been imported, synthetic installations otherwise.
+        from firebid.evals import p1_detection
+
+        detection = p1_detection.load_golden(arguments.root) or p1_detection.generate(
+            fixtures, seed=arguments.seed, tenders=arguments.tenders
+        )
+        result = run_suite(detection.golden_set, p1_detection.DetectionPredictor(detection))
     else:
         golden_set = _load_golden_set(
             arguments.suite, arguments.root, arguments.seed, arguments.tenders
@@ -210,9 +260,11 @@ def _run_suite_command(arguments: argparse.Namespace) -> int:
     if arguments.command == "run":
         result_path.parent.mkdir(parents=True, exist_ok=True)
         result_path.write_text(result.to_json(), encoding="utf-8")
-        report = markdown_report(
-            result, metrics=DOC_METRICS if arguments.suite == DOC_SUITE else None
-        )
+        report = markdown_report(result, metrics=_metrics_for(arguments.suite))
+        if arguments.suite == DETECTION_SUITE:
+            from firebid.evals.p1_detection import untyped_note
+
+            report += untyped_note(detection)
         if arguments.report:
             arguments.report.parent.mkdir(parents=True, exist_ok=True)
             arguments.report.write_text(report, encoding="utf-8")

@@ -87,6 +87,7 @@ def create_app(
         admin,
         audit,
         bids,
+        detections,
         documents,
         library,
         progress,
@@ -101,6 +102,7 @@ def create_app(
     app.include_router(sheets.router)
     app.include_router(views.router)
     app.include_router(symbols.router)
+    app.include_router(detections.router)
     app.include_router(library.router)
     app.include_router(registers.router)
     app.include_router(addenda.router)

@@ -105,6 +105,20 @@ def _graphic(block: BlockLayout, name: str) -> None:
         )
         block.add_line((-side, -side), (side, side), dxfattribs=attributes)
         block.add_line((-side, side), (side, -side), dxfattribs=attributes)
+    elif name == "reducer":  # a tapered body: where a run's size changes
+        block.add_lwpolyline(
+            [(-R, -R * 0.6), (R, -R * 0.3), (R, R * 0.3), (-R, R * 0.6)],
+            close=True,
+            dxfattribs=attributes,
+        )
+    elif name == "riser":  # a square with a circle: a pipe rising through the floor
+        side = R * 0.8
+        block.add_lwpolyline(
+            [(-side, -side), (side, -side), (side, side), (-side, side)],
+            close=True,
+            dxfattribs=attributes,
+        )
+        block.add_circle((0, 0), R * 0.45, dxfattribs=attributes)
     elif name == "star":  # the mystery symbol
         for angle in range(0, 180, 45):
             dx, dy = R * math.cos(math.radians(angle)), R * math.sin(math.radians(angle))

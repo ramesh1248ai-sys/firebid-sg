@@ -68,6 +68,9 @@ class Signature:
     block_hash: str | None = None
     tolerance: float = DEFAULT_TOLERANCE
     version: str = SIGNATURE_VERSION
+    # How the line work is spread around the centre, by direction (drawing convention:
+    # counter-clockwise, y up). Not part of matching: it is how orientation is found.
+    angles: tuple[float, ...] = ()
 
     def as_json(self) -> dict[str, Any]:
         return {
@@ -77,6 +80,7 @@ class Signature:
             "size_mm": round(self.size_mm, 4),
             "tolerance": self.tolerance,
             "descriptor": [round(value, 5) for value in self.descriptor],
+            "angles": [round(value, 5) for value in self.angles],
         }
 
     @classmethod
@@ -88,6 +92,7 @@ class Signature:
             block_hash=data.get("block_hash"),
             tolerance=float(data.get("tolerance") or DEFAULT_TOLERANCE),
             version=str(data.get("version") or SIGNATURE_VERSION),
+            angles=tuple(float(value) for value in data.get("angles") or ()),
         )
 
 
@@ -182,12 +187,61 @@ def distance(a: tuple[float, ...], b: tuple[float, ...]) -> float:
     return float(np.mean(gaps))
 
 
+ANGLE_BINS = 72  # 5 degrees each
+
+
+def angular_profile(points: np.ndarray) -> tuple[float, ...]:
+    """The share of the line work in each direction from the centre, y up (drawing)."""
+    if len(points) == 0:
+        return ()
+    centred = points - points.mean(axis=0)
+    # Sheet y points down; drawings turn counter-clockwise with y up.
+    angle = np.degrees(np.arctan2(-centred[:, 1], centred[:, 0])) % 360.0
+    weights = np.hypot(centred[:, 0], centred[:, 1])
+    counts, _ = np.histogram(angle, bins=ANGLE_BINS, range=(0.0, 360.0), weights=weights)
+    total = counts.sum() or 1.0
+    return tuple(float(value) for value in counts / total)
+
+
+def _smooth(profile: np.ndarray, width: int = 2) -> np.ndarray:
+    """A circular blur over a few bins, so a line lying on a bin edge counts the same
+    whichever side of it sampling puts it: without it a symmetric symbol matches itself
+    more sharply than its turned copies, and reports a turn it does not have."""
+    kernel = np.exp(-0.5 * (np.arange(-2 * width, 2 * width + 1) / width) ** 2)
+    padded = np.concatenate([profile[-2 * width :], profile, profile[: 2 * width]])
+    return np.convolve(padded, kernel / kernel.sum(), mode="valid")
+
+
+def orientation(instance: Signature, reference: Signature, margin: float = 0.08) -> float | None:
+    """How far the instance is turned from its legend entry, in degrees, when that is clear.
+
+    The turn is the one that best lines up the two angular profiles. A symmetric symbol
+    (a circle with a cross) lines up equally well several ways, so it has no orientation to
+    report: None unless the best turn beats every turn more than 30 degrees from it.
+    """
+    if not instance.angles or not reference.angles:
+        return None
+    a, b = _smooth(np.asarray(instance.angles)), _smooth(np.asarray(reference.angles))
+    scores = np.asarray([float(np.dot(a, np.roll(b, shift))) for shift in range(ANGLE_BINS)])
+    best = int(np.argmax(scores))
+    distance = np.minimum(
+        np.abs(np.arange(ANGLE_BINS) - best), ANGLE_BINS - np.abs(np.arange(ANGLE_BINS) - best)
+    )
+    others = scores[distance > 30 / (360 / ANGLE_BINS)]
+    if others.size and scores[best] - others.max() < margin * scores[best]:
+        return None
+    return float(best * 360 / ANGLE_BINS)
+
+
 def signature_of(table: pa.Table, cluster: Cluster) -> Signature | None:
-    described = describe(*sample(table, cluster.rows))
+    points, directions = sample(table, cluster.rows)
+    described = describe(points, directions)
     if described is None:
         return None
     descriptor, rms = described
-    return Signature(descriptor, rms, cluster.block, cluster.block_hash)
+    return Signature(
+        descriptor, rms, cluster.block, cluster.block_hash, angles=angular_profile(points)
+    )
 
 
 # --- Finding candidate symbols --------------------------------------------------------------
@@ -207,7 +261,20 @@ def clusters(
     of these (a legend is not a place where objects are installed).
     """
     columns = table.select(
-        ["kind", "group", "block", "text", "value", "rotation", "minx", "miny", "maxx", "maxy"]
+        [
+            "kind",
+            "group",
+            "block",
+            "text",
+            "value",
+            "rotation",
+            "layer",
+            "color",
+            "minx",
+            "miny",
+            "maxx",
+            "maxy",
+        ]
     ).to_pydict()
     kinds = columns["kind"]
     shape = {str(kind) for kind in SHAPE_KINDS}
@@ -298,7 +365,11 @@ def _symbol_sized(box: tuple[float, float, float, float]) -> bool:
 
 
 def _touching(columns: dict[str, list[Any]], rows: list[int]) -> list[list[int]]:
-    """Groups of primitives whose boxes touch, by union-find over a sort-and-sweep."""
+    """Groups of primitives whose boxes touch, by union-find over a sort-and-sweep.
+
+    Only primitives drawn alike (same layer and colour) join: a symbol is drawn in one pen,
+    so the pipe running into a valve's body stays pipe rather than becoming part of it.
+    """
     parent = {row: row for row in rows}
 
     def root(row: int) -> int:
@@ -314,7 +385,9 @@ def _touching(columns: dict[str, list[Any]], rows: list[int]) -> list[list[int]]
         active = [other for other in active if columns["maxx"][other] >= left]
         for other in active:
             if (
-                columns["miny"][other] <= columns["maxy"][row] + TOUCH_MM
+                columns["layer"][other] == columns["layer"][row]
+                and columns["color"][other] == columns["color"][row]
+                and columns["miny"][other] <= columns["maxy"][row] + TOUCH_MM
                 and columns["maxy"][other] >= columns["miny"][row] - TOUCH_MM
             ):
                 parent[root(other)] = root(row)
@@ -354,4 +427,18 @@ def best_match(signature: Signature, candidates: list[Signature]) -> Match | Non
             best is None or gap < best.distance
         ):
             best = Match(index, gap, "shape")
+    return best
+
+
+def near_match(signature: Signature, candidates: list[Signature], factor: float) -> Match | None:
+    """The closest candidate a shape is *nearly* like: outside its tolerance, within
+    `factor` times it. What vision assist may be asked about; never a match by itself."""
+    best: Match | None = None
+    for index, candidate in enumerate(candidates):
+        if not candidate.descriptor:
+            continue
+        tolerance = min(signature.tolerance, candidate.tolerance)
+        gap = distance(signature.descriptor, candidate.descriptor)
+        if tolerance < gap <= factor * tolerance and (best is None or gap < best.distance):
+            best = Match(index, gap, "near")
     return best
