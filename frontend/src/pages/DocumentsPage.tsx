@@ -25,6 +25,7 @@ type Progress = {
 type Sheet = {
   id: string;
   document_id: string;
+  filename: string;
   layout_name: string | null;
   width_mm: number | null;
   height_mm: number | null;
@@ -114,7 +115,14 @@ function useProgress(bidId: string) {
   return query;
 }
 
-function useSheets(bidId: string) {
+function useSheets(bidId: string, readyCount: number | undefined) {
+  const queryClient = useQueryClient();
+  // Refetch whenever the count of ready sheets moves, whether the stream or the polling
+  // noticed; otherwise a page without the stream would count sheets it never lists.
+  useEffect(() => {
+    if (readyCount !== undefined) queryClient.invalidateQueries({ queryKey: ["sheets", bidId] });
+  }, [bidId, readyCount, queryClient]);
+
   return useQuery({
     queryKey: ["sheets", bidId],
     queryFn: async (): Promise<Sheet[]> => {
@@ -174,6 +182,44 @@ function Counts({ progress }: { progress: Progress }) {
   );
 }
 
+/**
+ * A thumbnail, fetched with the sign-in token. The API authorises every image, so a plain
+ * `<img src>` would carry no token and be refused.
+ */
+function Thumbnail({ path }: { path: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    async function load() {
+      const token = await accessToken();
+      const response = await fetch(new URL(path, window.location.origin), {
+        headers: token ? { authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok || cancelled) return;
+      objectUrl = URL.createObjectURL(await response.blob());
+      if (cancelled) URL.revokeObjectURL(objectUrl);
+      else setUrl(objectUrl);
+    }
+
+    load().catch(() => {
+      // Without a preview the card still names the sheet and opens it.
+    });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [path]);
+
+  return url ? (
+    <img src={url} alt="" className="h-32 w-full rounded border bg-white object-contain" />
+  ) : (
+    <div className="h-32 w-full rounded border bg-white" />
+  );
+}
+
 function SheetCard({ bidId, sheet }: { bidId: string; sheet: Sheet }) {
   const size =
     sheet.width_mm && sheet.height_mm
@@ -186,19 +232,16 @@ function SheetCard({ bidId, sheet }: { bidId: string; sheet: Sheet }) {
         className="block space-y-2 p-3 hover:bg-accent"
       >
         {sheet.has_thumbnail ? (
-          <img
-            src={`/api/bids/${bidId}/sheets/${sheet.id}/thumbnail.webp`}
-            alt=""
-            className="h-32 w-full rounded border bg-white object-contain"
-          />
+          <Thumbnail path={`/api/bids/${bidId}/sheets/${sheet.id}/thumbnail.webp`} />
         ) : (
           <div className="flex h-32 items-center justify-center rounded border text-xs text-muted-foreground">
             No preview yet
           </div>
         )}
         <div>
-          <p className="truncate text-sm font-medium">{sheet.layout_name ?? "Sheet"}</p>
+          <p className="truncate text-sm font-medium">{sheet.filename || "Sheet"}</p>
           <p className="text-xs text-muted-foreground">
+            {sheet.layout_name ? `${sheet.layout_name} · ` : ""}
             {size} · {sheet.content_class ?? "unclassified"}
           </p>
         </div>
@@ -210,7 +253,7 @@ function SheetCard({ bidId, sheet }: { bidId: string; sheet: Sheet }) {
 export function DocumentsPage() {
   const { bidId = "" } = useParams();
   const progress = useProgress(bidId);
-  const sheets = useSheets(bidId);
+  const sheets = useSheets(bidId, progress.data?.sheets);
   const upload = useUpload(bidId);
   const fileInput = useRef<HTMLInputElement>(null);
   const [chosen, setChosen] = useState(0);
@@ -274,8 +317,9 @@ export function DocumentsPage() {
           {progress.data.failures.length > 0 && (
             <div className="space-y-2 rounded-lg border border-amber-300 p-4 dark:border-amber-700">
               <h2 className="text-sm font-semibold">
-                {progress.data.failures.length} file
-                {progress.data.failures.length === 1 ? "" : "s"} need attention
+                {progress.data.failures.length === 1
+                  ? "1 file needs attention"
+                  : `${progress.data.failures.length} files need attention`}
               </h2>
               <ul className="space-y-2">
                 {progress.data.failures.map((failure) => (

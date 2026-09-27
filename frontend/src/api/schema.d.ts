@@ -939,6 +939,11 @@ export interface components {
              */
             document_id: string;
             /**
+             * Filename
+             * @default
+             */
+            filename: string;
+            /**
              * Has Thumbnail
              * @default false
              */
@@ -984,6 +989,11 @@ export interface components {
              * Format: uuid
              */
             document_id: string;
+            /**
+             * Filename
+             * @default
+             */
+            filename: string;
             /**
              * Has Thumbnail
              * @default false

@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 
 from firebid.api.deps import CurrentBid, DbSession
 from firebid.db.engine import session_scope
+from firebid.db.identity import acting_as
 from firebid.db.models.documents import Document, Sheet
 
 log = structlog.get_logger("firebid.progress")
@@ -130,13 +131,14 @@ def progress(context: CurrentBid, session: DbSession) -> Progress:
 async def progress_stream(context: CurrentBid) -> StreamingResponse:
     """The same thing, as it changes. Sends an event only when something has moved."""
     bid_id = context.bid.id
+    user_id = context.principal.user_id
 
     async def events() -> AsyncIterator[str]:
         last: str | None = None
         elapsed = 0.0
         # The first event goes out immediately, so the page never renders empty.
         while elapsed < MAX_STREAM_SECONDS:
-            current = await asyncio.to_thread(_read_json, bid_id)
+            current = await asyncio.to_thread(_read_json, bid_id, user_id)
             if current != last:
                 yield f"data: {current}\n\n"
                 last = current
@@ -161,7 +163,11 @@ async def progress_stream(context: CurrentBid) -> StreamingResponse:
     )
 
 
-def _read_json(bid_id: uuid.UUID) -> str:
-    """Read the progress on its own connection, off the event loop."""
-    with session_scope() as session:
+def _read_json(bid_id: uuid.UUID, user_id: uuid.UUID) -> str:
+    """Read the progress on its own connection, off the event loop.
+
+    As the caller: the request's identity is set on the request's session, not this one, and
+    row-level security shows a session with no acting user an empty bid.
+    """
+    with acting_as(user_id), session_scope() as session:
         return read_progress(session, bid_id).model_dump_json()

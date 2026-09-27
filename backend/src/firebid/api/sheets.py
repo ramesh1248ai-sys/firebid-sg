@@ -34,6 +34,9 @@ TILE_CACHE_CONTROL = "private, max-age=31536000, immutable"
 class SheetOut(BaseModel):
     id: uuid.UUID
     document_id: uuid.UUID
+    # The file the sheet came from, which is how an estimator recognises it until P1-02
+    # reads the sheet number off the title block.
+    filename: str = ""
     index_in_document: int
     layout_name: str | None
     width_mm: float | None
@@ -53,8 +56,9 @@ class SheetDetail(SheetOut):
     quality_detail: dict[str, object] | None = None
 
 
-def _as_out(sheet: Sheet) -> SheetOut:
+def _as_out(sheet: Sheet, filename: str) -> SheetOut:
     out = SheetOut.model_validate(sheet)
+    out.filename = filename
     out.has_thumbnail = sheet.thumbnail_key is not None
     return out
 
@@ -71,19 +75,25 @@ def list_sheets(
     context: CurrentBid, session: DbSession, document_id: uuid.UUID | None = None
 ) -> list[SheetOut]:
     """Every sheet on the bid, or just one document's, in the order they appear in the file."""
-    query = select(Sheet).where(Sheet.bid_id == context.bid.id)
+    query = (
+        select(Sheet, Document.filename)
+        .join(Document, Document.id == Sheet.document_id)
+        .where(Sheet.bid_id == context.bid.id)
+    )
     if document_id is not None:
         query = query.where(Sheet.document_id == document_id)
-    rows = (
-        session.execute(query.order_by(Sheet.document_id, Sheet.index_in_document)).scalars().all()
-    )
-    return [_as_out(sheet) for sheet in rows]
+    rows = session.execute(
+        query.order_by(Document.filename, Sheet.document_id, Sheet.index_in_document)
+    ).all()
+    return [_as_out(sheet, filename) for sheet, filename in rows]
 
 
 @router.get("/{sheet_id}", response_model=SheetDetail)
 def get_sheet(context: CurrentBid, session: DbSession, sheet_id: uuid.UUID) -> SheetDetail:
     sheet = _resolve(session, context, sheet_id)
     detail = SheetDetail.model_validate(sheet)
+    document = session.get(Document, sheet.document_id)
+    detail.filename = document.filename if document else ""
     detail.has_thumbnail = sheet.thumbnail_key is not None
     detail.quality_detail = sheet.quality_detail
     if sheet.content_hash and sheet.base_width_px and sheet.base_height_px:

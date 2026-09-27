@@ -278,7 +278,7 @@ Entry template:
   2. Drop a zip of drawings in. The counts move as files are scanned and read; refusals appear with their reasons.
   3. Click a sheet thumbnail to open the viewer; zoom past the pre-rendered levels and close-up tiles fill in.
   4. `make ingest-benchmark SHEETS=300` writes `eval/results/ingest-throughput.md`.
-  5. `make e2e` runs `frontend/e2e/document-ingestion.spec.ts`, which does all of the above against the real stack.
+  5. `make e2e` runs `frontend/e2e/document-ingestion.spec.ts`, which does all of the above against the real stack. Last run 2026-09-27: all 6 E2E tests pass.
 - **Requirement IDs covered (test names):**
   - FR-DOC-01 — `tests/ingest/test_detection_and_archives.py::TestDetection`, `tests/db/test_document_ingestion.py`, `tests/db/test_document_api.py`, `tests/db/test_legacy_conversion.py`, `tests/parsing/test_pdf_and_dxf.py`, `tests/imaging/test_pyramid_and_tiles.py`, `tests/db/test_sheet_pipeline.py`, `tests/db/test_sheet_api.py`.
   - FR-DOC-07 — `test_sheet_pipeline.py::TestProcessingAPdf::test_a_sheet_carries_its_lineage`, `test_sheet_api.py::TestListingSheets::test_a_sheet_carries_its_lineage`.
@@ -319,6 +319,15 @@ Entry template:
   - `render_tile` referenced a `Sheet.kind_for_render` attribute that never existed; the document's kind is now passed in.
   - The sandbox image installed the project into the wrong virtualenv (`VIRTUAL_ENV` instead of `UV_PROJECT_ENVIRONMENT`), so `firebid` was absent at runtime.
   - The database test fixture cleared the cached engine but not the cached session factory, so `session_scope` could stay bound to the default URL from an earlier test. The progress stream was the first route under test to use it, and failed only in a full run. `clear_engine_caches()` now clears all four caches.
+  - **Found by the first E2E run against the real stack**, none of which the unit tests could see:
+    - `parse.document` ran with no acting user, so row-level security hid every document and each job logged `parse_skipped_missing_document`. Nothing ever became a sheet. The job now takes the uploader's id and runs `acting_as` them, as `db/identity.py` requires of every job.
+    - The progress stream read on its own session, also with no acting user, so it saw an empty bid, sent one event and never updated or closed. It now acts as the caller.
+    - Both escaped the unit tests because those connect as the table owner, which row-level security does not restrict. A shared `as_application_role` fixture now runs such code as the application role; `TestTheParseJob` and the stream test use it.
+    - The sheet list refreshed only on stream events, never on the fallback polling; it now refetches when the ready count changes.
+    - Thumbnails were plain `<img>` requests with no token, so every one returned 401. They are now fetched with the token.
+    - Sheet cards and the viewer heading showed only "page 1" or "Model". The sheets API now returns the source `filename`, which the page shows.
+    - The E2E EICAR fixture appended the test string to a PDF. Real ClamAV matches EICAR only at the start of a file, so it passed the scan (the unit test's fake scanner matched anywhere). The fixture is now a workbook carrying the file inside, which ClamAV flags, and the test asserts that row says Quarantined.
+    - Also: "1 file need attention", and three ambiguous selectors in the spec.
 - **Known gaps and follow-ups:**
   - **The per-job network namespace is inert under Docker's default seccomp profile.** Tracked as open item 6 in the security baseline; the decision belongs to P1-10.
   - **DWG is still unreadable** pending ADR-003. Every DWG is refused with a message naming the DXF export as the way forward.
@@ -326,4 +335,5 @@ Entry template:
   - **No revision or sheet-number extraction yet** — `SheetRevision` is untouched here; that is P1-02.
   - **`tender_package_id` is accepted but never set by the API.** Packages arrive with P1-02's addenda handling.
   - **Failed parse jobs do not retry with backoff.** Procrastinate's retry strategy is not configured on `parse.document`; a failure lands in `rejected` with its reason instead, which is visible but final until the file is re-uploaded.
-  - **The ingestion E2E has not been run against the stack in this session.** It is written but unrun: it needs `make up` with the new `clamav` and `sandbox` services and a signature download.
+  - **A file held by a scanner outage is never parsed after it is released.** `rescan` moves it on but does not queue `parse.document`, so a PDF held during an outage will not become sheets until it is re-uploaded.
+  - **The EICAR unit test's fake scanner matches the string anywhere**, which real ClamAV does not; it proves the pipeline's handling of a verdict, not what ClamAV will flag.

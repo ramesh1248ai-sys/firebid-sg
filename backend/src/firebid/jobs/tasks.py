@@ -73,22 +73,26 @@ def heartbeat(timestamp: int) -> None:
 
 
 @app.task(name="parse.document", queue=PARSE_QUEUE, pass_context=True)
-def parse_document(context: JobContext, document_id: str) -> dict[str, int]:
+def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[str, int]:
     """Turn one stored document into sheets with tiles (FR-DOC-01).
 
     On the `parse` queue, so only the sandbox pool takes it: this job opens a file that came
     from outside the company, and the pool is the only container allowed to do that.
+
+    Runs as `user_id`, the person who uploaded the file. Row-level security shows a
+    transaction with no acting user nothing, so without it every document looks deleted.
 
     Idempotent, because delivery is at-least-once. Sheets are keyed by document and page and
     tiles by content hash, so running it twice re-uses everything and changes nothing.
     """
     import uuid as uuid_module
 
+    from firebid.db.identity import acting_as
     from firebid.db.models.documents import Document
     from firebid.services.sheets import process_document
     from firebid.storage.object_store import get_object_store
 
-    with session_scope() as session:
+    with acting_as(uuid_module.UUID(user_id)), session_scope() as session:
         document = session.get(Document, uuid_module.UUID(document_id))
         if document is None:
             # The bid was deleted while the job waited. Nothing to do, and not an error.

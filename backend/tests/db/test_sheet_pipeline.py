@@ -12,20 +12,23 @@ pickled, which is exactly where a change breaks them.
 from __future__ import annotations
 
 import io
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from PIL import Image
+from procrastinate import JobContext
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from firebid.db.models.core import Bid
+from firebid.db.models.core import AppUser, Bid
 from firebid.db.models.documents import Document, Sheet
 from firebid.evals.synthetic import dxf_bytes, general_arrangement, write_pdf, write_raster
 from firebid.imaging.pyramid import Pyramid, thumbnail_key, tile_key
 from firebid.ingest.scanning import AlwaysCleanScanner
+from firebid.jobs.tasks import parse_document
 from firebid.services.ingestion import Ingestor
 from firebid.services.sheets import process_document, render_tile
+from firebid.storage import object_store
 from firebid.storage.object_store import MemoryObjectStore
 
 pytestmark = pytest.mark.req("FR-DOC-01")
@@ -319,3 +322,36 @@ class TestOnDemandTiles:
         render_tile(store, vector_pdf, "pdf", sheet, 0, 0, 0)
 
         assert store.writes == writes_before
+
+
+class TestTheParseJob:
+    """The job as the sandbox pool runs it: on the application role, under row-level security.
+
+    The tests above use the table owner, which row-level security does not restrict, so they
+    cannot see a job that forgets whose documents it is reading.
+    """
+
+    @pytest.fixture(autouse=True)
+    def the_real_store(self, store: MemoryObjectStore, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(object_store, "get_object_store", lambda: store)
+
+    def test_it_reads_the_uploaders_document(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        vector_pdf: bytes,
+        as_application_role: None,
+    ) -> None:
+        document = ingest(session, bid, store, "FP-L05-201.pdf", vector_pdf)
+        session.commit()
+
+        result = parse_document(
+            cast(JobContext, None), document_id=str(document.id), user_id=str(user.id)
+        )
+
+        assert result["sheets"] == 1, "a job with no acting user sees no documents at all"
+        session.expire_all()
+        sheets = session.execute(select(Sheet).where(Sheet.document_id == document.id)).all()
+        assert len(sheets) == 1

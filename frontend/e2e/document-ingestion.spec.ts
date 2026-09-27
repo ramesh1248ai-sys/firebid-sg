@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -73,7 +73,7 @@ test("a tender set is uploaded, read, and a sheet opens in the viewer", async ({
   await expect(page.getByText("Nothing has been sent for this bid yet.")).toBeVisible();
 
   await page.getByLabel("Files to upload").setInputFiles(archive);
-  await page.getByRole("button", { name: "Upload" }).click();
+  await page.getByRole("button", { name: "Upload", exact: true }).click();
 
   // The set is scanned, then read in the sandbox pool, so this takes a moment.
   await expect(page.getByText(/sheets? ready to open\./)).toBeVisible({ timeout: 240_000 });
@@ -86,7 +86,8 @@ test("a tender set is uploaded, read, and a sheet opens in the viewer", async ({
   // Open a sheet. The low zoom levels were rendered at ingest, so it appears at once.
   await page.getByRole("link", { name: /FP-L05-201/ }).first().click();
   await expect(page.getByTestId("sheet-viewer")).toBeVisible();
-  await expect(page.locator("#sheet-viewer, [data-testid='sheet-viewer'] canvas")).toBeVisible({
+  // The first canvas is the sheet; OpenSeadragon's navigator draws a second, smaller one.
+  await expect(page.getByTestId("sheet-viewer").locator("canvas").first()).toBeVisible({
     timeout: 60_000,
   });
 
@@ -110,23 +111,40 @@ test("a tender set is uploaded, read, and a sheet opens in the viewer", async ({
   expect(tileResponses.filter((status) => status >= 500)).toHaveLength(0);
 });
 
-test("the EICAR test file is quarantined and never becomes a sheet", async ({ page }) => {
+test("a file carrying the EICAR test string is quarantined and never becomes a sheet", async ({
+  page,
+}) => {
   test.setTimeout(180_000);
+  // Scanners match the EICAR string only at the start of a file, so it cannot simply be
+  // appended to a PDF. A workbook is a zip, and ClamAV looks inside zips: this one is
+  // accepted as a spreadsheet by content detection and then flagged by the scanner.
   const directory = mkdtempSync(join(tmpdir(), "firebid-eicar-"));
-  const eicar = join(directory, "brochure.pdf");
-  // The agreed anti-malware test string, assembled so this file is not itself flagged.
-  const parts = ["X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR", "-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"];
-  writeFileSync(eicar, `%PDF-1.7\n${parts.join("")}\n`);
+  const workbook = join(directory, "schedule.xlsx");
+  const script = `
+import zipfile
+# The agreed anti-malware test string, assembled so this file is not itself flagged.
+eicar = (r"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR" + "-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*").encode()
+with zipfile.ZipFile(${JSON.stringify(workbook)}, "w", zipfile.ZIP_DEFLATED) as archive:
+    archive.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types/>')
+    archive.writestr("xl/workbook.xml", '<?xml version="1.0"?><workbook/>')
+    archive.writestr("xl/media/eicar.com", eicar)
+`;
+  execFileSync("uv", ["run", "python", "-c", script], {
+    cwd: join(process.cwd(), "..", "backend"),
+    stdio: "pipe",
+  });
 
   await signIn(page, "bid.manager@firebid.test");
   await registerBid(page, "Marina Bay Malware Check");
 
   await page.getByRole("link", { name: "Tender documents" }).click();
-  await page.getByLabel("Files to upload").setInputFiles(eicar);
-  await page.getByRole("button", { name: "Upload" }).click();
+  await page.getByLabel("Files to upload").setInputFiles(workbook);
+  await page.getByRole("button", { name: "Upload", exact: true }).click();
 
-  await expect(page.getByText("brochure.pdf")).toBeVisible({ timeout: 120_000 });
-  await expect(page.getByText(/Quarantined|Refused/)).toBeVisible();
+  const row = page.getByRole("listitem").filter({ hasText: "schedule.xlsx" });
+  await expect(row).toBeVisible({ timeout: 120_000 });
+  await expect(row).toContainText("Quarantined");
+  await expect(row).toContainText(/Eicar/i);
   // Nothing was parsed, so there is no sheet list at all.
   await expect(page.getByRole("heading", { name: "Sheets" })).toBeHidden();
 });

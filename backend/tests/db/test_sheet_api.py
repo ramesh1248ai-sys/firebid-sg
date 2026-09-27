@@ -131,6 +131,17 @@ class TestListingSheets:
         assert sheets[0]["content_class"] == "vector"
         assert sheets[0]["has_thumbnail"] is True
 
+    def test_a_sheet_names_the_file_it_came_from(
+        self, sign_in: SignIn, estimator: Principal, bid: Bid, processed: dict[str, Any]
+    ) -> None:
+        client = sign_in(estimator)
+
+        listed = client.get(f"/bids/{bid.id}/sheets").json()[0]
+        detail = client.get(f"/bids/{bid.id}/sheets/{listed['id']}").json()
+
+        assert listed["filename"] == "FP-L05-201.pdf"
+        assert detail["filename"] == "FP-L05-201.pdf"
+
     def test_a_sheet_carries_its_lineage(
         self, sign_in: SignIn, estimator: Principal, bid: Bid, processed: dict[str, Any]
     ) -> None:
@@ -335,8 +346,14 @@ class TestProgress:
         assert progress["finished"] is False
 
     def test_the_stream_sends_the_current_state_immediately(
-        self, sign_in: SignIn, estimator: Principal, bid: Bid, processed: dict[str, Any]
+        self,
+        sign_in: SignIn,
+        estimator: Principal,
+        bid: Bid,
+        processed: dict[str, Any],
+        as_application_role: None,
     ) -> None:
+        """The stream reads on its own session, so it must act as the caller to see anything."""
         import json
 
         client = sign_in(estimator)

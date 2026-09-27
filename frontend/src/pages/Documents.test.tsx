@@ -18,7 +18,14 @@ const SHEET = "7b2e1d4f-0000-4000-8000-000000000002";
 function progress(overrides: Record<string, unknown> = {}) {
   return {
     total: 3,
-    counts: { received: 0, awaiting_scan: 0, processing: 0, done: 3, rejected: 0, quarantined: 0 },
+    counts: {
+      received: 0,
+      awaiting_scan: 0,
+      processing: 0,
+      done: 3,
+      rejected: 0,
+      quarantined: 0,
+    },
     sheets: 3,
     finished: true,
     failures: [],
@@ -30,8 +37,9 @@ function sheet(overrides: Record<string, unknown> = {}) {
   return {
     id: SHEET,
     document_id: "8c3f2e5a-0000-4000-8000-000000000003",
+    filename: "FP-L05-201.pdf",
     index_in_document: 0,
-    layout_name: "FP-L05-201",
+    layout_name: "page 1",
     width_mm: 841,
     height_mm: 594,
     content_class: "vector",
@@ -61,7 +69,9 @@ describe("the tender documents page", () => {
     renderAt(`/bids/${BID}/documents`);
 
     expect(await screen.findByText("Ready")).toBeInTheDocument();
-    expect(await screen.findByText("3 sheets ready to open.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("3 sheets ready to open."),
+    ).toBeInTheDocument();
   });
 
   it("names every file that needs attention, with the reason", async () => {
@@ -78,7 +88,8 @@ describe("the tender documents page", () => {
                 id: "1",
                 filename: "PLAN.dwg",
                 state: "rejected",
-                reason: "DWG conversion is not available yet; send the DXF export.",
+                reason:
+                  "DWG conversion is not available yet; send the DXF export.",
               },
               {
                 id: "2",
@@ -93,7 +104,9 @@ describe("the tender documents page", () => {
     });
     renderAt(`/bids/${BID}/documents`);
 
-    expect(await screen.findByText("2 files need attention")).toBeInTheDocument();
+    expect(
+      await screen.findByText("2 files need attention"),
+    ).toBeInTheDocument();
     expect(screen.getByText("PLAN.dwg")).toBeInTheDocument();
     expect(screen.getByText(/send the DXF export/)).toBeInTheDocument();
     expect(screen.getByText("brochure.exe")).toBeInTheDocument();
@@ -110,7 +123,12 @@ describe("the tender documents page", () => {
             counts: { awaiting_scan: 1 },
             sheets: 0,
             failures: [
-              { id: "1", filename: "FP-L05-201.pdf", state: "awaiting_scan", reason: null },
+              {
+                id: "1",
+                filename: "FP-L05-201.pdf",
+                state: "awaiting_scan",
+                reason: null,
+              },
             ],
           }),
         ),
@@ -118,31 +136,45 @@ describe("the tender documents page", () => {
     });
     renderAt(`/bids/${BID}/documents`);
 
-    expect(await screen.findAllByText("Waiting for the scanner")).toHaveLength(2);
+    expect(await screen.findAllByText("Waiting for the scanner")).toHaveLength(
+      2,
+    );
   });
 
   it("says when nothing has been sent yet", async () => {
     stubApi({
       "/progress/stream": noStream,
       "/progress": () =>
-        Response.json(progress({ total: 0, counts: {}, sheets: 0, finished: false })),
+        Response.json(
+          progress({ total: 0, counts: {}, sheets: 0, finished: false }),
+        ),
       "/sheets": () => Response.json([]),
     });
     renderAt(`/bids/${BID}/documents`);
 
-    expect(await screen.findByText("Nothing has been sent for this bid yet.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Nothing has been sent for this bid yet."),
+    ).toBeInTheDocument();
   });
 
   it("lists each sheet with its size and what it is made of", async () => {
     stubApi({
       "/progress/stream": noStream,
       "/progress": () => Response.json(progress()),
-      "/sheets": () => Response.json([sheet(), sheet({ id: "other", layout_name: "FP-L05-202" })]),
+      "/sheets": () =>
+        Response.json([
+          sheet(),
+          sheet({ id: "other", filename: "FP-L05-202.dxf", layout_name: "A1" }),
+        ]),
     });
     renderAt(`/bids/${BID}/documents`);
 
-    expect(await screen.findByText("FP-L05-201")).toBeInTheDocument();
-    expect(screen.getAllByText("841 × 594 mm · vector")).toHaveLength(2);
+    expect(await screen.findByText("FP-L05-201.pdf")).toBeInTheDocument();
+    expect(screen.getByText("FP-L05-202.dxf")).toBeInTheDocument();
+    expect(
+      screen.getByText("page 1 · 841 × 594 mm · vector"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("A1 · 841 × 594 mm · vector")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /FP-L05-201/ })).toHaveAttribute(
       "href",
       `/bids/${BID}/sheets/${SHEET}`,
@@ -152,40 +184,60 @@ describe("the tender documents page", () => {
   it("sends the chosen files and asks for the progress again", async () => {
     const calls = stubApi({
       "/progress/stream": noStream,
-      "/progress": () => Response.json(progress({ total: 0, counts: {}, sheets: 0 })),
+      "/progress": () =>
+        Response.json(progress({ total: 0, counts: {}, sheets: 0 })),
       "/sheets": () => Response.json([]),
-      "/documents": () => Response.json({ stored: [], accounted_for: 1 }, { status: 201 }),
+      "/documents": () =>
+        Response.json({ stored: [], accounted_for: 1 }, { status: 201 }),
     });
     renderAt(`/bids/${BID}/documents`);
 
-    const file = new File([new Uint8Array([37, 80, 68, 70])], "FP-L05-201.pdf", {
-      type: "application/pdf",
-    });
-    await userEvent.upload(await screen.findByLabelText("Files to upload"), file);
+    const file = new File(
+      [new Uint8Array([37, 80, 68, 70])],
+      "FP-L05-201.pdf",
+      {
+        type: "application/pdf",
+      },
+    );
+    await userEvent.upload(
+      await screen.findByLabelText("Files to upload"),
+      file,
+    );
     await userEvent.click(screen.getByRole("button", { name: "Upload" }));
 
     await waitFor(() => {
-      expect(calls.some((call) => call.method === "POST" && call.url.includes("/documents"))).toBe(
-        true,
-      );
+      expect(
+        calls.some(
+          (call) => call.method === "POST" && call.url.includes("/documents"),
+        ),
+      ).toBe(true);
     });
   });
 
   it("says why an upload was refused", async () => {
     stubApi({
       "/progress/stream": noStream,
-      "/progress": () => Response.json(progress({ total: 0, counts: {}, sheets: 0 })),
+      "/progress": () =>
+        Response.json(progress({ total: 0, counts: {}, sheets: 0 })),
       "/sheets": () => Response.json([]),
       "/documents": () =>
-        Response.json({ detail: "'PLAN.dwg' is larger than 200 MB" }, { status: 413 }),
+        Response.json(
+          { detail: "'PLAN.dwg' is larger than 200 MB" },
+          { status: 413 },
+        ),
     });
     renderAt(`/bids/${BID}/documents`);
 
     const file = new File([new Uint8Array([1])], "PLAN.dwg");
-    await userEvent.upload(await screen.findByLabelText("Files to upload"), file);
+    await userEvent.upload(
+      await screen.findByLabelText("Files to upload"),
+      file,
+    );
     await userEvent.click(screen.getByRole("button", { name: "Upload" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("larger than 200 MB");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "larger than 200 MB",
+    );
   });
 });
 
@@ -211,12 +263,19 @@ describe("the sheet viewer", () => {
     });
     renderAt(`/bids/${BID}/sheets/${SHEET}`);
 
-    expect(await screen.findByRole("heading", { name: "FP-L05-201" })).toBeInTheDocument();
-    expect(screen.getByText("841 × 594 mm · vector")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "FP-L05-201.pdf" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("page 1 · 841 × 594 mm · vector"),
+    ).toBeInTheDocument();
   });
 
   it("says so when the sheet is not finished being read", async () => {
-    stubApi({ [`/sheets/${SHEET}`]: () => Response.json({ ...sheet(), tile_source: null }) });
+    stubApi({
+      [`/sheets/${SHEET}`]: () =>
+        Response.json({ ...sheet(), tile_source: null }),
+    });
     renderAt(`/bids/${BID}/sheets/${SHEET}`);
 
     expect(
@@ -226,11 +285,16 @@ describe("the sheet viewer", () => {
 
   it("does not confirm a sheet exists to someone not on the bid", async () => {
     stubApi({
-      [`/sheets/${SHEET}`]: () => Response.json({ detail: "sheet not found" }, { status: 404 }),
+      [`/sheets/${SHEET}`]: () =>
+        Response.json({ detail: "sheet not found" }, { status: 404 }),
     });
     renderAt(`/bids/${BID}/sheets/${SHEET}`);
 
-    expect(await screen.findByRole("heading", { name: "Sheet not found" })).toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent("may not be on this bid's team");
+    expect(
+      await screen.findByRole("heading", { name: "Sheet not found" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "may not be on this bid's team",
+    );
   });
 });

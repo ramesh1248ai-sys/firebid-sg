@@ -1185,6 +1185,11 @@
             "title": "Document Id",
             "type": "string"
           },
+          "filename": {
+            "default": "",
+            "title": "Filename",
+            "type": "string"
+          },
           "has_thumbnail": {
             "default": false,
             "title": "Has Thumbnail",
@@ -1333,6 +1338,11 @@
           "document_id": {
             "format": "uuid",
             "title": "Document Id",
+            "type": "string"
+          },
+          "filename": {
+            "default": "",
+            "title": "Filename",
             "type": "string"
           },
           "has_thumbnail": {

@@ -104,18 +104,19 @@ def _report(outcome: IngestOutcome) -> UploadReport:
 PARSEABLE_KINDS = frozenset({"pdf", "dxf"})
 
 
-def _queue_parsing(session: Session, report: UploadReport) -> None:
+def _queue_parsing(session: Session, report: UploadReport, user_id: uuid.UUID) -> None:
     """Queue a parse job for each newly stored document that becomes sheets.
 
     In the caller's transaction (the `jobs` convention): a rollback takes the jobs with it,
-    so a job never runs against a document row that was never committed.
+    so a job never runs against a document row that was never committed. The job acts as
+    the uploader, since row-level security shows it nothing otherwise.
     """
     from firebid.jobs.enqueue import enqueue
     from firebid.jobs.tasks import parse_document
 
     for document in report.stored:
         if document.kind in PARSEABLE_KINDS:
-            enqueue(session, parse_document, document_id=str(document.id))
+            enqueue(session, parse_document, document_id=str(document.id), user_id=str(user_id))
 
 
 def _merge(into: UploadReport, addition: UploadReport) -> None:
@@ -158,7 +159,7 @@ def upload(
             )
         _merge(report, _report(ingestor.ingest(upload_file.filename or "unnamed", payload)))
 
-    _queue_parsing(session, report)
+    _queue_parsing(session, report, context.principal.user_id)
     return report
 
 
@@ -244,7 +245,7 @@ def complete(
             )
         _merge(report, _report(ingestor.ingest(request.filename, payload)))
 
-    _queue_parsing(session, report)
+    _queue_parsing(session, report, context.principal.user_id)
     return report
 
 

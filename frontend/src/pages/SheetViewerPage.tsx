@@ -30,6 +30,7 @@ type TileSource = {
 
 type SheetDetail = {
   id: string;
+  filename: string;
   layout_name: string | null;
   width_mm: number | null;
   height_mm: number | null;
@@ -158,8 +159,9 @@ export function SheetViewerPage() {
   return (
     <section className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{data.layout_name ?? "Sheet"}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{data.filename || "Sheet"}</h1>
         <p className="text-sm text-muted-foreground">
+          {data.layout_name ? `${data.layout_name} · ` : ""}
           {size} · {data.content_class ?? "unclassified"}
         </p>
       </div>

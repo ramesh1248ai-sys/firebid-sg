@@ -71,6 +71,26 @@ def app_role_engine(database_url: str) -> Iterator[Engine]:
     engine.dispose()
 
 
+@pytest.fixture
+def as_application_role(database_url: str, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Make `session_scope` connect as the application role, under row-level security.
+
+    Most tests connect as the table owner, which row-level security does not restrict. Code
+    that opens its own session (a job, a stream) must be tested this way, or a session that
+    forgets to act as someone passes here and sees nothing in production.
+    """
+    monkeypatch.setenv(
+        "FIREBID_DATABASE_URL",
+        database_url.replace("firebid:firebid@", f"firebid_app:{APP_ROLE_PASSWORD}@"),
+    )
+    get_settings.cache_clear()
+    clear_engine_caches()
+    yield
+    monkeypatch.undo()
+    get_settings.cache_clear()
+    clear_engine_caches()
+
+
 @pytest.fixture(autouse=True)
 def clean_database(engine: Engine) -> Iterator[None]:
     """Each test starts empty. Truncating keeps partitions, triggers and grants in place."""
