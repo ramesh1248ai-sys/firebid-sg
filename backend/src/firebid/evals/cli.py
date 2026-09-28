@@ -248,7 +248,7 @@ def _run_suite_command(arguments: argparse.Namespace) -> int:
         from firebid.evals import p1_detection
 
         detection = p1_detection.load_golden(arguments.root) or p1_detection.generate(
-            fixtures, seed=arguments.seed, tenders=arguments.tenders
+            fixtures, seed=arguments.seed, tenders=arguments.tenders, with_duplicates=True
         )
         result = run_suite(detection.golden_set, p1_detection.DetectionPredictor(detection))
     else:

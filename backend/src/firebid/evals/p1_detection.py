@@ -18,6 +18,12 @@ tenders stand in for one confirmation pass with their known answers.
 
 The Phase 1 targets (requirements §14) are sprinkler count accuracy at least 98% and pipe
 length within ±5%; `firebid.evals.runner` reports against them.
+
+Duplicates (FR-QTO-08): each tender's sheets are passed through the QTO engine's
+de-duplication (P1-07), and the sheets it finds repeating another are scored against the
+truth's `duplicates_of`, for the ≥95% target. With no golden set, two synthetic tenders
+seed them: a general arrangement with an enlarged plan and a riser schematic, and a
+match-lined pair of plans.
 """
 
 from __future__ import annotations
@@ -41,6 +47,8 @@ from firebid.evals.prediction import (
     SheetPrediction,
     TenderPrediction,
 )
+from firebid.evals.qto_pipeline import Sheet as QtoSheet
+from firebid.evals.qto_pipeline import collect
 from firebid.evals.schema import (
     GoldenSet,
     InputClass,
@@ -60,6 +68,7 @@ METRICS = (
     "missed_item_rate",
     "false_detection_rate",
     "calibration_error",
+    "duplicate_detection_rate",
 )
 EVAL_TYPES = {item.value for item in ObjectType}
 
@@ -92,8 +101,13 @@ def load_golden(root: Path) -> Suite | None:
     return Suite(GoldenSet(name=SUITE, tenders=tenders), files, synthetic=False)
 
 
-def generate(out_dir: Path, seed: int = 1, tenders: int = 3) -> Suite:
-    """Synthetic tenders: one installation each, alternating DXF and vector PDF."""
+def generate(
+    out_dir: Path, seed: int = 1, tenders: int = 3, with_duplicates: bool = False
+) -> Suite:
+    """Synthetic tenders: one installation each, alternating DXF and vector PDF.
+
+    `with_duplicates` adds the two tenders whose sheets repeat each other.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     truths = []
     files: dict[str, list[Path]] = {}
@@ -135,7 +149,69 @@ def generate(out_dir: Path, seed: int = 1, tenders: int = 3) -> Suite:
                 ),
             )
         )
+    if with_duplicates:
+        for repeated, paths in _duplicate_tenders(out_dir, seed):
+            truths.append(repeated)
+            files[repeated.tender_id] = paths
     return Suite(GoldenSet(name=SUITE, tenders=tuple(truths)), files, synthetic=True)
+
+
+def _duplicate_tenders(out_dir: Path, seed: int) -> list[tuple[TenderTruth, list[Path]]]:
+    """Tenders whose sheets repeat each other (FR-QTO-08), with each sheet's own truth."""
+    from firebid.evals import synthetic_qto as fixture
+
+    west, east = fixture.match_lined_pair()
+    sets = {
+        f"DUP-{seed:03d}": [
+            ("FP-L05-201", fixture.general_arrangement(), (), True),
+            # 1:50 with nothing to verify its scale against: counted, not measured.
+            ("FP-L05-301", fixture.enlarged_plan(), ("FP-L05-201",), False),
+            ("FP-SCH-001", fixture.riser_schematic(), ("FP-L05-201",), False),
+        ],
+        f"DUP-{seed + 1:03d}": [
+            ("FP-L05-202", west, (), True),
+            ("FP-L05-203", east, ("FP-L05-202",), True),
+        ],
+    }
+    out = []
+    for tender_id, sheets in sets.items():
+        folder = out_dir / tender_id
+        folder.mkdir(parents=True, exist_ok=True)
+        paths = []
+        sheet_truths = []
+        for number, (document, drawn), duplicates_of, measured in sheets:
+            paths.append(synthetic.write_dxf(document, folder / f"{number}.dxf"))
+            lengths: dict[int, float] = defaultdict(float)
+            for pipe in drawn.pipes:
+                lengths[pipe.dn] += abs(pipe.x1 - pipe.x0) + abs(pipe.y1 - pipe.y0)
+            sheet_truths.append(
+                SheetTruth(
+                    sheet_number=number,
+                    revision="R01",
+                    status=RevisionStatus.CURRENT,
+                    input_class=InputClass.DWG,
+                    counts=tuple(
+                        ObjectCount(object_type=ObjectType(kind), count=count)
+                        for kind, count in sorted(fixture.counted(drawn).items())
+                        if kind in EVAL_TYPES
+                    ),
+                    pipe_lengths=tuple(
+                        PipeLength(nominal_diameter_mm=dn, length_mm=round(value))
+                        for dn, value in sorted(lengths.items())
+                    )
+                    if measured
+                    else (),
+                    duplicates_of=duplicates_of,
+                )
+            )
+        truth = TenderTruth(
+            tender_id=tender_id,
+            consultant=NETWORK.name,
+            input_class=InputClass.DWG,
+            sheets=tuple(sheet_truths),
+        )
+        out.append((truth, paths))
+    return out
 
 
 def _types() -> dict[str, Any]:
@@ -180,12 +256,33 @@ class DetectionPredictor:
         )
         self._suite.untyped[truth.tender_id] = untyped
         predictions = []
+        detections: list[Any] = []
+        runs: list[Any] = []
         for sheet in sheets:
             placed = self._placed(sheet, rows)
             found = detect(sheet["table"], placed, sheet["views"], excluded=sheet["excluded"])
             calibration.calibrate(found, self._calibration)
             predictions.append(self._sheet(sheet["number"], found))
-        return TenderPrediction(tender_id=truth.tender_id, sheets=tuple(predictions))
+            collect(QtoSheet(sheet["number"], None), found, detections, runs)
+        from firebid.qto import dedup
+
+        groups = dedup.find(detections, runs)
+        repeats = duplicates(detections, groups)
+        # A run left unsized on its sheet, sized across a match line, as takeoff sizes it.
+        carried: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+        sized = dedup.carried_sizes(groups)
+        for run in runs:
+            if run.id in sized and run.length_mm is not None:
+                carried[run.at.sheet_number][sized[run.id][0]] += run.length_mm
+        return TenderPrediction(
+            tender_id=truth.tender_id,
+            sheets=tuple(
+                _with_carried(p, carried.get(p.sheet_number, {})).model_copy(
+                    update={"duplicates_of": tuple(sorted(repeats.get(p.sheet_number, ())))}
+                )
+                for p in predictions
+            ),
+        )
 
     def _placed(self, sheet: dict[str, Any], rows: list[Any]) -> list[Placed]:
         references = [row.symbol.signature for row in rows]
@@ -249,6 +346,46 @@ class DetectionPredictor:
                 for dn, values in sorted(by_dn.items())
             ),
         )
+
+
+def _with_carried(sheet: SheetPrediction, carried: dict[int, int]) -> SheetPrediction:
+    if not carried:
+        return sheet
+    lengths = {entry.nominal_diameter_mm: entry for entry in sheet.pipe_lengths}
+    for dn, extra in carried.items():
+        entry = lengths.get(dn)
+        lengths[dn] = (
+            entry.model_copy(update={"length_mm": entry.length_mm + extra})
+            if entry
+            else LengthPrediction(nominal_diameter_mm=dn, length_mm=extra, confidence=0.5)
+        )
+    return sheet.model_copy(update={"pipe_lengths": tuple(lengths[dn] for dn in sorted(lengths))})
+
+
+def duplicates(detections: list[Any], groups: list[Any]) -> dict[str, set[str]]:
+    """Which sheets the QTO engine finds repeating which (P1-07), as the truth states it.
+
+    A plan pair: the sheet not counted repeats the one counted. A schematic or section
+    repeats the general plans that show the same kinds of object.
+    """
+    out: dict[str, set[str]] = defaultdict(set)
+    plans: dict[str, set[str]] = defaultdict(set)
+    for detection in detections:
+        if detection.at.view_kind in ("plan", None):
+            plans[detection.at.sheet_number].add(detection.object_type)
+    for group in groups:
+        if group.kind == "schematic":
+            shown = {m.get("object_type") for m in group.members} - {None}
+            for member in group.members:
+                out[member["sheet_number"]].update(
+                    number for number, kinds in plans.items() if kinds & shown
+                )
+            continue
+        kept = {m["sheet_number"] for m in group.members if m["keep"]}
+        for member in group.members:
+            if not member["keep"]:
+                out[member["sheet_number"]].update(kept - {member["sheet_number"]})
+    return out
 
 
 def _read(path: Path) -> dict[str, Any] | None:
