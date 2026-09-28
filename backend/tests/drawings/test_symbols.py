@@ -243,10 +243,10 @@ class TestLegends:
         table = table_of(fixtures.category_legend_sheet(), "dxf", folder, "category-legend")
         rows = [row for legend in legends.detect(table, A3) for row in legend.rows]
 
-        signatures = [row.symbol.signature for row in rows]
-        for index, row in enumerate(rows):
-            assert row.symbol.signature is not None
-            match = symbols.best_match(row.symbol.signature, signatures)
+        signatures = [row.symbol.signature for row in rows if row.symbol.signature is not None]
+        assert len(signatures) == len(rows), "every legend row's symbol is signed"
+        for index, (row, signature) in enumerate(zip(rows, signatures, strict=True)):
+            match = symbols.best_match(signature, signatures)
             assert match is not None and match.index == index, row.description
 
     @pytest.mark.parametrize(
