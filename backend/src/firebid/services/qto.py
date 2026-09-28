@@ -498,6 +498,13 @@ def recompute(session: Session, bid_id: uuid.UUID, actor: Actor = SYSTEM_ACTOR) 
         old = existing.pop(draft.key, None)
         digest = draft.inputs_hash()
         if old is not None and old.inputs_hash == digest:
+            # The same quantity from the same inputs: verification stands. Only the links to
+            # the rows it was found as are refreshed, so the drawing still opens it.
+            derivation: dict[str, Any] = dict(old.derivation or {})
+            derivation.update(members=draft.members, geometry=draft.geometry, sources=draft.sources)
+            if draft.rule:
+                derivation["rule"] = draft.rule
+            old.derivation = derivation
             outcome.unchanged += 1
             continue
         if old is not None:

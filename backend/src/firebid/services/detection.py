@@ -241,7 +241,47 @@ def _current_revision(session: Session, sheet_id: uuid.UUID) -> uuid.UUID | None
     )
 
 
+def _rejected_places(session: Session, sheet: Sheet) -> tuple[set[Any], list[list[list[float]]]]:
+    """What a person said is not there on this sheet (P1-08), by what and where it is."""
+    objects = set()
+    for row in session.execute(
+        select(DetectedObject).where(
+            DetectedObject.bid_id == sheet.bid_id,
+            DetectedObject.sheet_id == sheet.id,
+            DetectedObject.state == "rejected",
+        )
+    ).scalars():
+        position = dict(row.geometry_ref or {})
+        objects.add((row.kind, row.object_type, _near(position.get("x")), _near(position.get("y"))))
+    runs = [
+        [list(p) for p in row.points]
+        for row in session.execute(
+            select(PipeRun).where(PipeRun.sheet_id == sheet.id, PipeRun.state == "rejected")
+        ).scalars()
+    ]
+    return objects, runs
+
+
+def _near(value: Any) -> float:
+    """A position to the nearest half millimetre: the same symbol, found again."""
+    return round(float(value or 0.0) * 2) / 2
+
+
+def _same_run(points: list[list[float]], rejected: list[list[list[float]]]) -> bool:
+    return any(
+        len(points) == len(other)
+        and all(
+            abs(a[0] - b[0]) <= 0.5 and abs(a[1] - b[1]) <= 0.5
+            for a, b in zip(points, other, strict=True)
+        )
+        for other in rejected
+    )
+
+
 def _replace(session: Session, sheet: Sheet, found: SheetDetections, version: str) -> None:
+    # A person's "not there" survives detecting the sheet again: the new row for the same
+    # symbol or run is rejected too.
+    rejected_objects, rejected_runs = _rejected_places(session, sheet)
     # Vision detections are kept: they are the model's work, and asking again is not free.
     session.execute(
         delete(DetectedObject).where(
@@ -279,7 +319,9 @@ def _replace(session: Session, sheet: Sheet, found: SheetDetections, version: st
                 level=item.level,
                 orientation=item.orientation,
                 gaps=_gaps(item, has_grid),
-                state="proposed",
+                state="rejected"
+                if (item.kind, item.object_type, _near(item.x), _near(item.y)) in rejected_objects
+                else "proposed",
             )
         )
     for run in found.runs:
@@ -320,7 +362,9 @@ def _replace(session: Session, sheet: Sheet, found: SheetDetections, version: st
                 calibration_version=version,
                 detector_version=DETECTOR_VERSION,
                 gaps=_gaps(run, has_grid),
-                state="proposed",
+                state="rejected"
+                if _same_run([list(p) for p in run.points], rejected_runs)
+                else "proposed",
             )
         )
     session.flush()

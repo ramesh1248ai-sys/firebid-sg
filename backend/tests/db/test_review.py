@@ -23,6 +23,8 @@ from firebid.db.models.review import CorrectionEvent
 from firebid.db.models.takeoff import DuplicateGroup, QtoItem
 from firebid.domain.actors import Actor
 from firebid.services import qto, review, review_actions
+from firebid.services.detection import detect_bid
+from firebid.storage.object_store import MemoryObjectStore
 from tests.db.test_qto import PENDENT, estimator, items, tender  # noqa: F401
 from tests.db.test_sheet_views import SignIn, app, sign_in  # noqa: F401
 from tests.db.test_symbol_mapping import no_tiles, store  # noqa: F401
@@ -504,3 +506,63 @@ def test_the_evaluation_harness_exports_the_corrections(
         "gate_valve",
     )
     assert row["detector_version"] and row["data_policy"] == "derived-labels-only"
+
+
+@pytest.mark.req("FR-REV-03")
+class TestDetectingAgain:
+    """Confirming or naming a symbol detects every sheet again, as new rows. A person's work
+    must survive it: verification on unchanged items, and "not there" on detections."""
+
+    def test_verification_survives_detecting_every_sheet_again(
+        self,
+        session: Session,
+        organisation: Organisation,
+        tender: Bid,
+        store: MemoryObjectStore,
+    ) -> None:
+        actor, _ = estimator(session, organisation, tender)
+        review_actions.accept(
+            session, tender.id, [i.id for i in qto.live_items(session, tender.id)], actor
+        )
+
+        detect_bid(session, store, tender.id)
+        outcome = qto.recompute(session, tender.id)
+
+        assert (outcome.created, outcome.superseded) == (0, 0)
+        assert {i.state for i in qto.live_items(session, tender.id)} == {"verified"}
+        general = sheet_id(session, "FP-L05-201")
+        heads = [
+            m
+            for m in review.overlay(session, tender.id, uuid.UUID(general))
+            if m.object_type == "sprinkler_pendent"
+        ]
+        assert len(heads) == 16 and {m.status for m in heads} == {"verified"}
+
+    def test_a_rejected_detection_stays_rejected(
+        self,
+        session: Session,
+        organisation: Organisation,
+        tender: Bid,
+        store: MemoryObjectStore,
+    ) -> None:
+        actor, _ = estimator(session, organisation, tender)
+        general = sheet_id(session, "FP-L05-201")
+        head = next(
+            m
+            for m in review.overlay(session, tender.id, uuid.UUID(general))
+            if m.object_type == "sprinkler_pendent"
+        )
+        review_actions.reject_detections(
+            session, tender.id, [uuid.UUID(head.id)], actor, "false_detection"
+        )
+
+        detect_bid(session, store, tender.id)
+        qto.recompute(session, tender.id)
+
+        assert items(session, tender)[PENDENT].net_quantity == Decimal(15)
+        again = [
+            m
+            for m in review.overlay(session, tender.id, uuid.UUID(general))
+            if m.object_type == "sprinkler_pendent" and (m.x, m.y) == (head.x, head.y)
+        ]
+        assert [m.status for m in again] == ["rejected"]
