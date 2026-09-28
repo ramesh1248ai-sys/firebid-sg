@@ -99,6 +99,7 @@ def _views(session: Session, sheet_id: uuid.UUID) -> list[ViewInfo]:
             denominator=view.denominator if view.scale_status in MEASURABLE else None,
             grid=GridSystem.from_json(view.grid) if view.grid else None,  # type: ignore[arg-type]
             level=view.level,
+            kind=view.kind,
         )
         for view in rows
     ]

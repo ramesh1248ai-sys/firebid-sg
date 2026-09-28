@@ -1,0 +1,172 @@
+"""A tender's sheets through detection to QTO inputs, in memory (P1-07 tests and suites).
+
+The platform does this through the database (`services.qto`); this does the same steps on
+drawings directly, so the engine can be tested and evaluated without a stack: geometry and
+views (P1-03), symbols typed as a person would confirm them (P1-04), detections and runs
+(P1-05), each placed on its sheet, view, level and grid position.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from typing import Any
+
+from firebid.drawings import geometry
+from firebid.drawings.detection import SheetDetections, detect, placed_from_legend, views_of
+from firebid.drawings.grids import GridSystem
+from firebid.drawings.legends import detect as detect_legends
+from firebid.drawings.symbols import best_match, clusters
+from firebid.evals import synthetic
+from firebid.evals.detection_calibration import type_of_factory
+from firebid.qto.model import Detection, Placement, Run
+
+LEVEL_IN_NUMBER = re.compile(r"(?:^|[-_])(L\d{1,2}|B\d{1,2}|RF)(?=[-_]|$)")
+
+
+@dataclass
+class Sheet:
+    number: str
+    document: Any  # an ezdxf drawing
+    sheet_scale: str = "1:100"
+
+
+def _level_of(number: str, view_level: str | None) -> str | None:
+    if view_level:
+        return view_level
+    match = LEVEL_IN_NUMBER.search(number)
+    return match.group(1) if match else None
+
+
+def read(sheets: list[Sheet]) -> tuple[list[Detection], list[Run]]:
+    """Every sheet's detections and runs, as the QTO engine takes them."""
+    type_of = type_of_factory()
+    tables = []
+    references: list[Any] = []  # the tender's legend rows, wherever they are drawn
+    for sheet in sheets:
+        result = geometry_of(sheet)
+        table = geometry.from_parquet(result["parquet"])
+        page = (result["page"][0], result["page"][1], result["page"][2], result["page"][3])
+        for legend in detect_legends(table, page):
+            references.extend(row for row in legend.rows if row.symbol.signature is not None)
+        tables.append((sheet, table, page, result.get("views")))
+
+    detections: list[Detection] = []
+    runs: list[Run] = []
+    for sheet, table, page, source_views in tables:
+        views = views_of(table, page, sheet.sheet_scale, source_views)
+        placed, excluded = placed_from_legend(table, page, type_of)
+        if not placed and references:
+            placed = _placed_from(table, excluded, references, type_of)
+        found = detect(table, placed, views, excluded=excluded)
+        _collect(sheet, found, detections, runs)
+    return detections, runs
+
+
+def geometry_of(sheet: Sheet) -> dict[str, Any]:
+    from firebid.parsing.geometry_dxf import extract
+
+    return extract(synthetic.dxf_bytes(sheet.document), None)
+
+
+def _placed_from(table: Any, excluded: Any, references: list[Any], type_of: Any) -> list[Any]:
+    """A sheet with no legend of its own: its symbols typed by the tender's legend."""
+    from firebid.drawings.pipe_network import Placed
+
+    placed = []
+    signatures = [row.symbol.signature for row in references]
+    for cluster in clusters(table, excluding=excluded):
+        if cluster.signature is None:
+            continue
+        match = best_match(cluster.signature, signatures)
+        if match is None:
+            continue
+        kind = type_of(references[match.index].description)
+        if kind is None:
+            continue
+        cx, cy = cluster.centre
+        placed.append(
+            Placed(
+                kind.object_type,
+                kind.category,
+                kind.measure,
+                cx,
+                cy,
+                cluster.box,
+                cluster.rotation,
+                match.how,
+                match.distance,
+                attributes=dict(kind.attributes),
+                rows=cluster.rows,
+                description=references[match.index].description,
+            )
+        )
+    return placed
+
+
+def _collect(
+    sheet: Sheet, found: SheetDetections, detections: list[Detection], runs: list[Run]
+) -> None:
+    for index, item in enumerate(found.objects):
+        view = item.view
+        grid: GridSystem | None = view.grid if view else None
+        at = Placement(
+            sheet_id=sheet.number,
+            sheet_number=sheet.number,
+            revision="R01",
+            document_id=sheet.number,
+            view_id=str(view.id) if view else None,
+            view_kind=_view_kind(found, view),
+            level=_level_of(sheet.number, view.level if view else None),
+            zone=None,
+        )
+        detections.append(
+            Detection(
+                id=f"{sheet.number}:d{index}",
+                at=at,
+                kind=item.kind,
+                object_type=item.object_type,
+                category=item.category,
+                attributes=dict(item.attributes),
+                x=item.x,
+                y=item.y,
+                grid_reference=item.grid_reference,
+                grid_index=grid.index(item.x, item.y) if grid else None,
+                confidence=item.raw_confidence,
+                method=item.method,
+                evidence=dict(item.evidence),
+            )
+        )
+    for run in found.runs:
+        view = run.view
+        grid = view.grid if view else None
+        points = tuple((p[0], p[1]) for p in run.points)
+        runs.append(
+            Run(
+                id=f"{sheet.number}:r{run.run_id}",
+                at=Placement(
+                    sheet_id=sheet.number,
+                    sheet_number=sheet.number,
+                    revision="R01",
+                    document_id=sheet.number,
+                    view_id=str(view.id) if view else None,
+                    view_kind=_view_kind(found, view),
+                    level=_level_of(sheet.number, view.level if view else None),
+                    zone=None,
+                ),
+                run_class=run.run_class,
+                dn=run.dn,
+                size_status=run.size_status,
+                length_mm=round(run.length_mm) if run.length_mm is not None else None,
+                points=points,
+                grid_reference=run.grid_reference,
+                grid_points=tuple(grid.index(x, y) if grid else None for x, y in points),
+                confidence=run.raw_confidence,
+                labels=tuple(label.text for label in run.labels),
+                scale=view.denominator if view else None,
+            )
+        )
+
+
+def _view_kind(found: SheetDetections, view: Any) -> str | None:
+    return view.kind if view is not None else None

@@ -48,6 +48,7 @@ class ViewInfo:
     denominator: float | None  # set only when the view is measurable
     grid: GridSystem | None = None
     level: str | None = None
+    kind: str | None = None  # plan | enlarged plan | schematic | section | ...
 
     def contains(self, x: float, y: float) -> bool:
         return self.extent[0] <= x <= self.extent[2] and self.extent[1] <= y <= self.extent[3]
@@ -441,6 +442,7 @@ def views_of(
             denominator=item.verdict.denominator if item.verdict.measurable else None,
             grid=item.grid,
             level=item.view.level,
+            kind=str(item.view.kind),
         )
         for index, item in enumerate(views.analyse(table, page, sheet_scale, source_views))
     ]
