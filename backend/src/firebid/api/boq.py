@@ -331,6 +331,8 @@ class ClientMappingOut(BaseModel):
     reason: str | None
     variance_percent: float | None
     flagged: bool
+    # The rules found nothing and the model has not been asked yet (it is, on the worker).
+    awaiting_model: bool = False
 
 
 class MappingDecisionIn(BaseModel):
@@ -364,6 +366,7 @@ def list_mappings(context: CurrentBid, session: DbSession) -> list[ClientMapping
                 reason=row.reason if row else None,
                 variance_percent=row.variance_percent if row else None,
                 flagged=row.flagged if row else False,
+                awaiting_model=bool(row and row.provenance.get("awaiting_model")),
             )
         )
     return out
@@ -381,7 +384,7 @@ def propose(
     except boq.BoqError as refusal:
         raise refused(refusal) from refusal
     rows = list_mappings(context, session)
-    if any(row.mapping_id is None and row.kind == "line" for row in rows):
+    if any(row.awaiting_model for row in rows):
         from firebid.jobs.enqueue import enqueue
         from firebid.jobs.tasks import propose_boq_mappings_job
 

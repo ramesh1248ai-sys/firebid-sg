@@ -2557,6 +2557,11 @@ export interface components {
         };
         /** ClientMappingOut */
         ClientMappingOut: {
+            /**
+             * Awaiting Model
+             * @default false
+             */
+            awaiting_model: boolean;
             /** Client Item */
             client_item: string | null;
             /**

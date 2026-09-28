@@ -720,6 +720,24 @@ def propose_mappings(session: Session, bid_id: uuid.UUID, router: Any | None = N
     }
     if left and router is not None:
         answered.update(_ask_model(session, bid_id, clients, left, measured_lines, router))
+    # What neither answered is still a proposal ("nothing matched"), so a person has it in
+    # front of them to map by hand; asking again (the model on the worker) replaces it.
+    for client in left:
+        answered.setdefault(
+            client.ref,
+            (
+                None,
+                0.0,
+                "no rule matched it"
+                + (
+                    "; the model gave no answer"
+                    if router is not None
+                    else "; the model is asked next"
+                ),
+                "rule",
+                {"rules": "boq.matching", "unmatched": True, "awaiting_model": router is None},
+            ),
+        )
     lookup = {str(line.id): (sheet, line) for sheet, line in clients}
     for ref, (key, confidence, reason, method, provenance) in answered.items():
         _, line = lookup[ref]

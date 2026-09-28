@@ -295,12 +295,19 @@ class TestMappingAndReconciliation:
     ) -> None:
         refs = {line.item_no: str(line.id) for _, line in boq.client_lines(session, mapped.id)}
         boq.propose_mappings(session, mapped.id)
+        rows = boq.mappings(session, mapped.id)
         left = [
             item
             for item, ref in refs.items()
-            if uuid.UUID(ref) not in boq.mappings(session, mapped.id)
+            if rows[uuid.UUID(ref)].provenance.get("awaiting_model")
         ]
-        assert "C3" in left, "nobody drew a flow switch: the rules have nothing to map it to"
+        # Nobody drew a flow switch: the rules have nothing to map it to. It is still in front
+        # of a person ("nothing matched") while the model is asked.
+        assert left == ["C3"]
+        assert (rows[uuid.UUID(refs["C3"])].boq_line_key, rows[uuid.UUID(refs["C3"])].state) == (
+            None,
+            "proposed",
+        )
         reply = {
             "mappings": [
                 {"line": refs["C3"], "maps_to": "no-such-line", "confidence": 0.9, "reason": "x"}
@@ -312,6 +319,7 @@ class TestMappingAndReconciliation:
 
         row = boq.mappings(session, mapped.id)[uuid.UUID(refs["C3"])]
         assert (row.method, row.boq_line_key, row.confidence) == ("model", None, 0.0)
+        assert not row.provenance.get("awaiting_model")
         assert row.provenance["model"] == "mapper-1"
 
     def test_a_person_confirms_corrects_or_rejects_and_it_is_audited(

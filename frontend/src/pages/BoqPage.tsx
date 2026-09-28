@@ -87,7 +87,7 @@ function useBoqData(bidId: string) {
     },
     // The model's proposals arrive from the worker.
     refetchInterval: (query) =>
-      query.state.data?.some((m) => m.kind === "line" && !m.mapping_id) ? 5000 : false,
+      query.state.data?.some((m) => m.awaiting_model) ? 5000 : false,
   });
   const reconciliation = useQuery({
     queryKey: ["boq", bidId, "reconciliation"],

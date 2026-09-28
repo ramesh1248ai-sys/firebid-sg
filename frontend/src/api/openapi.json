@@ -1367,6 +1367,11 @@
       },
       "ClientMappingOut": {
         "properties": {
+          "awaiting_model": {
+            "default": false,
+            "title": "Awaiting Model",
+            "type": "boolean"
+          },
           "client_item": {
             "anyOf": [
               {
