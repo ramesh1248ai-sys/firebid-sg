@@ -3,7 +3,13 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
-import { type APIRequestContext, expect, type Page, request, test } from "@playwright/test";
+import {
+  type APIRequestContext,
+  expect,
+  type Page,
+  request,
+  test,
+} from "@playwright/test";
 
 /**
  * The verification workbench through the real stack (P1-08).
@@ -104,25 +110,38 @@ test.beforeAll(async () => {
   for (const file of files) {
     const uploaded = await api.post(`bids/${bidId}/documents`, {
       multipart: {
-        files: { name: basename(file), mimeType: "application/dxf", buffer: readFileSync(file) },
+        files: {
+          name: basename(file),
+          mimeType: "application/dxf",
+          buffer: readFileSync(file),
+        },
       },
     });
     expect(uploaded.status()).toBe(201);
   }
 
   // The legend, read by the parse job, confirmed row by row as a person would.
-  let rows: { description: string; mapping: { lineage_id: string } | null }[] = [];
+  let rows: { description: string; mapping: { lineage_id: string } | null }[] =
+    [];
   await expect(async () => {
     rows = await (await api.get(`bids/${bidId}/symbols/legend`)).json();
     expect(rows.length).toBeGreaterThanOrEqual(8);
     expect(rows.every((row) => row.mapping)).toBeTruthy();
   }).toPass({ timeout: 240_000, intervals: [3_000] });
-  const lineages = new Map(rows.map((row) => [row.mapping!.lineage_id, row.description]));
+  const lineages = new Map(
+    rows.map((row) => [row.mapping!.lineage_id, row.description]),
+  );
   for (const [lineage, description] of lineages) {
     const key = described[description]!;
-    const confirmed = await api.post(`bids/${bidId}/symbols/mappings/${lineage}/confirm`, {
-      data: { object_type: key, attributes: key === "fitting" ? { fitting: "reducer" } : null },
-    });
+    const confirmed = await api.post(
+      `bids/${bidId}/symbols/mappings/${lineage}/confirm`,
+      {
+        data: {
+          object_type: key,
+          attributes: key === "fitting" ? { fitting: "reducer" } : null,
+        },
+      },
+    );
     expect(confirmed.ok()).toBeTruthy();
   }
 
@@ -137,7 +156,11 @@ test.beforeAll(async () => {
   // A count entered with no place on any drawing: its evidence is incomplete, which G1 must
   // refuse until someone deals with it.
   const loose = await api.post(`bids/${bidId}/qto/items`, {
-    data: { item_type: "flow_switch", description: "Flow switch (no location)", quantity: "1" },
+    data: {
+      item_type: "flow_switch",
+      description: "Flow switch (no location)",
+      quantity: "1",
+    },
   });
   expect(loose.status()).toBe(201);
 });
@@ -145,12 +168,17 @@ test.beforeAll(async () => {
 async function openWorkbench(page: Page) {
   await signIn(page, SENIOR);
   await page.goto(`/bids/${bidId}/workbench`);
-  await expect(page.getByTestId("queue-rows").getByRole("row").first()).toBeVisible();
+  await expect(
+    page.getByTestId("queue-rows").getByRole("row").first(),
+  ).toBeVisible();
 }
 
 /** A queue line: found with the queue's own search, as a long queue is only partly drawn. */
 function row(page: Page, text: string) {
-  return page.getByTestId("queue-rows").getByRole("row").filter({ hasText: text });
+  return page
+    .getByTestId("queue-rows")
+    .getByRole("row")
+    .filter({ hasText: text });
 }
 
 async function find(page: Page, text: string) {
@@ -159,15 +187,29 @@ async function find(page: Page, text: string) {
 }
 
 // req: FR-REV-04
-test("G1 is disabled while anything blocks it, and says what", async ({ page }) => {
+test("G1 is disabled while anything blocks it, and says what", async ({
+  page,
+}) => {
   await openWorkbench(page);
   await page.getByRole("button", { name: "Coverage & G1" }).click();
 
   const blockers = page.getByRole("list", { name: "What blocks G1" });
-  await expect(blockers.getByRole("listitem").filter({ hasText: /Coverage is 0%/ })).toBeVisible();
-  await expect(blockers.getByRole("listitem").filter({ hasText: /unresolved duplicate group/ })).toBeVisible();
-  await expect(blockers.getByRole("listitem").filter({ hasText: /nobody has named/ })).toBeVisible();
-  await expect(blockers.getByRole("listitem").filter({ hasText: /incomplete evidence record/ })).toBeVisible();
+  await expect(
+    blockers.getByRole("listitem").filter({ hasText: /Coverage is 0%/ }),
+  ).toBeVisible();
+  await expect(
+    blockers
+      .getByRole("listitem")
+      .filter({ hasText: /unresolved duplicate group/ }),
+  ).toBeVisible();
+  await expect(
+    blockers.getByRole("listitem").filter({ hasText: /nobody has named/ }),
+  ).toBeVisible();
+  await expect(
+    blockers
+      .getByRole("listitem")
+      .filter({ hasText: /incomplete evidence record/ }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: /Approve G1/ })).toBeDisabled();
 });
 
@@ -182,9 +224,13 @@ test("a QTO line's evidence is one click away", async ({ page }) => {
   const panel = page.getByRole("region", { name: /^Item QTO-/ });
   await expect(panel.getByText("FP-L05-201 rev R01")).toBeVisible();
   await panel.getByText("Evidence record").click();
-  await expect(panel.getByText(/count of 16 detections on FP-L05-201/)).toBeVisible();
+  await expect(
+    panel.getByText(/count of 16 detections on FP-L05-201/),
+  ).toBeVisible();
   // The drawing zoomed to it and outlines its marks.
-  await expect(page.locator("[data-testid=overlay-highlights] [data-mark-id]").first()).toBeAttached();
+  await expect(
+    page.locator("[data-testid=overlay-highlights] [data-mark-id]").first(),
+  ).toBeAttached();
   expect(clicks).toBeLessThanOrEqual(2);
 });
 
@@ -193,40 +239,51 @@ test("an action shows its result quickly, and undoes", async ({ page }) => {
   await openWorkbench(page);
   const valve = await find(page, "Gate valve, DN150");
   await valve.click();
-  await expect(page.getByRole("region", { name: /^Item QTO-/ })).toContainText("proposed");
+  await expect(page.getByRole("region", { name: /^Item QTO-/ })).toContainText(
+    "proposed",
+  );
 
-  // Timed inside the page, from the key press to the line changing: Playwright's own
-  // polling would round it up to its retry interval.
-  await page.evaluate(() => {
-    const record = window as unknown as { __feedbackMs?: number };
-    let pressed = 0;
-    window.addEventListener("keydown", () => (pressed = performance.now()), {
-      capture: true,
-      once: true,
-    });
-    function look() {
-      const line = [...document.querySelectorAll("[data-testid=queue-rows] [role=row]")].find(
-        (r) => r.textContent?.includes("Gate valve, DN150"),
-      );
-      if (pressed && line?.textContent?.includes("verified")) {
-        record.__feedbackMs = performance.now() - pressed;
-      } else {
-        requestAnimationFrame(look);
-      }
-    }
-    requestAnimationFrame(look);
-  });
-  await page.keyboard.press("a");
+  // The drawing has finished opening on the item (its tiles loaded), as it has by the time
+  // a person has looked at it and decides.
+  await page.waitForLoadState("networkidle");
+
+  // Timed inside the page, from the key press to the line changing, in one call: Playwright's
+  // own polling would round it up to its retry interval, and every traced action (a key
+  // press, a wait) snapshots the DOM on the page's main thread, which on a slow runner put
+  // 200 ms of the test's own work inside the time being measured.
   const feedbackMs = Math.round(
-    (await (
-      await page.waitForFunction(
-        () => (window as unknown as { __feedbackMs?: number }).__feedbackMs,
-      )
-    ).jsonValue()) as number,
+    await page.evaluate(
+      () =>
+        new Promise<number>((resolve) => {
+          let pressed = 0;
+          function look() {
+            const line = [
+              ...document.querySelectorAll(
+                "[data-testid=queue-rows] [role=row]",
+              ),
+            ].find((r) => r.textContent?.includes("Gate valve, DN150"));
+            if (line?.textContent?.includes("verified"))
+              resolve(performance.now() - pressed);
+            else requestAnimationFrame(look);
+          }
+          pressed = performance.now();
+          document.body.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "a", bubbles: true }),
+          );
+          requestAnimationFrame(look);
+        }),
+    ),
   );
   await expect(valve).toContainText("verified");
-  console.log(`action feedback: ${feedbackMs} ms (accept, key press to the queue saying verified)`);
-  test.info().annotations.push({ type: "action feedback ms", description: String(feedbackMs) });
+  console.log(
+    `action feedback: ${feedbackMs} ms (accept, key press to the queue saying verified)`,
+  );
+  test
+    .info()
+    .annotations.push({
+      type: "action feedback ms",
+      description: String(feedbackMs),
+    });
   expect(feedbackMs).toBeLessThan(200);
 
   await page.keyboard.press("Control+z");
@@ -237,13 +294,17 @@ test("an action shows its result quickly, and undoes", async ({ page }) => {
 // req: FR-REV-03
 // req: FR-REV-04
 // req: FR-QTO-11
-test("from the queue to G1, every action in the audit log", async ({ page }) => {
+test("from the queue to G1, every action in the audit log", async ({
+  page,
+}) => {
   test.setTimeout(300_000);
   await openWorkbench(page);
 
   // Name the grid bubbles and ticks no legend explains: not installed objects.
   await page.getByRole("button", { name: "Symbols & scale" }).click();
-  const unnamed = page.getByRole("list", { name: "Unnamed symbols" }).getByRole("listitem");
+  const unnamed = page
+    .getByRole("list", { name: "Unnamed symbols" })
+    .getByRole("listitem");
   await eventually(unnamed.first()).toBeVisible({ timeout: 30_000 });
   for (let left = await unnamed.count(); left > 0; left -= 1) {
     const first = unnamed.first();
@@ -253,7 +314,9 @@ test("from the queue to G1, every action in the audit log", async ({ page }) => 
     await first.getByRole("button", { name: "Name" }).click();
     await eventually(unnamed).toHaveCount(left - 1, { timeout: 30_000 });
   }
-  await eventually(page.getByText("Every symbol on the Current sheets is named.")).toBeVisible({
+  await eventually(
+    page.getByText("Every symbol on the Current sheets is named."),
+  ).toBeVisible({
     timeout: 60_000,
   });
 
@@ -262,30 +325,46 @@ test("from the queue to G1, every action in the audit log", async ({ page }) => 
   await (await find(page, "Flow switch (no location)")).click();
   const loose = page.getByRole("region", { name: /^Item QTO-/ });
   await loose.getByRole("button", { name: "Reject" }).click();
-  await loose.getByRole("combobox", { name: /^Reason/ }).selectOption("not_in_scope");
-  await loose.getByRole("button", { name: "Reject", exact: true }).last().click();
-  await eventually(row(page, "Flow switch (no location)")).toContainText("rejected");
+  await loose
+    .getByRole("combobox", { name: /^Reason/ })
+    .selectOption("not_in_scope");
+  await loose
+    .getByRole("button", { name: "Reject", exact: true })
+    .last()
+    .click();
+  await eventually(row(page, "Flow switch (no location)")).toContainText(
+    "rejected",
+  );
 
   // Bulk-accept a page of the queue.
   await page.getByLabel("Find").fill("");
   await page.getByRole("button", { name: /Select page/ }).click();
   await page.getByRole("button", { name: /^Accept \d+$/ }).click();
-  await eventually(await find(page, "Sprinkler, pendent")).toContainText("verified");
+  await eventually(await find(page, "Sprinkler, pendent")).toContainText(
+    "verified",
+  );
 
   // Edit one, with a reason.
   await (await find(page, "Sprinkler, upright")).click();
   const item = page.getByRole("region", { name: /^Item QTO-/ });
   await item.getByRole("button", { name: "Edit" }).click();
   await item.getByLabel("finish", { exact: true }).fill("white");
-  await item.getByRole("combobox", { name: /^Reason/ }).selectOption("wrong_attribute");
+  await item
+    .getByRole("combobox", { name: /^Reason/ })
+    .selectOption("wrong_attribute");
   await item.getByRole("button", { name: "Save and verify" }).click();
   await eventually(item.getByText(/finish: white · edited by/)).toBeVisible();
 
   // Reject one, with a reason.
   await (await find(page, "Tee, DN100xDN50")).click();
   await item.getByRole("button", { name: "Reject" }).click();
-  await item.getByRole("combobox", { name: /^Reason/ }).selectOption("not_in_scope");
-  await item.getByRole("button", { name: "Reject", exact: true }).last().click();
+  await item
+    .getByRole("combobox", { name: /^Reason/ })
+    .selectOption("not_in_scope");
+  await item
+    .getByRole("button", { name: "Reject", exact: true })
+    .last()
+    .click();
   await eventually(row(page, "Tee, DN100xDN50")).toContainText("rejected");
 
   // Add what was missed: two flow switches, placed on the drawing.
@@ -296,7 +375,9 @@ test("from the queue to G1, every action in the audit log", async ({ page }) => 
   const viewer = page.getByTestId("sheet-viewer");
   const box = (await viewer.boundingBox())!;
   await viewer.click({ position: { x: box.width * 0.5, y: box.height * 0.4 } });
-  await viewer.click({ position: { x: box.width * 0.55, y: box.height * 0.4 } });
+  await viewer.click({
+    position: { x: box.width * 0.55, y: box.height * 0.4 },
+  });
   await tools.getByRole("button", { name: "Save 2" }).click();
   const manual = page.getByRole("region", { name: /^Item QTO-/ });
   await eventually(manual).toContainText("manual by Samuel");
@@ -305,17 +386,17 @@ test("from the queue to G1, every action in the audit log", async ({ page }) => 
 
   // Resolve the duplicate: the enlarged plan repeats the general arrangement.
   await page.getByRole("button", { name: /^Duplicates/ }).click();
-  await page.getByRole("button", { name: /Enlarged plan repeats the general plan/ }).click();
+  await page
+    .getByRole("button", { name: /Enlarged plan repeats the general plan/ })
+    .click();
   await page.getByRole("button", { name: "Keep one of each" }).click();
   await eventually(page.getByText(/Decided by Samuel/)).toBeVisible();
 
   // Coverage reaches 100%, and G1 is passed.
   await page.getByRole("button", { name: "Coverage & G1" }).click();
-  await eventually(page.getByRole("meter", { name: "Items verified" })).toHaveAttribute(
-    "aria-valuenow",
-    "100",
-    { timeout: 90_000 },
-  );
+  await eventually(
+    page.getByRole("meter", { name: "Items verified" }),
+  ).toHaveAttribute("aria-valuenow", "100", { timeout: 90_000 });
   const approve = page.getByRole("button", { name: /Approve G1/ });
   await eventually(approve).toBeEnabled({ timeout: 90_000 });
   await approve.click();
