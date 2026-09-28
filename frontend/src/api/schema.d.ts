@@ -684,6 +684,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/qto/overlay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Overlay
+         * @description Everything drawn over one sheet, with its item, status and confidence band.
+         */
+        get: operations["overlay_bids__bid_id__qto_overlay_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/qto/parameters": {
         parameters: {
             query?: never;
@@ -716,6 +736,26 @@ export interface paths {
         put?: never;
         /** Recompute */
         post: operations["recompute_bids__bid_id__qto_recompute_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/qto/sheets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Workbench Sheets
+         * @description The Current sheets takeoff reads, with their views and whether each can be measured.
+         */
+        get: operations["workbench_sheets_bids__bid_id__qto_sheets_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2245,6 +2285,10 @@ export interface components {
             description: string;
             /** Duplicate Group Id */
             duplicate_group_id: string | null;
+            /** Evidence Boxes */
+            evidence_boxes: {
+                [key: string]: unknown;
+            }[];
             /** Evidence Missing */
             evidence_missing: string[];
             /** Grid From */
@@ -2432,6 +2476,35 @@ export interface components {
             state: string;
             /** Version */
             version: number;
+        };
+        /** MarkOut */
+        MarkOut: {
+            /** Band */
+            band: string;
+            /** Box */
+            box: number[];
+            /** Confidence */
+            confidence: number | null;
+            /** Id */
+            id: string;
+            /** Item Human Id */
+            item_human_id: string | null;
+            /** Item Id */
+            item_id: string | null;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string | null;
+            /** Object Type */
+            object_type: string;
+            /** Points */
+            points: number[][];
+            /** Status */
+            status: string;
+            /** X */
+            x: number | null;
+            /** Y */
+            y: number | null;
         };
         /** MeasureIn */
         MeasureIn: {
@@ -3191,10 +3264,44 @@ export interface components {
             /** Title */
             title: string | null;
         };
+        /** ViewSummary */
+        ViewSummary: {
+            /** Denominator */
+            denominator: number | null;
+            /** Extent */
+            extent: number[];
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Measurable */
+            measurable: boolean;
+            /** Scale Status */
+            scale_status: string;
+        };
         /** WithdrawRequest */
         WithdrawRequest: {
             /** Reason */
             reason: string;
+        };
+        /** WorkbenchSheet */
+        WorkbenchSheet: {
+            /** Height Mm */
+            height_mm: number | null;
+            /** Level */
+            level: string | null;
+            /** Revision */
+            revision: string | null;
+            /** Sheet Id */
+            sheet_id: string;
+            /** Sheet Number */
+            sheet_number: string;
+            /** Title */
+            title: string | null;
+            /** Views */
+            views: components["schemas"]["ViewSummary"][];
+            /** Width Mm */
+            width_mm: number | null;
         };
     };
     responses: never;
@@ -4566,6 +4673,39 @@ export interface operations {
             };
         };
     };
+    overlay_bids__bid_id__qto_overlay_get: {
+        parameters: {
+            query: {
+                sheet_id: string;
+            };
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarkOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_parameters_bids__bid_id__qto_parameters_get: {
         parameters: {
             query?: never;
@@ -4652,6 +4792,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workbench_sheets_bids__bid_id__qto_sheets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkbenchSheet"][];
                 };
             };
             /** @description Validation Error */

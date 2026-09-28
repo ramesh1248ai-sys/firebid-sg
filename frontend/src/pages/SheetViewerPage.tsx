@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 
-import { api } from "@/api/client";
+import { api, apiUrl } from "@/api/client";
 import { accessToken } from "@/auth/oidc";
 
 /**
@@ -132,7 +132,7 @@ function Viewer({ source }: { source: TileSource }) {
           minLevel: source.minLevel,
           maxLevel: source.maxLevel,
           getTileUrl: (level: number, x: number, y: number) =>
-            `${source.tileUrl}/${level}/${x}_${y}.webp`,
+            apiUrl(`${source.tileUrl}/${level}/${x}_${y}.webp`),
         },
       });
       opened.addHandler("open-failed", () => setFailed(true));

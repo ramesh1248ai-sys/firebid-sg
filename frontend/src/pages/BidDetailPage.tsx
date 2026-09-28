@@ -94,6 +94,12 @@ export function BidDetailPage() {
         className="inline-block rounded-md border px-3 py-2 text-sm hover:bg-accent"
       >
         Specification
+      </Link>{" "}
+      <Link
+        to={`/bids/${bidId}/workbench`}
+        className="inline-block rounded-md border px-3 py-2 text-sm hover:bg-accent"
+      >
+        Workbench
       </Link>
       <dl className="grid gap-4 sm:grid-cols-3">
         <Detail label="State" value={bid.data.state.replaceAll("_", " ")} />

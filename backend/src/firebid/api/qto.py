@@ -35,7 +35,7 @@ from firebid.db.models.takeoff import (
 )
 from firebid.domain.state_machines import TransitionError
 from firebid.qto import rules
-from firebid.services import qto
+from firebid.services import qto, review
 
 router = APIRouter(prefix="/bids/{bid_id}/qto", tags=["qto"])
 rules_router = APIRouter(prefix="/measurement-rules", tags=["qto"])
@@ -88,6 +88,24 @@ class ItemOut(BaseModel):
     note: str | None
     supersedes_id: uuid.UUID | None
     evidence_missing: list[str]
+    # Where its evidence is on each sheet, in sheet millimetres: what the viewer zooms to.
+    evidence_boxes: list[dict[str, Any]]
+
+
+class MarkOut(BaseModel):
+    id: str
+    kind: str
+    object_type: str
+    box: list[float]
+    status: str
+    band: str
+    confidence: float | None
+    item_id: str | None
+    item_human_id: str | None
+    x: float | None
+    y: float | None
+    points: list[list[float]]
+    label: str | None
 
 
 class GroupOut(BaseModel):
@@ -249,6 +267,7 @@ def item_out(item: QtoItem, missing: list[str], people: dict[uuid.UUID, str]) ->
         note=derivation.get("note"),
         supersedes_id=item.supersedes_id,
         evidence_missing=missing,
+        evidence_boxes=review.evidence_boxes(item),
     )
 
 
@@ -285,6 +304,38 @@ def list_items(context: CurrentBid, session: DbSession) -> list[ItemOut]:
     missing = _missing(session, context.bid.id)
     people = _people(session, items)
     return [item_out(item, missing.get(item.id, []), people) for item in items]
+
+
+class ViewSummary(BaseModel):
+    id: str
+    kind: str
+    extent: list[float]
+    scale_status: str
+    denominator: float | None
+    measurable: bool
+
+
+class WorkbenchSheet(BaseModel):
+    sheet_id: str
+    sheet_number: str
+    revision: str | None
+    title: str | None
+    level: str | None
+    width_mm: float | None
+    height_mm: float | None
+    views: list[ViewSummary]
+
+
+@router.get("/sheets", response_model=list[WorkbenchSheet])
+def workbench_sheets(context: CurrentBid, session: DbSession) -> list[WorkbenchSheet]:
+    """The Current sheets takeoff reads, with their views and whether each can be measured."""
+    return [WorkbenchSheet(**sheet) for sheet in review.sheets(session, context.bid.id)]
+
+
+@router.get("/overlay", response_model=list[MarkOut])
+def overlay(context: CurrentBid, session: DbSession, sheet_id: uuid.UUID) -> list[MarkOut]:
+    """Everything drawn over one sheet, with its item, status and confidence band."""
+    return [MarkOut(**mark.as_json()) for mark in review.overlay(session, context.bid.id, sheet_id)]
 
 
 @router.get("/items/{item_id}", response_model=ItemOut)
