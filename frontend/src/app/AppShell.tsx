@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { to: "/", label: "Bids", end: true },
   { to: "/library", label: "Library", end: false },
+  { to: "/rates", label: "Rates", end: false },
   { to: "/audit", label: "History", end: false },
 ];
 

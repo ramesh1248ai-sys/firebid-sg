@@ -108,7 +108,7 @@ const COVERAGE = {
   value_total: 200,
   value_verified: 150,
   value_percent: 75,
-  value_basis: "weighted by item class (no rates yet)",
+  value_basis: "SGD: 0 of 5 items from rates, 5 by item class weight",
   policy_percent: 100,
   met: false,
 };

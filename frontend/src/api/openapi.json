@@ -931,6 +931,20 @@
         "title": "BlockersOut",
         "type": "object"
       },
+      "Body_import_rates_rates_import_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_rates_rates_import_post",
+        "type": "object"
+      },
       "Body_upload_bids__bid_id__documents_post": {
         "properties": {
           "addendum_id": {
@@ -1130,6 +1144,38 @@
           "ok"
         ],
         "title": "CheckResult",
+        "type": "object"
+      },
+      "ChoiceIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "rate_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Id"
+          }
+        },
+        "required": [
+          "rate_id"
+        ],
+        "title": "ChoiceIn",
         "type": "object"
       },
       "CitationOut": {
@@ -3040,6 +3086,54 @@
         "title": "IdentifyRequest",
         "type": "object"
       },
+      "ImportOut": {
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "integer"
+          },
+          "imported": {
+            "title": "Imported",
+            "type": "boolean"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/ProblemOut"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "sheet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheet"
+          },
+          "superseded": {
+            "title": "Superseded",
+            "type": "integer"
+          },
+          "unchanged": {
+            "title": "Unchanged",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "imported",
+          "sheet",
+          "created",
+          "superseded",
+          "unchanged",
+          "problems"
+        ],
+        "title": "ImportOut",
+        "type": "object"
+      },
       "ItemOut": {
         "properties": {
           "allowance_percent": {
@@ -3570,6 +3664,167 @@
           "traced"
         ],
         "title": "LineOut",
+        "type": "object"
+      },
+      "LinePriceOut": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "awaiting_model": {
+            "title": "Awaiting Model",
+            "type": "boolean"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "item_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Key"
+          },
+          "item_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item No"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "proposed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RateOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quantity": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity",
+            "type": "string"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RateOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "superseded": {
+            "title": "Superseded",
+            "type": "boolean"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "unit_rate": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Rate"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/WarningOut"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "line_id",
+          "item_no",
+          "section",
+          "description",
+          "unit",
+          "quantity",
+          "item_key",
+          "status",
+          "unit_rate",
+          "amount",
+          "method",
+          "reason",
+          "rate",
+          "proposed",
+          "superseded",
+          "warnings",
+          "awaiting_model"
+        ],
+        "title": "LinePriceOut",
         "type": "object"
       },
       "Liveness": {
@@ -5140,6 +5395,62 @@
         "title": "PresignRequest",
         "type": "object"
       },
+      "PricingOut": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/LinePriceOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "tender_validity_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tender Validity End"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/TotalsOut"
+          }
+        },
+        "required": [
+          "tender_validity_end",
+          "lines",
+          "totals"
+        ],
+        "title": "PricingOut",
+        "type": "object"
+      },
+      "ProblemOut": {
+        "properties": {
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "row": {
+            "title": "Row",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row",
+          "column",
+          "message"
+        ],
+        "title": "ProblemOut",
+        "type": "object"
+      },
       "Progress": {
         "description": "Where a bid's documents have got to. The counts always sum to `total`.",
         "properties": {
@@ -5278,6 +5589,101 @@
           "sheet_ids"
         ],
         "title": "QueueRowOut",
+        "type": "object"
+      },
+      "RateOut": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "item_key": {
+            "title": "Item Key",
+            "type": "string"
+          },
+          "key_parts": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Key Parts",
+            "type": "object"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "retired_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retired At"
+          },
+          "source_reference": {
+            "title": "Source Reference",
+            "type": "string"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "unit_rate": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Rate",
+            "type": "string"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "item_key",
+          "label",
+          "key_parts",
+          "description",
+          "unit",
+          "unit_rate",
+          "source_type",
+          "source_reference",
+          "effective_from",
+          "valid_until",
+          "version",
+          "retired_at"
+        ],
+        "title": "RateOut",
         "type": "object"
       },
       "ReadingRequest": {
@@ -6652,6 +7058,51 @@
         "title": "TemplateOut",
         "type": "object"
       },
+      "TotalsOut": {
+        "properties": {
+          "allowances": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Allowances",
+            "type": "string"
+          },
+          "grand": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Grand",
+            "type": "string"
+          },
+          "gst_included": {
+            "title": "Gst Included",
+            "type": "boolean"
+          },
+          "priced": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Priced",
+            "type": "string"
+          },
+          "sections": {
+            "additionalProperties": {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            "title": "Sections",
+            "type": "object"
+          },
+          "unpriced": {
+            "title": "Unpriced",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sections",
+          "priced",
+          "allowances",
+          "grand",
+          "unpriced",
+          "gst_included"
+        ],
+        "title": "TotalsOut",
+        "type": "object"
+      },
       "TransitionIn": {
         "properties": {
           "reason": {
@@ -7102,6 +7553,24 @@
           "measurable"
         ],
         "title": "ViewSummary",
+        "type": "object"
+      },
+      "WarningOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "WarningOut",
         "type": "object"
       },
       "WithdrawRequest": {
@@ -9953,6 +10422,295 @@
         "summary": "Add Member",
         "tags": [
           "bids"
+        ]
+      }
+    },
+    "/bids/{bid_id}/pricing": {
+      "get": {
+        "description": "Every line's price and where it comes from, its warnings, and the totals (ex GST).",
+        "operationId": "get_pricing_bids__bid_id__pricing_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Pricing",
+        "tags": [
+          "pricing"
+        ]
+      }
+    },
+    "/bids/{bid_id}/pricing/lines/{line_id}/candidates": {
+      "get": {
+        "description": "Entries a person may choose for a line: exact matches first, then close ones.",
+        "operationId": "candidates_bids__bid_id__pricing_lines__line_id__candidates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Line Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RateOut"
+                  },
+                  "title": "Response Candidates Bids  Bid Id  Pricing Lines  Line Id  Candidates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Candidates",
+        "tags": [
+          "pricing"
+        ]
+      }
+    },
+    "/bids/{bid_id}/pricing/lines/{line_id}/confirm": {
+      "post": {
+        "description": "Accept the entry proposed for a line. The price is the entry's.",
+        "operationId": "confirm_bids__bid_id__pricing_lines__line_id__confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Line Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Confirm",
+        "tags": [
+          "pricing"
+        ]
+      }
+    },
+    "/bids/{bid_id}/pricing/lines/{line_id}/rate": {
+      "post": {
+        "description": "Price a line from an entry a person chose, or leave it unpriced (`rate_id: null`).",
+        "operationId": "choose_bids__bid_id__pricing_lines__line_id__rate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Line Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChoiceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Choose",
+        "tags": [
+          "pricing"
+        ]
+      }
+    },
+    "/bids/{bid_id}/pricing/run": {
+      "post": {
+        "description": "The rules price exact matches now; the model is asked about close ones on the worker.",
+        "operationId": "run_pricing_bids__bid_id__pricing_run_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Run Pricing",
+        "tags": [
+          "pricing"
         ]
       }
     },
@@ -14344,6 +15102,136 @@
         "summary": "Rule History",
         "tags": [
           "qto"
+        ]
+      }
+    },
+    "/rates": {
+      "get": {
+        "description": "The library's current entries.",
+        "operationId": "list_rates_rates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RateOut"
+                  },
+                  "title": "Response List Rates Rates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Rates",
+        "tags": [
+          "pricing"
+        ]
+      }
+    },
+    "/rates/import": {
+      "post": {
+        "description": "A rate list workbook, all or nothing: any problem imports nothing and is reported.",
+        "operationId": "import_rates_rates_import_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_rates_rates_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Rates",
+        "tags": [
+          "pricing"
+        ]
+      }
+    },
+    "/rates/{rate_id}/history": {
+      "get": {
+        "operationId": "rate_history_rates__rate_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rate_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Rate Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RateOut"
+                  },
+                  "title": "Response Rate History Rates  Rate Id  History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rate History",
+        "tags": [
+          "pricing"
         ]
       }
     },

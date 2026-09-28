@@ -768,6 +768,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/pricing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pricing
+         * @description Every line's price and where it comes from, its warnings, and the totals (ex GST).
+         */
+        get: operations["get_pricing_bids__bid_id__pricing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/pricing/lines/{line_id}/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Candidates
+         * @description Entries a person may choose for a line: exact matches first, then close ones.
+         */
+        get: operations["candidates_bids__bid_id__pricing_lines__line_id__candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/pricing/lines/{line_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm
+         * @description Accept the entry proposed for a line. The price is the entry's.
+         */
+        post: operations["confirm_bids__bid_id__pricing_lines__line_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/pricing/lines/{line_id}/rate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Choose
+         * @description Price a line from an entry a person chose, or leave it unpriced (`rate_id: null`).
+         */
+        post: operations["choose_bids__bid_id__pricing_lines__line_id__rate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/pricing/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Pricing
+         * @description The rules price exact matches now; the model is asked about close ones on the worker.
+         */
+        post: operations["run_pricing_bids__bid_id__pricing_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/progress": {
         parameters: {
             query?: never;
@@ -2069,6 +2169,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Rates
+         * @description The library's current entries.
+         */
+        get: operations["list_rates_rates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rates/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Rates
+         * @description A rate list workbook, all or nothing: any problem imports nothing and is reported.
+         */
+        post: operations["import_rates_rates_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/rates/{rate_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Rate History */
+        get: operations["rate_history_rates__rate_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/version": {
         parameters: {
             query?: never;
@@ -2395,6 +2552,11 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /** Body_import_rates_rates_import_post */
+        Body_import_rates_rates_import_post: {
+            /** File */
+            file: string;
+        };
         /** Body_upload_bids__bid_id__documents_post */
         Body_upload_bids__bid_id__documents_post: {
             /** Addendum Id */
@@ -2467,6 +2629,13 @@ export interface components {
             };
             /** Ok */
             ok: boolean;
+        };
+        /** ChoiceIn */
+        ChoiceIn: {
+            /** Note */
+            note?: string | null;
+            /** Rate Id */
+            rate_id: string | null;
         };
         /** CitationOut */
         CitationOut: {
@@ -3057,6 +3226,21 @@ export interface components {
             /** Revision */
             revision?: string | null;
         };
+        /** ImportOut */
+        ImportOut: {
+            /** Created */
+            created: number;
+            /** Imported */
+            imported: boolean;
+            /** Problems */
+            problems: components["schemas"]["ProblemOut"][];
+            /** Sheet */
+            sheet: string | null;
+            /** Superseded */
+            superseded: number;
+            /** Unchanged */
+            unchanged: number;
+        };
         /** ItemOut */
         ItemOut: {
             /** Allowance Percent */
@@ -3200,6 +3384,44 @@ export interface components {
             unit: string;
             /** Unit Rate */
             unit_rate: string | null;
+        };
+        /** LinePriceOut */
+        LinePriceOut: {
+            /** Amount */
+            amount: string | null;
+            /** Awaiting Model */
+            awaiting_model: boolean;
+            /** Description */
+            description: string;
+            /** Item Key */
+            item_key: string | null;
+            /** Item No */
+            item_no: string | null;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** Method */
+            method: string | null;
+            proposed: components["schemas"]["RateOut"] | null;
+            /** Quantity */
+            quantity: string;
+            rate: components["schemas"]["RateOut"] | null;
+            /** Reason */
+            reason: string | null;
+            /** Section */
+            section: string | null;
+            /** Status */
+            status: string;
+            /** Superseded */
+            superseded: boolean;
+            /** Unit */
+            unit: string;
+            /** Unit Rate */
+            unit_rate: string | null;
+            /** Warnings */
+            warnings: components["schemas"]["WarningOut"][];
         };
         /** Liveness */
         Liveness: {
@@ -3652,6 +3874,23 @@ export interface components {
             /** Sha256 */
             sha256: string;
         };
+        /** PricingOut */
+        PricingOut: {
+            /** Lines */
+            lines: components["schemas"]["LinePriceOut"][];
+            /** Tender Validity End */
+            tender_validity_end: string | null;
+            totals: components["schemas"]["TotalsOut"];
+        };
+        /** ProblemOut */
+        ProblemOut: {
+            /** Column */
+            column: string;
+            /** Message */
+            message: string;
+            /** Row */
+            row: number;
+        };
         /**
          * Progress
          * @description Where a bid's documents have got to. The counts always sum to `total`.
@@ -3703,6 +3942,43 @@ export interface components {
             sheet_ids: string[];
             /** System */
             system: string;
+        };
+        /** RateOut */
+        RateOut: {
+            /** Description */
+            description: string;
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Item Key */
+            item_key: string;
+            /** Key Parts */
+            key_parts: {
+                [key: string]: string;
+            };
+            /** Label */
+            label: string;
+            /** Retired At */
+            retired_at: string | null;
+            /** Source Reference */
+            source_reference: string;
+            /** Source Type */
+            source_type: string;
+            /** Unit */
+            unit: string;
+            /** Unit Rate */
+            unit_rate: string;
+            /** Valid Until */
+            valid_until: string | null;
+            /** Version */
+            version: number;
         };
         /** ReadingRequest */
         ReadingRequest: {
@@ -4125,6 +4401,23 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** TotalsOut */
+        TotalsOut: {
+            /** Allowances */
+            allowances: string;
+            /** Grand */
+            grand: string;
+            /** Gst Included */
+            gst_included: boolean;
+            /** Priced */
+            priced: string;
+            /** Sections */
+            sections: {
+                [key: string]: string;
+            };
+            /** Unpriced */
+            unpriced: number;
+        };
         /** TransitionIn */
         TransitionIn: {
             /** Reason */
@@ -4280,6 +4573,13 @@ export interface components {
             measurable: boolean;
             /** Scale Status */
             scale_status: string;
+        };
+        /** WarningOut */
+        WarningOut: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
         };
         /** WithdrawRequest */
         WithdrawRequest: {
@@ -5767,6 +6067,168 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pricing_bids__bid_id__pricing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    candidates_bids__bid_id__pricing_lines__line_id__candidates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                line_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_bids__bid_id__pricing_lines__line_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                line_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    choose_bids__bid_id__pricing_lines__line_id__rate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                line_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChoiceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_pricing_bids__bid_id__pricing_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PricingOut"];
                 };
             };
             /** @description Validation Error */
@@ -8181,6 +8643,90 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RuleOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_rates_rates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateOut"][];
+                };
+            };
+        };
+    };
+    import_rates_rates_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_rates_rates_import_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rate_history_rates__rate_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateOut"][];
                 };
             };
             /** @description Validation Error */

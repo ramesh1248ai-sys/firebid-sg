@@ -6,6 +6,7 @@ import { api, apiErrorMessage } from "@/api/client";
 import type { components } from "@/api/schema";
 import { accessToken } from "@/auth/oidc";
 import { Button } from "@/components/ui/button";
+import { BoqPricing } from "@/pages/BoqPricing";
 
 /**
  * The bid's bills of quantities (P1-09).
@@ -219,6 +220,8 @@ export function BoqPage() {
           }
         />
       )}
+
+      {boq && <BoqPricing bidId={bidId} onError={fail} />}
 
       {boq && <Lines bidId={bidId} boq={boq} onError={fail} />}
 
