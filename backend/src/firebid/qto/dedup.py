@@ -250,3 +250,34 @@ def exclusions(
             else:
                 excluded.add(member["id"])  # a schematic's run: the whole of it
     return excluded, lengths
+
+
+# Two marks this close on one sheet (paper mm) are the same place: a head and its drop.
+SAME_SPOT_MM = 0.6
+
+
+def twins(rejected: list[Detection], detections: list[Detection]) -> set[str]:
+    """What else a person's "not there" takes with it (P1-08).
+
+    A detection rejected on one sheet is the same thing wherever else it is drawn: the same
+    type at the same grid position on another sheet of the level. A sprinkler's drop goes
+    with it too, on every sheet it is drawn on.
+    """
+    out: set[str] = set()
+    for gone in rejected:
+        for other in detections:
+            if other.rejected or other.id == gone.id or other.at.level != gone.at.level:
+                continue
+            alike = (other.object_type, other.kind) == (gone.object_type, gone.kind) or (
+                other.kind == "drop" and gone.category == "sprinkler"
+            )
+            if not alike:
+                continue
+            if other.at.sheet_id == gone.at.sheet_id:
+                if abs(other.x - gone.x) <= SAME_SPOT_MM and abs(other.y - gone.y) <= SAME_SPOT_MM:
+                    out.add(other.id)
+                continue
+            a, b = gone.grid_index, other.grid_index
+            if a and b and abs(a[0] - b[0]) <= SAME_PLACE and abs(a[1] - b[1]) <= SAME_PLACE:
+                out.add(other.id)
+    return out

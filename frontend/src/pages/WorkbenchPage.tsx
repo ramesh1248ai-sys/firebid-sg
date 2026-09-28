@@ -1,17 +1,37 @@
-import { useCallback, useMemo, useState } from "react";
+import type { RowSelectionState } from "@tanstack/react-table";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 
 import { DrawingViewer, type Tool } from "@/workbench/DrawingViewer";
-import { useOverlay, useTileSource, useWorkbenchChannel, useWorkbenchSheets } from "@/workbench/data";
+import {
+  useOverlay,
+  useTileSource,
+  useWorkbenchChannel,
+  useWorkbenchSheets,
+  type WorkbenchSheet,
+} from "@/workbench/data";
+import { ItemPanel, ReasonForm } from "@/workbench/ItemPanel";
 import { LayerPanel } from "@/workbench/LayerPanel";
-import { type Box, type Layers, type Mark, NO_LAYERS_HIDDEN, pickInto } from "@/workbench/marks";
+import { type Layers, type Mark, NO_LAYERS_HIDDEN, pickInto } from "@/workbench/marks";
+import { QueuePanel } from "@/workbench/QueuePanel";
+import {
+  type EditInput,
+  type QueueFilters,
+  type QueueRow,
+  useEvidence,
+  useQueue,
+  useReasons,
+  useRecentActions,
+  useReviewActions,
+} from "@/workbench/review";
 
 /**
  * The verification workbench (P1-08): the drawing with every proposal over it, the review
- * queue beside it, and the item being reviewed.
+ * queue beside it, and the item being reviewed with its evidence.
  *
- * Only Current sheets are offered (guardrail 6). The viewer can pop out into its own window
- * for a second monitor; the two stay in step over a BroadcastChannel (NFR-12).
+ * Only Current sheets are offered (guardrail 6). Clicking a queue row zooms the drawing to
+ * the item's evidence and opens it (NFR-10); clicking a mark opens the item it counts
+ * towards. The viewer can pop out into its own window for a second monitor (NFR-12).
  */
 export function WorkbenchPage() {
   const { bidId = "" } = useParams();
@@ -22,44 +42,147 @@ export function WorkbenchPage() {
   const tiles = useTileSource(bidId, sheetId);
   const overlay = useOverlay(bidId, sheetId);
   const [layers, setLayers] = useState<Layers>(NO_LAYERS_HIDDEN);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [lassoed, setLassoed] = useState<Set<string>>(new Set());
   const [focus, setFocus] = useState<{ box: number[]; key: number } | null>(null);
-  const [tool] = useState<Tool>("select");
-  const [, setView] = useState<Box | null>(null);
+  const [tool, setTool] = useState<Tool>("select");
+  const [filters, setFilters] = useState<QueueFilters>({});
+  const [selection, setSelection] = useState<RowSelectionState>({});
+  const [openId, setOpenId] = useState<string | null>(search.get("item"));
+  const [mode, setMode] = useState<"view" | "edit" | "reject">("view");
+  const [remeasure, setRemeasure] = useState<{ reason: string; note: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const chooseSheet = useCallback(
-    (id: string) => {
-      setSelected(new Set());
-      setSearch((params) => {
-        params.set("sheet", id);
-        return params;
-      });
-    },
-    [setSearch],
-  );
+  const queue = useQueue(bidId, {
+    ...filters,
+    sheet_id: filters.sheet_id ? (sheetId ?? undefined) : undefined,
+  });
+  const reasons = useReasons(bidId);
+  const recent = useRecentActions(bidId);
+  const evidence = useEvidence(bidId, openId);
+  const rows = useMemo(() => queue.data ?? [], [queue.data]);
+  const open = rows.find((r) => r.item.id === openId) ?? null;
 
+  // The pop-out's picks open items here; `openItem` is defined below, so reach it by ref.
+  const opener = useRef<(itemId: string) => void>(() => {});
   const post = useWorkbenchChannel(bidId, (message) => {
-    if (message.type === "pick" && message.markId) {
-      setSelected((current) => pickInto(current, message.markId!, message.additive));
-    }
-    if (message.type === "lasso") setSelected(new Set(message.markIds));
+    if (message.type === "pick" && message.itemId) opener.current(message.itemId);
+    if (message.type === "lasso") setLassoed(new Set(message.markIds));
   });
 
-  const onPick = useCallback(
-    (mark: Mark | null, additive: boolean) => {
-      setSelected((current) => (mark ? pickInto(current, mark.id, additive) : new Set()));
-    },
-    [],
-  );
+  const actions = useReviewActions(bidId, () => {
+    setError(null);
+    setMode("view");
+    setSelection({});
+    post({ type: "changed" });
+  });
+  const busy = Object.values(actions).some((m) => m.isPending);
 
-  const onLasso = useCallback((marks: Mark[]) => {
-    setSelected(new Set(marks.map((m) => m.id)));
-  }, []);
+  function fail(caught: unknown) {
+    setError(caught instanceof Error ? caught.message : "That did not work");
+  }
 
-  const selectedMarks = useMemo(
-    () => overlay.index.marks.filter((m) => selected.has(m.id)),
-    [overlay.index, selected],
-  );
+  function chooseSheet(id: string) {
+    setLassoed(new Set());
+    setSearch((params) => {
+      params.set("sheet", id);
+      return params;
+    });
+    post({ type: "sheet", sheetId: id });
+  }
+
+  /** Open an item: zoom to its evidence, switching sheet if its evidence is elsewhere. */
+  function openItem(itemId: string, row?: QueueRow) {
+    setOpenId(itemId);
+    setMode("view");
+    setError(null);
+    const item = (row ?? rows.find((r) => r.item.id === itemId))?.item;
+    const boxes = item?.evidence_boxes ?? [];
+    const here = boxes.find((b) => b.sheet_id === sheetId) ?? boxes[0];
+    if (here) {
+      const target = String(here.sheet_id);
+      if (target !== sheetId) chooseSheet(target);
+      const box = here.box as number[];
+      setFocus({ box, key: Date.now() });
+      post({ type: "focus", sheetId: target, box });
+    }
+  }
+  useLayoutEffect(() => {
+    opener.current = openItem;
+  });
+
+  // What the viewer highlights: the open item's marks, and anything lassoed.
+  const highlighted = useMemo(() => {
+    const ids = new Set(lassoed);
+    if (openId) {
+      for (const mark of overlay.index.marks) if (mark.item_id === openId) ids.add(mark.id);
+    }
+    return ids;
+  }, [lassoed, openId, overlay.index]);
+
+  useEffect(() => {
+    post({ type: "selected", ids: [...highlighted] });
+  }, [highlighted, post]);
+
+  function onPick(mark: Mark | null, additive: boolean) {
+    if (additive && mark) {
+      setLassoed((current) => pickInto(current, mark.id, true));
+      return;
+    }
+    setLassoed(new Set());
+    if (mark?.item_id) openItem(mark.item_id);
+  }
+
+  const lassoMarks = overlay.index.marks.filter((m) => lassoed.has(m.id));
+  const lassoItems = [...new Set(lassoMarks.map((m) => m.item_id).filter(Boolean))] as string[];
+
+  // Keyboard: A accept, E edit, R reject, J/K next and previous, Ctrl+Z undo.
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target && ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)) return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+        const last = recent.data?.find((a) => !a.undone && a.kind !== "undo");
+        if (last) actions.undo.mutateAsync(last.id).catch(fail);
+        event.preventDefault();
+        return;
+      }
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const key = event.key.toLowerCase();
+      const index = rows.findIndex((r) => r.item.id === openId);
+      if (key === "j" || key === "k") {
+        const next = rows[Math.max(0, Math.min(rows.length - 1, index + (key === "j" ? 1 : -1)))];
+        if (next) opener.current(next.item.id);
+      } else if (open && key === "a" && ["proposed", "edited"].includes(open.item.state)) {
+        actions.accept.mutateAsync([open.item.id]).catch(fail);
+      } else if (open && key === "e") {
+        setMode("edit");
+      } else if (open && key === "r") {
+        setMode("reject");
+      } else {
+        return;
+      }
+      event.preventDefault();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [rows, openId, open, recent.data, actions]);
+
+  function onLength(points: number[][]) {
+    setTool("select");
+    if (!remeasure || !open || !sheet) return;
+    const view = viewAt(sheet, points[0]!);
+    if (!view) {
+      setError("Those points are outside every view on this sheet.");
+      return;
+    }
+    const change: EditInput = {
+      reason_code: remeasure.reason,
+      note: remeasure.note || null,
+      measure: { view_id: view.id, points },
+    };
+    setRemeasure(null);
+    actions.edit.mutateAsync({ itemId: open.item.id, change }).catch(fail);
+  }
 
   function popOut() {
     if (!sheetId) return;
@@ -98,6 +221,9 @@ export function WorkbenchPage() {
     );
   }
 
+  const levels = [...new Set(rows.map((r) => r.item.level).filter(Boolean))] as string[];
+  const types = [...new Set(rows.map((r) => r.item.item_type))].sort();
+
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -120,10 +246,20 @@ export function WorkbenchPage() {
         <button type="button" className="text-sm underline" onClick={popOut}>
           Pop out the drawing
         </button>
+        <UndoButton
+          last={recent.data?.find((a) => !a.undone && a.kind !== "undo") ?? null}
+          busy={busy}
+          onUndo={(id) => actions.undo.mutateAsync(id).catch(fail)}
+        />
+        {tool === "length" && (
+          <p role="status" className="text-sm text-orange-700">
+            Measuring: click along the pipe, double-click or Enter to finish, Escape to stop.
+          </p>
+        )}
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[13rem_1fr_26rem]">
-        <aside className="rounded-lg border p-3">
+      <div className="grid gap-3 lg:grid-cols-[13rem_1fr_28rem]">
+        <aside className="max-h-[calc(100vh-9rem)] overflow-auto rounded-lg border p-3">
           <LayerPanel marks={overlay.index.marks} layers={layers} onChange={setLayers} />
         </aside>
 
@@ -134,12 +270,12 @@ export function WorkbenchPage() {
               widthMm={sheet.width_mm}
               index={overlay.index}
               layers={layers}
-              selected={selected}
+              selected={highlighted}
               focus={focus}
               tool={tool}
               onPick={onPick}
-              onLasso={onLasso}
-              onViewChange={setView}
+              onLasso={(marks) => setLassoed(new Set(marks.map((m) => m.id)))}
+              onLength={onLength}
             />
           ) : (
             <p role="status" className="text-sm text-muted-foreground">
@@ -148,31 +284,175 @@ export function WorkbenchPage() {
           )}
         </div>
 
-        <aside className="space-y-2 rounded-lg border p-3 text-sm" aria-label="Selection">
-          <p className="font-medium">
-            {selectedMarks.length
-              ? `${selectedMarks.length} selected`
-              : "Click a mark, or Shift-drag to lasso"}
-          </p>
-          <ul className="space-y-1">
-            {selectedMarks.slice(0, 50).map((mark) => (
-              <li key={mark.id}>
-                <button
-                  type="button"
-                  className="underline"
-                  onClick={() => {
-                    setFocus({ box: mark.box, key: Date.now() });
-                    if (sheetId) post({ type: "focus", sheetId, box: mark.box });
-                  }}
-                >
-                  {mark.item_human_id ?? "not taken off"}
-                </button>{" "}
-                {mark.object_type.replaceAll("_", " ")} · {mark.status}
-              </li>
-            ))}
-          </ul>
+        <aside className="flex h-[calc(100vh-9rem)] min-h-[32rem] flex-col gap-3 overflow-hidden">
+          {lassoMarks.length > 0 && (
+            <LassoPanel
+              marks={lassoMarks}
+              items={lassoItems}
+              reasons={reasons.data ?? []}
+              busy={busy}
+              onAccept={() => actions.accept.mutateAsync(lassoItems).catch(fail)}
+              onRejectDetections={(reason, note) =>
+                actions.rejectDetections
+                  .mutateAsync({
+                    detectionIds: lassoMarks.filter((m) => m.kind !== "manual").map((m) => m.id),
+                    reason,
+                    note,
+                  })
+                  .then(() => setLassoed(new Set()))
+                  .catch(fail)
+              }
+              onClear={() => setLassoed(new Set())}
+            />
+          )}
+          <div className="min-h-0 flex-1 rounded-lg border p-2">
+            {queue.isError ? (
+              <p role="alert" className="text-sm text-destructive">
+                Could not load the review queue.
+              </p>
+            ) : (
+              <QueuePanel
+                rows={rows}
+                filters={filters}
+                onFilters={setFilters}
+                levels={levels}
+                types={types}
+                openId={openId}
+                onOpen={(row) => openItem(row.item.id, row)}
+                selection={selection}
+                onSelection={setSelection}
+                reasons={reasons.data ?? []}
+                busy={busy}
+                onAccept={(ids) => actions.accept.mutateAsync(ids).catch(fail)}
+                onReject={(ids, reason) =>
+                  actions.reject.mutateAsync({ itemIds: ids, reason }).catch(fail)
+                }
+              />
+            )}
+          </div>
+          {open && (
+            <div className="max-h-[50%] overflow-auto rounded-lg border p-3">
+              <ItemPanel
+                item={open.item}
+                evidence={evidence.data}
+                reasons={reasons.data ?? []}
+                busy={busy}
+                error={error}
+                mode={mode}
+                onMode={setMode}
+                onAccept={() => actions.accept.mutateAsync([open.item.id]).catch(fail)}
+                onEdit={(change) =>
+                  actions.edit.mutateAsync({ itemId: open.item.id, change }).catch(fail)
+                }
+                onReject={(reason, note) =>
+                  actions.reject
+                    .mutateAsync({ itemIds: [open.item.id], reason, note })
+                    .catch(fail)
+                }
+                onRemeasure={(reason, note) => {
+                  setRemeasure({ reason, note });
+                  setTool("length");
+                }}
+                onZoom={() => openItem(open.item.id, open)}
+              />
+            </div>
+          )}
         </aside>
       </div>
+    </section>
+  );
+}
+
+function viewAt(sheet: WorkbenchSheet, point: number[]) {
+  const [x, y] = point as [number, number];
+  return (
+    sheet.views.find(
+      (v) => v.extent[0]! <= x && x <= v.extent[2]! && v.extent[1]! <= y && y <= v.extent[3]!,
+    ) ?? null
+  );
+}
+
+function UndoButton({
+  last,
+  busy,
+  onUndo,
+}: {
+  last: { id: string; kind: string; count: number } | null;
+  busy: boolean;
+  onUndo: (id: string) => void;
+}) {
+  if (!last) return null;
+  return (
+    <button
+      type="button"
+      className="rounded border px-2 py-1 text-sm disabled:opacity-50"
+      disabled={busy}
+      onClick={() => onUndo(last.id)}
+      title="Ctrl+Z"
+    >
+      Undo {last.kind.replaceAll("_", " ")} ({last.count})
+    </button>
+  );
+}
+
+function LassoPanel({
+  marks,
+  items,
+  reasons,
+  busy,
+  onAccept,
+  onRejectDetections,
+  onClear,
+}: {
+  marks: Mark[];
+  items: string[];
+  reasons: { code: string; label: string }[];
+  busy: boolean;
+  onAccept: () => void;
+  onRejectDetections: (reason: string, note: string) => void;
+  onClear: () => void;
+}) {
+  const [rejecting, setRejecting] = useState(false);
+  return (
+    <section
+      aria-label="Selection on the drawing"
+      className="space-y-2 rounded-lg border p-2 text-sm"
+    >
+      <p className="font-medium">
+        {marks.length} marks selected on the drawing · {items.length} items
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="rounded bg-green-600 px-2 py-1 text-white disabled:opacity-50"
+          disabled={!items.length || busy}
+          onClick={onAccept}
+        >
+          Accept their {items.length} items
+        </button>
+        <button
+          type="button"
+          className="rounded border px-2 py-1 text-red-700"
+          onClick={() => setRejecting(true)}
+        >
+          Not there…
+        </button>
+        <button type="button" className="rounded border px-2 py-1" onClick={onClear}>
+          Clear
+        </button>
+      </div>
+      {rejecting && (
+        <ReasonForm
+          title={`Reject ${marks.length} detections`}
+          reasons={reasons}
+          busy={busy}
+          onCancel={() => setRejecting(false)}
+          onSubmit={(reason, note) => {
+            setRejecting(false);
+            onRejectDetections(reason, note);
+          }}
+        />
+      )}
     </section>
   );
 }

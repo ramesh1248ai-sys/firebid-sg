@@ -13,8 +13,11 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
+import yaml
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -22,6 +25,17 @@ from firebid.db.models.takeoff import DetectedObject, DuplicateGroup, PipeRun, Q
 from firebid.services import qto
 
 HIGH, MEDIUM = 0.9, 0.6
+CONFIG = Path(__file__).resolve().parents[3] / "config" / "review.yaml"
+DONE = ("verified", "baselined")
+
+
+@lru_cache(maxsize=2)
+def settings(path: Path = CONFIG) -> dict[str, Any]:
+    return dict(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
+
+
+def reason_codes() -> dict[str, str]:
+    return dict(settings().get("reason_codes") or {})
 
 
 def band(confidence: float | None) -> str:
@@ -222,3 +236,127 @@ def sheets(session: Session, bid_id: uuid.UUID) -> list[dict[str, Any]]:
         ),
         key=lambda s: str(s["sheet_number"]),
     )
+
+
+# --- The review queue (FR-REV-02) -----------------------------------------------------------
+
+
+def weight_of(item: QtoItem) -> float:
+    """Value per unit of the item's class, until rates exist (P1-10)."""
+    weights: dict[str, float] = {
+        str(k): float(v) for k, v in (settings().get("impact_weights") or {}).items()
+    }
+    for key in (item.classification, item.item_type):
+        if key and key in weights:
+            return weights[key]
+    return weights.get("default", 1.0)
+
+
+def impact(item: QtoItem) -> float:
+    """What the item is worth to the bid: quantity x rate, or x the class weight for now."""
+    return float(item.net_quantity) * weight_of(item)
+
+
+def risk(item: QtoItem) -> float:
+    """(1 - calibrated confidence) x impact: what a mistake here would cost, weighted by how
+    likely one is. A manual item is a person's own and scores its impact alone."""
+    confidence = item.confidence if item.confidence is not None else 0.0
+    return (1.0 - max(0.0, min(1.0, confidence))) * impact(item)
+
+
+@dataclass
+class QueueRow:
+    item: QtoItem
+    risk: float
+    impact: float
+    sheet_ids: list[str]
+    system: str
+
+
+def system_of(item: QtoItem) -> str:
+    stated: dict[str, Any] = dict(item.attributes or {})
+    system = stated.get("system")
+    if isinstance(system, dict):
+        system = system.get("value")
+    return str(system or "sprinkler")
+
+
+def queue(
+    session: Session,
+    bid_id: uuid.UUID,
+    *,
+    sheet_id: str | None = None,
+    system: str | None = None,
+    level: str | None = None,
+    item_type: str | None = None,
+    status: str | None = None,
+) -> list[QueueRow]:
+    """Every live item, riskiest first. Items still to decide come before decided ones."""
+    rows = []
+    for item in qto.live_items(session, bid_id):
+        derivation: dict[str, Any] = dict(item.derivation or {})
+        sheets = [str(s.get("sheet_id")) for s in derivation.get("sources") or []]
+        row = QueueRow(item, risk(item), impact(item), sheets, system_of(item))
+        if sheet_id and sheet_id not in sheets:
+            continue
+        if system and row.system != system:
+            continue
+        if level and item.level != level:
+            continue
+        if item_type and item.item_type != item_type:
+            continue
+        if status and status_of(item) != status:
+            continue
+        rows.append(row)
+    return sorted(
+        rows,
+        key=lambda r: (r.item.state in (*DONE, "rejected"), -r.risk, r.item.human_id),
+    )
+
+
+# --- Coverage (FR-REV-04) -------------------------------------------------------------------
+
+
+def coverage(session: Session, bid_id: uuid.UUID) -> dict[str, Any]:
+    """The share of the takeoff a person has verified, by item count and by value.
+
+    Rejected items are decided and leave both counts. Value is weighted by class until rates
+    exist (P1-10), and says so.
+    """
+    items = [i for i in qto.live_items(session, bid_id) if i.state != "rejected"]
+    verified = [i for i in items if i.state in DONE]
+    value_total = sum(impact(i) for i in items)
+    value_verified = sum(impact(i) for i in verified)
+    policy = float((settings().get("coverage_policy") or {}).get("items_percent", 100))
+    items_percent = 100.0 * len(verified) / len(items) if items else 0.0
+    return {
+        "items_total": len(items),
+        "items_verified": len(verified),
+        "items_percent": round(items_percent, 2),
+        "value_total": round(value_total, 3),
+        "value_verified": round(value_verified, 3),
+        "value_percent": round(100.0 * value_verified / value_total, 2) if value_total else 0.0,
+        "value_basis": "weighted by item class (no rates yet)",
+        "policy_percent": policy,
+        "met": bool(items) and items_percent >= policy,
+    }
+
+
+def unmapped_in_scope(session: Session, bid_id: uuid.UUID) -> list[dict[str, Any]]:
+    """Symbols on Current sheets nobody has said what they are (they are counted as nothing)."""
+    from firebid.services import symbols
+
+    found = symbols.counts(session, bid_id, current_only=True)
+    return [
+        {
+            "symbol_key": group.symbol_key,
+            "description": group.description,
+            "instances": group.instances,
+            "status": group.status,
+            "sheets": sorted(str(s) for s in group.sheets),
+            "mapping_lineage_id": str(group.mapping_lineage_id)
+            if group.mapping_lineage_id
+            else None,
+        }
+        for group in found.unmapped
+    ]

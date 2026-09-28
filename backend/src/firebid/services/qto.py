@@ -350,9 +350,7 @@ def inputs(
         .where(DetectedObject.bid_id == bid_id, DetectedObject.sheet_id.in_(list(sheets)))
         .order_by(DetectedObject.sheet_id, DetectedObject.id)
     ).scalars():
-        if row.state == "rejected" or (
-            row.sheet_revision_id is not None and row.sheet_revision_id not in revisions
-        ):
+        if row.sheet_revision_id is not None and row.sheet_revision_id not in revisions:
             continue
         info = sheets[row.sheet_id]
         position = row.geometry_ref or {}
@@ -372,6 +370,8 @@ def inputs(
                 confidence=float(row.confidence if row.confidence is not None else 0.0),
                 method=row.extraction_method,
                 evidence=dict(row.source_ref or {}),
+                # Kept, not dropped: what a person rejected takes its copies with it.
+                rejected=row.state == "rejected",
             )
         )
     runs = []
@@ -468,10 +468,13 @@ def recompute(session: Session, bid_id: uuid.UUID, actor: Actor = SYSTEM_ACTOR) 
     """Take off the bid again. The same inputs change nothing (see the module notes)."""
     organisation_id = _organisation_of(session, bid_id)
     sheets = current_sheets(session, bid_id)
-    detections, runs = inputs(session, bid_id, sheets)
+    everything, runs = inputs(session, bid_id, sheets)
+    rejected = [d for d in everything if d.rejected]
+    detections = [d for d in everything if not d.rejected]
     found = dedup.find(detections, runs)
     stored = sync_groups(session, bid_id, found)
     excluded, lengths = dedup.exclusions(found, {key: row.status for key, row in stored.items()})
+    excluded |= dedup.twins(rejected, detections)
     rule_set_ = rule_set(session, organisation_id)
     drafts = generate.generate(
         detections,
@@ -695,6 +698,17 @@ def _link_groups(session: Session, bid_id: uuid.UUID, groups: dict[str, Duplicat
 
 
 def _calculation_note(item: QtoItem, derivation: dict[str, Any]) -> str:
+    note = _how_calculated(item, derivation)
+    edit = derivation.get("edit")
+    if isinstance(edit, dict):
+        note += (
+            f"; edited by {edit.get('by')} on {str(edit.get('at', ''))[:10]} "
+            f"({edit.get('reason_code')}), was {edit.get('before', {}).get('net_quantity')}"
+        )
+    return note
+
+
+def _how_calculated(item: QtoItem, derivation: dict[str, Any]) -> str:
     members = derivation.get("members") or []
     sheets = sorted({str(m.get("sheet")) for m in members if m.get("sheet")})
     where = ", ".join(sheets)
@@ -1137,10 +1151,22 @@ class Blockers:
     unresolved_groups: list[dict[str, Any]]
     incomplete_items: list[dict[str, Any]]
     pending_work: list[dict[str, Any]] = field(default_factory=list)
+    coverage: dict[str, Any] = field(default_factory=dict)
+    unmapped_symbols: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def coverage_short(self) -> bool:
+        return bool(self.coverage) and not self.coverage.get("met")
 
     @property
     def clear(self) -> bool:
-        return not (self.unresolved_groups or self.incomplete_items or self.pending_work)
+        return not (
+            self.unresolved_groups
+            or self.incomplete_items
+            or self.pending_work
+            or self.unmapped_symbols
+            or self.coverage_short
+        )
 
 
 # Jobs that change what takeoff reads. A queued recompute is not here: approving G1
@@ -1179,9 +1205,11 @@ def g1_blockers(session: Session, bid_id: uuid.UUID) -> Blockers:
     """What stops G1: unresolved duplicate groups (FR-QTO-08), incomplete evidence (FR-QTO-09).
 
     Also, work still queued or running for the bid: drawings being read or detected
-    (the takeoff would change under the approval). The verification coverage policy
-    (FR-REV-04) joins these in P1-08.
+    (the takeoff would change under the approval); verification coverage below the policy
+    (FR-REV-04); and symbols on Current sheets nobody has mapped, which count as nothing.
     """
+    from firebid.services import review
+
     groups = session.execute(
         select(DuplicateGroup)
         .where(DuplicateGroup.bid_id == bid_id, DuplicateGroup.status == "unresolved")
@@ -1193,6 +1221,8 @@ def g1_blockers(session: Session, bid_id: uuid.UUID) -> Blockers:
         ],
         incomplete_items=completeness(session, bid_id),
         pending_work=pending_work(session, bid_id),
+        coverage=review.coverage(session, bid_id),
+        unmapped_symbols=review.unmapped_in_scope(session, bid_id),
     )
 
 
@@ -1215,6 +1245,13 @@ def approve_g1(
             parts.append(f"{len(blockers.unresolved_groups)} unresolved duplicate group(s)")
         if blockers.incomplete_items:
             parts.append(f"{len(blockers.incomplete_items)} item(s) with incomplete evidence")
+        if blockers.coverage_short:
+            parts.append(
+                f"{blockers.coverage['items_percent']:g}% of items verified, "
+                f"{blockers.coverage['policy_percent']:g}% needed"
+            )
+        if blockers.unmapped_symbols:
+            parts.append(f"{len(blockers.unmapped_symbols)} unmapped symbol type(s) in scope")
         raise QtoError("G1 is blocked: " + "; ".join(parts))
     if actor.id is None:
         raise QtoError("a gate is approved by a named person")

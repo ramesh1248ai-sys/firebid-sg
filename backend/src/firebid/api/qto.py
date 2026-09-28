@@ -185,6 +185,8 @@ class BlockersOut(BaseModel):
     unresolved_groups: list[dict[str, Any]]
     incomplete_items: list[dict[str, Any]]
     pending_work: list[dict[str, Any]]
+    coverage: dict[str, Any]
+    unmapped_symbols: list[dict[str, Any]]
 
 
 class ApproveIn(BaseModel):
@@ -639,13 +641,15 @@ def set_parameter(
 
 @router.get("/g1", response_model=BlockersOut)
 def g1_status(context: CurrentBid, session: DbSession) -> BlockersOut:
-    """What stands between the takeoff and G1, checked now (FR-QTO-08, FR-QTO-09)."""
+    """What stands between the takeoff and G1, checked now (FR-QTO-08, 09; FR-REV-04)."""
     found = qto.g1_blockers(session, context.bid.id)
     return BlockersOut(
         clear=found.clear,
         unresolved_groups=found.unresolved_groups,
         incomplete_items=found.incomplete_items,
         pending_work=found.pending_work,
+        coverage=found.coverage,
+        unmapped_symbols=found.unmapped_symbols,
     )
 
 

@@ -45,6 +45,7 @@ class Detection:
     confidence: float
     method: str
     evidence: dict[str, Any] = field(default_factory=dict)
+    rejected: bool = False  # a person said it is not there (P1-08)
 
 
 @dataclass(frozen=True)

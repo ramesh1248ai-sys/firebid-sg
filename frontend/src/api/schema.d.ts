@@ -573,7 +573,7 @@ export interface paths {
         };
         /**
          * G1 Status
-         * @description What stands between the takeoff and G1, checked now (FR-QTO-08, FR-QTO-09).
+         * @description What stands between the takeoff and G1, checked now (FR-QTO-08, 09; FR-REV-04).
          */
         get: operations["g1_status_bids__bid_id__qto_g1_get"];
         put?: never;
@@ -847,6 +847,171 @@ export interface paths {
         get: operations["export_bids__bid_id__registers__kind__xlsx_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/review/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept */
+        post: operations["accept_bids__bid_id__review_accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/review/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent Actions
+         * @description The bid's latest actions, newest first: what undo offers.
+         */
+        get: operations["recent_actions_bids__bid_id__review_actions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/review/actions/{action_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo */
+        post: operations["undo_bids__bid_id__review_actions__action_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/review/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Coverage
+         * @description Verified share of the takeoff, by items and by value (FR-REV-04).
+         */
+        get: operations["coverage_bids__bid_id__review_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/review/detections/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject Detections
+         * @description What was found is not there: the detections leave takeoff, which is recomputed.
+         */
+        post: operations["reject_detections_bids__bid_id__review_detections_reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/review/items/{item_id}/edit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Edit */
+        post: operations["edit_bids__bid_id__review_items__item_id__edit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/review/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Queue
+         * @description Riskiest first; items still to decide before decided ones (FR-REV-02).
+         */
+        get: operations["queue_bids__bid_id__review_queue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/review/reasons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reasons */
+        get: operations["reasons_bids__bid_id__review_reasons_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/review/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject */
+        post: operations["reject_bids__bid_id__review_reject_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1266,6 +1431,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/symbols/unlisted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Name Unlisted
+         * @description Say what a recurring symbol no legend explains is, often "not an installed object".
+         */
+        post: operations["name_unlisted_bids__bid_id__symbols_unlisted_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/tasks": {
         parameters: {
             query?: never;
@@ -1548,6 +1733,37 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActionOut */
+        ActionOut: {
+            /** Actor */
+            actor: string;
+            /** Count */
+            count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Detection Ids */
+            detection_ids: string[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Item Ids */
+            item_ids: string[];
+            /** Kind */
+            kind: string;
+            /** Note */
+            note: string | null;
+            /** Reason Code */
+            reason_code: string | null;
+            /** Undoes Id */
+            undoes_id: string | null;
+            /** Undone */
+            undone: boolean;
+        };
         /** AddendumIn */
         AddendumIn: {
             /** Issued On */
@@ -1794,12 +2010,20 @@ export interface components {
         BlockersOut: {
             /** Clear */
             clear: boolean;
+            /** Coverage */
+            coverage: {
+                [key: string]: unknown;
+            };
             /** Incomplete Items */
             incomplete_items: {
                 [key: string]: unknown;
             }[];
             /** Pending Work */
             pending_work: {
+                [key: string]: unknown;
+            }[];
+            /** Unmapped Symbols */
+            unmapped_symbols: {
                 [key: string]: unknown;
             }[];
             /** Unresolved Groups */
@@ -1973,6 +2197,27 @@ export interface components {
             /** Unmapped */
             unmapped: components["schemas"]["UnmappedOut"][];
         };
+        /** CoverageOut */
+        CoverageOut: {
+            /** Items Percent */
+            items_percent: number;
+            /** Items Total */
+            items_total: number;
+            /** Items Verified */
+            items_verified: number;
+            /** Met */
+            met: boolean;
+            /** Policy Percent */
+            policy_percent: number;
+            /** Value Basis */
+            value_basis: string;
+            /** Value Percent */
+            value_percent: number;
+            /** Value Total */
+            value_total: number;
+            /** Value Verified */
+            value_verified: number;
+        };
         /** DecideGroupIn */
         DecideGroupIn: {
             /**
@@ -2082,6 +2327,15 @@ export interface components {
             state: string;
             /** View Id */
             view_id: string | null;
+        };
+        /** DetectionsIn */
+        DetectionsIn: {
+            /** Detection Ids */
+            detection_ids: string[];
+            /** Note */
+            note?: string | null;
+            /** Reason Code */
+            reason_code: string;
         };
         /** DetectionsOut */
         DetectionsOut: {
@@ -2203,6 +2457,22 @@ export interface components {
             title: string | null;
             /** Zone */
             zone: string | null;
+        };
+        /** EditIn */
+        EditIn: {
+            /** Allowance Percent */
+            allowance_percent?: number | string | null;
+            /** Attributes */
+            attributes?: {
+                [key: string]: string;
+            } | null;
+            measure?: components["schemas"]["MeasureIn"] | null;
+            /** Note */
+            note?: string | null;
+            /** Quantity */
+            quantity?: number | string | null;
+            /** Reason Code */
+            reason_code: string;
         };
         /** FailedDocument */
         FailedDocument: {
@@ -2337,6 +2607,13 @@ export interface components {
             version: number;
             /** Zone */
             zone: string | null;
+        };
+        /** ItemsIn */
+        ItemsIn: {
+            /** Item Ids */
+            item_ids: string[];
+            /** Note */
+            note?: string | null;
         };
         /** LegendRowOut */
         LegendRowOut: {
@@ -2564,6 +2841,15 @@ export interface components {
             /** Provider */
             provider: string;
         };
+        /** NameUnlistedRequest */
+        NameUnlistedRequest: {
+            /** Note */
+            note?: string | null;
+            /** Object Type */
+            object_type: string;
+            /** Symbol Key */
+            symbol_key: string;
+        };
         /** ObjectTypeChange */
         ObjectTypeChange: {
             /** Attribute Schema */
@@ -2788,6 +3074,18 @@ export interface components {
             /** Retention */
             retention: string | null;
         };
+        /** QueueRowOut */
+        QueueRowOut: {
+            /** Impact */
+            impact: number;
+            item: components["schemas"]["ItemOut"];
+            /** Risk */
+            risk: number;
+            /** Sheet Ids */
+            sheet_ids: string[];
+            /** System */
+            system: string;
+        };
         /** ReadingRequest */
         ReadingRequest: {
             /**
@@ -2801,6 +3099,13 @@ export interface components {
             sheet_number: string;
             /** Title */
             title?: string | null;
+        };
+        /** ReasonOut */
+        ReasonOut: {
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
         };
         /** RefusedOut */
         RefusedOut: {
@@ -2820,6 +3125,15 @@ export interface components {
             unidentified: number;
             /** Unsure Types */
             unsure_types: number;
+        };
+        /** RejectIn */
+        RejectIn: {
+            /** Item Ids */
+            item_ids: string[];
+            /** Note */
+            note?: string | null;
+            /** Reason Code */
+            reason_code: string;
         };
         /** RejectRequest */
         RejectRequest: {
@@ -5001,6 +5315,311 @@ export interface operations {
             };
         };
     };
+    accept_bids__bid_id__review_accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recent_actions_bids__bid_id__review_actions_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_bids__bid_id__review_actions__action_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                action_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    coverage_bids__bid_id__review_coverage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoverageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_detections_bids__bid_id__review_detections_reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DetectionsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_bids__bid_id__review_items__item_id__edit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    queue_bids__bid_id__review_queue_get: {
+        parameters: {
+            query?: {
+                sheet_id?: string | null;
+                system?: string | null;
+                level?: string | null;
+                item_type?: string | null;
+                status?: string | null;
+            };
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueRowOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reasons_bids__bid_id__review_reasons_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReasonOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_bids__bid_id__review_reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     confirm_reading_bids__bid_id__sheet_revisions__revision_id__confirm_post: {
         parameters: {
             query?: never;
@@ -5734,6 +6353,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ObjectTypeChoice"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    name_unlisted_bids__bid_id__symbols_unlisted_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NameUnlistedRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MappingOut"];
                 };
             };
             /** @description Validation Error */

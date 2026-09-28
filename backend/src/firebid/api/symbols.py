@@ -275,6 +275,35 @@ def _detect_again(session: DbSession, context: CurrentBid, principal: Principal)
     enqueue(session, run_detection, bid_id=str(context.bid.id), user_id=str(principal.user_id))
 
 
+class NameUnlistedRequest(BaseModel):
+    symbol_key: str
+    object_type: str
+    note: str | None = None
+
+
+@router.post("/unlisted", response_model=MappingOut)
+def name_unlisted(
+    body: NameUnlistedRequest,
+    context: CurrentBid,
+    session: DbSession,
+    principal: Annotated[Principal, require(Action.SYMBOL_MAPPING_CONFIRM)],
+) -> MappingOut:
+    """Say what a recurring symbol no legend explains is, often "not an installed object"."""
+    try:
+        row = service.name_unlisted(
+            session,
+            context.bid.id,
+            body.symbol_key,
+            body.object_type,
+            principal.actor(),
+            body.note,
+        )
+    except service.MappingError as refusal:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(refusal)) from refusal
+    _detect_again(session, context, principal)
+    return mapping_out(row)
+
+
 @router.post("/mappings/{lineage_id}/reject", response_model=MappingOut)
 def reject_mapping(
     lineage_id: uuid.UUID,

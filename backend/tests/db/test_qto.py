@@ -226,6 +226,17 @@ class TestDuplicatesAndG1:
             f"/bids/{tender.id}/qto/duplicates/{group.id}",
             json={"decision": "confirmed", "note": "the enlarged plan repeats the GA"},
         )
+        # G1 also needs every item verified and every symbol named (P1-08, FR-REV-04).
+        from firebid.services import review, review_actions, symbols
+
+        for unlisted in review.unmapped_in_scope(session, tender.id):
+            symbols.name_unlisted(
+                session, tender.id, unlisted["symbol_key"], "not_an_object", senior.actor()
+            )
+        review_actions.accept(
+            session, tender.id, [i.id for i in qto.live_items(session, tender.id)], senior.actor()
+        )
+        session.commit()
         approved = client.post(f"/bids/{tender.id}/qto/g1/approve", json={"comment": "ok"})
 
         assert status_before["clear"] is False and len(status_before["unresolved_groups"]) == 1
