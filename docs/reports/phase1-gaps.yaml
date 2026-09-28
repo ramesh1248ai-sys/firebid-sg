@@ -1,0 +1,61 @@
+# Known Phase 1 gaps, with causes and proposed actions, for the exit report (P1-11).
+# `firebid-eval exit` adds the gaps its own measurements show (missing golden set, pending
+# evidence, targets missed). Edit this file as gaps close or new ones are found.
+
+gaps:
+  - gap: "Real drawings: head types confused by symbol matching; some sheets undercount"
+    cause: >-
+      Circle-type sprinkler symbols (concealed, exposed quick-response) are close in the shape
+      descriptor. On the 6405 sample, concealed heads matched the exposed quick-response
+      symbol, and F/18 matched 179 heads against a reference of 329.
+    action: >-
+      A dedicated step on head-type matching, using the 6405 sample and the golden set:
+      richer descriptors (fill, concentric rings), and confirmation-driven calibration.
+  - gap: "Legend rows the keyword rules cannot type stay uncounted until a person confirms them"
+    cause: >-
+      By design, ambiguous rows ("EXPOSED SPRINKLER": pendent or upright?) go to a person or
+      the model. With no model key and no confirmation, the automatic count is zero.
+    action: >-
+      Pilot runbook: confirm the legend on the Symbols page first. With D2, enable the model
+      route for legend mapping.
+  - gap: "Pipe runs are not identified from the legend's line styles"
+    cause: >-
+      Pipework legend rows (a sample of line) are recognised and kept out of symbol matching,
+      but are not yet used to pick out pipe runs on a PDF.
+    action: "Phase 2 (P2-01): line-style classification from legend samples."
+  - gap: "No model path has run against a real provider"
+    cause: >-
+      No API key on any environment; decision D2 (provider data terms and hosting) is open.
+    action: >-
+      After D2, run the live contract tests (`pytest -m live`) and the provider game day in
+      staging.
+  - gap: "Not deployed in a Singapore region"
+    cause: >-
+      ADR-004 is proposed and D2 is open; ADR-008 (hosting on Google Cloud, asia-southeast1)
+      is proposed. No cloud account exists.
+    action: >-
+      Sponsor decision D2 and ADR-008; create the project; `terraform apply` for staging, then
+      run the restore drill and game day there; then production.
+  - gap: "No target AI cost per tender"
+    cause: "Phase 0 did not set one (NFR-15). `config/kpi.yaml` holds a placeholder."
+    action: "Sponsor sets the target; the cost report compares against it."
+  - gap: "Commercial settings are placeholders"
+    cause: >-
+      Rate list (synthetic), queue weights and `weight_unit_sgd`, source preference, BOQ
+      variance threshold, measurement convention wording and BOQ template are all marked
+      "to be confirmed".
+    action: "Commercial team and senior estimator confirm them before the pilot prices a bid."
+  - gap: "Estimator usability session not run"
+    cause: "Needs two or three estimators (P1-08 guide in docs/plan/usability/)."
+    action: "Run it with the pilot's estimator champions; record findings in the build log."
+  - gap: "BOQ mapping accuracy measured on the synthetic bill only"
+    cause: "No real client bills with verified mappings."
+    action: "Add client bills to the golden set (D3); re-run `firebid-eval run --suite p1_boq`."
+  - gap: "A bid cannot be deleted in the app"
+    cause: "No delete flow; a test bid was removed directly in the database."
+    action: "An administrator delete with its own audit entry and retention rules."
+  - gap: "Two order-dependent tests"
+    cause: >-
+      `test_migrations_leave_application_logging_working` fails when run alone with the
+      migration tests; `Specification.test.tsx` timed out once under load.
+    action: "Isolate their set-up; neither affects the product."

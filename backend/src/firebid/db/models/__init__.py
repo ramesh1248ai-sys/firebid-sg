@@ -44,7 +44,7 @@ from firebid.db.models.documents import (
     TransmittalEntry,
 )
 from firebid.db.models.drawings import GeometryFeature, SheetGeometry, SheetView
-from firebid.db.models.review import CorrectionEvent, ReviewAction
+from firebid.db.models.review import ActivityMinute, CorrectionEvent, ReviewAction
 from firebid.db.models.specs import SpecAttribute, SpecClause
 from firebid.db.models.symbols import (
     ConsultantProfile,
@@ -66,6 +66,7 @@ from firebid.db.models.workflow import AgentRun, Approval, DeadlineAlert, HumanT
 from firebid.db.system import SystemHeartbeat, SystemJobResult
 
 __all__ = [
+    "ActivityMinute",
     "Addendum",
     "AgentRun",
     "AppUser",

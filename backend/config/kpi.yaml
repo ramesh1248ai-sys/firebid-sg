@@ -1,0 +1,19 @@
+# Phase 1 KPIs (requirements §14) and the AI cost target (NFR-15), for the KPI dashboard and
+# the Phase 1 exit report (P1-11).
+#
+# "TO BE CONFIRMED": the target cost per tender was to be set in Phase 0 and was not. This is
+# a placeholder the sponsor replaces; until then every comparison against it says so.
+
+status: to be confirmed
+
+targets:
+  sprinkler_count_accuracy: {at_least: 0.98}
+  pipe_length_error: {at_most: 0.05}
+  missed_item_rate: {at_most: 0.05}
+  false_detection_rate: {at_most: 0.05}
+  duplicate_detection_rate: {at_least: 0.95}
+  qto_effort_reduction: {at_least: 0.30}
+  workflow_success_rate: {at_least: 0.98}
+
+# AI processing cost per tender, SGD (NFR-15). Placeholder.
+target_cost_per_tender_sgd: 50.00

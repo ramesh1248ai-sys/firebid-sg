@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 
 import { useAuth } from "@/auth/session";
+import { useActivityHeartbeat } from "@/workbench/activity";
 import { DrawingViewer, type Tool } from "@/workbench/DrawingViewer";
 import { DuplicatesPanel } from "@/workbench/DuplicatesPanel";
 import { GatePanel, SetupPanel, type Tab } from "@/workbench/GatePanel";
@@ -75,6 +76,8 @@ export function WorkbenchPage() {
   const [manual, setManual] = useState<ManualDraft | null>(null);
   const [placed, setPlaced] = useState<number[][]>([]);
   const objectTypes = useObjectTypes(bidId);
+  // Time on task for the QTO effort measure (P1-11).
+  useActivityHeartbeat(bidId);
 
   const queue = useQueue(bidId, {
     ...filters,

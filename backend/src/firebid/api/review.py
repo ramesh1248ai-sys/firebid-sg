@@ -261,3 +261,39 @@ def undo(
     except (actions.ReviewError, TransitionError) as refusal:
         raise _refused(refusal) from refusal
     return action_out(row)
+
+
+# --- Time on task (P1-11) -------------------------------------------------------------------
+
+
+class ActivityIn(BaseModel):
+    area: str = "review"
+
+
+class EffortOut(BaseModel):
+    minutes: int
+    hours: float
+    by_area: dict[str, int]
+    people: int
+
+
+@router.post("/activity", status_code=204)
+def activity(body: ActivityIn, context: CurrentBid, session: DbSession) -> None:
+    """A heartbeat: the signed-in person is working on this bid's takeoff this minute."""
+    from firebid.services import effort
+
+    try:
+        effort.record(session, context.bid.id, context.principal.user_id, body.area)
+    except ValueError as refusal:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(refusal)) from refusal
+
+
+@router.get("/effort", response_model=EffortOut)
+def time_on_task(context: CurrentBid, session: DbSession) -> EffortOut:
+    """Minutes spent on the takeoff in the workbench, for the QTO effort measure."""
+    from firebid.services import effort
+
+    found = effort.time_on_task(session, context.bid.id)
+    return EffortOut(
+        minutes=found.minutes, hours=found.hours, by_area=found.by_area, people=found.people
+    )

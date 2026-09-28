@@ -133,7 +133,9 @@ def _target_note(metric: str, value: float | None) -> str:
     return f"{'meets' if met else 'MISSES'} {direction}{target}"
 
 
-def markdown_report(result: SuiteResult, metrics: Sequence[str] | None = None) -> str:
+def markdown_report(
+    result: SuiteResult, metrics: Sequence[str] | None = None, *, synthetic: bool = True
+) -> str:
     """The report. `metrics` narrows it to what a suite measures, and adds a row per tender.
 
     A suite that only reads title blocks predicts no sprinklers; showing its sprinkler
@@ -192,7 +194,10 @@ def markdown_report(result: SuiteResult, metrics: Sequence[str] | None = None) -
     lines += [
         "",
         "> Synthetic fixtures prove the pipeline, not real-world accuracy. Only the golden "
-        "set (decision D3) can do that.",
+        "set (decision D3) can do that."
+        if synthetic
+        else "> Measured on drawings and truth read from disk (a golden set, or a sample "
+        "standing in for one): see each tender's notes for how its truth was made.",
         "",
     ]
     return "\n".join(lines)

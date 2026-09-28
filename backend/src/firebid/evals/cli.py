@@ -10,6 +10,8 @@
     firebid-eval compare-models --route <r> --models a,b  evidence for changing a model
     firebid-eval calibrate --suite p1_detection          fit detection confidence (FR-VIS-09)
     firebid-eval run       --suite p1_boq                client BOQ mapping accuracy (FR-BOQ-02)
+    firebid-eval shadow    --bid <id> --workbook x.xlsx  manual takeoff beside the AI's (§13.3)
+    firebid-eval exit      --out ../docs/reports/phase1-exit.md   the Phase 1 exit report
     firebid-eval corrections --out corrections.jsonl     people's corrections (FR-REV-06)
 
 `import` and `compare` write nothing and exit non-zero when they are unhappy, which is what
@@ -152,7 +154,28 @@ def main(argv: list[str] | None = None) -> int:
     )
     corrections.add_argument("--out", type=Path, required=True)
 
+    shadow = commands.add_parser("shadow", help="compare a manual takeoff with the AI's")
+    shadow.add_argument("--bid", required=True, help="the bid's UUID")
+    shadow.add_argument("--workbook", type=Path, default=None, help="the estimator's workbook")
+    shadow.add_argument(
+        "--synthetic", action="store_true", help="the synthetic tender's manual takeoff"
+    )
+    shadow.add_argument("--hours", type=float, default=None, help="manual takeoff hours")
+    shadow.add_argument("--out", type=Path, default=None)
+
+    exit_report = commands.add_parser("exit", help="write the Phase 1 exit report")
+    exit_report.add_argument("--indicative-root", type=Path, default=None)
+    exit_report.add_argument("--live", action="store_true", help="include every bid's measures")
+    exit_report.add_argument("--gaps", type=Path, default=Path("../docs/reports/phase1-gaps.yaml"))
+    exit_report.add_argument("--out", type=Path, default=Path("../docs/reports/phase1-exit.md"))
+
     arguments = parser.parse_args(argv)
+
+    if arguments.command == "shadow":
+        return _run_shadow(arguments)
+
+    if arguments.command == "exit":
+        return _run_exit(arguments)
 
     if arguments.command == "corrections":
         return _run_corrections(arguments.out)
@@ -293,7 +316,8 @@ def _run_suite_command(arguments: argparse.Namespace) -> int:
     if arguments.command == "run":
         result_path.parent.mkdir(parents=True, exist_ok=True)
         result_path.write_text(result.to_json(), encoding="utf-8")
-        report = markdown_report(result, metrics=_metrics_for(arguments.suite))
+        synthetic = not (arguments.suite == DETECTION_SUITE and not detection.synthetic)
+        report = markdown_report(result, metrics=_metrics_for(arguments.suite), synthetic=synthetic)
         if arguments.suite == DETECTION_SUITE:
             from firebid.evals.p1_detection import untyped_note
 
@@ -366,6 +390,70 @@ def _run_compare_models(arguments: argparse.Namespace) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
+
+
+def _run_shadow(arguments: argparse.Namespace) -> int:
+    """A manual takeoff beside the bid's verified AI-assisted one, with the effort of each."""
+    import json
+    import uuid
+
+    from firebid.db.engine import service_session_scope
+    from firebid.evals import shadow
+    from firebid.services import effort
+
+    if arguments.synthetic:
+        truth = shadow.synthetic_manual_takeoff()
+    elif arguments.workbook:
+        try:
+            truth = import_workbook(arguments.workbook)
+        except ImportFailed as failure:
+            print(failure.report(), file=sys.stderr)
+            return 1
+    else:
+        print("give --workbook, or --synthetic", file=sys.stderr)
+        return 1
+    bid = uuid.UUID(arguments.bid)
+    with service_session_scope() as session:
+        items = shadow.ai_takeoff(session, bid)
+        worked = effort.time_on_task(session, bid)
+    found = shadow.compare(
+        truth,
+        items,
+        manual_hours=arguments.hours,
+        ai_hours=worked.hours,
+        synthetic=arguments.synthetic,
+    )
+    results = arguments.root / "results" / "shadow"
+    results.mkdir(parents=True, exist_ok=True)
+    (results / f"{truth.tender_id}.json").write_text(
+        json.dumps(found.to_json(), indent=1, default=str), encoding="utf-8"
+    )
+    out = arguments.out or (results / f"{truth.tender_id}.md")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(found.markdown(), encoding="utf-8")
+    print(f"wrote {out} ({len(found.lines)} lines)")
+    return 0
+
+
+def _run_exit(arguments: argparse.Namespace) -> int:
+    import yaml
+
+    from firebid.evals import p1_exit
+
+    inputs = p1_exit.gather(arguments.root, arguments.indicative_root, arguments.live)
+    curated = (
+        yaml.safe_load(arguments.gaps.read_text(encoding="utf-8"))
+        if arguments.gaps.exists()
+        else {}
+    )
+    gaps = p1_exit.dynamic_gaps(inputs) + [
+        (g["gap"], " ".join(str(g["cause"]).split()), " ".join(str(g["action"]).split()))
+        for g in (curated or {}).get("gaps", [])
+    ]
+    arguments.out.parent.mkdir(parents=True, exist_ok=True)
+    arguments.out.write_text(p1_exit.report(inputs, gaps), encoding="utf-8")
+    print(f"wrote {arguments.out}")
+    return 0
 
 
 def _run_corrections(out: Path) -> int:

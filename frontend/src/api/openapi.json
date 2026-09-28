@@ -94,6 +94,17 @@
         "title": "ActionOut",
         "type": "object"
       },
+      "ActivityIn": {
+        "properties": {
+          "area": {
+            "default": "review",
+            "title": "Area",
+            "type": "string"
+          }
+        },
+        "title": "ActivityIn",
+        "type": "object"
+      },
       "AddendumIn": {
         "properties": {
           "issued_on": {
@@ -2868,6 +2879,37 @@
           "reason_code"
         ],
         "title": "EditIn",
+        "type": "object"
+      },
+      "EffortOut": {
+        "properties": {
+          "by_area": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Area",
+            "type": "object"
+          },
+          "hours": {
+            "title": "Hours",
+            "type": "number"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "people": {
+            "title": "People",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "minutes",
+          "hours",
+          "by_area",
+          "people"
+        ],
+        "title": "EffortOut",
         "type": "object"
       },
       "FailedDocument": {
@@ -12296,6 +12338,58 @@
         ]
       }
     },
+    "/bids/{bid_id}/review/activity": {
+      "post": {
+        "description": "A heartbeat: the signed-in person is working on this bid's takeoff this minute.",
+        "operationId": "activity_bids__bid_id__review_activity_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivityIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Activity",
+        "tags": [
+          "review"
+        ]
+      }
+    },
     "/bids/{bid_id}/review/coverage": {
       "get": {
         "description": "Verified share of the takeoff, by items and by value (FR-REV-04).",
@@ -12399,6 +12493,55 @@
           }
         ],
         "summary": "Reject Detections",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review/effort": {
+      "get": {
+        "description": "Minutes spent on the takeoff in the workbench, for the QTO effort measure.",
+        "operationId": "time_on_task_bids__bid_id__review_effort_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EffortOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Time On Task",
         "tags": [
           "review"
         ]

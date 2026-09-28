@@ -1310,6 +1310,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/review/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activity
+         * @description A heartbeat: the signed-in person is working on this bid's takeoff this minute.
+         */
+        post: operations["activity_bids__bid_id__review_activity_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/review/coverage": {
         parameters: {
             query?: never;
@@ -1344,6 +1364,26 @@ export interface paths {
          * @description What was found is not there: the detections leave takeoff, which is recomputed.
          */
         post: operations["reject_detections_bids__bid_id__review_detections_reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/review/effort": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Time On Task
+         * @description Minutes spent on the takeoff in the workbench, for the QTO effort measure.
+         */
+        get: operations["time_on_task_bids__bid_id__review_effort_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2278,6 +2318,14 @@ export interface components {
             /** Undone */
             undone: boolean;
         };
+        /** ActivityIn */
+        ActivityIn: {
+            /**
+             * Area
+             * @default review
+             */
+            area: string;
+        };
         /** AddendumIn */
         AddendumIn: {
             /** Issued On */
@@ -3151,6 +3199,19 @@ export interface components {
             quantity?: number | string | null;
             /** Reason Code */
             reason_code: string;
+        };
+        /** EffortOut */
+        EffortOut: {
+            /** By Area */
+            by_area: {
+                [key: string]: number;
+            };
+            /** Hours */
+            hours: number;
+            /** Minutes */
+            minutes: number;
+            /** People */
+            people: number;
         };
         /** FailedDocument */
         FailedDocument: {
@@ -7124,6 +7185,39 @@ export interface operations {
             };
         };
     };
+    activity_bids__bid_id__review_activity_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActivityIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     coverage_bids__bid_id__review_coverage_get: {
         parameters: {
             query?: never;
@@ -7177,6 +7271,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    time_on_task_bids__bid_id__review_effort_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EffortOut"];
                 };
             };
             /** @description Validation Error */
