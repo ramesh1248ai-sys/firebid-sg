@@ -1219,6 +1219,9 @@ class Blockers:
     pending_work: list[dict[str, Any]] = field(default_factory=list)
     coverage: dict[str, Any] = field(default_factory=dict)
     unmapped_symbols: list[dict[str, Any]] = field(default_factory=list)
+    # BOQ lines with no QTO item behind them and not marked provisional or lump sum
+    # (FR-BOQ-05), once a BOQ is built.
+    untraced_lines: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def coverage_short(self) -> bool:
@@ -1231,6 +1234,7 @@ class Blockers:
             or self.incomplete_items
             or self.pending_work
             or self.unmapped_symbols
+            or self.untraced_lines
             or self.coverage_short
         )
 
@@ -1274,7 +1278,7 @@ def g1_blockers(session: Session, bid_id: uuid.UUID) -> Blockers:
     (the takeoff would change under the approval); verification coverage below the policy
     (FR-REV-04); and symbols on Current sheets nobody has mapped, which count as nothing.
     """
-    from firebid.services import review
+    from firebid.services import boq, review
 
     groups = session.execute(
         select(DuplicateGroup)
@@ -1289,6 +1293,7 @@ def g1_blockers(session: Session, bid_id: uuid.UUID) -> Blockers:
         pending_work=pending_work(session, bid_id),
         coverage=review.coverage(session, bid_id),
         unmapped_symbols=review.unmapped_in_scope(session, bid_id),
+        untraced_lines=boq.untraced_lines(session, bid_id),
     )
 
 
@@ -1318,6 +1323,11 @@ def approve_g1(
             )
         if blockers.unmapped_symbols:
             parts.append(f"{len(blockers.unmapped_symbols)} unmapped symbol type(s) in scope")
+        if blockers.untraced_lines:
+            parts.append(
+                f"{len(blockers.untraced_lines)} BOQ line(s) with no QTO trace, "
+                "not marked provisional or lump sum"
+            )
         raise QtoError("G1 is blocked: " + "; ".join(parts))
     if actor.id is None:
         raise QtoError("a gate is approved by a named person")

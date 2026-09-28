@@ -252,3 +252,25 @@ def header_preview(payload: bytes, rows: int = 15) -> dict[str, list[list[str]]]
         }
     finally:
         book.close()
+
+
+def read_json(payload: bytes, confirmed: dict[str, Any] | None = None) -> dict[str, Any]:
+    """The sandbox's entry point: the bills as plain data, or the top rows when ambiguous.
+
+    `confirmed` is JSON-shaped: sheet name -> [header row, {field: column}].
+    """
+    from dataclasses import asdict
+
+    columns = (
+        {
+            name: (int(v[0]), {k: int(c) for k, c in dict(v[1]).items()})
+            for name, v in confirmed.items()
+        }
+        if confirmed
+        else None
+    )
+    try:
+        book = read_workbook(payload, columns)
+    except Ambiguous as unclear:
+        return {"ambiguous": str(unclear), "preview": header_preview(payload)}
+    return {"sheets": [asdict(sheet) for sheet in book.sheets], "skipped": book.skipped}

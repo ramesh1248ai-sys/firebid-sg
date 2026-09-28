@@ -226,8 +226,11 @@ def register_document(session: Session, document: Document) -> DocumentRevision 
 
 
 def _read_if_specification(session: Session, document: Document) -> None:
-    """A specification is read for its attributes once registered (P1-06)."""
+    """A specification is read for its attributes once registered (P1-06); a client's BOQ
+    for its lines (P1-09)."""
+    from firebid.services import boq
     from firebid.services.specs import queue_reading
 
     session.flush()
     queue_reading(session, document)
+    boq.queue_reading(session, document)

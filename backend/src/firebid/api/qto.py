@@ -194,6 +194,7 @@ class BlockersOut(BaseModel):
     pending_work: list[dict[str, Any]]
     coverage: dict[str, Any]
     unmapped_symbols: list[dict[str, Any]]
+    untraced_lines: list[dict[str, Any]] = []
 
 
 class ApproveIn(BaseModel):
@@ -658,6 +659,7 @@ def g1_status(context: CurrentBid, session: DbSession) -> BlockersOut:
         pending_work=found.pending_work,
         coverage=found.coverage,
         unmapped_symbols=found.unmapped_symbols,
+        untraced_lines=found.untraced_lines,
     )
 
 

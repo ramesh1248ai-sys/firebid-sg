@@ -136,6 +136,26 @@ routes:
     max_output_tokens: 1000
     prompt: spec_section_find
 
+  # Maps a client's BOQ lines to the company BOQ's lines when the rules could not (P1-09).
+  # Sent the client's descriptions, units and quantities, and the measured lines: no prices.
+  boq_mapping:
+    requires: [structured_output]
+    data_class: confidential
+    models: [claude-opus-5, gpt-5.1, gemini-3-pro]
+    reasoning: medium
+    max_output_tokens: 4000
+    prompt: boq_mapping
+
+  # Proposes which columns of a client's bill hold the item, description, unit, quantity,
+  # rate and amount, when the header words could not say (P1-09). Sent the top rows.
+  boq_columns:
+    requires: [structured_output]
+    data_class: confidential
+    models: [claude-opus-5, gpt-5.1, gemini-3-pro]
+    reasoning: low
+    max_output_tokens: 1000
+    prompt: boq_columns
+
   # Everyday internal text work with no tender content in it.
   internal_summary:
     requires: [structured_output]

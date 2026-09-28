@@ -30,6 +30,8 @@ class Action(StrEnum):
     OBJECT_LIBRARY_CHANGE = "object_library.change"  # the canonical object types (FR-ADM-02)
     SYMBOL_MAPPING_CONFIRM = "symbol_mapping.confirm"  # what a consultant's symbol is
     QTO_EDIT = "qto.edit"  # manual items, duplicate decisions, rule inputs, recompute
+    BOQ_EDIT = "boq.edit"  # build the BOQ, map client lines, mark lines, conventions
+    BOQ_TEMPLATE_CHANGE = "boq_template.change"  # the company BOQ templates (FR-ADM-03)
     SUPPLIER_PRICE_SELECT = "supplier_price.select"
     LABOUR_PRODUCTIVITY_ADJUST = "labour_productivity.adjust"
     ENGINEERING_OPTION_APPROVE = "engineering_option.approve"
@@ -68,6 +70,10 @@ _MATRIX: dict[Action, frozenset[str]] = {
     ),
     # The QTO item state machine's verifiers.
     Action.QTO_EDIT: frozenset({Role.ESTIMATOR, Role.SENIOR_ESTIMATOR}),
+    # Stage S3 is the estimators' work; the senior estimator owns the templates, as the
+    # measurement rules.
+    Action.BOQ_EDIT: frozenset({Role.ESTIMATOR, Role.SENIOR_ESTIMATOR}),
+    Action.BOQ_TEMPLATE_CHANGE: frozenset({Role.SENIOR_ESTIMATOR}),
     Action.SUPPLIER_PRICE_SELECT: frozenset({Role.SENIOR_ESTIMATOR}),
     Action.LABOUR_PRODUCTIVITY_ADJUST: frozenset({Role.SENIOR_ESTIMATOR}),
     Action.ENGINEERING_OPTION_APPROVE: frozenset({Role.DESIGN_MANAGER}),
