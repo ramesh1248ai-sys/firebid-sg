@@ -418,3 +418,50 @@ def name_every_unlisted_symbol(session: Session, bid: Bid, actor: Actor) -> None
 
     for unlisted in review.unmapped_in_scope(session, bid.id):
         symbols.name_unlisted(session, bid.id, unlisted["symbol_key"], "not_an_object", actor)
+
+
+# --- Manual counts placed on the drawing (FR-QTO-11) ----------------------------------------
+
+
+@pytest.mark.req("FR-QTO-11")
+class TestMarkedCounts:
+    def test_a_count_placed_on_the_drawing_carries_where_each_one_is(
+        self, session: Session, organisation: Organisation, tender: Bid, sign_in: SignIn
+    ) -> None:
+        from firebid.db.models.drawings import SheetView
+
+        _, principal = estimator(session, organisation, tender)
+        views = {v.kind: v for v in session.execute(select(SheetView)).scalars()}
+        client = sign_in(principal)
+
+        placed = client.post(
+            f"/bids/{tender.id}/qto/items",
+            json={
+                "item_type": "flow_switch",
+                "description": "Flow switch",
+                "marks": {
+                    "view_id": str(views["plan"].id),
+                    "points": [[100, 100], [120, 100], [140, 100]],
+                },
+            },
+        )
+        refused = client.post(
+            f"/bids/{tender.id}/qto/items",
+            json={
+                "item_type": "flow_switch",
+                "description": "Flow switch",
+                "marks": {"view_id": str(views["enlarged plan"].id), "points": [[100, 100]]},
+            },
+        )
+
+        assert placed.status_code == 201, placed.text
+        body = placed.json()
+        assert (body["net_quantity"], body["unit"], body["manual"]) == ("3.000", "no", True)
+        assert body["evidence_missing"] == [] and body["level"] == "L05"
+        assert body["evidence_boxes"][0]["box"] == [100.0, 100.0, 140.0, 100.0]
+        general = sheet_id(session, "FP-L05-201")
+        marks = [
+            m for m in review.overlay(session, tender.id, uuid.UUID(general)) if m.kind == "manual"
+        ]
+        assert [(m.x, m.y) for m in marks] == [(100.0, 100.0), (120.0, 100.0), (140.0, 100.0)]
+        assert refused.status_code == 409 and "calibrate it first" in refused.json()["detail"]

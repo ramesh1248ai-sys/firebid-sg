@@ -86,6 +86,7 @@ class ObjectTypeChoice(BaseModel):
     label: str
     category: str
     attribute_schema: dict[str, Any]
+    measure: str = "count"  # count | length | none: which manual tool takes it off
 
 
 class DecisionRequest(BaseModel):
@@ -204,7 +205,11 @@ def object_type_choices(context: CurrentBid, session: DbSession) -> list[ObjectT
     object_library.ensure_seeded(session, context.bid.organisation_id)
     return [
         ObjectTypeChoice(
-            key=t.key, label=t.label, category=t.category, attribute_schema=t.attribute_schema
+            key=t.key,
+            label=t.label,
+            category=t.category,
+            attribute_schema=t.attribute_schema,
+            measure=t.measure,
         )
         for t in object_library.usable(session, context.bid.organisation_id)
     ]

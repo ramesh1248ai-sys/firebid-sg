@@ -153,12 +153,19 @@ class MeasureIn(BaseModel):
     points: Annotated[list[Point], Field(min_length=2, max_length=10_000)]
 
 
+class MarksIn(BaseModel):
+    view_id: uuid.UUID
+    points: Annotated[list[Point], Field(min_length=1, max_length=10_000)]
+
+
 class ManualIn(BaseModel):
     item_type: str = Field(min_length=1, max_length=80)
     description: str = Field(min_length=1)
     unit: str = Field(default="no", max_length=16)
     quantity: Annotated[Decimal, Field(ge=0)] | None = None
     measure: MeasureIn | None = None
+    # A count placed on the drawing: one mark per item, on a view of verified scale.
+    marks: MarksIn | None = None
     classification: str | None = None
     attributes: dict[str, str] | None = None
     level: str | None = None
@@ -447,7 +454,7 @@ def export(context: CurrentBid, session: DbSession) -> Response:
 
 
 def _measured(
-    session: DbSession, context: CurrentBid, body: MeasureIn | None
+    session: DbSession, context: CurrentBid, body: MeasureIn | MarksIn | None
 ) -> qto.Measured | None:
     if body is None:
         return None
@@ -474,6 +481,7 @@ def create_manual(
             unit=body.unit,
             quantity=body.quantity,
             measured=_measured(session, context, body.measure),
+            marked=_measured(session, context, body.marks),
             classification=body.classification,
             attributes=body.attributes,
             level=body.level,

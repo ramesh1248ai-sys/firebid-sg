@@ -171,6 +171,24 @@ def overlay(session: Session, bid_id: uuid.UUID, sheet_id: uuid.UUID) -> list[Ma
         points = [[float(p[0]), float(p[1])] for p in measurement.get("points", [])]
         if not points:
             continue
+        if measurement.get("kind") == "marks":
+            for index, (x, y) in enumerate(points):
+                marks.append(
+                    Mark(
+                        id=f"manual:{item.id}:{index}",
+                        kind="manual",
+                        object_type=item.item_type,
+                        box=(x - 1.5, y - 1.5, x + 1.5, y + 1.5),
+                        status=status_of(item),
+                        confidence=item.confidence,
+                        item_id=str(item.id),
+                        item_human_id=item.human_id,
+                        x=x,
+                        y=y,
+                        label=item.description,
+                    )
+                )
+            continue
         marks.append(
             Mark(
                 id=f"manual:{item.id}",

@@ -12,6 +12,8 @@ import {
 } from "@/workbench/data";
 import { ItemPanel, ReasonForm } from "@/workbench/ItemPanel";
 import { LayerPanel } from "@/workbench/LayerPanel";
+import { type ManualDraft, useObjectTypes } from "@/workbench/manual";
+import { ManualTools } from "@/workbench/ManualTools";
 import { type Layers, type Mark, NO_LAYERS_HIDDEN, pickInto } from "@/workbench/marks";
 import { QueuePanel } from "@/workbench/QueuePanel";
 import {
@@ -51,6 +53,9 @@ export function WorkbenchPage() {
   const [mode, setMode] = useState<"view" | "edit" | "reject">("view");
   const [remeasure, setRemeasure] = useState<{ reason: string; note: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [manual, setManual] = useState<ManualDraft | null>(null);
+  const [placed, setPlaced] = useState<number[][]>([]);
+  const objectTypes = useObjectTypes(bidId);
 
   const queue = useQueue(bidId, {
     ...filters,
@@ -167,7 +172,45 @@ export function WorkbenchPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [rows, openId, open, recent.data, actions]);
 
+  function stopManual() {
+    setManual(null);
+    setPlaced([]);
+    setTool("select");
+  }
+
+  function saveManual(points: number[][], kind: "count" | "length") {
+    if (!manual || !sheet || points.length === 0) return;
+    const view = viewAt(sheet, points[0]!);
+    if (!view || !view.measurable) {
+      setError("Place them inside a view whose scale is verified or calibrated.");
+      return;
+    }
+    if (points.some((p) => viewAt(sheet, p)?.id !== view.id)) {
+      setError("Keep one item's marks inside one view.");
+      return;
+    }
+    const geometry = { view_id: view.id, points };
+    actions.createManual
+      .mutateAsync({
+        item_type: manual.type.key,
+        description: manual.description,
+        unit: kind === "count" ? "no" : "m",
+        attributes: manual.attributes,
+        ...(kind === "count" ? { marks: geometry } : { measure: geometry }),
+      })
+      .then((created) => {
+        stopManual();
+        post({ type: "changed" });
+        openItem(created.id);
+      })
+      .catch(fail);
+  }
+
   function onLength(points: number[][]) {
+    if (manual?.kind === "length") {
+      saveManual(points, "length");
+      return;
+    }
     setTool("select");
     if (!remeasure || !open || !sheet) return;
     const view = viewAt(sheet, points[0]!);
@@ -276,6 +319,8 @@ export function WorkbenchPage() {
               onPick={onPick}
               onLasso={(marks) => setLassoed(new Set(marks.map((m) => m.id)))}
               onLength={onLength}
+              onCount={(point) => setPlaced((current) => [...current, point])}
+              pending={manual?.kind === "count" ? placed : []}
             />
           ) : (
             <p role="status" className="text-sm text-muted-foreground">
@@ -285,6 +330,22 @@ export function WorkbenchPage() {
         </div>
 
         <aside className="flex h-[calc(100vh-9rem)] min-h-[32rem] flex-col gap-3 overflow-hidden">
+          <ManualTools
+            sheet={sheet}
+            types={objectTypes.data ?? []}
+            active={manual}
+            placed={placed.length}
+            busy={busy}
+            error={manual ? error : null}
+            onStart={(draft) => {
+              setError(null);
+              setManual(draft);
+              setPlaced([]);
+              setTool(draft.kind === "count" ? "count" : "length");
+            }}
+            onSave={() => saveManual(placed, "count")}
+            onCancel={stopManual}
+          />
           {lassoMarks.length > 0 && (
             <LassoPanel
               marks={lassoMarks}

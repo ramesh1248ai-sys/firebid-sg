@@ -57,6 +57,8 @@ export interface DrawingViewerProps {
   onCount?: (point: [number, number]) => void;
   onLength?: (points: number[][]) => void;
   onViewChange?: (view: Box) => void;
+  // Marks a person has placed but not saved yet (the count tool).
+  pending?: number[][];
   className?: string;
 }
 
@@ -88,6 +90,7 @@ export function DrawingViewer({
   onCount,
   onLength,
   onViewChange,
+  pending = [],
   className,
 }: DrawingViewerProps) {
   const container = useRef<HTMLDivElement>(null);
@@ -359,6 +362,21 @@ export function DrawingViewer({
               strokeDasharray="4 3"
             />
           )}
+          {pending.map(([x, y], i) => {
+            const [px, py] = toScreen(transform, x!, y!);
+            return (
+              <circle
+                key={i}
+                cx={px}
+                cy={py}
+                r={6}
+                fill="rgba(234,88,12,0.25)"
+                stroke="#ea580c"
+                strokeWidth={2}
+                data-testid="pending-mark"
+              />
+            );
+          })}
           {tool === "length" && path.length > 0 && (
             <polyline
               points={path.map(([x, y]) => toScreen(transform, x!, y!).join(",")).join(" ")}

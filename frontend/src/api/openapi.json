@@ -3202,6 +3202,16 @@
             ],
             "title": "Level"
           },
+          "marks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarksIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "measure": {
             "anyOf": [
               {
@@ -3530,6 +3540,35 @@
         "title": "MarkOut",
         "type": "object"
       },
+      "MarksIn": {
+        "properties": {
+          "points": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "maxItems": 10000,
+            "minItems": 1,
+            "title": "Points",
+            "type": "array"
+          },
+          "view_id": {
+            "format": "uuid",
+            "title": "View Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "view_id",
+          "points"
+        ],
+        "title": "MarksIn",
+        "type": "object"
+      },
       "MeasureIn": {
         "properties": {
           "points": {
@@ -3812,6 +3851,11 @@
           },
           "label": {
             "title": "Label",
+            "type": "string"
+          },
+          "measure": {
+            "default": "count",
+            "title": "Measure",
             "type": "string"
           }
         },

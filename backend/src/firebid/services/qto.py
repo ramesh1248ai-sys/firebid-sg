@@ -875,6 +875,28 @@ def _measure(session: Session, bid_id: uuid.UUID, measured: Measured) -> tuple[i
     }
 
 
+def _mark(session: Session, bid_id: uuid.UUID, marked: Measured) -> dict[str, Any]:
+    """Counted points on a view: allowed only where the view's scale is verified or
+    calibrated, as a measurement is, so every manual item sits on a trustworthy sheet."""
+    if marked.view.bid_id != bid_id:
+        raise QtoError("no such view")
+    if marked.view.scale_status not in MEASURABLE:
+        raise QtoError(
+            f"this view cannot be measured: its scale is {marked.view.scale_status}; "
+            "calibrate it first"
+        )
+    if not marked.points:
+        raise QtoError("place at least one mark")
+    return {
+        "kind": "marks",
+        "sheet_id": str(marked.view.sheet_id),
+        "view_id": str(marked.view.id),
+        "points": [list(p) for p in marked.points],
+        "scale": marked.view.denominator,
+        "scale_status": marked.view.scale_status,
+    }
+
+
 def _manual_derivation(
     session: Session, bid_id: uuid.UUID, actor: Actor, measurement: dict[str, Any] | None
 ) -> dict[str, Any]:
@@ -905,11 +927,18 @@ def _manual_derivation(
                 "view_id": measurement["view_id"],
             }
         ],
-        geometry=[{"sheet": info.number, "points": measurement["points"]}],
+        geometry=(
+            [{"sheet": info.number, "x": p[0], "y": p[1]} for p in measurement["points"]]
+            if measurement.get("kind") == "marks"
+            else [{"sheet": info.number, "points": measurement["points"]}]
+        ),
         measurement=measurement,
         note=(
-            f"measured by {actor.label} at {stamp} along {len(measurement['points'])} points "
-            f"at 1:{measurement['scale']:g} ({measurement['scale_status']} scale)"
+            f"{len(measurement['points'])} placed by {actor.label} at {stamp} on a view at "
+            f"1:{measurement['scale']:g} ({measurement['scale_status']} scale)"
+            if measurement.get("kind") == "marks"
+            else f"measured by {actor.label} at {stamp} along {len(measurement['points'])} "
+            f"points at 1:{measurement['scale']:g} ({measurement['scale_status']} scale)"
         ),
     )
     return derivation
@@ -925,6 +954,7 @@ def create_manual(
     unit: str,
     quantity: Decimal | None = None,
     measured: Measured | None = None,
+    marked: Measured | None = None,
     classification: str | None = None,
     attributes: dict[str, str] | None = None,
     level: str | None = None,
@@ -950,6 +980,7 @@ def create_manual(
         unit=unit,
         quantity=quantity,
         measured=measured,
+        marked=marked,
         classification=classification,
         attributes=attributes,
         level=level,
@@ -980,6 +1011,7 @@ def _fill_manual(
     quantity: Decimal | None,
     measured: Measured | None,
     classification: str | None,
+    marked: Measured | None = None,
     attributes: dict[str, str] | None,
     level: str | None,
     zone: str | None,
@@ -987,8 +1019,10 @@ def _fill_manual(
     grid_to: str | None,
     allowance_percent: Decimal | None,
 ) -> None:
-    if (quantity is None) == (measured is None):
-        raise QtoError("give a quantity for a count, or a measurement for a length")
+    if sum(x is not None for x in (quantity, measured, marked)) != 1:
+        raise QtoError(
+            "give a quantity, marks on the drawing for a count, or a measurement for a length"
+        )
     if not description.strip():
         raise QtoError("describe the item")
     measurement = None
@@ -997,6 +1031,9 @@ def _fill_manual(
         length_mm, measurement = _measure(session, bid_id, measured)
         quantity = (Decimal(length_mm) / Decimal(1000)).quantize(Decimal("0.001"))
         unit = "m"
+    if marked is not None:
+        measurement = _mark(session, bid_id, marked)
+        quantity = Decimal(len(marked.points))
     if quantity is None or quantity < 0:
         raise QtoError("a quantity cannot be negative")
     quantity = quantity.quantize(Decimal("0.001"))
@@ -1055,6 +1092,7 @@ def edit_manual(session: Session, item: QtoItem, actor: Actor, **changes: Any) -
         "allowance_percent": item.allowance_percent,
         "quantity": None,
         "measured": None,
+        "marked": None,
     }
     if "measured" not in changes and "quantity" not in changes:
         if item.calculation_method == CalculationMethod.MANUAL_MEASURE:

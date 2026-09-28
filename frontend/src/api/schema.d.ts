@@ -2701,6 +2701,7 @@ export interface components {
             item_type: string;
             /** Level */
             level?: string | null;
+            marks?: components["schemas"]["MarksIn"] | null;
             measure?: components["schemas"]["MeasureIn"] | null;
             /** Quantity */
             quantity?: number | string | null;
@@ -2782,6 +2783,16 @@ export interface components {
             x: number | null;
             /** Y */
             y: number | null;
+        };
+        /** MarksIn */
+        MarksIn: {
+            /** Points */
+            points: number[][];
+            /**
+             * View Id
+             * Format: uuid
+             */
+            view_id: string;
         };
         /** MeasureIn */
         MeasureIn: {
@@ -2887,6 +2898,11 @@ export interface components {
             key: string;
             /** Label */
             label: string;
+            /**
+             * Measure
+             * @default count
+             */
+            measure: string;
         };
         /** ObjectTypeCreate */
         ObjectTypeCreate: {

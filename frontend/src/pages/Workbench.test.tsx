@@ -85,7 +85,23 @@ const ACTION = {
   undoes_id: null,
 };
 
-function stubs() {
+const TYPES = [
+  { key: "flow_switch", label: "Flow switch", category: "device", attribute_schema: {}, measure: "count" },
+  { key: "pipe", label: "Pipe", category: "pipe", attribute_schema: { nominal_diameter_mm: {} }, measure: "length" },
+];
+
+function view(status: string) {
+  return {
+    id: "44444444-0000-4000-8000-000000000001",
+    kind: "plan",
+    extent: [0, 0, 420, 297],
+    scale_status: status,
+    denominator: status === "verified" ? 100 : null,
+    measurable: status === "verified",
+  };
+}
+
+function stubs(views = [view("verified")]) {
   return stubApi({
     "/qto/sheets": () =>
       Response.json([
@@ -97,9 +113,10 @@ function stubs() {
           level: "L05",
           width_mm: 420,
           height_mm: 297,
-          views: [],
+          views,
         },
       ]),
+    "/symbols/object-types": () => Response.json(TYPES),
     [`/sheets/${SHEET}`]: () => Response.json({ tile_source: null }),
     "/qto/overlay": () => Response.json([]),
     "/review/queue": () => Response.json(QUEUE),
@@ -188,5 +205,34 @@ describe("the workbench", () => {
 
     const rejected = calls.find((c) => c.url.endsWith("/review/reject"));
     expect(JSON.parse(rejected!.body!)).toMatchObject({ reason_code: "not_in_scope" });
+  });
+
+  // req: FR-QTO-11
+  it("offers the manual tools only where a view's scale can be trusted, and says why", async () => {
+    stubs([view("unverified")]);
+    renderAt(`/bids/${BID}/workbench`);
+
+    const tools = await screen.findByRole("region", { name: "Manual takeoff" });
+    expect(
+      await within(tools).findByText(/No view on FP-L05-201 has a verified or calibrated scale \(unverified\)/),
+    ).toBeInTheDocument();
+    expect(within(tools).queryByRole("button", { name: /Start/ })).not.toBeInTheDocument();
+  });
+
+  // req: FR-QTO-11
+  it("picks the type from the library, by how it is taken off", async () => {
+    stubs();
+    renderAt(`/bids/${BID}/workbench`);
+
+    const tools = await screen.findByRole("region", { name: "Manual takeoff" });
+    const type = within(tools).getByLabelText("Type");
+    await screen.findAllByRole("row");
+    expect(within(type).getAllByRole("option").map((o) => o.textContent)).toContain("Flow switch");
+    await userEvent.click(within(tools).getByLabelText("Length"));
+    expect(within(type).getAllByRole("option").map((o) => o.textContent)).toContain("Pipe");
+    await userEvent.selectOptions(type, "pipe");
+    expect(within(tools).getByLabelText("nominal diameter mm")).toBeInTheDocument();
+    await userEvent.click(within(tools).getByRole("button", { name: "Start measuring" }));
+    expect(await within(tools).findByText(/Measuring Pipe/)).toBeInTheDocument();
   });
 });

@@ -131,6 +131,8 @@ export interface EditInput {
   measure?: { view_id: string; points: number[][] } | null;
 }
 
+export type ManualInput = components["schemas"]["ManualIn"];
+
 export function useReviewActions(bidId: string, onDone?: (action: ReviewAction) => void) {
   const invalidate = useInvalidateReview(bidId);
   const path = { bid_id: bidId };
@@ -187,6 +189,16 @@ export function useReviewActions(bidId: string, onDone?: (action: ReviewAction) 
           "Could not reject the detections",
         ),
       onSuccess: finish,
+    }),
+    createManual: useMutation({
+      mutationFn: (body: ManualInput) =>
+        unwrap(
+          api.POST("/bids/{bid_id}/qto/items", { params: { path }, body }),
+          "Could not add the item",
+        ),
+      onSuccess: async () => {
+        await invalidate();
+      },
     }),
     undo: useMutation({
       mutationFn: (actionId: string) =>
