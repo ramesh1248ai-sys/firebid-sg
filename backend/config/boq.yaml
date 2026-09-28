@@ -1,0 +1,36 @@
+# Client BOQ reconciliation and measurement conventions (FR-BOQ-03, FR-BOQ-06, P1-09).
+#
+# "TO BE CONFIRMED": the threshold and the wording are placeholders a pilot estimator sets.
+
+status: to be confirmed
+
+# A mapped line whose measured quantity differs from the client's by more than this (either
+# way) is flagged as a clarification candidate (P2-06 raises the clarification).
+variance_threshold_percent: 5
+
+# Per-tender settings. Each option's text goes into the tender qualifications (P2).
+conventions:
+  pipe_measurement:
+    label: How pipe is measured
+    default: net_centreline
+    options:
+      net_centreline: "Pipework is measured net along the centreline, through fittings and valves; no allowance for waste is included in the quantities."
+      gross_with_fittings: "Pipework is measured along the centreline including the length of fittings and valves; waste is included at the stated allowance."
+  fittings:
+    label: Fittings
+    default: enumerated
+    options:
+      enumerated: "Fittings are enumerated separately; where not drawn, they are derived by rule and so identified."
+      deemed_included: "Fittings are deemed included in the rates for pipework and are not measured separately."
+  hangers:
+    label: Hangers and supports
+    default: deemed_included
+    options:
+      deemed_included: "Hangers and supports are deemed included in the rates for pipework."
+      enumerated: "Hangers and supports are enumerated separately."
+  drops:
+    label: Sprinkler drops
+    default: measured_by_rule
+    options:
+      measured_by_rule: "Sprinkler drops are measured by rule from the stated ceiling and main heights."
+      deemed_included: "Sprinkler drops are deemed included in the rates for sprinkler heads."

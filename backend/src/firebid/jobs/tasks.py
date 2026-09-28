@@ -359,3 +359,55 @@ def check_title_block(context: JobContext, revision_id: str, user_id: str) -> st
             return "missing"
         check_with_model(session, get_object_store(), revision, gateway())
         return revision.extraction_method or "unknown"
+
+
+@app.task(name="boq.read", queue="parse", pass_context=True)
+def read_client_boq_job(context: JobContext, document_id: str, user_id: str) -> int:
+    """A client's BOQ workbook read in the sandbox pool (FR-BOQ-02). Its bytes are never
+    written; an ambiguous layout waits for a person."""
+    import uuid as uuid_module
+
+    from firebid.db.identity import acting_as
+    from firebid.db.models.documents import Document
+    from firebid.services.boq import read_client_boq
+    from firebid.storage.object_store import get_object_store
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        document = session.get(Document, uuid_module.UUID(document_id))
+        if document is None:
+            return 0
+        return len(read_client_boq(session, get_object_store(), document, user_id=user_id))
+
+
+@app.task(name="boq.columns", queue="default", pass_context=True)
+def propose_boq_columns_job(context: JobContext, client_boq_id: str, user_id: str) -> int:
+    """The model proposes a bill's header row and columns; a person confirms them."""
+    import uuid as uuid_module
+
+    from firebid.ai_gateway import gateway
+    from firebid.db.identity import acting_as
+    from firebid.db.models.commercial import ClientBoq
+    from firebid.services.boq import propose_columns_with_model
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        row = session.get(ClientBoq, uuid_module.UUID(client_boq_id))
+        if row is None:
+            return 0
+        propose_columns_with_model(session, row, gateway())
+        return 1
+
+
+@app.task(name="boq.map", queue="default", pass_context=True)
+def propose_boq_mappings_job(context: JobContext, bid_id: str, user_id: str) -> int:
+    """Rules then the model propose which measured line each client line is."""
+    import uuid as uuid_module
+
+    from firebid.ai_gateway import gateway
+    from firebid.db.identity import acting_as
+    from firebid.services.boq import propose_mappings
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        return propose_mappings(session, uuid_module.UUID(bid_id), gateway())

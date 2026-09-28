@@ -17,9 +17,11 @@ from firebid.db.models.commercial import (
     Boq,
     BoqLine,
     BoqLineSource,
+    BoqTemplate,
     ClientBoq,
     ClientBoqLine,
     ClientBoqMapping,
+    MeasurementConvention,
     Rate,
 )
 from firebid.db.models.core import (
@@ -78,6 +80,7 @@ __all__ = [
     "Boq",
     "BoqLine",
     "BoqLineSource",
+    "BoqTemplate",
     "ClientBoq",
     "ClientBoqLine",
     "ClientBoqMapping",
@@ -96,6 +99,7 @@ __all__ = [
     "LlmPayload",
     "LlmRateBucket",
     "LlmResponseCache",
+    "MeasurementConvention",
     "MeasurementRule",
     "ObjectType",
     "Organisation",

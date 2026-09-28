@@ -207,6 +207,309 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/boq": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Boq
+         * @description The current company BOQ, each line with the QTO items behind it (FR-BOQ-01, 05).
+         */
+        get: operations["get_boq_bids__bid_id__boq_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/build": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Build
+         * @description A new version from the verified takeoff. Client mappings follow their lines.
+         */
+        post: operations["build_bids__bid_id__boq_build_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/client": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Client Boqs
+         * @description The client's bills as read, and any waiting for a person to confirm their columns.
+         */
+        get: operations["client_boqs_bids__bid_id__boq_client_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/client/{client_boq_id}/columns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Columns
+         * @description A person's header row and columns, per sheet; the bill is read again with them.
+         */
+        post: operations["confirm_columns_bids__bid_id__boq_client__client_boq_id__columns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/client/{document_id}/priced.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Priced
+         * @description The client's own workbook with our rates in its rate cells; nothing else changed.
+         */
+        get: operations["export_priced_bids__bid_id__boq_client__document_id__priced_xlsx_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/conventions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Conventions
+         * @description The tender's measurement conventions, worded for the qualifications (FR-BOQ-06).
+         */
+        get: operations["get_conventions_bids__bid_id__boq_conventions_get"];
+        /** Set Conventions */
+        put: operations["set_conventions_bids__bid_id__boq_conventions_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/export.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Company */
+        get: operations["export_company_bids__bid_id__boq_export_xlsx_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/g2": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** G2 Status */
+        get: operations["g2_status_bids__bid_id__boq_g2_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/g2/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve G2 */
+        post: operations["approve_g2_bids__bid_id__boq_g2_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Line
+         * @description A provisional sum or lump sum, which has no measured quantity behind it.
+         */
+        post: operations["add_line_bids__bid_id__boq_lines_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/lines/{line_id}/marker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark */
+        post: operations["mark_bids__bid_id__boq_lines__line_id__marker_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Mappings
+         * @description Every client line, with the proposal or decision about which measured line it is.
+         */
+        get: operations["list_mappings_bids__bid_id__boq_mappings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/mappings/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose
+         * @description The rules' proposals now; the model's for what they leave, on the worker.
+         */
+        post: operations["propose_bids__bid_id__boq_mappings_propose_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/mappings/{mapping_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide */
+        post: operations["decide_bids__bid_id__boq_mappings__mapping_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/reconciliation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reconciliation
+         * @description Client against measured; flagged rows are clarification candidates (FR-BOQ-03).
+         */
+        get: operations["reconciliation_bids__bid_id__boq_reconciliation_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/boq/reconciliation.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Reconciliation */
+        get: operations["export_reconciliation_bids__bid_id__boq_reconciliation_xlsx_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/detections": {
         parameters: {
             query?: never;
@@ -1486,6 +1789,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/boq-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Templates */
+        get: operations["list_templates_boq_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/boq-templates/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Template
+         * @description A new version of the template. BOQs already built keep the version they used.
+         */
+        post: operations["change_template_boq_templates__key__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/boq-templates/{key}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Template History */
+        get: operations["template_history_boq_templates__key__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -2030,6 +2387,13 @@ export interface components {
             unresolved_groups: {
                 [key: string]: unknown;
             }[];
+            /**
+             * Untraced Lines
+             * @default []
+             */
+            untraced_lines: {
+                [key: string]: unknown;
+            }[];
         };
         /** Body_upload_bids__bid_id__documents_post */
         Body_upload_bids__bid_id__documents_post: {
@@ -2037,6 +2401,27 @@ export interface components {
             addendum_id?: string | null;
             /** Files */
             files: string[];
+        };
+        /** BoqOut */
+        BoqOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Lines */
+            lines: components["schemas"]["LineOut"][];
+            /** Template Key */
+            template_key: string | null;
+            /** Template Version */
+            template_version: number | null;
+            /** Version */
+            version: number;
         };
         /** BreakerOut */
         BreakerOut: {
@@ -2046,6 +2431,11 @@ export interface components {
             key: string;
             /** Open */
             open: boolean;
+        };
+        /** BuildIn */
+        BuildIn: {
+            /** Template Key */
+            template_key?: string | null;
         };
         /** CalibrateRequest */
         CalibrateRequest: {
@@ -2132,6 +2522,91 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** ClientBoqOut */
+        ClientBoqOut: {
+            /** Column Map */
+            column_map: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+            /** Header Row */
+            header_row: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Lines */
+            lines: number;
+            /** Proposal */
+            proposal: {
+                [key: string]: unknown;
+            } | null;
+            /** Reason */
+            reason: string | null;
+            /** Sheet Name */
+            sheet_name: string | null;
+            /** Status */
+            status: string;
+        };
+        /** ClientMappingOut */
+        ClientMappingOut: {
+            /**
+             * Awaiting Model
+             * @default false
+             */
+            awaiting_model: boolean;
+            /** Client Item */
+            client_item: string | null;
+            /**
+             * Client Line Id
+             * Format: uuid
+             */
+            client_line_id: string;
+            /** Client Ref */
+            client_ref: string;
+            /** Confidence */
+            confidence: number | null;
+            /** Description */
+            description: string | null;
+            /** Flagged */
+            flagged: boolean;
+            /** Kind */
+            kind: string;
+            /** Mapping Id */
+            mapping_id: string | null;
+            /** Maps To */
+            maps_to: string | null;
+            /** Method */
+            method: string | null;
+            /** Quantity */
+            quantity: string | null;
+            /** Reason */
+            reason: string | null;
+            /** Section */
+            section: string | null;
+            /** State */
+            state: string | null;
+            /** Unit */
+            unit: string | null;
+            /** Variance Percent */
+            variance_percent: number | null;
+        };
+        /** ColumnsIn */
+        ColumnsIn: {
+            /** Sheets */
+            sheets: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+        };
         /** CompleteRequest */
         CompleteRequest: {
             /** Filename */
@@ -2176,6 +2651,40 @@ export interface components {
             consultant_key: string;
             /** Proposed */
             proposed: number;
+        };
+        /** ConventionOption */
+        ConventionOption: {
+            /** Key */
+            key: string;
+            /** Text */
+            text: string;
+        };
+        /** ConventionOut */
+        ConventionOut: {
+            /** Chosen */
+            chosen: string;
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
+            /** Options */
+            options: components["schemas"]["ConventionOption"][];
+        };
+        /** ConventionsIn */
+        ConventionsIn: {
+            /** Settings */
+            settings: {
+                [key: string]: string;
+            };
+        };
+        /** ConventionsOut */
+        ConventionsOut: {
+            /** Conventions */
+            conventions: components["schemas"]["ConventionOut"][];
+            /** Qualification Text */
+            qualification_text: string;
+            /** Version */
+            version: number | null;
         };
         /** CountedOut */
         CountedOut: {
@@ -2488,6 +2997,19 @@ export interface components {
             /** State */
             state: string;
         };
+        /** G2Out */
+        G2Out: {
+            /** Boq Built */
+            boq_built: boolean;
+            /** Clear */
+            clear: boolean;
+            /** G1 Approved */
+            g1_approved: boolean;
+            /** Untraced Lines */
+            untraced_lines: {
+                [key: string]: unknown;
+            }[];
+        };
         /** GroupOut */
         GroupOut: {
             /** Decided At */
@@ -2639,6 +3161,46 @@ export interface components {
             /** Symbol Box */
             symbol_box: number[];
         };
+        /** LineOut */
+        LineOut: {
+            /** Allowance Percent */
+            allowance_percent: string | null;
+            /** Amount */
+            amount: string | null;
+            /** Description */
+            description: string;
+            /** Group Heading */
+            group_heading: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Lump Sum */
+            is_lump_sum: boolean;
+            /** Is Provisional */
+            is_provisional: boolean;
+            /** Item No */
+            item_no: string | null;
+            /** Level */
+            level: string | null;
+            /** Line Key */
+            line_key: string | null;
+            /** Marker Note */
+            marker_note: string | null;
+            /** Qto Items */
+            qto_items: string[];
+            /** Quantity */
+            quantity: string;
+            /** Section */
+            section: string | null;
+            /** Traced */
+            traced: boolean;
+            /** Unit */
+            unit: string;
+            /** Unit Rate */
+            unit_rate: string | null;
+        };
         /** Liveness */
         Liveness: {
             /** Status */
@@ -2713,6 +3275,18 @@ export interface components {
             /** Zone */
             zone?: string | null;
         };
+        /** MappingDecisionIn */
+        MappingDecisionIn: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "confirm" | "correct" | "reject";
+            /** Maps To */
+            maps_to?: string | null;
+            /** Note */
+            note?: string | null;
+        };
         /** MappingOut */
         MappingOut: {
             /** Attributes */
@@ -2755,6 +3329,13 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** MarkIn */
+        MarkIn: {
+            /** Marker */
+            marker: ("provisional" | "lump_sum") | null;
+            /** Note */
+            note?: string | null;
+        };
         /** MarkOut */
         MarkOut: {
             /** Band */
@@ -2783,6 +3364,27 @@ export interface components {
             x: number | null;
             /** Y */
             y: number | null;
+        };
+        /** MarkedLineIn */
+        MarkedLineIn: {
+            /** Amount */
+            amount?: number | string | null;
+            /** Description */
+            description: string;
+            /**
+             * Marker
+             * @enum {string}
+             */
+            marker: "provisional" | "lump_sum";
+            /** Note */
+            note: string;
+            /**
+             * Quantity
+             * @default 1
+             */
+            quantity: number | string;
+            /** Unit */
+            unit: string;
         };
         /** MarksIn */
         MarksIn: {
@@ -3123,6 +3725,41 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** ReconciliationOut */
+        ReconciliationOut: {
+            /** Client Description */
+            client_description: string | null;
+            /** Client Item */
+            client_item: string | null;
+            /** Client Quantity */
+            client_quantity: string | null;
+            /** Client Ref */
+            client_ref: string | null;
+            /** Client Unit */
+            client_unit: string | null;
+            /** Evidence Links */
+            evidence_links: string[];
+            /** Flagged */
+            flagged: boolean;
+            /** Kind */
+            kind: string;
+            /** Line Description */
+            line_description: string | null;
+            /** Line Item */
+            line_item: string | null;
+            /** Measured Quantity */
+            measured_quantity: string | null;
+            /** Qto Items */
+            qto_items: string[];
+            /** State */
+            state: string | null;
+            /** Unit */
+            unit: string | null;
+            /** Variance */
+            variance: string | null;
+            /** Variance Percent */
+            variance_percent: string | null;
+        };
         /** RefusedOut */
         RefusedOut: {
             /** Filename */
@@ -3452,6 +4089,41 @@ export interface components {
             state: string;
             /** Title */
             title: string;
+        };
+        /** TemplateChange */
+        TemplateChange: {
+            /** Definition */
+            definition: {
+                [key: string]: unknown;
+            };
+            /** Note */
+            note?: string | null;
+            /**
+             * Status
+             * @default confirmed
+             */
+            status: string;
+            /** Title */
+            title?: string | null;
+        };
+        /** TemplateOut */
+        TemplateOut: {
+            /** Change Note */
+            change_note: string | null;
+            /** Definition */
+            definition: {
+                [key: string]: unknown;
+            };
+            /** Key */
+            key: string;
+            /** Retired At */
+            retired_at: string | null;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /** Version */
+            version: number;
         };
         /** TransitionIn */
         TransitionIn: {
@@ -4025,6 +4697,565 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AffectedItemOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_boq_bids__bid_id__boq_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoqOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    build_bids__bid_id__boq_build_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BuildIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoqOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    client_boqs_bids__bid_id__boq_client_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientBoqOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_columns_bids__bid_id__boq_client__client_boq_id__columns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_boq_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ColumnsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientBoqOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_priced_bids__bid_id__boq_client__document_id__priced_xlsx_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_conventions_bids__bid_id__boq_conventions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConventionsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_conventions_bids__bid_id__boq_conventions_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConventionsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConventionsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_company_bids__bid_id__boq_export_xlsx_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    g2_status_bids__bid_id__boq_g2_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["G2Out"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_g2_bids__bid_id__boq_g2_approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_line_bids__bid_id__boq_lines_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkedLineIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoqOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_bids__bid_id__boq_lines__line_id__marker_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                line_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoqOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_mappings_bids__bid_id__boq_mappings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientMappingOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_bids__bid_id__boq_mappings_propose_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientMappingOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_bids__bid_id__boq_mappings__mapping_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mapping_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MappingDecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientMappingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reconciliation_bids__bid_id__boq_reconciliation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_reconciliation_bids__bid_id__boq_reconciliation_xlsx_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -6505,6 +7736,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BidOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_templates_boq_templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"][];
+                };
+            };
+        };
+    };
+    change_template_boq_templates__key__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TemplateChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    template_history_boq_templates__key__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplateOut"][];
                 };
             };
             /** @description Validation Error */
