@@ -1064,3 +1064,54 @@ Entry template:
   - **No BOQ E2E yet:** it needs a verified takeoff to start from, which takes minutes to set up. It is covered by the database/API tests, the page tests and the live check.
   - **BOQ line to QTO to drawing click-through (NFR-10)** gives evidence links per line in the reconciliation. The page does not yet open the workbench at an item.
   - **`Specification.test.tsx` once timed out** under a full parallel Vitest run, and passed on rerun and alone. It is pre-existing; watch for it.
+
+## Fix · Reading a real tender set (after P1-09) · 2026-09-28
+
+- **Summary:** the first real tender through the pipeline was a Singapore sprinkler set: 121 A1 sheets in an 83 MB vector PDF. A 6-sheet subset was used: the legend sheet and five plans across two buildings. Nothing on it could be taken off. Four defects were fixed:
+  - **Drawing numbers** like `6405(HFC)-F/1B` were cut at the slash. The PDF writes each one as two runs of text, and the pattern expected letters first. The cut numbers also made three sheets "renditions" of the first.
+  - **The legend was never found.** It is set out in category columns ("FIRE FIGHTING & ALARM SYSTEM", "VALVES & ACCESSORIES") with no LEGEND heading.
+  - **The set was classified as a specification**, and specification reading ran on it.
+  - **OCR replaced correct text-layer readings.** It read the paper size (A1) as the revision.
+- **Key modules / files:**
+  - `drawings/title_block.py`: runs of text a hairline apart are joined; project-numbered drawing numbers are accepted (dates are not); a dash is a first-issue revision; month-year dates are read; a label takes the nearest value that fits its field.
+  - `drawings/legends.py`:
+    - category headings over a steady run of word-like symbol rows;
+    - side-by-side columns kept apart;
+    - codes stacked beside symbols rejected;
+    - line samples (pipework) and slivers left out of point symbols;
+    - symbols signed only for legend rows.
+  - `drawings/symbols.py`: `clusters(signed=False)`.
+  - `services/classification.py`: a sheet counts as a drawing when its title block gave a drawing number.
+  - `services/title_blocks.py`: no OCR fallback when the text layer read the number.
+  - Fixtures: `evals/synthetic_symbols.category_legend_sheet`, `GAMMA`.
+- **Requirement IDs covered:** FR-DOC-02 (`TestAProjectNumberedTitleBlock`), FR-VIS-02 (`test_category_columns_with_no_legend_heading_are_legends`, `test_a_category_legend_s_symbols_match_their_rows`, `test_a_line_sample_is_no_point_symbol`).
+- **Results on the real subset** (local stack):
+
+  | | Before | After |
+  |---|---|---|
+  | Document type | specification (0.78) | drawing (0.98) |
+  | Drawing numbers read | 2 cut short, 4 none | 6 of 6 |
+  | Legend rows | 0 | 55 point symbols (69 rows less 14 line types) |
+  | Parse time, 6 sheets | 7.8 min | 6.5 min |
+
+  Four sheets whose REV cell (`-`) contradicts their history row (`Rev A`) wait for a person, at 0.60.
+- **Manual checks:**
+  - three stack reruns;
+  - the real file stays outside the repo; tests copy its layouts with made-up numbers and names;
+  - 369 drawing/takeoff/evaluation, 56 title-block and 16 symbol tests pass, plus 93 affected database tests before the last two changes and 19 (title-block service, classification) after.
+- **Known gaps and follow-ups:**
+  - **Head types are confused by matching:** concealed heads match the exposed quick-response symbol. Before confirmation, heads matched against the Rev A notes:
+
+    | Sheet | Matched | Reference |
+    |---|---|---|
+    | F/3A | 19 | 39 |
+    | F/10 | 11 | 10 |
+    | F/18 | 179 | 329 |
+    | HFT F/1 | 87 | 84 |
+    | HFT F/5 | 36 | 50 |
+
+    This needs its own step, with this subset as the test.
+  - **Pipework line types in the legend** could identify pipe runs by their line style (not done).
+  - **A 121-sheet file is one long job** that shows no sheets until it ends (about 13 s a sheet for title blocks at the time). The progress screen stays blank for a long time.
+  - **The first virus scan of the 83 MB file timed out once**, and scanned in 11.5 s when retried.
+  - **There is no bid delete in the app.** A test bid was removed directly from the database and object store.

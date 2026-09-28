@@ -252,13 +252,16 @@ def clusters(
     *,
     within: tuple[float, float, float, float] | None = None,
     excluding: list[tuple[float, float, float, float]] | None = None,
+    signed: bool = True,
 ) -> list[Cluster]:
     """Every candidate symbol on the sheet, each with its signature.
 
     A DXF insert is one symbol, made of the primitives exploded from it. Everything else is
     clustered: small primitives whose boxes touch. Text is never part of a symbol's shape.
     `within` keeps only clusters centred in that box; `excluding` drops those centred in any
-    of these (a legend is not a place where objects are installed).
+    of these (a legend is not a place where objects are installed). `signed=False` leaves the
+    signatures off, which are nearly all the cost, for a caller that needs only where the
+    shapes are.
     """
     columns = table.select(
         [
@@ -325,6 +328,9 @@ def clusters(
         if within is not None and not _inside(cx, cy, within):
             continue
         if excluding and any(_inside(cx, cy, box) for box in excluding):
+            continue
+        if not signed:
+            kept.append(cluster)
             continue
         signature = signature_of(table, cluster)
         if signature is not None:

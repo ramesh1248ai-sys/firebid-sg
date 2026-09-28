@@ -88,8 +88,15 @@ OTHER_LABELS = re.compile(
     re.I,
 )
 
-DRAWING_NUMBER = re.compile(r"[A-Z]{1,5}\d{0,3}(?:[-_/.][A-Z0-9]{1,6}){1,4}")
-REVISION = re.compile(r"[A-Z]{0,2}\d{1,3}|[A-Z]{1,2}")
+# A drawing number: a letter prefix (`FP-L05-201`), or a project number with an optional
+# bracketed building or discipline code (`6405(HFC)-F/1B`), then one to four parts. A date
+# (`2026-09-26`, `26/09/2026`) has the same shape and is never one.
+DRAWING_NUMBER = re.compile(
+    r"(?!\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}$)"
+    r"(?:[A-Z]{1,5}\d{0,3}|\d{2,6}(?:\([A-Z0-9]{1,6}\))?)(?:[-_/.][A-Z0-9]{1,6}){1,4}"
+)
+# A revision code, or a dash: a first issue, not revised yet, as tender sets often mark it.
+REVISION = re.compile(r"[A-Z]{0,2}\d{1,3}|[A-Z]{1,2}|[-\u2013]")
 SCALE = re.compile(
     r"(1\s*:\s*\d{1,5}(\s*@\s*A\d)?)|N\.?T\.?S\.?|NOT\s+TO\s+SCALE|AS\s+(SHOWN|INDICATED)", re.I
 )
@@ -128,6 +135,10 @@ DATE_FORMATS = (
     "%d %B %Y",
     "%d-%b-%Y",
     "%d %b %y",
+    # Month and year only (`JUL 2026`), as many Singapore title blocks date an issue: read as
+    # the first of the month.
+    "%b %Y",
+    "%B %Y",
 )
 
 
@@ -365,9 +376,16 @@ def _history(spans: Sequence[Span]) -> tuple[set[int], tuple[str, ...]]:
     return taken, tuple(listed)
 
 
-def _value_for(label: Span, spans: Sequence[Span], used: set[int]) -> tuple[int, Span] | None:
-    """The value belonging to `label`: below it in the same cell, or beside it on its line."""
-    best: tuple[float, int, Span] | None = None
+def _value_for(
+    label: Span, spans: Sequence[Span], used: set[int], name: Field | None = None
+) -> tuple[int, Span] | None:
+    """The value belonging to `label`: below it in the same cell, or beside it on its line.
+
+    The nearest candidate that reads as the field's kind of value wins (a date for DATE), so a
+    stray mark nearer the label (a (c) sign, a dash) does not. A value set in from the label
+    across its cell (`Date:` over `JUL 2026`) is reached only when it reads as one.
+    """
+    best: tuple[bool, float, int, Span] | None = None
     for index, candidate in enumerate(spans):
         if index in used or candidate is label or _is_label(candidate):
             continue
@@ -377,16 +395,21 @@ def _value_for(label: Span, spans: Sequence[Span], used: set[int]) -> tuple[int,
         aligned = (
             candidate.x0 < label.x1 + 4 * label.height and candidate.x1 > label.x0 - label.height
         )
+        set_in = candidate.x0 >= label.x0 and candidate.x0 < label.x1 + 10 * label.height
         beside = _same_line(label, candidate) and 0 <= candidate.x0 - label.x1 < 12 * label.height
+        fits = name is not None and _valid(name, normalise(name, candidate.clean))
         if below and aligned:
             distance = (candidate.cy - label.cy) + 0.5 * abs(candidate.x0 - label.x0)
         elif beside:
             distance = candidate.x0 - label.x1
+        elif below and set_in and fits:
+            distance = (candidate.cy - label.cy) + 0.5 * abs(candidate.x0 - label.x0)
         else:
             continue
-        if best is None or distance < best[0]:
-            best = (distance, index, candidate)
-    return None if best is None else (best[1], best[2])
+        rank = (not fits, distance)
+        if best is None or rank < (best[0], best[1]):
+            best = (not fits, distance, index, candidate)
+    return None if best is None else (best[2], best[3])
 
 
 def _valid(name: Field, value: str) -> bool:
@@ -436,6 +459,55 @@ def discipline_of(sheet_number: str | None) -> str | None:
     return None
 
 
+# Two runs on one line closer than this (x their height) are one piece of text a PDF writer
+# split, as `6405(HFC)-F/` and `1B` often are; a word space is wider.
+JOIN_GAP = 0.3
+
+
+def joined(spans: Sequence[Span]) -> list[Span]:
+    """Runs of text on one line with next to no gap between them, joined into one.
+
+    Left to right, each run is joined onto a run on its line that ends just before it. The
+    runs are looked up by where they end, so a sheet of thousands of runs stays quick.
+    """
+    import bisect
+
+    out: list[Span] = []
+    ends: list[tuple[float, int]] = []  # (x1, position in out), kept sorted
+    for span in sorted(spans, key=lambda s: s.x0):
+        if not span.clean:
+            out.append(span)
+            continue
+        reach = JOIN_GAP * span.height
+        low = bisect.bisect_left(ends, (span.x0 - reach * 4, -1))
+        high = bisect.bisect_right(ends, (span.x0 + 0.1 * span.height, len(out)))
+        target: int | None = None
+        for x1, position in ends[low:high]:
+            last = out[position]
+            if _same_line(last, span) and -0.1 * last.height <= span.x0 - x1 < JOIN_GAP * max(
+                last.height, span.height
+            ):
+                target = position
+                break
+        if target is None:
+            out.append(span)
+            bisect.insort(ends, (span.x1, len(out) - 1))
+            continue
+        last = out[target]
+        merged = Span(
+            last.text.rstrip() + span.text.lstrip(),
+            last.x0,
+            min(last.y0, span.y0),
+            span.x1,
+            max(last.y1, span.y1),
+            min(last.confidence, span.confidence),
+        )
+        ends.remove((last.x1, target))
+        out[target] = merged
+        bisect.insort(ends, (merged.x1, target))
+    return out
+
+
 def _title_lines(start: tuple[int, Span], spans: Sequence[Span], taken: set[int]) -> str:
     """A title often runs to two lines; take the lines below the first, aligned with it."""
     lines = [start[1]]
@@ -455,6 +527,7 @@ def read(
     region: Box | None = None,
 ) -> TitleBlockReading:
     """Read the title block on a page. Deterministic; no model, no network."""
+    spans = joined(spans)
     region = region or locate(spans, page)
     if region is None:
         return TitleBlockReading(region=None)
@@ -481,7 +554,7 @@ def read(
         if label is None or label in fields:
             continue
         name = label
-        found = _value_for(span, inside, used | {index})
+        found = _value_for(span, inside, used | {index}, name)
         if found is None:
             continue
         position, value_span = found
