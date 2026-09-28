@@ -909,6 +909,15 @@
             },
             "title": "Unresolved Groups",
             "type": "array"
+          },
+          "untraced_lines": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Untraced Lines",
+            "type": "array"
           }
         },
         "required": [
@@ -951,6 +960,63 @@
         "title": "Body_upload_bids__bid_id__documents_post",
         "type": "object"
       },
+      "BoqOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/LineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "template_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Key"
+          },
+          "template_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Version"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "template_key",
+          "template_version",
+          "created_at",
+          "lines"
+        ],
+        "title": "BoqOut",
+        "type": "object"
+      },
       "BreakerOut": {
         "properties": {
           "consecutive_failures": {
@@ -972,6 +1038,23 @@
           "consecutive_failures"
         ],
         "title": "BreakerOut",
+        "type": "object"
+      },
+      "BuildIn": {
+        "properties": {
+          "template_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Key"
+          }
+        },
+        "title": "BuildIn",
         "type": "object"
       },
       "CalibrateRequest": {
@@ -1183,6 +1266,297 @@
         "title": "ClauseOut",
         "type": "object"
       },
+      "ClientBoqOut": {
+        "properties": {
+          "column_map": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column Map"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "header_row": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Header Row"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lines": {
+            "title": "Lines",
+            "type": "integer"
+          },
+          "proposal": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposal"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "sheet_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheet Name"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "document_id",
+          "filename",
+          "sheet_name",
+          "status",
+          "header_row",
+          "column_map",
+          "reason",
+          "proposal",
+          "lines"
+        ],
+        "title": "ClientBoqOut",
+        "type": "object"
+      },
+      "ClientMappingOut": {
+        "properties": {
+          "client_item": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Item"
+          },
+          "client_line_id": {
+            "format": "uuid",
+            "title": "Client Line Id",
+            "type": "string"
+          },
+          "client_ref": {
+            "title": "Client Ref",
+            "type": "string"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "flagged": {
+            "title": "Flagged",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "mapping_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapping Id"
+          },
+          "maps_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maps To"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "variance_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variance Percent"
+          }
+        },
+        "required": [
+          "client_line_id",
+          "client_ref",
+          "client_item",
+          "section",
+          "description",
+          "unit",
+          "quantity",
+          "kind",
+          "mapping_id",
+          "state",
+          "method",
+          "maps_to",
+          "confidence",
+          "reason",
+          "variance_percent",
+          "flagged"
+        ],
+        "title": "ClientMappingOut",
+        "type": "object"
+      },
+      "ColumnsIn": {
+        "properties": {
+          "sheets": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Sheets",
+            "type": "object"
+          }
+        },
+        "required": [
+          "sheets"
+        ],
+        "title": "ColumnsIn",
+        "type": "object"
+      },
       "CompleteRequest": {
         "properties": {
           "filename": {
@@ -1306,6 +1680,104 @@
           "proposed"
         ],
         "title": "ConsultantOut",
+        "type": "object"
+      },
+      "ConventionOption": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "text"
+        ],
+        "title": "ConventionOption",
+        "type": "object"
+      },
+      "ConventionOut": {
+        "properties": {
+          "chosen": {
+            "title": "Chosen",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ConventionOption"
+            },
+            "title": "Options",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "chosen",
+          "options"
+        ],
+        "title": "ConventionOut",
+        "type": "object"
+      },
+      "ConventionsIn": {
+        "properties": {
+          "settings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Settings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "settings"
+        ],
+        "title": "ConventionsIn",
+        "type": "object"
+      },
+      "ConventionsOut": {
+        "properties": {
+          "conventions": {
+            "items": {
+              "$ref": "#/components/schemas/ConventionOut"
+            },
+            "title": "Conventions",
+            "type": "array"
+          },
+          "qualification_text": {
+            "title": "Qualification Text",
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "version",
+          "conventions",
+          "qualification_text"
+        ],
+        "title": "ConventionsOut",
         "type": "object"
       },
       "CountedOut": {
@@ -2383,6 +2855,38 @@
         "title": "FailedDocument",
         "type": "object"
       },
+      "G2Out": {
+        "properties": {
+          "boq_built": {
+            "title": "Boq Built",
+            "type": "boolean"
+          },
+          "clear": {
+            "title": "Clear",
+            "type": "boolean"
+          },
+          "g1_approved": {
+            "title": "G1 Approved",
+            "type": "boolean"
+          },
+          "untraced_lines": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Untraced Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "clear",
+          "g1_approved",
+          "boq_built",
+          "untraced_lines"
+        ],
+        "title": "G2Out",
+        "type": "object"
+      },
       "GroupOut": {
         "properties": {
           "decided_at": {
@@ -2899,6 +3403,170 @@
         "title": "LegendRowOut",
         "type": "object"
       },
+      "LineOut": {
+        "properties": {
+          "allowance_percent": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowance Percent"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "group_heading": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Heading"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_lump_sum": {
+            "title": "Is Lump Sum",
+            "type": "boolean"
+          },
+          "is_provisional": {
+            "title": "Is Provisional",
+            "type": "boolean"
+          },
+          "item_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item No"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "line_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Key"
+          },
+          "marker_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marker Note"
+          },
+          "qto_items": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Qto Items",
+            "type": "array"
+          },
+          "quantity": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity",
+            "type": "string"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "traced": {
+            "title": "Traced",
+            "type": "boolean"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "unit_rate": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Rate"
+          }
+        },
+        "required": [
+          "id",
+          "line_key",
+          "section",
+          "group_heading",
+          "item_no",
+          "description",
+          "level",
+          "unit",
+          "quantity",
+          "allowance_percent",
+          "unit_rate",
+          "amount",
+          "is_provisional",
+          "is_lump_sum",
+          "marker_note",
+          "qto_items",
+          "traced"
+        ],
+        "title": "LineOut",
+        "type": "object"
+      },
       "Liveness": {
         "properties": {
           "status": {
@@ -3263,6 +3931,46 @@
         "title": "ManualIn",
         "type": "object"
       },
+      "MappingDecisionIn": {
+        "properties": {
+          "decision": {
+            "enum": [
+              "confirm",
+              "correct",
+              "reject"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "maps_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maps To"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "MappingDecisionIn",
+        "type": "object"
+      },
       "MappingOut": {
         "properties": {
           "attributes": {
@@ -3416,6 +4124,41 @@
         "title": "MappingOut",
         "type": "object"
       },
+      "MarkIn": {
+        "properties": {
+          "marker": {
+            "anyOf": [
+              {
+                "enum": [
+                  "provisional",
+                  "lump_sum"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marker"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "marker"
+        ],
+        "title": "MarkIn",
+        "type": "object"
+      },
       "MarkOut": {
         "properties": {
           "band": {
@@ -3538,6 +4281,70 @@
           "label"
         ],
         "title": "MarkOut",
+        "type": "object"
+      },
+      "MarkedLineIn": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "description": {
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "marker": {
+            "enum": [
+              "provisional",
+              "lump_sum"
+            ],
+            "title": "Marker",
+            "type": "string"
+          },
+          "note": {
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "default": "1",
+            "title": "Quantity"
+          },
+          "unit": {
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "description",
+          "unit",
+          "marker",
+          "note"
+        ],
+        "title": "MarkedLineIn",
         "type": "object"
       },
       "MarksIn": {
@@ -4531,6 +5338,188 @@
           "label"
         ],
         "title": "ReasonOut",
+        "type": "object"
+      },
+      "ReconciliationOut": {
+        "properties": {
+          "client_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Description"
+          },
+          "client_item": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Item"
+          },
+          "client_quantity": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Quantity"
+          },
+          "client_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Ref"
+          },
+          "client_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Unit"
+          },
+          "evidence_links": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Links",
+            "type": "array"
+          },
+          "flagged": {
+            "title": "Flagged",
+            "type": "boolean"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "line_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Description"
+          },
+          "line_item": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Item"
+          },
+          "measured_quantity": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measured Quantity"
+          },
+          "qto_items": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Qto Items",
+            "type": "array"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "variance": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variance"
+          },
+          "variance_percent": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variance Percent"
+          }
+        },
+        "required": [
+          "kind",
+          "client_ref",
+          "client_item",
+          "client_description",
+          "client_unit",
+          "client_quantity",
+          "line_item",
+          "line_description",
+          "unit",
+          "measured_quantity",
+          "variance",
+          "variance_percent",
+          "flagged",
+          "state",
+          "qto_items",
+          "evidence_links"
+        ],
+        "title": "ReconciliationOut",
         "type": "object"
       },
       "RefusedOut": {
@@ -5556,6 +6545,106 @@
           "due_at"
         ],
         "title": "TaskOut",
+        "type": "object"
+      },
+      "TemplateChange": {
+        "properties": {
+          "definition": {
+            "additionalProperties": true,
+            "title": "Definition",
+            "type": "object"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "status": {
+            "default": "confirmed",
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "definition"
+        ],
+        "title": "TemplateChange",
+        "type": "object"
+      },
+      "TemplateOut": {
+        "properties": {
+          "change_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Note"
+          },
+          "definition": {
+            "additionalProperties": true,
+            "title": "Definition",
+            "type": "object"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "retired_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retired At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "version",
+          "title",
+          "definition",
+          "status",
+          "change_note",
+          "retired_at"
+        ],
+        "title": "TemplateOut",
         "type": "object"
       },
       "TransitionIn": {
@@ -6994,6 +8083,954 @@
         "summary": "Affected",
         "tags": [
           "addenda"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq": {
+      "get": {
+        "description": "The current company BOQ, each line with the QTO items behind it (FR-BOQ-01, 05).",
+        "operationId": "get_boq_bids__bid_id__boq_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoqOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Boq",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/build": {
+      "post": {
+        "description": "A new version from the verified takeoff. Client mappings follow their lines.",
+        "operationId": "build_bids__bid_id__boq_build_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuildIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoqOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Build",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/client": {
+      "get": {
+        "description": "The client's bills as read, and any waiting for a person to confirm their columns.",
+        "operationId": "client_boqs_bids__bid_id__boq_client_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ClientBoqOut"
+                  },
+                  "title": "Response Client Boqs Bids  Bid Id  Boq Client Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Client Boqs",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/client/{client_boq_id}/columns": {
+      "post": {
+        "description": "A person's header row and columns, per sheet; the bill is read again with them.",
+        "operationId": "confirm_columns_bids__bid_id__boq_client__client_boq_id__columns_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "client_boq_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Client Boq Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ColumnsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ClientBoqOut"
+                  },
+                  "title": "Response Confirm Columns Bids  Bid Id  Boq Client  Client Boq Id  Columns Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Confirm Columns",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/client/{document_id}/priced.xlsx": {
+      "get": {
+        "description": "The client's own workbook with our rates in its rate cells; nothing else changed.",
+        "operationId": "export_priced_bids__bid_id__boq_client__document_id__priced_xlsx_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Document Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Priced",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/conventions": {
+      "get": {
+        "description": "The tender's measurement conventions, worded for the qualifications (FR-BOQ-06).",
+        "operationId": "get_conventions_bids__bid_id__boq_conventions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConventionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Conventions",
+        "tags": [
+          "boq"
+        ]
+      },
+      "put": {
+        "operationId": "set_conventions_bids__bid_id__boq_conventions_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConventionsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConventionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Conventions",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/export.xlsx": {
+      "get": {
+        "operationId": "export_company_bids__bid_id__boq_export_xlsx_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Company",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/g2": {
+      "get": {
+        "operationId": "g2_status_bids__bid_id__boq_g2_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/G2Out"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "G2 Status",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/g2/approve": {
+      "post": {
+        "operationId": "approve_g2_bids__bid_id__boq_g2_approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve G2",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/lines": {
+      "post": {
+        "description": "A provisional sum or lump sum, which has no measured quantity behind it.",
+        "operationId": "add_line_bids__bid_id__boq_lines_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkedLineIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoqOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Line",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/lines/{line_id}/marker": {
+      "post": {
+        "operationId": "mark_bids__bid_id__boq_lines__line_id__marker_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Line Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoqOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mark",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/mappings": {
+      "get": {
+        "description": "Every client line, with the proposal or decision about which measured line it is.",
+        "operationId": "list_mappings_bids__bid_id__boq_mappings_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ClientMappingOut"
+                  },
+                  "title": "Response List Mappings Bids  Bid Id  Boq Mappings Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Mappings",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/mappings/propose": {
+      "post": {
+        "description": "The rules' proposals now; the model's for what they leave, on the worker.",
+        "operationId": "propose_bids__bid_id__boq_mappings_propose_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ClientMappingOut"
+                  },
+                  "title": "Response Propose Bids  Bid Id  Boq Mappings Propose Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Propose",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/mappings/{mapping_id}": {
+      "post": {
+        "operationId": "decide_bids__bid_id__boq_mappings__mapping_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "mapping_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Mapping Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MappingDecisionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientMappingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decide",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/reconciliation": {
+      "get": {
+        "description": "Client against measured; flagged rows are clarification candidates (FR-BOQ-03).",
+        "operationId": "reconciliation_bids__bid_id__boq_reconciliation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReconciliationOut"
+                  },
+                  "title": "Response Reconciliation Bids  Bid Id  Boq Reconciliation Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reconciliation",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/boq/reconciliation.xlsx": {
+      "get": {
+        "operationId": "export_reconciliation_bids__bid_id__boq_reconciliation_xlsx_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Reconciliation",
+        "tags": [
+          "boq"
         ]
       }
     },
@@ -11604,6 +13641,145 @@
         "summary": "Transition",
         "tags": [
           "bids"
+        ]
+      }
+    },
+    "/boq-templates": {
+      "get": {
+        "operationId": "list_templates_boq_templates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateOut"
+                  },
+                  "title": "Response List Templates Boq Templates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Templates",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/boq-templates/{key}": {
+      "post": {
+        "description": "A new version of the template. BOQs already built keep the version they used.",
+        "operationId": "change_template_boq_templates__key__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Template",
+        "tags": [
+          "boq"
+        ]
+      }
+    },
+    "/boq-templates/{key}/history": {
+      "get": {
+        "operationId": "template_history_boq_templates__key__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateOut"
+                  },
+                  "title": "Response Template History Boq Templates  Key  History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Template History",
+        "tags": [
+          "boq"
         ]
       }
     },

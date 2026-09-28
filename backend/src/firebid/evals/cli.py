@@ -9,6 +9,7 @@
     firebid-eval compare   --suite synthetic             fail if anything has regressed
     firebid-eval compare-models --route <r> --models a,b  evidence for changing a model
     firebid-eval calibrate --suite p1_detection          fit detection confidence (FR-VIS-09)
+    firebid-eval run       --suite p1_boq                client BOQ mapping accuracy (FR-BOQ-02)
     firebid-eval corrections --out corrections.jsonl     people's corrections (FR-REV-06)
 
 `import` and `compare` write nothing and exit non-zero when they are unhappy, which is what
@@ -31,6 +32,8 @@ DOC_METRICS = ("drawing_number_accuracy", "revision_accuracy", "sheet_classifica
 EVAL_ROOT = Path("eval")
 # Phase 1 detection: sprinklers, valves and pipe (FR-VIS-03, 09), see evals/p1_detection.
 DETECTION_SUITE = "p1_detection"
+# Client BOQ mapping (FR-BOQ-02), see evals/p1_boq: its own report, no baseline yet.
+BOQ_SUITE = "p1_boq"
 
 
 def _suite_paths(suite: str, root: Path) -> tuple[Path, Path, Path]:
@@ -167,6 +170,9 @@ def main(argv: list[str] | None = None) -> int:
     if arguments.command == "generate":
         return _run_generate(arguments)
 
+    if arguments.command in ("run", "accept", "compare") and arguments.suite == BOQ_SUITE:
+        return _run_boq(arguments)
+
     if arguments.command in ("run", "accept", "compare"):
         return _run_suite_command(arguments)
 
@@ -181,6 +187,24 @@ def _metrics_for(suite: str) -> tuple[str, ...] | None:
 
         return METRICS
     return None
+
+
+def _run_boq(arguments: argparse.Namespace) -> int:
+    """Mapping accuracy against the target; exits non-zero when it is missed."""
+    from firebid.evals.p1_boq import evaluate
+
+    if arguments.command != "run":
+        print(f"'{arguments.command}' is not available for {BOQ_SUITE} yet", file=sys.stderr)
+        return 1
+    report = evaluate()
+    text = report.markdown()
+    if arguments.report:
+        arguments.report.parent.mkdir(parents=True, exist_ok=True)
+        arguments.report.write_text(text, encoding="utf-8")
+        print(f"wrote {arguments.report}")
+    else:
+        print(text)
+    return 0 if report.met else 1
 
 
 def _run_calibrate(arguments: argparse.Namespace) -> int:

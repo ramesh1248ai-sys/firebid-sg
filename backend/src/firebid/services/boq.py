@@ -1120,7 +1120,6 @@ def reconciliation_workbook(session: Session, bid_id: uuid.UUID) -> bytes:
     return out.getvalue()
 
 
-
 # --- G2 (the BOQ behind the estimate) -------------------------------------------------------
 
 

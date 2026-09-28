@@ -5,6 +5,7 @@ import { RequireAuth } from "@/auth/RequireAuth";
 import { AdminPage } from "@/pages/AdminPage";
 import { AuditPage } from "@/pages/AuditPage";
 import { BidDetailPage } from "@/pages/BidDetailPage";
+import { BoqPage } from "@/pages/BoqPage";
 import { CallbackPage } from "@/pages/CallbackPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { DocumentsPage } from "@/pages/DocumentsPage";
@@ -37,6 +38,7 @@ export const routes: RouteObject[] = [
           { path: "bids/:bidId/specification", element: <SpecificationPage /> },
           { path: "bids/:bidId/sheets/:sheetId", element: <SheetViewerPage /> },
           { path: "bids/:bidId/workbench", element: <WorkbenchPage /> },
+          { path: "bids/:bidId/boq", element: <BoqPage /> },
           { path: "audit", element: <AuditPage /> },
           { path: "library", element: <LibraryPage /> },
           { path: "admin", element: <AdminPage /> },

@@ -42,7 +42,7 @@ from firebid.services.classification import classify_in_sandbox
 from firebid.services.ingestion import Ingestor
 from firebid.storage.object_store import MemoryObjectStore
 from tests.db.test_qto import tender  # noqa: F401
-from tests.db.test_sheet_views import app, member, sign_in  # noqa: F401
+from tests.db.test_sheet_views import SignIn, app, member, sign_in  # noqa: F401
 from tests.db.test_symbol_mapping import no_tiles, store  # noqa: F401
 
 pytestmark = pytest.mark.usefixtures("no_tiles")
@@ -549,3 +549,96 @@ def test_conventions_are_set_per_tender_and_worded_for_the_qualifications(
     assert boq.qualification_text(session, bid.id)
     with pytest.raises(boq.BoqError):
         boq.set_conventions(session, bid.id, {"pipe_measurement": "by eye"}, estimator)
+
+
+@pytest.mark.req("FR-BOQ-01")
+@pytest.mark.req("FR-BOQ-02")
+@pytest.mark.req("FR-BOQ-03")
+@pytest.mark.req("FR-BOQ-04")
+@pytest.mark.req("FR-BOQ-05")
+class TestApi:
+    def test_build_map_reconcile_and_export_through_the_api(
+        self,
+        session: Session,
+        tender: Bid,
+        organisation: Organisation,
+        store: MemoryObjectStore,
+        sign_in: SignIn,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr("firebid.api.boq.get_object_store", lambda: store)
+        principal = member(session, organisation, tender, "esther", Role.ESTIMATOR)
+        client = sign_in(principal)
+        verify_takeoff(session, tender)
+        document = client_workbook(session, tender, store)
+        boq.read_client_boq(session, store, document)
+        session.commit()
+
+        assert client.get(f"/bids/{tender.id}/boq").status_code == 404
+        built_boq = client.post(f"/bids/{tender.id}/boq/build", json={})
+        assert built_boq.status_code == 201, built_boq.text
+        lines = built_boq.json()["lines"]
+        assert all(line["traced"] and line["qto_items"] for line in lines)
+
+        [sheet] = client.get(f"/bids/{tender.id}/boq/client").json()
+        assert (sheet["status"], sheet["lines"]) == ("read", len(synthetic_boq.client_boq().cells))
+
+        proposed = client.post(f"/bids/{tender.id}/boq/mappings/propose")
+        assert proposed.status_code == 200, proposed.text
+        pendent = next(m for m in proposed.json() if m["client_item"] == "A1")
+        decided = client.post(
+            f"/bids/{tender.id}/boq/mappings/{pendent['mapping_id']}",
+            json={"decision": "confirm"},
+        )
+        assert decided.json()["state"] == "confirmed"
+        queued = session.execute(
+            text("SELECT count(*) FROM procrastinate_jobs WHERE task_name = 'boq.map'")
+        ).scalar_one()
+        assert queued >= 1, "the flow switch the rules could not map goes to the model"
+
+        rows = client.get(f"/bids/{tender.id}/boq/reconciliation").json()
+        assert any(r["client_item"] == "C3" and r["flagged"] for r in rows)
+        for path in ("export.xlsx", "reconciliation.xlsx", f"client/{document.id}/priced.xlsx"):
+            response = client.get(f"/bids/{tender.id}/boq/{path}")
+            assert response.status_code == 200, (path, response.text)
+            assert response.content[:2] == b"PK"
+
+        g2 = client.get(f"/bids/{tender.id}/boq/g2").json()
+        assert (g2["g1_approved"], g2["boq_built"], g2["untraced_lines"]) == (False, True, [])
+
+    def test_only_a_senior_estimator_changes_a_template_or_approves_g2(
+        self, session: Session, bid: Bid, organisation: Organisation, sign_in: SignIn
+    ) -> None:
+        estimator = sign_in(member(session, organisation, bid, "esther", Role.ESTIMATOR))
+        [template] = estimator.get("/boq-templates").json()
+
+        change = estimator.post(
+            f"/boq-templates/{template['key']}", json={"definition": template["definition"]}
+        )
+        approve = estimator.post(f"/bids/{bid.id}/boq/g2/approve", json={})
+
+        assert (change.status_code, approve.status_code) == (403, 403)
+        senior = sign_in(member(session, organisation, bid, "sam", Role.SENIOR_ESTIMATOR))
+        changed = senior.post(
+            f"/boq-templates/{template['key']}",
+            json={"definition": template["definition"], "note": "reviewed"},
+        )
+        assert changed.status_code == 200 and changed.json()["version"] == 2
+        refused = senior.post(f"/bids/{bid.id}/boq/g2/approve", json={})
+        assert refused.status_code == 409 and "G1 is not approved" in refused.text
+
+    def test_conventions_through_the_api(
+        self, session: Session, bid: Bid, organisation: Organisation, sign_in: SignIn
+    ) -> None:
+        client = sign_in(member(session, organisation, bid, "esther", Role.ESTIMATOR))
+
+        before = client.get(f"/bids/{bid.id}/boq/conventions").json()
+        after = client.put(
+            f"/bids/{bid.id}/boq/conventions", json={"settings": {"fittings": "deemed_included"}}
+        )
+
+        assert before["version"] is None
+        assert after.json()["version"] == 1
+        assert "deemed included in the rates for pipework" in after.json()["qualification_text"]
+        bad = client.put(f"/bids/{bid.id}/boq/conventions", json={"settings": {"x": "y"}})
+        assert bad.status_code == 422

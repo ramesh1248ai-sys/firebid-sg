@@ -87,6 +87,7 @@ def create_app(
         admin,
         audit,
         bids,
+        boq,
         detections,
         documents,
         library,
@@ -111,6 +112,8 @@ def create_app(
     app.include_router(qto.router)
     app.include_router(qto.rules_router)
     app.include_router(review.router)
+    app.include_router(boq.router)
+    app.include_router(boq.templates_router)
     app.include_router(registers.router)
     app.include_router(addenda.router)
     app.include_router(progress.router)
