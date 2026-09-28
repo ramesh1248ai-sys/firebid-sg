@@ -15,7 +15,7 @@ import zipfile
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from sqlalchemy import select, text
@@ -184,7 +184,7 @@ class TestCompanyBoq:
         seeded = boq.template(session, organisation.id)
         definition = dict(seeded.definition)
         definition["descriptions"] = {
-            **dict(definition["descriptions"]),
+            **cast(dict[str, str], definition["descriptions"]),
             "sprinkler": "Sprinkler head, {orientation}",
         }
 
