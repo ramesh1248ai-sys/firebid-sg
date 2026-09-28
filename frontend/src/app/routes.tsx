@@ -10,6 +10,7 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { DocumentsPage } from "@/pages/DocumentsPage";
 import { LibraryPage } from "@/pages/LibraryPage";
 import { NewBidPage } from "@/pages/NewBidPage";
+import { OverlayBenchPage } from "@/pages/OverlayBenchPage";
 import { RegistersPage } from "@/pages/RegistersPage";
 import { SheetViewerPage } from "@/pages/SheetViewerPage";
 import { SignInPage } from "@/pages/SignInPage";
@@ -48,5 +49,11 @@ export const routes: RouteObject[] = [
     path: "/bids/:bidId/workbench/viewer",
     element: <RequireAuth />,
     children: [{ index: true, element: <PopoutViewerPage /> }],
+  },
+  // The overlay performance bench (NFR-12): not linked, opened by the bench script.
+  {
+    path: "/bids/:bidId/workbench/bench",
+    element: <RequireAuth />,
+    children: [{ index: true, element: <OverlayBenchPage /> }],
   },
 ];

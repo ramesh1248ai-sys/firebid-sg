@@ -59,6 +59,8 @@ export interface DrawingViewerProps {
   onViewChange?: (view: Box) => void;
   // Marks a person has placed but not saved yet (the count tool).
   pending?: number[][];
+  // The performance bench drives the viewer itself (P1-08, NFR-12).
+  exposeViewer?: boolean;
   className?: string;
 }
 
@@ -66,12 +68,15 @@ export interface DrawingViewerProps {
 export interface FrameStats {
   frames: number;
   lastDrawMs: number;
+  totalDrawMs: number;
+  maxDrawMs: number;
   drawn: number;
 }
 
 declare global {
   interface Window {
     __workbenchFrames?: FrameStats;
+    __workbenchViewer?: OpenSeadragon.Viewer;
   }
 }
 
@@ -91,6 +96,7 @@ export function DrawingViewer({
   onLength,
   onViewChange,
   pending = [],
+  exposeViewer = false,
   className,
 }: DrawingViewerProps) {
   const container = useRef<HTMLDivElement>(null);
@@ -149,10 +155,19 @@ export function DrawingViewer({
       latest.current.layers,
       skip,
     );
-    const stats = window.__workbenchFrames ?? { frames: 0, lastDrawMs: 0, drawn: 0 };
+    const spent = performance.now() - started;
+    const stats = window.__workbenchFrames ?? {
+      frames: 0,
+      lastDrawMs: 0,
+      totalDrawMs: 0,
+      maxDrawMs: 0,
+      drawn: 0,
+    };
     window.__workbenchFrames = {
       frames: stats.frames + 1,
-      lastDrawMs: performance.now() - started,
+      lastDrawMs: spent,
+      totalDrawMs: stats.totalDrawMs + spent,
+      maxDrawMs: Math.max(stats.maxDrawMs, spent),
       drawn,
     };
     setTransform(t);
@@ -193,6 +208,7 @@ export function DrawingViewer({
         },
       });
       viewer.current = opened;
+      if (exposeViewer) window.__workbenchViewer = opened;
       opened.addHandler("open-failed", () => setFailed(true));
       for (const name of ["open", "animation", "update-viewport", "resize"] as const) {
         opened.addHandler(name, schedule);
@@ -271,7 +287,7 @@ export function DrawingViewer({
       viewer.current?.destroy();
       viewer.current = null;
     };
-  }, [source, schedule, currentTransform]);
+  }, [source, schedule, currentTransform, exposeViewer]);
 
   // Anything that changes what is drawn redraws.
   useEffect(schedule, [index, layers, selected, schedule]);
