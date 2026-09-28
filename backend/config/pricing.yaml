@@ -1,0 +1,9 @@
+# Pricing BOQ lines from the rate library (FR-CST-01, P1-10).
+#
+# "TO BE CONFIRMED": the source preference is a placeholder the commercial team sets.
+
+status: to be confirmed
+
+# When two current entries price the same item and took effect on the same day, the first
+# source in this list wins. A newer effective date always wins first.
+source_preference: [quotation, purchase_order, company_standard]

@@ -11,12 +11,14 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
     Text,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -52,6 +54,19 @@ class BoqLine(UuidPk, BidScoped, Timestamped, Base):
     """A priced line. Lines without a trace to evidence must be marked (FR-BOQ-05)."""
 
     __tablename__ = "boq_line"
+    __table_args__ = (
+        CheckConstraint(
+            "price_method IS NULL OR price_method IN ('rule', 'model', 'person')",
+            name="price_method_known",
+        ),
+        # A rate or amount has a rate entry behind it; a provisional or lump sum's amount is
+        # the estimator's own allowance (FR-CST-01, FR-CST-09).
+        CheckConstraint(
+            "rate_id IS NOT NULL OR (unit_rate IS NULL AND "
+            "(amount IS NULL OR is_provisional OR is_lump_sum))",
+            name="priced_from_rate",
+        ),
+    )
 
     boq_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("boq.id", ondelete="CASCADE"), nullable=False, index=True
@@ -77,6 +92,21 @@ class BoqLine(UuidPk, BidScoped, Timestamped, Base):
     allowance_percent: Mapped[Decimal | None] = mapped_column(Numeric(6, 3))
     # Why a line with no trace is provisional or a lump sum (FR-BOQ-05).
     marker_note: Mapped[str | None] = mapped_column(Text)
+    # P1-10: what the line is, for the rate library; the entry proposed for it (by a rule or
+    # the model) while a person has not confirmed it; how and by whom it was priced. A price
+    # is only ever set from a rate entry: see `firebid.services.pricing.price_line`, and the
+    # check constraint and trigger of migration 0026.
+    item_key: Mapped[str | None] = mapped_column(String(200), index=True)
+    proposed_rate_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("rate.id", ondelete="SET NULL")
+    )
+    price_method: Mapped[str | None] = mapped_column(String(16))
+    price_reason: Mapped[str | None] = mapped_column(Text)
+    price_provenance: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
+    priced_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    priced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class BoqLineSource(Base):
@@ -201,7 +231,19 @@ class Rate(UuidPk, Timestamped, CreatedBy, Base):
     """A unit rate with its source, date and validity. No price exists without one."""
 
     __tablename__ = "rate"
-    __table_args__ = (CheckConstraint(f"source_type IN {RATE_SOURCES}", name="source_known"),)
+    __table_args__ = (
+        CheckConstraint(f"source_type IN {RATE_SOURCES}", name="source_known"),
+        Index(
+            "uq_rate_current",
+            "organisation_id",
+            "item_key",
+            "unit",
+            "source_type",
+            "source_reference",
+            unique=True,
+            postgresql_where=text("retired_at IS NULL"),
+        ),
+    )
 
     organisation_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("organisation.id", ondelete="CASCADE"), nullable=False, index=True
@@ -219,3 +261,7 @@ class Rate(UuidPk, Timestamped, CreatedBy, Base):
     supersedes_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("rate.id", ondelete="SET NULL")
     )
+    # P1-10: the item key's parts (type, dn, material, schedule, joining, brand), and when a
+    # newer version replaced this one. Entries are never changed: a new rate is a new version.
+    key_parts: Mapped[dict[str, str]] = mapped_column(JSONB, default=dict, nullable=False)
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

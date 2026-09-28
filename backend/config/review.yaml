@@ -18,6 +18,11 @@ impact_weights:
   drop: 0.8           # per metre
   default: 1.0
 
+# What weight 1.0 (one sprinkler head) is worth in SGD, so an item valued by its class weight
+# and one valued by its rate (P1-10: quantity x the unit rate of the priced BOQ line it is in)
+# are on one scale in the queue and coverage.
+weight_unit_sgd: 40.0
+
 # A person gives one of these when they edit or reject (FR-REV-03).
 reason_codes:
   wrong_type: The item is a different type

@@ -22,6 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from firebid.db.models.takeoff import DetectedObject, DuplicateGroup, PipeRun, QtoItem
+from firebid.domain.values import Money
 from firebid.services import qto
 
 HIGH, MEDIUM = 0.9, 0.6
@@ -270,16 +271,33 @@ def weight_of(item: QtoItem) -> float:
     return weights.get("default", 1.0)
 
 
-def impact(item: QtoItem) -> float:
-    """What the item is worth to the bid: quantity x rate, or x the class weight for now."""
-    return float(item.net_quantity) * weight_of(item)
+Rates = dict[uuid.UUID, Money]
 
 
-def risk(item: QtoItem) -> float:
+def weight_unit_sgd() -> float:
+    return float(settings().get("weight_unit_sgd") or 1.0)
+
+
+def impact(item: QtoItem, rates: Rates | None = None) -> float:
+    """What the item is worth to the bid, in SGD: quantity x the unit rate of the priced BOQ
+    line it is in (P1-10), or x its class weight at the configured value of a weight unit."""
+    rate = (rates or {}).get(item.id)
+    if rate is not None:
+        return float(item.net_quantity) * float(rate.amount)
+    return float(item.net_quantity) * weight_of(item) * weight_unit_sgd()
+
+
+def risk(item: QtoItem, rates: Rates | None = None) -> float:
     """(1 - calibrated confidence) x impact: what a mistake here would cost, weighted by how
     likely one is. A manual item is a person's own and scores its impact alone."""
     confidence = item.confidence if item.confidence is not None else 0.0
-    return (1.0 - max(0.0, min(1.0, confidence))) * impact(item)
+    return (1.0 - max(0.0, min(1.0, confidence))) * impact(item, rates)
+
+
+def rates_for(session: Session, bid_id: uuid.UUID) -> Rates:
+    from firebid.services.pricing import unit_rates_by_item
+
+    return unit_rates_by_item(session, bid_id)
 
 
 @dataclass
@@ -311,10 +329,11 @@ def queue(
 ) -> list[QueueRow]:
     """Every live item, riskiest first. Items still to decide come before decided ones."""
     rows = []
+    rates = rates_for(session, bid_id)
     for item in qto.live_items(session, bid_id):
         derivation: dict[str, Any] = dict(item.derivation or {})
         sheets = [str(s.get("sheet_id")) for s in derivation.get("sources") or []]
-        row = QueueRow(item, risk(item), impact(item), sheets, system_of(item))
+        row = QueueRow(item, risk(item, rates), impact(item, rates), sheets, system_of(item))
         if sheet_id and sheet_id not in sheets:
             continue
         if system and row.system != system:
@@ -338,13 +357,16 @@ def queue(
 def coverage(session: Session, bid_id: uuid.UUID) -> dict[str, Any]:
     """The share of the takeoff a person has verified, by item count and by value.
 
-    Rejected items are decided and leave both counts. Value is weighted by class until rates
-    exist (P1-10), and says so.
+    Rejected items are decided and leave both counts. Value is in SGD: from rates where an
+    item's BOQ line is priced (P1-10), from its class weight otherwise, and says how many of
+    each.
     """
     items = [i for i in qto.live_items(session, bid_id) if i.state != "rejected"]
     verified = [i for i in items if i.state in DONE]
-    value_total = sum(impact(i) for i in items)
-    value_verified = sum(impact(i) for i in verified)
+    rates = rates_for(session, bid_id)
+    value_total = sum(impact(i, rates) for i in items)
+    value_verified = sum(impact(i, rates) for i in verified)
+    from_rates = sum(1 for i in items if i.id in rates)
     policy = float((settings().get("coverage_policy") or {}).get("items_percent", 100))
     items_percent = 100.0 * len(verified) / len(items) if items else 0.0
     return {
@@ -354,7 +376,11 @@ def coverage(session: Session, bid_id: uuid.UUID) -> dict[str, Any]:
         "value_total": round(value_total, 3),
         "value_verified": round(value_verified, 3),
         "value_percent": round(100.0 * value_verified / value_total, 2) if value_total else 0.0,
-        "value_basis": "weighted by item class (no rates yet)",
+        "value_basis": (
+            f"SGD: {from_rates} of {len(items)} items from rates, "
+            f"{len(items) - from_rates} by item class weight"
+        ),
+        "value_from_rates": from_rates,
         "policy_percent": policy,
         "met": bool(items) and items_percent >= policy,
     }

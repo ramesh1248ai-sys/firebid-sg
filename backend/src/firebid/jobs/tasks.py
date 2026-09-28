@@ -411,3 +411,22 @@ def propose_boq_mappings_job(context: JobContext, bid_id: str, user_id: str) -> 
     acting = uuid_module.UUID(user_id) if user_id else None
     with acting_as(acting), session_scope() as session:
         return propose_mappings(session, uuid_module.UUID(bid_id), gateway())
+
+
+@app.task(name="pricing.match", queue="default", pass_context=True)
+def match_rates_job(context: JobContext, bid_id: str, user_id: str) -> int:
+    """The model proposes rate library entries for lines with only partial matches."""
+    import uuid as uuid_module
+
+    from firebid.ai_gateway import gateway
+    from firebid.db.identity import acting_as
+    from firebid.db.models.core import Bid
+    from firebid.domain.actors import SYSTEM_ACTOR
+    from firebid.services.pricing import price_boq
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        bid = session.get(Bid, uuid_module.UUID(bid_id))
+        if bid is None:
+            return 0
+        return price_boq(session, bid, SYSTEM_ACTOR, gateway()).proposed

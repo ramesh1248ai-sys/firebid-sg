@@ -86,7 +86,8 @@ class TestOverlay:
 
 
 def crafted(session: Session, bid: Bid) -> dict[str, QtoItem]:
-    """Items whose risk is known by hand: (1 - confidence) x quantity x class weight."""
+    """Items whose risk is known by hand: (1 - confidence) x quantity x class weight, at the
+    configured SGD value of a weight unit (40): nothing on this bid is priced."""
     made = {}
     for human_id, classification, quantity, confidence, level in (
         ("QTO-000101", "valve", "2", 0.5, "L01"),  # 0.5 x 2 x 25 = 25
@@ -128,8 +129,8 @@ class TestQueue:
             "QTO-000105",
             "QTO-000104",
         ]
-        assert [round(r.risk, 3) for r in rows] == [25.0, 16.0, 10.0, 6.4, 0.2]
-        assert rows[0].impact == pytest.approx(50.0)
+        assert [round(r.risk, 3) for r in rows] == [1000.0, 640.0, 400.0, 256.0, 8.0]
+        assert rows[0].impact == pytest.approx(2000.0)
 
     def test_decided_items_go_to_the_end(self, session: Session, bid: Bid) -> None:
         made = crafted(session, bid)
@@ -352,8 +353,8 @@ class TestCoverageAndG1:
         # The rejected valve is decided: it leaves the count.
         assert after["items_total"] == before["items_total"] - 1
         assert after["items_verified"] == 1
-        assert after["value_verified"] == pytest.approx(16.0)  # 16 heads x weight 1
-        assert "no rates" in after["value_basis"]
+        assert after["value_verified"] == pytest.approx(640.0)  # 16 heads x weight 1 x SGD 40
+        assert "0 of" in after["value_basis"] and "class weight" in after["value_basis"]
 
     def test_g1_lists_coverage_until_everything_is_verified(
         self, session: Session, organisation: Organisation, tender: Bid
