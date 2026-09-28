@@ -110,6 +110,10 @@ def _record(
     return action
 
 
+def _touched(entries: list[dict[str, Any]]) -> list[uuid.UUID]:
+    return [uuid.UUID(str(e["item_id"])) for e in entries if "item_id" in e]
+
+
 def _verify(session: Session, item: QtoItem, actor: Actor, note: str | None) -> None:
     apply_transition(session, item, target=QtoItemState.VERIFIED, actor=actor, reason=note)
     item.verified_by_id = actor.id
@@ -142,7 +146,7 @@ def accept(
         entries.append({"item_id": str(item.id), "before": before, "after": snapshot(item)})
     session.flush()
     action = _record(session, bid_id, "accept", actor, entries, note=note)
-    qto.completeness(session, bid_id)
+    qto.completeness(session, bid_id, only=_touched(entries))
     return action
 
 
@@ -176,7 +180,7 @@ def reject(
     action = _record(session, bid_id, "reject", actor, entries, code, note)
     for item, before in rejected:
         _correction(session, action, "reject", item, before, None, code, note, actor)
-    qto.completeness(session, bid_id)
+    qto.completeness(session, bid_id, only=_touched(entries))
     return action
 
 
@@ -261,7 +265,7 @@ def edit(
         note,
     )
     _correction(session, action, "edit", item, before, snapshot(item), code, note, actor)
-    qto.completeness(session, bid_id)
+    qto.completeness(session, bid_id, only=[item.id])
     return action
 
 
@@ -372,7 +376,7 @@ def undo(session: Session, bid_id: uuid.UUID, action_id: uuid.UUID, actor: Actor
             now = snapshot(item)
             _restore(session, item, before, actor)
             entries.append({"item_id": str(item.id), "before": now, "after": snapshot(item)})
-        qto.completeness(session, bid_id)
+        qto.completeness(session, bid_id, only=_touched(entries))
     action.undone_at = datetime.now(UTC)
     session.flush()
     return _record(session, bid_id, "undo", actor, entries, undoes=action)

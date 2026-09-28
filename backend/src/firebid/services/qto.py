@@ -504,7 +504,8 @@ def recompute(session: Session, bid_id: uuid.UUID, actor: Actor = SYSTEM_ACTOR) 
             derivation.update(members=draft.members, geometry=draft.geometry, sources=draft.sources)
             if draft.rule:
                 derivation["rule"] = draft.rule
-            old.derivation = derivation
+            if derivation != old.derivation:  # untouched rows stay unlocked for people
+                old.derivation = derivation
             outcome.unchanged += 1
             continue
         if old is not None:
@@ -820,19 +821,40 @@ def evidence_for(session: Session, bid: Bid, item: QtoItem) -> EvidenceRecord:
     )
 
 
-def completeness(session: Session, bid_id: uuid.UUID) -> list[dict[str, Any]]:
-    """Write every live item's evidence record; list the items missing a mandatory field."""
+def completeness(
+    session: Session,
+    bid_id: uuid.UUID,
+    *,
+    write: bool = True,
+    only: Iterable[uuid.UUID] | None = None,
+) -> list[dict[str, Any]]:
+    """Check every live item's evidence record; list the items missing a mandatory field.
+
+    With `write`, the records are stored too: for every item, or `only` the items an action
+    touched. Checking alone writes nothing, so G1's status can be asked for as often as a
+    screen likes without holding up the people working (P1-08).
+    """
     bid = session.get(Bid, bid_id)
     if bid is None:
         raise QtoError("no such bid")
-    stored = {
-        row.qto_item_id: row
-        for row in session.execute(select(Evidence).where(Evidence.bid_id == bid_id)).scalars()
-    }
+    wanted = set(only) if only is not None else None
+    stored = (
+        {
+            row.qto_item_id: row
+            for row in session.execute(select(Evidence).where(Evidence.bid_id == bid_id)).scalars()
+        }
+        if write
+        else {}
+    )
     offending = []
     for item in live_items(session, bid_id):
         record = evidence_for(session, bid, item)
         missing = record.missing_mandatory_fields()
+        if missing and item.state != str(QtoItemState.REJECTED):
+            # A rejected item is decided and out of the takeoff: it does not hold G1 up.
+            offending.append({"id": str(item.id), "human_id": item.human_id, "missing": missing})
+        if not write or (wanted is not None and item.id not in wanted):
+            continue
         row = stored.get(item.id)
         if row is None:
             session.add(
@@ -846,9 +868,8 @@ def completeness(session: Session, bid_id: uuid.UUID) -> list[dict[str, Any]]:
         else:
             row.record = record.model_dump(mode="json")
             row.missing_fields = missing
-        if missing:
-            offending.append({"id": str(item.id), "human_id": item.human_id, "missing": missing})
-    session.flush()
+    if write:
+        session.flush()
     return offending
 
 
@@ -1002,7 +1023,7 @@ def create_manual(
         session, item, target=QtoItemState.PROPOSED, actor=SYSTEM_ACTOR, reason="manual item"
     )
     _audit_manual(session, actor, "manual QTO item: create", None, item)
-    completeness(session, bid_id)
+    completeness(session, bid_id, only=[item.id])
     return item
 
 
@@ -1118,7 +1139,7 @@ def edit_manual(session: Session, item: QtoItem, actor: Actor, **changes: Any) -
         reason="manual item edited",
     )
     _audit_manual(session, actor, "manual QTO item: edit", item, fresh)
-    completeness(session, item.bid_id)
+    completeness(session, item.bid_id, only=[fresh.id])
     return fresh
 
 
@@ -1264,7 +1285,7 @@ def g1_blockers(session: Session, bid_id: uuid.UUID) -> Blockers:
         unresolved_groups=[
             {"id": str(g.id), "kind": g.kind, "level": g.level, "reason": g.reason} for g in groups
         ],
-        incomplete_items=completeness(session, bid_id),
+        incomplete_items=completeness(session, bid_id, write=False),
         pending_work=pending_work(session, bid_id),
         coverage=review.coverage(session, bid_id),
         unmapped_symbols=review.unmapped_in_scope(session, bid_id),

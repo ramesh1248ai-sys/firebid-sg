@@ -75,8 +75,9 @@ export function ManualTools({
   }
 
   return (
-    <section aria-label="Manual takeoff" className="space-y-2 rounded-lg border p-2 text-sm">
-      <p className="font-medium">Add what was missed</p>
+    <details className="rounded-lg border p-2 text-sm">
+      <summary className="cursor-pointer font-medium">Add what was missed</summary>
+      <section aria-label="Manual takeoff" className="mt-2 space-y-2">
       {disabled ? (
         <p role="note" className="text-muted-foreground">
           {disabled}
@@ -145,7 +146,8 @@ export function ManualTools({
           </button>
         </>
       )}
-    </section>
+      </section>
+    </details>
   );
 }
 

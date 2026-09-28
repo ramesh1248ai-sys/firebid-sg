@@ -20,6 +20,7 @@ Three rules shape this module:
 from __future__ import annotations
 
 import contextlib
+import threading
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
@@ -278,46 +279,58 @@ def render_tile(
     if store.exists(key):
         return store.get(key)
 
-    tile = run_sandboxed(
-        _render_one_tile,
-        document_kind,
-        document_payload,
-        sheet.index_in_document,
-        sheet.base_width_px,
-        sheet.base_height_px,
-        level,
-        column,
-        row,
-    )
-    with contextlib.suppress(ObjectExists):
-        store.put_once(key, tile, content_type="image/webp")
-    log.debug("tile_rendered", sheet_id=str(sheet.id), level=level, column=column, row=row)
-    return tile
+    # One render per level, however many of its tiles are asked for at once: the viewer asks
+    # for every tile in view together, and a render per tile would each draw the whole level
+    # and starve the API of CPU (found in P1-08). The first request renders the level and
+    # caches all its tiles; the others wait for it, then read the cache.
+    with _level_lock(sheet.content_hash, level):
+        if store.exists(key):
+            return store.get(key)
+        tiles = run_sandboxed(
+            _render_level_tiles,
+            document_kind,
+            document_payload,
+            sheet.index_in_document,
+            sheet.base_width_px,
+            sheet.base_height_px,
+            level,
+            sheet.content_hash,
+        )
+        for tile_path, payload in tiles.items():
+            with contextlib.suppress(ObjectExists):
+                store.put_once(tile_path, payload, content_type="image/webp")
+    log.debug("tile_level_rendered", sheet_id=str(sheet.id), level=level, tiles=len(tiles))
+    return tiles[key]
 
 
-def _render_one_tile(
+_LEVEL_LOCKS: dict[tuple[str, int], threading.Lock] = {}
+_LEVEL_LOCKS_GUARD = threading.Lock()
+
+
+def _level_lock(sheet_hash: str, level: int) -> threading.Lock:
+    with _LEVEL_LOCKS_GUARD:
+        return _LEVEL_LOCKS.setdefault((sheet_hash, level), threading.Lock())
+
+
+def _render_level_tiles(
     kind: str,
     payload: bytes,
     index: int,
     base_width: int,
     base_height: int,
     level: int,
-    column: int,
-    row: int,
-) -> bytes:
-    """Runs in the sandbox: render just the level this tile is on, then cut the tile out.
-
-    Rendering a whole close-up level to produce one tile sounds wasteful, and would be if
-    tiles were requested alone. They are not: OpenSeadragon asks for every tile covering the
-    viewport at once, and they all land in the cache from the first render.
-    """
+    sheet_hash: str,
+) -> dict[str, bytes]:
+    """Runs in the sandbox: render one close-up level and cut every tile of it, keyed by
+    where each is stored. OpenSeadragon asks for every tile covering the viewport at once,
+    so the whole level is wanted anyway, and one render serves them all."""
     from PIL import Image
 
     from firebid.imaging.pyramid import Pyramid
-    from firebid.imaging.tiles import cut_one
+    from firebid.imaging.tiles import cut_level
 
     pyramid = Pyramid(width_px=base_width, height_px=base_height)
     level_width, level_height = pyramid.size_at(level)
     rendered = _render(kind, payload, index, level_width, level_height)
     image = Image.frombytes("RGB", (rendered["width"], rendered["height"]), rendered["pixels"])
-    return cut_one(image, pyramid, level, column, row)
+    return cut_level(image, pyramid, level, sheet_hash)

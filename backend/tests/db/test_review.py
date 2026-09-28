@@ -566,3 +566,21 @@ class TestDetectingAgain:
             if m.object_type == "sprinkler_pendent" and (m.x, m.y) == (head.x, head.y)
         ]
         assert [m.status for m in again] == ["rejected"]
+
+
+@pytest.mark.req("FR-REV-04")
+def test_naming_shapes_not_an_object_leaves_the_takeoff_as_it_was(
+    session: Session, organisation: Organisation, tender: Bid, store: MemoryObjectStore
+) -> None:
+    """Among the shapes no legend explains are short stubs of pipe. Calling them "not an
+    object" must not cut them out of the pipe network."""
+    actor, _ = estimator(session, organisation, tender)
+    before = {i.description: i.net_quantity for i in qto.live_items(session, tender.id)}
+
+    name_every_unlisted_symbol(session, tender, actor)
+    detect_bid(session, store, tender.id)
+    outcome = qto.recompute(session, tender.id)
+
+    after = {i.description: i.net_quantity for i in qto.live_items(session, tender.id)}
+    assert after == before
+    assert (outcome.created, outcome.superseded) == (0, 0)

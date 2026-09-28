@@ -93,14 +93,31 @@ export function WorkbenchPage() {
     if (message.type === "lasso") setLassoed(new Set(message.markIds));
   });
 
-  const actions = useReviewActions(bidId, () => {
+  const openRef = useRef(openId);
+  useLayoutEffect(() => {
+    openRef.current = openId;
+  });
+  const actions = useReviewActions(bidId, (action) => {
     setError(null);
-    setMode("view");
-    setSelection({});
+    // Only this item's own edit or rejection closes its form: a slower answer to an
+    // earlier action must not take away a form the person has just opened.
+    if (
+      ["edit", "reject"].includes(action.kind) &&
+      openRef.current &&
+      action.item_ids.includes(openRef.current)
+    ) {
+      setMode("view");
+    }
+    // Only what this action decided leaves the selection: a slow answer must not clear a
+    // selection made while it was on its way.
+    const decided = new Set(action.item_ids);
+    setSelection((current) =>
+      Object.fromEntries(Object.entries(current).filter(([id]) => !decided.has(id))),
+    );
     post({ type: "changed" });
   });
   const busy =
-    Object.values(actions).some((m) => m.isPending) ||
+    Object.values(actions).some((m) => typeof m !== "function" && m.isPending) ||
     Object.values(gate).some((m) => m.isPending);
 
   function fail(caught: unknown) {
@@ -167,8 +184,14 @@ export function WorkbenchPage() {
       const target = event.target as HTMLElement | null;
       if (target && ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
-        const last = recent.data?.find((a) => !a.undone && a.kind !== "undo");
-        if (last) actions.undo.mutateAsync(last.id).catch(fail);
+        actions
+          .undoLast()
+          .then((undone) => {
+            if (undone) return undone;
+            const last = recent.data?.find((a) => !a.undone && a.kind !== "undo");
+            return last ? actions.undo.mutateAsync(last.id) : null;
+          })
+          .catch(fail);
         event.preventDefault();
         return;
       }
@@ -355,7 +378,7 @@ export function WorkbenchPage() {
           )}
         </div>
 
-        <aside className="flex h-[calc(100vh-9rem)] min-h-[32rem] flex-col gap-3 overflow-hidden">
+        <aside className="flex h-[calc(100vh-9rem)] min-h-[32rem] flex-col gap-3 overflow-y-auto">
           <nav className="flex gap-1 text-sm" aria-label="Workbench panels">
             {(
               [
@@ -414,7 +437,7 @@ export function WorkbenchPage() {
                 onClear={() => setLassoed(new Set())}
               />
             )}
-            <div className="min-h-0 flex-1 rounded-lg border p-2">
+            <div className="rounded-lg border p-2">
               {queue.isError ? (
                 <p role="alert" className="text-sm text-destructive">
                   Could not load the review queue.
@@ -440,7 +463,7 @@ export function WorkbenchPage() {
               )}
             </div>
             {open && (
-              <div className="max-h-[50%] overflow-auto rounded-lg border p-3">
+              <div className="shrink-0 rounded-lg border p-3">
                 <ItemPanel
                   item={open.item}
                   evidence={evidence.data}

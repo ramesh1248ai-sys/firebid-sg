@@ -254,6 +254,7 @@ describe("the workbench", () => {
     stubs([view("unverified")]);
     renderAt(`/bids/${BID}/workbench`);
 
+    await userEvent.click(await screen.findByText("Add what was missed"));
     const tools = await screen.findByRole("region", { name: "Manual takeoff" });
     expect(
       await within(tools).findByText(/No view on FP-L05-201 has a verified or calibrated scale \(unverified\)/),
@@ -266,6 +267,7 @@ describe("the workbench", () => {
     stubs();
     renderAt(`/bids/${BID}/workbench`);
 
+    await userEvent.click(await screen.findByText("Add what was missed"));
     const tools = await screen.findByRole("region", { name: "Manual takeoff" });
     const type = within(tools).getByLabelText("Type");
     await screen.findAllByRole("row");
@@ -275,7 +277,8 @@ describe("the workbench", () => {
     await userEvent.selectOptions(type, "pipe");
     expect(within(tools).getByLabelText("nominal diameter mm")).toBeInTheDocument();
     await userEvent.click(within(tools).getByRole("button", { name: "Start measuring" }));
-    expect(await within(tools).findByText(/Measuring Pipe/)).toBeInTheDocument();
+    const measuring = await screen.findByRole("region", { name: "Manual takeoff" });
+    expect(await within(measuring).findByText(/Measuring Pipe/)).toBeInTheDocument();
   });
 
   // req: FR-REV-04

@@ -136,6 +136,11 @@ def _placed(
         if mapping is None or mapping.state != "confirmed" or kind is None:
             skipped += 1
             continue
+        if kind.measure == "none":
+            # Not an installed object (a grid bubble, a mark a person named as such): nothing
+            # to detect, and its strokes stay free for pipe tracing, in case what was named
+            # was a stub of pipe the symbol reader grouped as a shape (found in P1-08).
+            continue
         cluster = clusters.get((round(instance.cx, 2), round(instance.cy, 2)))
         signature = Signature.from_json(instance.signature)
         reference = Signature.from_json(entry.signature if entry else mapping.signature)

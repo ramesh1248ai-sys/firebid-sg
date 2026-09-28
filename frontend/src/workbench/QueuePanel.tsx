@@ -55,6 +55,16 @@ export function QueuePanel({
   busy: boolean;
 }) {
   const [reason, setReason] = useState("");
+  const [find, setFind] = useState("");
+  const shown = useMemo(() => {
+    const words = find.trim().toLowerCase();
+    if (!words) return rows;
+    return rows.filter(
+      (r) =>
+        r.item.description.toLowerCase().includes(words) ||
+        r.item.human_id.toLowerCase().includes(words),
+    );
+  }, [rows, find]);
   const columns = useMemo<ColumnDef<QueueRow>[]>(
     () => [
       {
@@ -125,7 +135,7 @@ export function QueuePanel({
   // cannot memoise; it skips this component, as the library documents.
   // oxlint-disable-next-line react/incompatible-library
   const table = useReactTable({
-    data: rows,
+    data: shown,
     columns,
     getRowId: (row) => row.item.id,
     getCoreRowModel: getCoreRowModel(),
@@ -154,8 +164,18 @@ export function QueuePanel({
   }
 
   return (
-    <section aria-label="Review queue" className="flex h-full min-h-0 flex-col gap-2 text-sm">
+    <section aria-label="Review queue" className="flex flex-col gap-2 text-sm">
       <div className="flex flex-wrap gap-2">
+        <label className="flex items-center gap-1">
+          Find
+          <input
+            type="search"
+            className="w-36 rounded border bg-background px-1 py-0.5"
+            placeholder="description or QTO ID"
+            value={find}
+            onChange={(event) => setFind(event.target.value)}
+          />
+        </label>
         <Filter
           label="Level"
           value={filters.level}
@@ -226,7 +246,7 @@ export function QueuePanel({
           <span key={header.id}>{flexRender(header.column.columnDef.header, header.getContext())}</span>
         ))}
       </div>
-      <div ref={scroller} className="min-h-0 flex-1 overflow-auto" data-testid="queue-rows">
+      <div ref={scroller} className="h-[min(55vh,30rem)] overflow-auto" data-testid="queue-rows">
         <div style={{ height: virtual.getTotalSize(), position: "relative" }}>
           {virtual.getVirtualItems().map((slot) => {
             const row = tableRows[slot.index]!;
@@ -235,6 +255,9 @@ export function QueuePanel({
               <div
                 key={row.id}
                 role="row"
+                // Focusable, so clicking a line takes focus from the search box and the
+                // keyboard shortcuts act on it.
+                tabIndex={0}
                 aria-selected={open}
                 data-human-id={row.original.item.human_id}
                 className={`absolute left-0 grid w-full cursor-pointer grid-cols-[1.5rem_1fr_6rem_6rem_3.5rem] items-center gap-2 border-b px-1 ${
