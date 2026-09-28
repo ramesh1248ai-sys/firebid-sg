@@ -973,3 +973,93 @@ Entry template:
   - **Performance is measured on a synthetic A3 sheet.** A real A0 tender should be measured when the golden set exists.
   - **Recompute holds item rows** for its transaction. An action taken during a recompute can wait a second or two for it (seen in the E2E, which allows 30 s).
   - **The pop-out is checked by hand only.** Its channel is exercised through the page tests, not the E2E.
+
+## P1-09 · BOQ Generation and Client BOQ Reconciliation · 2026-09-28
+
+- **Summary:** the company BOQ is built from the verified takeoff, and the client's bill is read, mapped to it, reconciled and priced back into the client's own workbook.
+  - **Our BOQ:** built by a versioned template. Every line keeps the QTO items behind it, and a stable line key, so client mappings survive a rebuild.
+  - **The client's bill:** read in the sandbox from its original bytes, which are never written. When the layout is ambiguous, the model proposes the columns and a person confirms them.
+  - **Mapping:** the rules propose what they are sure of and the model the rest. Every mapping is a proposal until a person confirms, corrects or rejects it.
+  - **Reconciliation:** flags variances over the threshold, plus lines one side has and the other lacks, as clarification candidates.
+  - **Exports:** the priced client workbook (only its rate cells, and plain amount cells, are changed), our BOQ, and the reconciliation.
+  - **Trace check:** a line with no QTO item that isn't marked as a provisional sum or lump sum blocks G1 and G2.
+  - **Minimal G2:** needs G1, a built BOQ and a clean trace. Pricing adds its own checks from P1-10.
+  - **Conventions:** measurement conventions per tender, worded for the qualifications.
+
+  Built in parts A to C, each committed separately.
+- **Key modules / files:**
+  - **Core** (`backend/src/firebid/boq/`):
+    - `xlsx_patch.py`: splices `<c>` elements into the sheet XML and re-zips with the same entry order, compression and dates. Formula cells are refused.
+    - `reader.py`: header finding, sections, sub-totals, provisional sums, the rate and amount cells; `read_json` is the sandbox's entry point.
+    - `generate.py`: templates and roll-up.
+    - `matching.py`: kind, size (including "150 x 100") and unit.
+    - `reconcile.py`: variance, threshold and conventions.
+  - **Service** (`services/boq.py`): building, marked lines, trace, conventions, reading, the column proposal, mapping (rules, then model), decisions, relinking on rebuild, reconciliation, exports, G2.
+  - **Agents** (`agents/boq_reader.py`): `BoqColumnReader` and `BoqMapper`, both L1 draft. Routes `boq_columns` and `boq_mapping` are confidential; prompts are v1.
+  - **Jobs:**
+    - `boq.read` (parse queue), queued when a document is registered as a `boq` xlsx;
+    - `boq.columns`;
+    - `boq.map`.
+  - **API** (`api/boq.py`): `/bids/{id}/boq` (build, lines, markers, `export.xlsx`), `/client` (columns, `priced.xlsx`), `/mappings` (propose, decide), `/reconciliation[.xlsx]`, `/conventions`, `/g2[/approve]`, `/boq-templates`.
+  - **Permissions:** `boq.edit` for the estimators, and `boq_template.change` for the Senior Estimator. G1 blockers gain `untraced_lines`.
+  - **Data:**
+    - migration `0025`: tables `boq_template` and `measurement_convention` (under RLS), and new columns on `boq`, `boq_line` and the client BOQ tables;
+    - config: `config/boq_templates.yaml` and `config/boq.yaml` (threshold 5%, conventions; both to be confirmed).
+  - **Frontend:** `pages/BoqPage.tsx` (linked from the bid page as **BOQ**).
+  - **Evaluation:** `evals/p1_boq.py`, run with `firebid-eval run --suite p1_boq`.
+  - **Fixture:** `evals/synthetic_boq.py`, a QS-style client bill with a summary sheet and chart, a title block and logo, merged headings, formula and typed amounts, provisional sums, a hidden list sheet with data validation, comments, defined names and print settings.
+- **How to run and demo:**
+  1. `make up`. Take off and verify a bid (P1-07, P1-08).
+  2. On the bid page, open **BOQ** and choose **Build the BOQ**.
+  3. Upload the client's workbook on the documents page. Once it is classified as a BOQ, the worker reads it.
+  4. **Propose mappings**, then confirm, correct (pick another line, or "Nothing we measured") or reject each one.
+  5. Read the reconciliation, then export the three workbooks.
+  6. Set the conventions.
+  7. G2 is under `POST /bids/{id}/boq/g2/approve` (no button yet: G2 belongs to the estimate screens from P1-10).
+- **Requirement IDs covered** (`scripts/req_coverage.py`: 7 of 7):
+  - FR-BOQ-01: `TestCompanyBoq`, `test_generate.py::TestGeneration`.
+  - FR-BOQ-02:
+    - `test_reader.py`, `test_matching.py`;
+    - `TestClientBoq`, `TestMappingAndReconciliation`;
+    - `test_eval.py`;
+    - `Boq.test.tsx`.
+  - FR-BOQ-03:
+    - `TestVariance`;
+    - `test_120_m_billed_against_128_4_m_measured_is_flagged` (+8.4 m, +7.0%, flagged);
+    - reconciliation tests, including client-only and measured-only lines;
+    - `Boq.test.tsx`.
+  - FR-BOQ-04: `test_xlsx_patch.py` (every other part byte-identical, formulas refused, order and compression kept), `TestExports`.
+  - FR-BOQ-05: `TestTrace` (untraced blocks G1 and G2, marking clears it, a reason is required), `Boq.test.tsx`.
+  - FR-BOQ-06: `TestConventions`, `test_conventions_are_set_per_tender_...`.
+  - FR-ADM-03: template edits make a new version and the old one is kept; `TestApi` covers senior-only editing.
+- **Mapping accuracy** (FR-BOQ-02 target ≥ 90%): **100% (14 of 14) by the rules alone, on the synthetic bill.** This figure proves the plumbing, not the accuracy: the fixture and the rules were written together. The model's share and a real bill are unmeasured until the golden set of client bills exists (P1-12).
+- **Deviations and decisions** (approved in the plan, except where marked new):
+  - **Priced export patches the XML; it does not re-save with openpyxl.** A re-save loses charts, images, validation and comments.
+  - **Mappings follow a line key,** not a row ID, so rebuilding the BOQ keeps them.
+  - **Minimal G2** from the BOQ side only.
+  - **Rates come from `BoqLine.unit_rate`,** which P1-10 fills. Until then the priced copy is the original.
+  - **New:**
+    - **A line nothing matched is still a proposal** ("nothing matched"), shown to a person while the model is asked, not left without a row. Found live, see below.
+    - **A client line with nothing measured behind it is flagged,** unless it is a provisional or lump sum.
+- **Manual checks and results:**
+  - **Live on the rebuilt stack** (bid BID-2026-048, whose takeoff the workbench E2E verified):
+    - the build gave 13 lines, each with its QTO items;
+    - the uploaded bill was classified `boq` and read by the worker (14 lines);
+    - the rules mapped 11; C3 went to the model, which escalated because there is no key on the dev stack;
+    - reconciliation flagged 4: the DN150 main at −6.3%, the flow switch, and the two tees nobody billed;
+    - all three exports downloaded. A screenshot of the page was checked.
+  - **The priced workbook opened in LibreOffice** (sandbox) and recalculated: rates in, formula amounts and section totals right, typed amounts untouched. **Opening it in Excel (no repair prompt) is for the user to check.**
+  - **Tests:**
+    - backend: unit suite 934 passed; BOQ database and API tests 23 passed; affected database suites (QTO, review, classification, migrations, RLS, specification) 78 passed;
+    - frontend: 60 unit tests passed;
+    - ruff, mypy, tsc and oxlint are clean.
+- **Defects found and fixed during the step:**
+  - **PR #23's action-feedback E2E failed on CI** (213–730 ms against a 200 ms target). A CPU profile at 6× throttle showed the workbench's own work was about 13 ms. The rest was Playwright's trace snapshotting the DOM after the traced key press and wait, and the drawing still loading tiles. The test now presses the key and waits inside one in-page call, once the drawing has settled: 32–50 ms at 6× throttle, 10 ms unthrottled. CI then passed and #23 was merged.
+  - **An unmatched client line had no mapping row** when the model could not answer, so the page polled forever and nobody could map it. Fixed as above.
+- **Known gaps and follow-ups:**
+  - **Excel open check** (user). **Model mapping and column proposals are untested against a live model** (fake adapter in tests; no key on the dev stack).
+  - **Mapping accuracy on a real bill** waits for the golden set (P1-12).
+  - **Rates and a G2 button** arrive with P1-10.
+  - **No BOQ E2E yet:** it needs a verified takeoff to start from, which takes minutes to set up. It is covered by the database/API tests, the page tests and the live check.
+  - **BOQ line to QTO to drawing click-through (NFR-10)** gives evidence links per line in the reconciliation. The page does not yet open the workbench at an item.
+  - **`Specification.test.tsx` once timed out** under a full parallel Vitest run, and passed on rerun and alone. It is pre-existing; watch for it.
