@@ -8,7 +8,6 @@ views (P1-03), symbols typed as a person would confirm them (P1-04), detections 
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,9 +18,7 @@ from firebid.drawings.legends import detect as detect_legends
 from firebid.drawings.symbols import best_match, clusters
 from firebid.evals import synthetic
 from firebid.evals.detection_calibration import type_of_factory
-from firebid.qto.model import Detection, Placement, Run
-
-LEVEL_IN_NUMBER = re.compile(r"(?:^|[-_])(L\d{1,2}|B\d{1,2}|RF)(?=[-_]|$)")
+from firebid.qto.model import Detection, Placement, Run, level_of
 
 
 @dataclass
@@ -32,10 +29,7 @@ class Sheet:
 
 
 def _level_of(number: str, view_level: str | None) -> str | None:
-    if view_level:
-        return view_level
-    match = LEVEL_IN_NUMBER.search(number)
-    return match.group(1) if match else None
+    return level_of(number, view_level)
 
 
 def read(sheets: list[Sheet]) -> tuple[list[Detection], list[Run]]:
@@ -59,7 +53,7 @@ def read(sheets: list[Sheet]) -> tuple[list[Detection], list[Run]]:
         if not placed and references:
             placed = _placed_from(table, excluded, references, type_of)
         found = detect(table, placed, views, excluded=excluded)
-        _collect(sheet, found, detections, runs)
+        collect(sheet, found, detections, runs)
     return detections, runs
 
 
@@ -104,7 +98,7 @@ def _placed_from(table: Any, excluded: Any, references: list[Any], type_of: Any)
     return placed
 
 
-def _collect(
+def collect(
     sheet: Sheet, found: SheetDetections, detections: list[Detection], runs: list[Run]
 ) -> None:
     for index, item in enumerate(found.objects):

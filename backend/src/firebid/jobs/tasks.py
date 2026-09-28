@@ -129,6 +129,10 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
                 read_symbols(session, store, outcome.sheets, user_id=user_id)
                 # Detections from the symbols already confirmed for this consultant (FR-VIS-03).
                 detect_sheets(session, store, outcome.sheets)
+                # And takeoff from them, on the ordinary worker (P1-07).
+                from firebid.services.qto import queue_recompute
+
+                queue_recompute(session, document.bid_id, uuid_module.UUID(user_id))
         if failure is None and document.state in ("received", "done"):
             payload = store.get(document.storage_key)
             if document.kind == "xlsx":
@@ -178,12 +182,37 @@ def run_detection(context: JobContext, bid_id: str, user_id: str) -> int:
 
     from firebid.db.identity import acting_as
     from firebid.services.detection import detect_bid
+    from firebid.services.qto import queue_recompute
     from firebid.storage.object_store import get_object_store
 
     acting = uuid_module.UUID(user_id) if user_id else None
     with acting_as(acting), session_scope() as session:
         outcomes = detect_bid(session, get_object_store(), uuid_module.UUID(bid_id))
+        # Takeoff follows what was detected (P1-07), in the same transaction.
+        queue_recompute(session, uuid_module.UUID(bid_id), acting)
         return sum(outcome.objects + outcome.runs for outcome in outcomes)
+
+
+@app.task(name="qto.recompute", queue="default", pass_context=True)
+def recompute_qto(context: JobContext, bid_id: str, user_id: str) -> dict[str, int]:
+    """Take off a bid again from its Current sheets' detections (P1-07).
+
+    Idempotent: the same inputs leave every item, and its verification, as it was.
+    """
+    import uuid as uuid_module
+
+    from firebid.db.identity import acting_as
+    from firebid.services.qto import recompute
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        outcome = recompute(session, uuid_module.UUID(bid_id))
+        return {
+            "created": outcome.created,
+            "unchanged": outcome.unchanged,
+            "superseded": outcome.superseded,
+            "incomplete": len(outcome.incomplete),
+        }
 
 
 @app.task(name="detection.vision", queue="default", pass_context=True)

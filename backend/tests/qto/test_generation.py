@@ -34,6 +34,7 @@ class TestCounts:
         assert pendent.calculation_method == "count"
         assert len(pendent.members) == 16
 
+    @pytest.mark.req("FR-QTO-05")
     def test_valves_and_drawn_fittings_by_type_with_their_size(self, general: Tender) -> None:
         items = by_description(general.items())
 
@@ -154,7 +155,7 @@ class TestRuleDerived:
         assert riser.rule is not None and riser.rule["rule_status"] == "to be confirmed"
 
 
-@pytest.mark.req("FR-QTO-05")
+@pytest.mark.req("FR-ADM-02")
 class TestRuleVersions:
     def test_items_record_the_version_of_the_rule_they_used(self, general: Tender) -> None:
         edited = rules.Rule(

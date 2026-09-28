@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
@@ -111,3 +112,15 @@ class ItemDraft:
 
 def key_of(*parts: Any) -> str:
     return hashlib.sha256(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()[:24]
+
+
+LEVEL_IN_NUMBER = re.compile(r"(?:^|[-_])(L\d{1,2}|B\d{1,2}|RF)(?=[-_]|$)")
+
+
+def level_of(sheet_number: str | None, *known: str | None) -> str | None:
+    """The first level known (the view's, the title block's), else the one in the number."""
+    for level in known:
+        if level:
+            return level
+    match = LEVEL_IN_NUMBER.search(sheet_number or "")
+    return match.group(1) if match else None
