@@ -1048,7 +1048,8 @@ Entry template:
     - the rules mapped 11; C3 went to the model, which escalated because there is no key on the dev stack;
     - reconciliation flagged 4: the DN150 main at −6.3%, the flow switch, and the two tees nobody billed;
     - all three exports downloaded. A screenshot of the page was checked.
-  - **The priced workbook opened in LibreOffice** (sandbox) and recalculated: rates in, formula amounts and section totals right, typed amounts untouched. **Opening it in Excel (no repair prompt) is for the user to check.**
+  - **The priced workbook opened in LibreOffice** (sandbox) and recalculated: rates in, formula amounts and section totals right, typed amounts untouched.
+  - **Excel (Microsoft 365, desktop) opened it without repair:** a normal load, with no "[Repaired]" caption. The chart, 3 shapes, 2 comments, 3 names, 14 validated cells and the hidden list sheet all match the original. Excel's recalculated totals match LibreOffice's (bill total 9,557.925).
   - **Tests:**
     - backend: unit suite 934 passed; BOQ database and API tests 23 passed; affected database suites (QTO, review, classification, migrations, RLS, specification) 78 passed;
     - frontend: 60 unit tests passed;
@@ -1057,7 +1058,7 @@ Entry template:
   - **PR #23's action-feedback E2E failed on CI** (213–730 ms against a 200 ms target). A CPU profile at 6× throttle showed the workbench's own work was about 13 ms. The rest was Playwright's trace snapshotting the DOM after the traced key press and wait, and the drawing still loading tiles. The test now presses the key and waits inside one in-page call, once the drawing has settled: 32–50 ms at 6× throttle, 10 ms unthrottled. CI then passed and #23 was merged.
   - **An unmatched client line had no mapping row** when the model could not answer, so the page polled forever and nobody could map it. Fixed as above.
 - **Known gaps and follow-ups:**
-  - **Excel open check** (user). **Model mapping and column proposals are untested against a live model** (fake adapter in tests; no key on the dev stack).
+  - **Model mapping and column proposals are untested against a live model** (fake adapter in tests; no key on the dev stack).
   - **Mapping accuracy on a real bill** waits for the golden set (P1-12).
   - **Rates and a G2 button** arrive with P1-10.
   - **No BOQ E2E yet:** it needs a verified takeoff to start from, which takes minutes to set up. It is covered by the database/API tests, the page tests and the live check.
