@@ -29,6 +29,7 @@ class Action(StrEnum):
     MEASUREMENT_RULES_CHANGE = "measurement_rules.change"
     OBJECT_LIBRARY_CHANGE = "object_library.change"  # the canonical object types (FR-ADM-02)
     SYMBOL_MAPPING_CONFIRM = "symbol_mapping.confirm"  # what a consultant's symbol is
+    QTO_EDIT = "qto.edit"  # manual items, duplicate decisions, rule inputs, recompute
     SUPPLIER_PRICE_SELECT = "supplier_price.select"
     LABOUR_PRODUCTIVITY_ADJUST = "labour_productivity.adjust"
     ENGINEERING_OPTION_APPROVE = "engineering_option.approve"
@@ -65,6 +66,8 @@ _MATRIX: dict[Action, frozenset[str]] = {
     Action.SYMBOL_MAPPING_CONFIRM: frozenset(
         {Role.ESTIMATOR, Role.SENIOR_ESTIMATOR, Role.BID_MANAGER}
     ),
+    # The QTO item state machine's verifiers.
+    Action.QTO_EDIT: frozenset({Role.ESTIMATOR, Role.SENIOR_ESTIMATOR}),
     Action.SUPPLIER_PRICE_SELECT: frozenset({Role.SENIOR_ESTIMATOR}),
     Action.LABOUR_PRODUCTIVITY_ADJUST: frozenset({Role.SENIOR_ESTIMATOR}),
     Action.ENGINEERING_OPTION_APPROVE: frozenset({Role.DESIGN_MANAGER}),

@@ -80,3 +80,19 @@ def test_the_command_writes_the_report(tmp_path: Path) -> None:
     assert code == 0
     text = report.read_text(encoding="utf-8")
     assert "sprinkler_count_accuracy" in text and "pipe_length_error" in text
+
+
+@pytest.mark.req("FR-QTO-08")
+def test_seeded_duplicates_are_found_and_reported_against_the_target(tmp_path: Path) -> None:
+    """An enlarged plan, a riser schematic and a match-lined pair, each repeating a plan."""
+    suite = p1_detection.generate(tmp_path, seed=3, tenders=0, with_duplicates=True)
+
+    result = run_suite(suite.golden_set, p1_detection.DetectionPredictor(suite))
+
+    seeded = sum(len(s.duplicates_of) for t in suite.golden_set.tenders for s in t.sheets)
+    assert seeded == 3
+    assert result.overall["duplicate_detection_rate"] == 1.0
+    # Every sheet's own counts and lengths still hold, the match line's carried size included.
+    assert result.overall["sprinkler_count_accuracy"] == 1.0
+    assert result.overall["pipe_length_error"] is not None
+    assert result.overall["pipe_length_error"] <= 0.001

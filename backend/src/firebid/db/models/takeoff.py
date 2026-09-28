@@ -92,7 +92,8 @@ class QtoItem(Timestamped, CreatedBy, Base):
 
     __tablename__ = "qto_item"
     __table_args__ = (
-        UniqueConstraint("bid_id", "human_id", name="uq_qto_item_human_id"),
+        # A new version keeps its item's human ID (P1-07).
+        UniqueConstraint("bid_id", "human_id", "version", name="uq_qto_item_human_id"),
         CheckConstraint(f"state IN {QTO_STATES}", name="state_known"),
         ForeignKeyConstraint(
             ["supersedes_id", "bid_id"],
@@ -136,6 +137,13 @@ class QtoItem(Timestamped, CreatedBy, Base):
     )
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     reason_code: Mapped[str | None] = mapped_column(String(40))
+    # P1-07: what the item is and where, stable across recomputes, and a hash of everything
+    # its quantity depends on. The same key with the same hash is the same item.
+    item_key: Mapped[str | None] = mapped_column(String(64), index=True)
+    inputs_hash: Mapped[str | None] = mapped_column(String(64))
+    # How it was reached: members, sources, geometry, and for a rule-derived item the rule,
+    # version, inputs and their sources (FR-QTO-03).
+    derivation: Mapped[dict[str, object]] = mapped_column(JSONB, default=dict, nullable=False)
 
 
 class Evidence(Timestamped, Base):
@@ -182,6 +190,70 @@ class MeasurementRule(Timestamped, CreatedBy, Base):
     )
     effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # "to be confirmed" for a seeded default, until an estimator sets the company's value.
+    status: Mapped[str] = mapped_column(String(40), nullable=False, default="to be confirmed")
+
+
+DUPLICATE_KINDS = ("enlarged_plan", "match_line", "schematic")
+DUPLICATE_STATUSES = ("unresolved", "auto_excluded", "confirmed", "not_duplicate")
+
+
+class DuplicateGroup(Timestamped, Base):
+    """Items drawn on more than one sheet or view (FR-QTO-08).
+
+    `members` lists every repeated detection and run with its evidence location, and which
+    one is counted. `unresolved` blocks G1. A schematic's group starts `auto_excluded`; a
+    person may confirm any group or say it is not a duplicate, and the decision is kept
+    across recomputes for as long as the same group is found (by `key`).
+    """
+
+    __tablename__ = "duplicate_group"
+    __table_args__ = (
+        UniqueConstraint("bid_id", "key", name="uq_duplicate_group_key"),
+        CheckConstraint(f"kind IN {DUPLICATE_KINDS}", name="kind_known"),
+        CheckConstraint(f"status IN {DUPLICATE_STATUSES}", name="status_known"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    bid_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("bid.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    key: Mapped[str] = mapped_column(String(64), nullable=False)
+    kind: Mapped[str] = mapped_column(String(24), nullable=False)
+    level: Mapped[str | None] = mapped_column(String(40))
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    members: Mapped[list[dict[str, object]]] = mapped_column(JSONB, nullable=False)
+    decided_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    decided_by: Mapped[str | None] = mapped_column(
+        String(200), info=personal("the name of the person who decided")
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision_note: Mapped[str | None] = mapped_column(Text)
+
+
+class BidParameter(Timestamped, CreatedBy, Base):
+    """An input a measurement rule uses, for a bid or one of its levels (P1-07).
+
+    A ceiling height, a main's elevation, a floor-to-floor height: entered by an estimator,
+    or read from a sheet note. Append-only; the latest row for a name and level is in force.
+    `source` says where the value came from, and every rule-derived quantity shows it.
+    """
+
+    __tablename__ = "bid_parameter"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    bid_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("bid.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(60), nullable=False)
+    level: Mapped[str | None] = mapped_column(String(40))
+    value: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    source: Mapped[str] = mapped_column(
+        Text, nullable=False, info=personal("may name the estimator who entered it")
+    )
 
 
 class PipeRun(Timestamped, Base):

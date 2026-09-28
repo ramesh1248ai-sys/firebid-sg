@@ -1,0 +1,56 @@
+# Measurement rules: the seed of an organisation's rule set (FR-ADM-02, P1-07).
+#
+# Loaded as version 1 of each rule the first time an organisation takes off. After that the
+# rules are edited in the platform, by a senior estimator, and every edit is a new version;
+# a QTO item keeps the version it was calculated with.
+#
+# EVERY DEFAULT HERE IS "TO BE CONFIRMED". They are placeholders a pilot estimator must
+# replace from the company's own practice (the business track); the platform shows the
+# status on every quantity a default produced.
+
+rules:
+  - key: drop_length
+    title: Sprinkler drop length
+    status: to be confirmed
+    definition:
+      # A pendent head drops from the branch, above the ceiling, to just below it.
+      formula: branch_elevation_mm - ceiling_height_mm - sprinkler_setting_mm
+      defaults: {branch_elevation_mm: 3300, ceiling_height_mm: 2800, sprinkler_setting_mm: 50}
+      nominal_diameter_mm: 25
+
+  - key: riser_length
+    title: Riser length
+    status: to be confirmed
+    definition:
+      formula: floor_to_floor_mm * levels_served
+      defaults: {floor_to_floor_mm: 4000, levels_served: 1}
+
+  - key: fitting_tee
+    title: A tee at every branch connection not drawn
+    status: to be confirmed
+    definition: {per: branch connection}
+
+  - key: fitting_elbow
+    title: An elbow at every change of direction not drawn
+    status: to be confirmed
+    definition: {min_turn_degrees: 30}
+
+  - key: fitting_reducer
+    title: A reducer at every change of size not drawn
+    status: to be confirmed
+    definition: {}
+
+  - key: grooved_couplings
+    title: Grooved couplings on grooved pipework
+    status: to be confirmed
+    definition:
+      # One per joint between random lengths, and one where the run meets a fitting,
+      # valve, tee or riser.
+      random_length_mm: 6000
+      per_connected_end: 1
+
+  - key: allowance
+    title: Allowances by item class
+    status: to be confirmed
+    definition:
+      percent: {pipe: 5, fitting: 0, sprinkler: 0, valve: 0, device: 0}

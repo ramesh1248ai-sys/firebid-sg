@@ -228,9 +228,17 @@ def grid_lines(columns: int, rows: int) -> tuple[list[tuple[str, float]], list[t
 
 
 def _structural_grid(
-    space: Modelspace, columns: int, rows: int, drawing_scale: int = DRAWING_SCALE
+    space: Modelspace,
+    columns: int,
+    rows: int,
+    drawing_scale: int = DRAWING_SCALE,
+    region: tuple[float, float, float, float] | None = None,
 ) -> None:
+    """The grid; with `region`, only the lines bounding it, as an enlarged plan shows them."""
     across, up = grid_lines(columns, rows)
+    if region is not None:
+        across = _bounding(across, region[0], region[2])
+        up = _bounding(up, region[1], region[3])
     bottom, top = up[0][1] - 1_000, up[-1][1] + 1_000
     left, right = across[0][1] - 1_000, across[-1][1] + 1_000
     # A bubble is 8 mm across on paper whatever the scale, so its size in drawing units is not.
@@ -249,6 +257,13 @@ def _structural_grid(
         space.add_text(label, height=text, dxfattribs=attributes).set_placement(
             (left - radius - text * 0.35, y - text / 2)
         )
+
+
+def _bounding(lines: list[tuple[str, float]], low: float, high: float) -> list[tuple[str, float]]:
+    """The lines from the last at or before `low` to the first at or after `high`."""
+    first = max([i for i, (_, at) in enumerate(lines) if at <= low], default=0)
+    last = min([i for i, (_, at) in enumerate(lines) if at >= high], default=len(lines) - 1)
+    return lines[first : last + 1]
 
 
 def _dimensions(space: Modelspace) -> None:

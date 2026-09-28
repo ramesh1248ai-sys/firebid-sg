@@ -90,8 +90,25 @@ class EvidenceRecord(BaseModel):
     run_metadata: RunMetadata = Field(default_factory=RunMetadata)
 
     def missing_mandatory_fields(self) -> list[str]:
-        """Fields FR-QTO-09 requires. The completeness check at G1 uses this."""
+        """Fields FR-QTO-09 requires. The completeness check at G1 uses this.
+
+        Every Appendix B field a quantity has when it is taken off. The linked BOQ line and
+        the verifier come later (P1-09, and a person's verification), so they are not here.
+        """
         missing: list[str] = []
+        for name in ("qto_human_id", "bid_human_id", "project_name", "item_description"):
+            if not str(getattr(self, name)).strip():
+                missing.append(name)
+        if not self.classification.strip():
+            missing.append("classification")
+        if not self.unit.strip():
+            missing.append("unit")
+        if not self.location.level:
+            missing.append("location.level")
+        if not self.calculation_note:
+            missing.append("calculation_note")
+        if not (self.run_metadata.agent_run_id or self.run_metadata.rule_set_version):
+            missing.append("run_metadata")
         if not self.geometry_reference:
             missing.append("geometry_reference")
         if not self.evidence_links:

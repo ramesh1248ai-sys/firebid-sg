@@ -356,6 +356,18 @@ QTO_ITEM = StateMachine(
             "re-verify after change",
             _AUTOMATED | _VERIFIERS,
         ),
+        # P1-07: recomputing takeoff replaces an item whose inputs changed with a new
+        # proposal, whatever a person had decided about the old one; the old row stays.
+        *(
+            Transition(
+                source,
+                QtoItemState.SUPERSEDED,
+                "supersede on recompute",
+                _AUTOMATED,
+                note="Its inputs changed, or it is no longer found; a new proposal replaces it.",
+            )
+            for source in (QtoItemState.PROPOSED, QtoItemState.EDITED, QtoItemState.REJECTED)
+        ),
     ),
 )
 

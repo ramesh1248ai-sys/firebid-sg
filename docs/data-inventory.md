@@ -15,7 +15,9 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `audit_event` | `actor_id` | CHAR(32) | yes | names the person who took the action, for accountability |
 | `audit_event` | `actor_label` | VARCHAR(200) | no | the actor's display name at the time, kept so history stays readable |
 | `bid_budget` | `owner_email` | VARCHAR(320) | yes | who to tell when the bid's AI budget runs down |
+| `bid_parameter` | `source` | TEXT | no | may name the estimator who entered it |
 | `document` | `filename` | VARCHAR(512) | no | a consultant's file name can contain a person's name |
+| `duplicate_group` | `decided_by` | VARCHAR(200) | yes | the name of the person who decided |
 | `measurement_rule` | `source_note` | TEXT | yes | may name the estimator whose judgement set the rule |
 
-8 columns hold personal data.
+10 columns hold personal data.

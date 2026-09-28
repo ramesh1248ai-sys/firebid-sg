@@ -514,6 +514,8 @@ class Answer:
     attribute: str
     values: list[str] = field(default_factory=list)
     citations: list[Citation] = field(default_factory=list)
+    # Each verified attribute as it stands: its value and the clause it cites.
+    rows: list[tuple[str, Citation]] = field(default_factory=list)
 
     @property
     def value(self) -> str:
@@ -582,15 +584,15 @@ def attributes_for(
         answer = answers.setdefault(row.attribute, Answer(row.attribute))
         if row.value not in answer.values:
             answer.values.append(row.value)
-        answer.citations.append(
-            Citation(
-                document_id=revision.document_id,
-                document_revision_id=revision.id,
-                revision_label=revision.revision_label,
-                title=revision.title,
-                clause=row.clause_number,
-                anchor=anchors.get(row.clause_id, {}) if row.clause_id else {},
-                quote=row.quote,
-            )
+        cited = Citation(
+            document_id=revision.document_id,
+            document_revision_id=revision.id,
+            revision_label=revision.revision_label,
+            title=revision.title,
+            clause=row.clause_number,
+            anchor=anchors.get(row.clause_id, {}) if row.clause_id else {},
+            quote=row.quote,
         )
+        answer.citations.append(cited)
+        answer.rows.append((row.value, cited))
     return answers

@@ -779,3 +779,86 @@ Entry template:
   - **Approved makes** are stored, not used, until later phases.
   - **The Google adapter ignores the cache hint.** Explicit context caching there is a follow-up if Gemini becomes the route's model.
   - **PR #20 (commit before response) is separate** and should be merged; it is not part of this step.
+
+## P1-07 · QTO Engine, Measurement Rules and De-duplication · 2026-09-28
+
+- **Summary:** detections on Current sheets become QTO items, each with its Appendix B evidence record:
+  - **counted:** sprinklers by type and attributes, valves and drawn fittings by type and size;
+  - **measured:** pipe by DN, material, class, joining method and run class, in integer mm, from verified-scale views only;
+  - **rule-derived:** drops, risers, and the tees, elbows, reducers and grooved couplings the drawing does not show.
+
+  Each attribute records its source: the drawing, the verified specification (with its citation), or "not specified". Rules are versioned data. Repeats across sheets are grouped, and an unresolved group blocks G1. The net quantity and the allowance are kept apart.
+
+  Built in parts A to E, each committed separately.
+- **Key modules / files:**
+  - `backend/src/firebid/qto/`, the pure engine: `generate.py` (items, attribute resolution), `rules.py` (drop, riser, coupling and allowance arithmetic), `fittings.py` (fittings from the run topology), `dedup.py` (repeats in grid units), `model.py`.
+  - `backend/config/measurement_rules.yaml`: the seed, every default marked "to be confirmed".
+  - `backend/src/firebid/services/qto.py`: Current-sheet inputs, rule inputs from sheet notes and bid parameters, recompute, duplicate groups, evidence and completeness, manual items, rule versions, G1.
+  - `backend/src/firebid/api/qto.py`: `/bids/{id}/qto/…` (items, history, evidence, duplicates, parameters, manual items, G1, `export.csv`) and `/measurement-rules`.
+  - Job `qto.recompute`, queued by detection (the parse job and `detection.run`), by parameter changes and by duplicate decisions.
+  - Migration `0023`: `duplicate_group` and `bid_parameter` (both under RLS); `qto_item.item_key`, `inputs_hash` and `derivation`; `measurement_rule.status`.
+  - `backend/src/firebid/evals/synthetic_qto.py`: the P1-05 installation drawn whole or in part, giving an enlarged plan, a match-lined pair and a riser schematic. `qto_pipeline.py` runs the engine without a database.
+- **How to run and demo:**
+  1. `make up`. Upload `FP-L05-201`, `FP-L05-301` and `FP-SCH-001` from `synthetic_qto`, then confirm the legend rows.
+  2. `GET /bids/{id}/qto/items`: 13 items. The drops show `drop_length v1`, with the ceiling height taken from the sheet's note.
+  3. `GET …/qto/duplicates`: the enlarged-plan group (unresolved) and the schematic's (excluded by default).
+  4. `POST …/qto/g1/approve` is refused. Confirm the group with `POST …/qto/duplicates/{id}`, then approve.
+  5. `GET …/qto/export.csv`: net, allowance % and allowance quantity in separate columns.
+  6. `firebid-eval run --suite p1_detection` reports the duplicate detection rate.
+- **Requirement IDs covered (test names):**
+  - FR-QTO-01, 02, 05:
+    - `tests/qto/test_generation.py` (`TestCounts`, `TestLengths`);
+    - `tests/db/test_qto.py::TestTakeoff`: counts and net lengths per DN equal the drawing's, counted once across three sheets; only Current sheets feed takeoff.
+  - FR-QTO-03, 04:
+    - `test_generation.py::TestRuleDerived`: drops are 24 × (3,300 − 2,750 − 50); a riser is floor-to-floor height × levels served; a level's parameters override the bid's; defaults are labelled.
+    - `tests/qto/test_fittings.py`: tees; couplings 12 (DN150) and 7 (DN100), as hand-calculated; elbows; reducers; drawn fittings take precedence.
+    - `test_qto.py::TestRuleDerivedInTheApi`.
+  - FR-QTO-08:
+    - `tests/qto/test_dedup.py`: all three seeded repeats are found; each tender counts the installation once; "not a duplicate" counts both.
+    - `test_qto.py::TestDuplicatesAndG1`: evidence locations shown; G1 refused while a group is unresolved, while reading is queued, and on a group only a recompute would find; decisions kept across recomputes.
+    - `tests/evals/test_p1_detection_suite.py::test_seeded_duplicates_are_found_and_reported_against_the_target`.
+  - FR-QTO-09: `test_qto.py::TestEvidence`: every generated item's record is complete; a deliberately incomplete manual item is flagged and blocks G1.
+  - FR-QTO-10: `test_generation.py::TestNetAndAllowance` and `test_qto.py::TestNetAndAllowance` (API and CSV).
+  - FR-QTO-11: `test_qto.py::TestManualItems`: count and measured-length items tagged with user and time; measurement refused on the enlarged plan's unverified scale; an edit is a new version; a delete is a rejection.
+  - FR-ADM-02: `test_generation.py::TestRuleVersions` and `test_qto.py::TestRuleVersions`: an edit becomes version 2; the old item keeps v1; only a senior estimator can edit.
+  - Determinism:
+    - `test_generation.py::TestDeterminism`;
+    - `test_qto.py::TestRecompute`: the same inputs give the same snapshot hash; verification is kept on unchanged items; a changed input supersedes only the drops, which keep their QTO ID.
+- **Deviations and decisions** (approved in the plan, except those marked new):
+  - **Seed defaults**, all "to be confirmed" until the business track supplies real values:
+    - drop: 3,300 branch elevation, 2,800 ceiling, 50 setting;
+    - riser: 4,000 floor-to-floor, 1 level served;
+    - couplings: 6,000 random length, one per connected end;
+    - allowances: pipe 5%, others 0%.
+  - **Heights** come from bid parameters and a reader for "CEILING HEIGHT …" notes. An entered value beats a note, and a level's value beats the bid's.
+  - **Schematic and section items** are excluded by default: their group is created `auto_excluded`, and a person may reverse it. Plan groups keep the general plan's member and wait for a person.
+  - **New:**
+    - **Recompute supersedes a proposal whose inputs changed.** An automated "supersede on recompute" transition was added from Proposed, Edited and Rejected. A new version keeps its QTO ID, so the uniqueness is now per version.
+    - **Stricter completeness.** The check also requires location level, calculation note and run metadata. The linked BOQ line (P1-09) and the verifier are not required yet.
+    - **New permission `qto.edit`** (estimator, senior estimator).
+    - **G1 waits for the takeoff to settle** (found in the live check). G1 is blocked while parse, detection or specification jobs for the bid are pending, and approving recomputes first.
+  - **Evaluation:** a run unlabelled on its own sheet is scored at the size carried across the match line, as takeoff uses it.
+- **Manual checks and results:**
+  - **Live run through the rebuilt stack.**
+    - Migration 0023 applied. Three sheets were uploaded and eight legend rows confirmed. The worker detected every sheet and recomputed on its own.
+    - Takeoff gave 13 items, the installation counted once:
+      - pipe: DN150 8.050 m, DN100 8.250 m, DN50 72.000 m;
+      - sprinklers: 16 pendent, 4 upright, 4 sidewall;
+      - rule-derived: drops 12.000 m (ceiling 2,750 from the note), riser 4.000 m, 3 + 3 tees.
+      - No item was missing evidence.
+    - G1 was refused while reading was pending, then refused for the unresolved group, then approved once the group was confirmed.
+    - The export showed DN50 as 72.000 net, 5% allowance (3.600), 75.600 in total.
+  - **`p1_detection` suite** (synthetic only):
+    - sprinkler count 100%; pipe length error 0.0%; missed and false detections 0%;
+    - duplicate detection **100% against the ≥95% target** (3 of 3 seeded).
+  - **Full backend suite:** 1,303 tests passed. It was run in three parts on the host after a single background run was stopped for low memory.
+- **Defects found and fixed during the step:**
+  - **G1 could be approved before the takeoff had seen every sheet.** In the first live run the enlarged plan and schematic were still being read, so no duplicate group existed yet. Fixed as described under decisions.
+  - **Couplings at a match line were counted from both sheets** (14 DN150 instead of 12). A coupled end is now counted once per place and direction.
+  - **The enlarged-plan fixture drew the whole floor's grid and dimensions.** At 1:50 these ran off the sheet, which misplaced the title block, and its region masked the riser and valves. An enlarged plan now draws only the grid lines that bound its area.
+- **Known gaps and follow-ups:**
+  - **No golden set:** duplicate detection and quantities have been measured on synthetic tenders only.
+  - **Verification coverage (FR-REV-04)** joins the G1 checks in P1-08, together with the workbench screens. Until then, generated items can be verified or edited only through the service.
+  - **A rule edit does not queue a recompute** for the organisation's bids. It takes effect at the next recompute: any detection, parameter change or duplicate decision, `POST …/qto/recompute`, or approving G1.
+  - **Heights are not measured from section drawings,** and specification tables (P1-06's gap) are not read.
+  - **Arm-overs and hangers** (FR-QTO-07, P2) are not derived.
