@@ -289,6 +289,50 @@ def reject(
     return row
 
 
+def name_unlisted(
+    session: Session,
+    bid_id: uuid.UUID,
+    symbol_key: str,
+    object_type: str,
+    actor: Actor,
+    note: str | None = None,
+) -> SymbolMapping:
+    """A recurring symbol no legend explains (a grid bubble, a north point): a person says
+    what it is, often "not an installed object" (P1-08).
+
+    It becomes a confirmed mapping for the consultant, like a legend row's, so the same symbol
+    is known on every sheet and later bid, and it stops being raised as unmapped.
+    """
+    instance = (
+        session.execute(
+            select(SymbolInstance).where(
+                SymbolInstance.bid_id == bid_id,
+                SymbolInstance.symbol_key == symbol_key,
+                SymbolInstance.mapping_lineage_id.is_(None),
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if instance is None:
+        raise MappingError("no unlisted symbol with that key on this bid")
+    consultant = consultant_of(session, bid_id)
+    proposed = _propose(
+        session,
+        consultant,
+        Signature.from_json(instance.signature),
+        f"Unlisted symbol ({instance.block or 'drawn shape'})",
+        object_type=object_type,
+        source="person",
+        provenance={"symbol_key": symbol_key, "named_on_bid": str(bid_id)},
+    )
+    row = confirm(
+        session, proposed.lineage_id, actor, object_type=object_type, note=note, bid_id=bid_id
+    )
+    match_instances(session, bid_id, consultant)
+    return row
+
+
 def _settle_entries(session: Session, lineage_id: uuid.UUID, status: str) -> None:
     for entry in session.execute(
         select(LegendEntry).where(LegendEntry.mapping_lineage_id == lineage_id)
@@ -749,7 +793,8 @@ def counts(session: Session, bid_id: uuid.UUID, *, current_only: bool = True) ->
                 bucket = counted.setdefault(kind.key, Counted(kind.key, kind.label, 0))
                 bucket.count += 1
                 bucket.sheets.add(instance.sheet_id)
-                continue
+            # A confirmed type measured by length (a riser) is mapped: it is taken off as pipe.
+            continue
         status = (
             mapping.state
             if mapping is not None

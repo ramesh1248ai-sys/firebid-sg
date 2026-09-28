@@ -862,3 +862,114 @@ Entry template:
   - **A rule edit does not queue a recompute** for the organisation's bids. It takes effect at the next recompute: any detection, parameter change or duplicate decision, `POST …/qto/recompute`, or approving G1.
   - **Heights are not measured from section drawings,** and specification tables (P1-06's gap) are not read.
   - **Arm-overs and hangers** (FR-QTO-07, P2) are not derived.
+
+## P1-08 · Verification Workbench · 2026-09-28
+
+- **Summary:** the screen where estimators check the takeoff. It has:
+  - the drawing, with every proposal over it;
+  - a risk-ranked queue;
+  - accept, edit and reject, singly or in bulk, with reasons and undo;
+  - manual count and length tools;
+  - side-by-side duplicate review;
+  - panels for naming symbols and calibrating scale;
+  - a coverage dashboard, and the G1 action for the Senior Estimator.
+
+  Every edit and rejection is captured as a labelled correction for the evaluation harness.
+
+  Built in parts A to E, each committed separately. The estimator usability session is still to run (see known gaps).
+- **Key modules / files:**
+  - **Frontend** (`frontend/src/workbench/`, `pages/WorkbenchPage.tsx`):
+    - `DrawingViewer.tsx`: OpenSeadragon tiles, a Canvas 2D overlay redrawn per frame from a Flatbush index, and SVG highlights; tools for select, lasso, count and length; the pop-out window over `BroadcastChannel`.
+    - `marks.ts`, `render.ts`: the index, hit-testing, lasso and culling.
+    - `QueuePanel.tsx`: TanStack Table v8 with TanStack Virtual.
+    - `ItemPanel.tsx`, `ManualTools.tsx`, `DuplicatesPanel.tsx`, `GatePanel.tsx`.
+    - `review.ts`: the hooks, including optimistic updates and undo.
+    - `pages/OverlayBenchPage.tsx`: the performance bench (not linked).
+  - **Backend:**
+    - `services/review.py`: overlay, queue, coverage, unmapped symbols.
+    - `services/review_actions.py`: actions, undo, corrections.
+    - `api/review.py`, plus `GET /qto/sheets` and `/qto/overlay` in `api/qto.py`.
+    - `POST /symbols/unlisted`.
+    - `config/review.yaml`: impact weights (to be confirmed), reason codes, and the coverage policy (100%).
+    - Migration `0024`: `review_action` and `correction_event`, both under RLS.
+    - `firebid-eval corrections --out`.
+  - **Tests:** `e2e/workbench.spec.ts`, `e2e/overlay-bench.spec.ts`, `tests/db/test_review.py`, `src/pages/Workbench.test.tsx`, `src/workbench/marks.test.ts`, `tests/parsing/test_render_alignment.py`.
+  - **Usability session guide:** `docs/plan/usability/P1-08-workbench-session.md`.
+- **How to run and demo:**
+  1. `make up`, then take off a bid as in P1-07.
+  2. Open **Workbench** on the bid page.
+  3. Click a queue line to see its evidence on the drawing. Shift-drag to lasso. Use A, E, R, J and K; Ctrl+Z undoes.
+  4. Add missed items from **Add what was missed**.
+  5. Resolve **Duplicates**. Name the grid bubbles under **Symbols & scale**.
+  6. Approve under **Coverage & G1** as `senior.estimator@firebid.test`.
+  7. Benchmark: `OVERLAY_BENCH=1 npx playwright test e2e/overlay-bench.spec.ts [--headed]`.
+- **Requirement IDs covered (test names):**
+  - FR-REV-01:
+    - `test_review.py::TestOverlay`: marks carry their item, status and band; duplicates are shown as such; evidence boxes.
+    - `test_render_alignment.py`: tiles and geometry agree.
+    - `marks.test.ts`.
+    - E2E: the one-click evidence test, and the main flow.
+  - FR-REV-02:
+    - `TestQueue`: on a crafted dataset the order is (1 − confidence) × quantity × weight (25, 16, 10, 6.4, 0.2); decided items come last; filters.
+    - `Workbench.test.tsx`.
+  - FR-REV-03:
+    - `TestActions`: bulk accept through the state machine; reasons required; edit is verified as edited; lengths are re-measured; undo; undo is refused once an item has moved on.
+    - `TestFalseDetections`: the head and its drop leave, including the enlarged plan's copy; undo restores them.
+    - `TestDetectingAgain`.
+    - E2E.
+  - FR-REV-04:
+    - `TestCoverageAndG1`: coverage by items and value; G1 blocked on coverage and on unmapped symbols; naming an unlisted shape.
+    - `test_naming_shapes_not_an_object_leaves_the_takeoff_as_it_was`.
+    - `Workbench.test.tsx`: G1 disabled with every blocker linked; senior-only approval.
+    - E2E: the negative test, and the main flow to G1.
+  - FR-REV-06: correction rows carry before, after, reason, detector and calibration version; `test_the_evaluation_harness_exports_the_corrections`.
+  - FR-QTO-11 (UI): `TestMarkedCounts`; `Workbench.test.tsx`, where the tools are disabled with the reason on an unverified scale; the E2E manual count.
+  - NFR-10: E2E "a QTO line's evidence is one click away".
+  - NFR-12: E2E "an action shows its result quickly" (under 200 ms, asserted); the bench below.
+- **Deviations and decisions** (approved in the plan, except where marked new):
+  - **Edit is verification:** the edit is saved, then verified as edited, in two audited transitions.
+  - **Manual items start proposed** and are accepted like any other item.
+  - **The QTO item is the unit of review.** Detections are rejected as "not there" from the drawing, which recomputes the takeoff.
+  - **Value is weighted by class** until P1-10 brings rates, and is labelled as weighted.
+  - **Canvas 2D, not WebGL:** it meets the targets (below).
+  - **New:**
+    - **G1 also checks unmapped symbols.** A way to name unlisted shapes was needed for this (`POST /symbols/unlisted`).
+    - **Marked counts:** a manual count is placed on the drawing, one mark per item, on a verified view, so it carries its location.
+    - **A rejected item doesn't block G1** for incomplete evidence.
+    - **The G1 check is read-only.**
+    - **Dev realm users have fixed IDs,** so a stack rebuild no longer orphans bids.
+    - **`@tanstack/react-table` is pinned to v8.** v9 is a new API.
+    - **The Senior Estimator runs the whole E2E flow,** as bid membership is outside the step.
+- **Performance** (NFR-12). The reference workstation is this Windows 11 laptop: Chromium on Playwright at 1920 × 1080, on an A3 synthetic sheet (tiles 2,480 × 1,754 px) with synthetic marks at plan density.
+
+  | Case | Frame rate (headed, GPU) | Overlay draw per frame (mean / max) | Hit-test (mean / max) |
+  |---|---|---|---|
+  | No overlay | 60.3 fps | 0.05 / 0.3 ms | n/a |
+  | 5,000 marks | 60.2–60.3 fps | 2.6–4.9 / 17.0 ms | 0.002–0.005 / 1.2 ms |
+  | 20,000 marks | 60.0–60.1 fps | 7.1–7.5 / 51.1 ms | 0.002 / 0.1 ms |
+
+  - **Headless without a GPU,** the baseline with no overlay is 45–55 fps, so the ceiling there is the viewer, not the overlay.
+  - **Action feedback** (accept, key press to the queue saying verified) is **45 ms**, measured in the page and asserted under 200 ms in the E2E. The server confirms in 30–300 ms behind it.
+  - **Targets met:** 5,000 marks at 60 fps with feedback under 200 ms; 20,000 marks at 30 fps or more with hit-testing under 16 ms.
+  - **Not yet measured:** a true A0 sheet and a real tender's density. The occasional 20,000-mark frame of up to 51 ms is a one-frame spike (the mean stays under 8 ms).
+- **Manual checks and results:**
+  - **Live runs through the rebuilt stack,** with screenshots: the overlay lines up with the drawing (after the fixes below). The pop-out opened and followed the queue.
+  - **The full backend suite passed** (1,330 tests), as did the frontend's 57 unit tests and the four workbench E2E tests.
+- **Defects found and fixed during the step:**
+  - **No drawing tile ever loaded on the stack** (P1-01). Tile URLs lacked the `/api` prefix, so each tile request got the app's HTML page. P1-01's E2E only checked that the viewer element existed; the workbench E2E now depends on the overlay lining up with the drawing.
+  - **DXF tiles and geometry disagreed by about 10%** (P1-01). Matplotlib padded and centred the drawing. Modelspace now fills the image on its extents (renderer version `r2`), with a pixel-level test.
+  - **Close-up tiles starved the API** (P1-01). Each tile request rendered its whole level in the sandbox, so a zoom started a dozen renders at once. It is now one render per level, and every tile of it is cached.
+  - **A stack rebuild orphaned every bid,** because Keycloak re-imported users with new IDs. The dev realm now pins them.
+  - **A person's review was lost when a symbol was named** (from P1-07). Re-detection made new rows, and the inputs hash counted row IDs, so every verified item went back to proposed. The hash now uses what was found and where, and rejected detections stay rejected across re-detection.
+  - **A confirmed length-measured type (the riser) was listed as unmapped,** and **a shape no legend explains could not be named at all** (P1-04).
+  - **Shapes named "not an object" were cut out of the pipe network.** Some are pipe stubs, and the main lost 0.55 m. Not-an-object types are no longer placed.
+  - **Actions and G1 checks held each other up:** every one rewrote all evidence records. Now it's read-only checks, and writes for touched items only.
+  - **Late answers cleared a selection, or closed a form, made after them.**
+  - **Shortcuts did nothing after searching the queue:** focus stayed in the search box.
+- **Known gaps and follow-ups:**
+  - **The estimator usability session has not been run.** It needs two or three estimators (`docs/plan/usability/P1-08-workbench-session.md`). P1-08 closes when the findings and changes are added here.
+  - **BOQ click-through** (NFR-10 from a BOQ line) starts at the QTO line until P1-09 adds BOQ lines.
+  - **Value coverage uses class weights,** marked to be confirmed, until rates arrive (P1-10).
+  - **Performance is measured on a synthetic A3 sheet.** A real A0 tender should be measured when the golden set exists.
+  - **Recompute holds item rows** for its transaction. An action taken during a recompute can wait a second or two for it (seen in the E2E, which allows 30 s).
+  - **The pop-out is checked by hand only.** Its channel is exercised through the page tests, not the E2E.

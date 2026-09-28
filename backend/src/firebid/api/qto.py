@@ -35,7 +35,7 @@ from firebid.db.models.takeoff import (
 )
 from firebid.domain.state_machines import TransitionError
 from firebid.qto import rules
-from firebid.services import qto
+from firebid.services import qto, review
 
 router = APIRouter(prefix="/bids/{bid_id}/qto", tags=["qto"])
 rules_router = APIRouter(prefix="/measurement-rules", tags=["qto"])
@@ -88,6 +88,24 @@ class ItemOut(BaseModel):
     note: str | None
     supersedes_id: uuid.UUID | None
     evidence_missing: list[str]
+    # Where its evidence is on each sheet, in sheet millimetres: what the viewer zooms to.
+    evidence_boxes: list[dict[str, Any]]
+
+
+class MarkOut(BaseModel):
+    id: str
+    kind: str
+    object_type: str
+    box: list[float]
+    status: str
+    band: str
+    confidence: float | None
+    item_id: str | None
+    item_human_id: str | None
+    x: float | None
+    y: float | None
+    points: list[list[float]]
+    label: str | None
 
 
 class GroupOut(BaseModel):
@@ -135,12 +153,19 @@ class MeasureIn(BaseModel):
     points: Annotated[list[Point], Field(min_length=2, max_length=10_000)]
 
 
+class MarksIn(BaseModel):
+    view_id: uuid.UUID
+    points: Annotated[list[Point], Field(min_length=1, max_length=10_000)]
+
+
 class ManualIn(BaseModel):
     item_type: str = Field(min_length=1, max_length=80)
     description: str = Field(min_length=1)
     unit: str = Field(default="no", max_length=16)
     quantity: Annotated[Decimal, Field(ge=0)] | None = None
     measure: MeasureIn | None = None
+    # A count placed on the drawing: one mark per item, on a view of verified scale.
+    marks: MarksIn | None = None
     classification: str | None = None
     attributes: dict[str, str] | None = None
     level: str | None = None
@@ -167,6 +192,8 @@ class BlockersOut(BaseModel):
     unresolved_groups: list[dict[str, Any]]
     incomplete_items: list[dict[str, Any]]
     pending_work: list[dict[str, Any]]
+    coverage: dict[str, Any]
+    unmapped_symbols: list[dict[str, Any]]
 
 
 class ApproveIn(BaseModel):
@@ -249,6 +276,7 @@ def item_out(item: QtoItem, missing: list[str], people: dict[uuid.UUID, str]) ->
         note=derivation.get("note"),
         supersedes_id=item.supersedes_id,
         evidence_missing=missing,
+        evidence_boxes=review.evidence_boxes(item),
     )
 
 
@@ -285,6 +313,38 @@ def list_items(context: CurrentBid, session: DbSession) -> list[ItemOut]:
     missing = _missing(session, context.bid.id)
     people = _people(session, items)
     return [item_out(item, missing.get(item.id, []), people) for item in items]
+
+
+class ViewSummary(BaseModel):
+    id: str
+    kind: str
+    extent: list[float]
+    scale_status: str
+    denominator: float | None
+    measurable: bool
+
+
+class WorkbenchSheet(BaseModel):
+    sheet_id: str
+    sheet_number: str
+    revision: str | None
+    title: str | None
+    level: str | None
+    width_mm: float | None
+    height_mm: float | None
+    views: list[ViewSummary]
+
+
+@router.get("/sheets", response_model=list[WorkbenchSheet])
+def workbench_sheets(context: CurrentBid, session: DbSession) -> list[WorkbenchSheet]:
+    """The Current sheets takeoff reads, with their views and whether each can be measured."""
+    return [WorkbenchSheet(**sheet) for sheet in review.sheets(session, context.bid.id)]
+
+
+@router.get("/overlay", response_model=list[MarkOut])
+def overlay(context: CurrentBid, session: DbSession, sheet_id: uuid.UUID) -> list[MarkOut]:
+    """Everything drawn over one sheet, with its item, status and confidence band."""
+    return [MarkOut(**mark.as_json()) for mark in review.overlay(session, context.bid.id, sheet_id)]
 
 
 @router.get("/items/{item_id}", response_model=ItemOut)
@@ -394,7 +454,7 @@ def export(context: CurrentBid, session: DbSession) -> Response:
 
 
 def _measured(
-    session: DbSession, context: CurrentBid, body: MeasureIn | None
+    session: DbSession, context: CurrentBid, body: MeasureIn | MarksIn | None
 ) -> qto.Measured | None:
     if body is None:
         return None
@@ -421,6 +481,7 @@ def create_manual(
             unit=body.unit,
             quantity=body.quantity,
             measured=_measured(session, context, body.measure),
+            marked=_measured(session, context, body.marks),
             classification=body.classification,
             attributes=body.attributes,
             level=body.level,
@@ -588,13 +649,15 @@ def set_parameter(
 
 @router.get("/g1", response_model=BlockersOut)
 def g1_status(context: CurrentBid, session: DbSession) -> BlockersOut:
-    """What stands between the takeoff and G1, checked now (FR-QTO-08, FR-QTO-09)."""
+    """What stands between the takeoff and G1, checked now (FR-QTO-08, 09; FR-REV-04)."""
     found = qto.g1_blockers(session, context.bid.id)
     return BlockersOut(
         clear=found.clear,
         unresolved_groups=found.unresolved_groups,
         incomplete_items=found.incomplete_items,
         pending_work=found.pending_work,
+        coverage=found.coverage,
+        unmapped_symbols=found.unmapped_symbols,
     )
 
 

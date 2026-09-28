@@ -312,6 +312,23 @@ class TestOnDemandTiles:
         assert again == payload
         assert store.writes == writes_after_render, "a cached tile is not re-rendered"
 
+    def test_one_close_up_request_caches_its_whole_level(
+        self, session: Session, bid: Bid, store: MemoryObjectStore, vector_pdf: bytes
+    ) -> None:
+        """The viewer asks for every tile in view at once: one render serves them all."""
+        document = ingest(session, bid, store, "FP-L05-201.pdf", vector_pdf)
+        sheet = process_document(session, store, document).sheets[0]
+        pyramid = Pyramid(width_px=sheet.base_width_px or 0, height_px=sheet.base_height_px or 0)
+        level = pyramid.on_demand_levels[0]
+
+        render_tile(store, vector_pdf, "pdf", sheet, level, 0, 0)
+        writes = store.writes
+
+        for column, row in pyramid.tiles_at(level):
+            assert store.exists(tile_key(sheet.content_hash or "", level, column, row))
+            render_tile(store, vector_pdf, "pdf", sheet, level, column, row)
+        assert store.writes == writes, "the rest of the level is served from the cache"
+
     def test_a_pre_rendered_tile_comes_from_the_cache(
         self, session: Session, bid: Bid, store: MemoryObjectStore, vector_pdf: bytes
     ) -> None:

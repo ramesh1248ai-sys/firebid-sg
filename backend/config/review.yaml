@@ -1,0 +1,35 @@
+# The verification workbench's policy (P1-08): risk order, reasons, and what G1 needs.
+#
+# EVERY WEIGHT HERE IS "TO BE CONFIRMED". Until rates exist (P1-10), a line's value is its
+# quantity times the weight for its class: roughly what one unit of it costs relative to a
+# sprinkler head. An estimator should set them from the company's own rates.
+
+status: to be confirmed
+
+# Impact per unit of quantity, by item class. Risk = (1 - confidence) x quantity x weight.
+impact_weights:
+  sprinkler: 1.0      # per head
+  valve: 25.0         # per valve or assembly
+  device: 10.0        # per switch or gauge
+  fitting: 0.5        # per fitting
+  main: 2.0           # per metre
+  branch: 1.0         # per metre
+  riser: 2.5          # per metre
+  drop: 0.8           # per metre
+  default: 1.0
+
+# A person gives one of these when they edit or reject (FR-REV-03).
+reason_codes:
+  wrong_type: The item is a different type
+  wrong_size: The size or diameter is wrong
+  wrong_quantity: The count or length is wrong
+  wrong_attribute: An attribute (finish, K-factor, material ...) is wrong
+  false_detection: Nothing is installed here; the platform misread the drawing
+  duplicate: Already counted elsewhere
+  not_in_scope: Outside this package's scope
+  drawing_ambiguous: The drawing does not say; an assumption was made
+  other: Other (explain in the note)
+
+# G1 (FR-REV-04): the share of items that must be verified. Phase 1: all of them.
+coverage_policy:
+  items_percent: 100

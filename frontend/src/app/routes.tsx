@@ -10,11 +10,13 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { DocumentsPage } from "@/pages/DocumentsPage";
 import { LibraryPage } from "@/pages/LibraryPage";
 import { NewBidPage } from "@/pages/NewBidPage";
+import { OverlayBenchPage } from "@/pages/OverlayBenchPage";
 import { RegistersPage } from "@/pages/RegistersPage";
 import { SheetViewerPage } from "@/pages/SheetViewerPage";
 import { SignInPage } from "@/pages/SignInPage";
 import { SpecificationPage } from "@/pages/SpecificationPage";
 import { SymbolsPage } from "@/pages/SymbolsPage";
+import { PopoutViewerPage, WorkbenchPage } from "@/pages/WorkbenchPage";
 
 export const routes: RouteObject[] = [
   {
@@ -34,11 +36,24 @@ export const routes: RouteObject[] = [
           { path: "bids/:bidId/symbols", element: <SymbolsPage /> },
           { path: "bids/:bidId/specification", element: <SpecificationPage /> },
           { path: "bids/:bidId/sheets/:sheetId", element: <SheetViewerPage /> },
+          { path: "bids/:bidId/workbench", element: <WorkbenchPage /> },
           { path: "audit", element: <AuditPage /> },
           { path: "library", element: <LibraryPage /> },
           { path: "admin", element: <AdminPage /> },
         ],
       },
     ],
+  },
+  // The drawing alone, for a second monitor: no header or navigation around it.
+  {
+    path: "/bids/:bidId/workbench/viewer",
+    element: <RequireAuth />,
+    children: [{ index: true, element: <PopoutViewerPage /> }],
+  },
+  // The overlay performance bench (NFR-12): not linked, opened by the bench script.
+  {
+    path: "/bids/:bidId/workbench/bench",
+    element: <RequireAuth />,
+    children: [{ index: true, element: <OverlayBenchPage /> }],
   },
 ];

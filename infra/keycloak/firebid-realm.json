@@ -155,6 +155,7 @@
   ],
   "users": [
     {
+      "id": "3f370bfc-5cf4-51ca-8cbb-2131acb5f664",
       "username": "estimator@firebid.test",
       "email": "estimator@firebid.test",
       "firstName": "Esther",
@@ -173,6 +174,7 @@
       ]
     },
     {
+      "id": "a4458cd4-9792-51c7-935e-51e6f26538f9",
       "username": "senior.estimator@firebid.test",
       "email": "senior.estimator@firebid.test",
       "firstName": "Samuel",
@@ -191,6 +193,7 @@
       ]
     },
     {
+      "id": "6b9a1025-e88a-52c2-9261-6a7be908171c",
       "username": "bid.manager@firebid.test",
       "email": "bid.manager@firebid.test",
       "firstName": "Bella",
@@ -209,6 +212,7 @@
       ]
     },
     {
+      "id": "581b8347-7661-51bb-9443-57d71a82bdea",
       "username": "design.manager@firebid.test",
       "email": "design.manager@firebid.test",
       "firstName": "Daniel",
@@ -227,6 +231,7 @@
       ]
     },
     {
+      "id": "a28a8eeb-a009-5f24-960c-a5d378b814c2",
       "username": "commercial.director@firebid.test",
       "email": "commercial.director@firebid.test",
       "firstName": "Clara",
@@ -245,6 +250,7 @@
       ]
     },
     {
+      "id": "e7260bdb-286a-50e4-b387-b380edcc5d84",
       "username": "procurement@firebid.test",
       "email": "procurement@firebid.test",
       "firstName": "Priya",
@@ -263,6 +269,7 @@
       ]
     },
     {
+      "id": "a2434431-7e48-50cb-a361-b7443037741c",
       "username": "project.manager@firebid.test",
       "email": "project.manager@firebid.test",
       "firstName": "Marcus",
@@ -281,6 +288,7 @@
       ]
     },
     {
+      "id": "42761c1a-595a-5806-979b-58978de40a3f",
       "username": "admin@firebid.test",
       "email": "admin@firebid.test",
       "firstName": "Aisha",
@@ -299,6 +307,7 @@
       ]
     },
     {
+      "id": "e620ae12-137c-53fc-8cc7-fe61b190791e",
       "username": "sponsor@firebid.test",
       "email": "sponsor@firebid.test",
       "firstName": "Victor",

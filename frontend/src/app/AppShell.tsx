@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router";
+import { NavLink, Outlet, useLocation } from "react-router";
 
 import { useAuth } from "@/auth/session";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ const ADMIN_ROLES = ["system_admin", "commercial_director"];
 
 export function AppShell() {
   const { session, status, signOut } = useAuth();
+  // The workbench is a drawing and two panels: it takes the whole width a screen has.
+  const wide = useLocation().pathname.endsWith("/workbench");
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -57,7 +59,12 @@ export function AppShell() {
           )}
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
+      <main
+        className={cn(
+          "mx-auto w-full flex-1",
+          wide ? "max-w-none px-4 py-4" : "max-w-6xl px-6 py-10",
+        )}
+      >
         <Outlet />
       </main>
     </div>

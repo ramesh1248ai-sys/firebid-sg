@@ -19,5 +19,6 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `document` | `filename` | VARCHAR(512) | no | a consultant's file name can contain a person's name |
 | `duplicate_group` | `decided_by` | VARCHAR(200) | yes | the name of the person who decided |
 | `measurement_rule` | `source_note` | TEXT | yes | may name the estimator whose judgement set the rule |
+| `review_action` | `actor_label` | VARCHAR(200) | no | who took the action |
 
-10 columns hold personal data.
+11 columns hold personal data.

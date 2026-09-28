@@ -45,6 +45,7 @@ class Detection:
     confidence: float
     method: str
     evidence: dict[str, Any] = field(default_factory=dict)
+    rejected: bool = False  # a person said it is not there (P1-08)
 
 
 @dataclass(frozen=True)
@@ -97,17 +98,36 @@ class ItemDraft:
     note: str | None = None
 
     def inputs_hash(self) -> str:
-        """Everything the quantity depends on: the same hash means the same inputs."""
+        """Everything the quantity depends on: the same hash means the same inputs.
+
+        Members are what was found and where, not the database rows they were found as:
+        detecting a sheet again makes new rows for the same symbols, and that must not
+        undo a person's verification (P1-08).
+        """
         payload = {
             "key": self.key,
             "attributes": {k: v.get("value") for k, v in sorted(self.attributes.items())},
             "quantity": str(self.net_quantity),
             "length": self.length_mm,
-            "members": sorted(json.dumps(m, sort_keys=True, default=str) for m in self.members),
-            "rule": self.rule,
+            "members": sorted(
+                json.dumps(without_ids(m), sort_keys=True, default=str) for m in self.members
+            ),
+            "rule": without_ids(self.rule),
             "allowance": str(self.allowance_percent),
         }
         return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+
+
+IDENTIFIERS = ("id", "run")
+
+
+def without_ids(value: Any) -> Any:
+    """A structure with every row identifier taken out, however deep."""
+    if isinstance(value, dict):
+        return {k: without_ids(v) for k, v in value.items() if k not in IDENTIFIERS}
+    if isinstance(value, list):
+        return [without_ids(v) for v in value]
+    return value
 
 
 def key_of(*parts: Any) -> str:

@@ -42,6 +42,7 @@ from firebid.db.models.documents import (
     TransmittalEntry,
 )
 from firebid.db.models.drawings import GeometryFeature, SheetGeometry, SheetView
+from firebid.db.models.review import CorrectionEvent, ReviewAction
 from firebid.db.models.specs import SpecAttribute, SpecClause
 from firebid.db.models.symbols import (
     ConsultantProfile,
@@ -81,6 +82,7 @@ __all__ = [
     "ClientBoqLine",
     "ClientBoqMapping",
     "ConsultantProfile",
+    "CorrectionEvent",
     "DeadlineAlert",
     "DetectedObject",
     "Document",
@@ -103,6 +105,7 @@ __all__ = [
     "QtoItem",
     "Rate",
     "RegisterConfirmation",
+    "ReviewAction",
     "Sheet",
     "SheetGeometry",
     "SheetRevision",

@@ -26,7 +26,7 @@ from dataclasses import dataclass
 
 # Bumped whenever a change would make a tile look different. It is part of every tile's key,
 # so bumping it invalidates the cache rather than leaving a mix of old and new tiles.
-RENDERER_VERSION = "r1"
+RENDERER_VERSION = "r2"  # r2: DXF drawn edge to edge on its extents (P1-08)
 
 # 254 px of image plus a 1 px skirt on each side, which is how OpenSeadragon avoids seams
 # between neighbouring tiles.

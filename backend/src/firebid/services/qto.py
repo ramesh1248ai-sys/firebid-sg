@@ -350,9 +350,7 @@ def inputs(
         .where(DetectedObject.bid_id == bid_id, DetectedObject.sheet_id.in_(list(sheets)))
         .order_by(DetectedObject.sheet_id, DetectedObject.id)
     ).scalars():
-        if row.state == "rejected" or (
-            row.sheet_revision_id is not None and row.sheet_revision_id not in revisions
-        ):
+        if row.sheet_revision_id is not None and row.sheet_revision_id not in revisions:
             continue
         info = sheets[row.sheet_id]
         position = row.geometry_ref or {}
@@ -372,6 +370,8 @@ def inputs(
                 confidence=float(row.confidence if row.confidence is not None else 0.0),
                 method=row.extraction_method,
                 evidence=dict(row.source_ref or {}),
+                # Kept, not dropped: what a person rejected takes its copies with it.
+                rejected=row.state == "rejected",
             )
         )
     runs = []
@@ -468,10 +468,13 @@ def recompute(session: Session, bid_id: uuid.UUID, actor: Actor = SYSTEM_ACTOR) 
     """Take off the bid again. The same inputs change nothing (see the module notes)."""
     organisation_id = _organisation_of(session, bid_id)
     sheets = current_sheets(session, bid_id)
-    detections, runs = inputs(session, bid_id, sheets)
+    everything, runs = inputs(session, bid_id, sheets)
+    rejected = [d for d in everything if d.rejected]
+    detections = [d for d in everything if not d.rejected]
     found = dedup.find(detections, runs)
     stored = sync_groups(session, bid_id, found)
     excluded, lengths = dedup.exclusions(found, {key: row.status for key, row in stored.items()})
+    excluded |= dedup.twins(rejected, detections)
     rule_set_ = rule_set(session, organisation_id)
     drafts = generate.generate(
         detections,
@@ -495,6 +498,14 @@ def recompute(session: Session, bid_id: uuid.UUID, actor: Actor = SYSTEM_ACTOR) 
         old = existing.pop(draft.key, None)
         digest = draft.inputs_hash()
         if old is not None and old.inputs_hash == digest:
+            # The same quantity from the same inputs: verification stands. Only the links to
+            # the rows it was found as are refreshed, so the drawing still opens it.
+            derivation: dict[str, Any] = dict(old.derivation or {})
+            derivation.update(members=draft.members, geometry=draft.geometry, sources=draft.sources)
+            if draft.rule:
+                derivation["rule"] = draft.rule
+            if derivation != old.derivation:  # untouched rows stay unlocked for people
+                old.derivation = derivation
             outcome.unchanged += 1
             continue
         if old is not None:
@@ -695,6 +706,17 @@ def _link_groups(session: Session, bid_id: uuid.UUID, groups: dict[str, Duplicat
 
 
 def _calculation_note(item: QtoItem, derivation: dict[str, Any]) -> str:
+    note = _how_calculated(item, derivation)
+    edit = derivation.get("edit")
+    if isinstance(edit, dict):
+        note += (
+            f"; edited by {edit.get('by')} on {str(edit.get('at', ''))[:10]} "
+            f"({edit.get('reason_code')}), was {edit.get('before', {}).get('net_quantity')}"
+        )
+    return note
+
+
+def _how_calculated(item: QtoItem, derivation: dict[str, Any]) -> str:
     members = derivation.get("members") or []
     sheets = sorted({str(m.get("sheet")) for m in members if m.get("sheet")})
     where = ", ".join(sheets)
@@ -799,19 +821,40 @@ def evidence_for(session: Session, bid: Bid, item: QtoItem) -> EvidenceRecord:
     )
 
 
-def completeness(session: Session, bid_id: uuid.UUID) -> list[dict[str, Any]]:
-    """Write every live item's evidence record; list the items missing a mandatory field."""
+def completeness(
+    session: Session,
+    bid_id: uuid.UUID,
+    *,
+    write: bool = True,
+    only: Iterable[uuid.UUID] | None = None,
+) -> list[dict[str, Any]]:
+    """Check every live item's evidence record; list the items missing a mandatory field.
+
+    With `write`, the records are stored too: for every item, or `only` the items an action
+    touched. Checking alone writes nothing, so G1's status can be asked for as often as a
+    screen likes without holding up the people working (P1-08).
+    """
     bid = session.get(Bid, bid_id)
     if bid is None:
         raise QtoError("no such bid")
-    stored = {
-        row.qto_item_id: row
-        for row in session.execute(select(Evidence).where(Evidence.bid_id == bid_id)).scalars()
-    }
+    wanted = set(only) if only is not None else None
+    stored = (
+        {
+            row.qto_item_id: row
+            for row in session.execute(select(Evidence).where(Evidence.bid_id == bid_id)).scalars()
+        }
+        if write
+        else {}
+    )
     offending = []
     for item in live_items(session, bid_id):
         record = evidence_for(session, bid, item)
         missing = record.missing_mandatory_fields()
+        if missing and item.state != str(QtoItemState.REJECTED):
+            # A rejected item is decided and out of the takeoff: it does not hold G1 up.
+            offending.append({"id": str(item.id), "human_id": item.human_id, "missing": missing})
+        if not write or (wanted is not None and item.id not in wanted):
+            continue
         row = stored.get(item.id)
         if row is None:
             session.add(
@@ -825,9 +868,8 @@ def completeness(session: Session, bid_id: uuid.UUID) -> list[dict[str, Any]]:
         else:
             row.record = record.model_dump(mode="json")
             row.missing_fields = missing
-        if missing:
-            offending.append({"id": str(item.id), "human_id": item.human_id, "missing": missing})
-    session.flush()
+    if write:
+        session.flush()
     return offending
 
 
@@ -861,6 +903,28 @@ def _measure(session: Session, bid_id: uuid.UUID, measured: Measured) -> tuple[i
     }
 
 
+def _mark(session: Session, bid_id: uuid.UUID, marked: Measured) -> dict[str, Any]:
+    """Counted points on a view: allowed only where the view's scale is verified or
+    calibrated, as a measurement is, so every manual item sits on a trustworthy sheet."""
+    if marked.view.bid_id != bid_id:
+        raise QtoError("no such view")
+    if marked.view.scale_status not in MEASURABLE:
+        raise QtoError(
+            f"this view cannot be measured: its scale is {marked.view.scale_status}; "
+            "calibrate it first"
+        )
+    if not marked.points:
+        raise QtoError("place at least one mark")
+    return {
+        "kind": "marks",
+        "sheet_id": str(marked.view.sheet_id),
+        "view_id": str(marked.view.id),
+        "points": [list(p) for p in marked.points],
+        "scale": marked.view.denominator,
+        "scale_status": marked.view.scale_status,
+    }
+
+
 def _manual_derivation(
     session: Session, bid_id: uuid.UUID, actor: Actor, measurement: dict[str, Any] | None
 ) -> dict[str, Any]:
@@ -891,11 +955,18 @@ def _manual_derivation(
                 "view_id": measurement["view_id"],
             }
         ],
-        geometry=[{"sheet": info.number, "points": measurement["points"]}],
+        geometry=(
+            [{"sheet": info.number, "x": p[0], "y": p[1]} for p in measurement["points"]]
+            if measurement.get("kind") == "marks"
+            else [{"sheet": info.number, "points": measurement["points"]}]
+        ),
         measurement=measurement,
         note=(
-            f"measured by {actor.label} at {stamp} along {len(measurement['points'])} points "
-            f"at 1:{measurement['scale']:g} ({measurement['scale_status']} scale)"
+            f"{len(measurement['points'])} placed by {actor.label} at {stamp} on a view at "
+            f"1:{measurement['scale']:g} ({measurement['scale_status']} scale)"
+            if measurement.get("kind") == "marks"
+            else f"measured by {actor.label} at {stamp} along {len(measurement['points'])} "
+            f"points at 1:{measurement['scale']:g} ({measurement['scale_status']} scale)"
         ),
     )
     return derivation
@@ -911,6 +982,7 @@ def create_manual(
     unit: str,
     quantity: Decimal | None = None,
     measured: Measured | None = None,
+    marked: Measured | None = None,
     classification: str | None = None,
     attributes: dict[str, str] | None = None,
     level: str | None = None,
@@ -936,6 +1008,7 @@ def create_manual(
         unit=unit,
         quantity=quantity,
         measured=measured,
+        marked=marked,
         classification=classification,
         attributes=attributes,
         level=level,
@@ -950,7 +1023,7 @@ def create_manual(
         session, item, target=QtoItemState.PROPOSED, actor=SYSTEM_ACTOR, reason="manual item"
     )
     _audit_manual(session, actor, "manual QTO item: create", None, item)
-    completeness(session, bid_id)
+    completeness(session, bid_id, only=[item.id])
     return item
 
 
@@ -966,6 +1039,7 @@ def _fill_manual(
     quantity: Decimal | None,
     measured: Measured | None,
     classification: str | None,
+    marked: Measured | None = None,
     attributes: dict[str, str] | None,
     level: str | None,
     zone: str | None,
@@ -973,8 +1047,10 @@ def _fill_manual(
     grid_to: str | None,
     allowance_percent: Decimal | None,
 ) -> None:
-    if (quantity is None) == (measured is None):
-        raise QtoError("give a quantity for a count, or a measurement for a length")
+    if sum(x is not None for x in (quantity, measured, marked)) != 1:
+        raise QtoError(
+            "give a quantity, marks on the drawing for a count, or a measurement for a length"
+        )
     if not description.strip():
         raise QtoError("describe the item")
     measurement = None
@@ -983,6 +1059,9 @@ def _fill_manual(
         length_mm, measurement = _measure(session, bid_id, measured)
         quantity = (Decimal(length_mm) / Decimal(1000)).quantize(Decimal("0.001"))
         unit = "m"
+    if marked is not None:
+        measurement = _mark(session, bid_id, marked)
+        quantity = Decimal(len(marked.points))
     if quantity is None or quantity < 0:
         raise QtoError("a quantity cannot be negative")
     quantity = quantity.quantize(Decimal("0.001"))
@@ -1041,6 +1120,7 @@ def edit_manual(session: Session, item: QtoItem, actor: Actor, **changes: Any) -
         "allowance_percent": item.allowance_percent,
         "quantity": None,
         "measured": None,
+        "marked": None,
     }
     if "measured" not in changes and "quantity" not in changes:
         if item.calculation_method == CalculationMethod.MANUAL_MEASURE:
@@ -1059,7 +1139,7 @@ def edit_manual(session: Session, item: QtoItem, actor: Actor, **changes: Any) -
         reason="manual item edited",
     )
     _audit_manual(session, actor, "manual QTO item: edit", item, fresh)
-    completeness(session, item.bid_id)
+    completeness(session, item.bid_id, only=[fresh.id])
     return fresh
 
 
@@ -1137,10 +1217,22 @@ class Blockers:
     unresolved_groups: list[dict[str, Any]]
     incomplete_items: list[dict[str, Any]]
     pending_work: list[dict[str, Any]] = field(default_factory=list)
+    coverage: dict[str, Any] = field(default_factory=dict)
+    unmapped_symbols: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def coverage_short(self) -> bool:
+        return bool(self.coverage) and not self.coverage.get("met")
 
     @property
     def clear(self) -> bool:
-        return not (self.unresolved_groups or self.incomplete_items or self.pending_work)
+        return not (
+            self.unresolved_groups
+            or self.incomplete_items
+            or self.pending_work
+            or self.unmapped_symbols
+            or self.coverage_short
+        )
 
 
 # Jobs that change what takeoff reads. A queued recompute is not here: approving G1
@@ -1179,9 +1271,11 @@ def g1_blockers(session: Session, bid_id: uuid.UUID) -> Blockers:
     """What stops G1: unresolved duplicate groups (FR-QTO-08), incomplete evidence (FR-QTO-09).
 
     Also, work still queued or running for the bid: drawings being read or detected
-    (the takeoff would change under the approval). The verification coverage policy
-    (FR-REV-04) joins these in P1-08.
+    (the takeoff would change under the approval); verification coverage below the policy
+    (FR-REV-04); and symbols on Current sheets nobody has mapped, which count as nothing.
     """
+    from firebid.services import review
+
     groups = session.execute(
         select(DuplicateGroup)
         .where(DuplicateGroup.bid_id == bid_id, DuplicateGroup.status == "unresolved")
@@ -1191,8 +1285,10 @@ def g1_blockers(session: Session, bid_id: uuid.UUID) -> Blockers:
         unresolved_groups=[
             {"id": str(g.id), "kind": g.kind, "level": g.level, "reason": g.reason} for g in groups
         ],
-        incomplete_items=completeness(session, bid_id),
+        incomplete_items=completeness(session, bid_id, write=False),
         pending_work=pending_work(session, bid_id),
+        coverage=review.coverage(session, bid_id),
+        unmapped_symbols=review.unmapped_in_scope(session, bid_id),
     )
 
 
@@ -1215,6 +1311,13 @@ def approve_g1(
             parts.append(f"{len(blockers.unresolved_groups)} unresolved duplicate group(s)")
         if blockers.incomplete_items:
             parts.append(f"{len(blockers.incomplete_items)} item(s) with incomplete evidence")
+        if blockers.coverage_short:
+            parts.append(
+                f"{blockers.coverage['items_percent']:g}% of items verified, "
+                f"{blockers.coverage['policy_percent']:g}% needed"
+            )
+        if blockers.unmapped_symbols:
+            parts.append(f"{len(blockers.unmapped_symbols)} unmapped symbol type(s) in scope")
         raise QtoError("G1 is blocked: " + "; ".join(parts))
     if actor.id is None:
         raise QtoError("a gate is approved by a named person")

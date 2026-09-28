@@ -1,6 +1,99 @@
 {
   "components": {
     "schemas": {
+      "ActionOut": {
+        "properties": {
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "detection_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Detection Ids",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "item_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Item Ids",
+            "type": "array"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "undoes_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undoes Id"
+          },
+          "undone": {
+            "title": "Undone",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "actor",
+          "reason_code",
+          "note",
+          "item_ids",
+          "detection_ids",
+          "count",
+          "created_at",
+          "undone",
+          "undoes_id"
+        ],
+        "title": "ActionOut",
+        "type": "object"
+      },
       "AddendumIn": {
         "properties": {
           "issued_on": {
@@ -780,6 +873,11 @@
             "title": "Clear",
             "type": "boolean"
           },
+          "coverage": {
+            "additionalProperties": true,
+            "title": "Coverage",
+            "type": "object"
+          },
           "incomplete_items": {
             "items": {
               "additionalProperties": true,
@@ -796,6 +894,14 @@
             "title": "Pending Work",
             "type": "array"
           },
+          "unmapped_symbols": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Unmapped Symbols",
+            "type": "array"
+          },
           "unresolved_groups": {
             "items": {
               "additionalProperties": true,
@@ -809,7 +915,9 @@
           "clear",
           "unresolved_groups",
           "incomplete_items",
-          "pending_work"
+          "pending_work",
+          "coverage",
+          "unmapped_symbols"
         ],
         "title": "BlockersOut",
         "type": "object"
@@ -1257,6 +1365,59 @@
         "title": "CountsOut",
         "type": "object"
       },
+      "CoverageOut": {
+        "properties": {
+          "items_percent": {
+            "title": "Items Percent",
+            "type": "number"
+          },
+          "items_total": {
+            "title": "Items Total",
+            "type": "integer"
+          },
+          "items_verified": {
+            "title": "Items Verified",
+            "type": "integer"
+          },
+          "met": {
+            "title": "Met",
+            "type": "boolean"
+          },
+          "policy_percent": {
+            "title": "Policy Percent",
+            "type": "number"
+          },
+          "value_basis": {
+            "title": "Value Basis",
+            "type": "string"
+          },
+          "value_percent": {
+            "title": "Value Percent",
+            "type": "number"
+          },
+          "value_total": {
+            "title": "Value Total",
+            "type": "number"
+          },
+          "value_verified": {
+            "title": "Value Verified",
+            "type": "number"
+          }
+        },
+        "required": [
+          "items_total",
+          "items_verified",
+          "items_percent",
+          "value_total",
+          "value_verified",
+          "value_percent",
+          "value_basis",
+          "policy_percent",
+          "met"
+        ],
+        "title": "CoverageOut",
+        "type": "object"
+      },
       "DecideGroupIn": {
         "properties": {
           "decision": {
@@ -1619,6 +1780,41 @@
           "state"
         ],
         "title": "DetectionOut",
+        "type": "object"
+      },
+      "DetectionsIn": {
+        "properties": {
+          "detection_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 5000,
+            "minItems": 1,
+            "title": "Detection Ids",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detection_ids",
+          "reason_code"
+        ],
+        "title": "DetectionsIn",
         "type": "object"
       },
       "DetectionsOut": {
@@ -2070,6 +2266,87 @@
         "title": "DrawingRowOut",
         "type": "object"
       },
+      "EditIn": {
+        "properties": {
+          "allowance_percent": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowance Percent"
+          },
+          "attributes": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attributes"
+          },
+          "measure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeasureIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason_code"
+        ],
+        "title": "EditIn",
+        "type": "object"
+      },
       "FailedDocument": {
         "properties": {
           "filename": {
@@ -2320,6 +2597,14 @@
             ],
             "title": "Duplicate Group Id"
           },
+          "evidence_boxes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Evidence Boxes",
+            "type": "array"
+          },
           "evidence_missing": {
             "items": {
               "type": "string"
@@ -2519,9 +2804,40 @@
           "sources",
           "note",
           "supersedes_id",
-          "evidence_missing"
+          "evidence_missing",
+          "evidence_boxes"
         ],
         "title": "ItemOut",
+        "type": "object"
+      },
+      "ItemsIn": {
+        "properties": {
+          "item_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 5000,
+            "minItems": 1,
+            "title": "Item Ids",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "item_ids"
+        ],
+        "title": "ItemsIn",
         "type": "object"
       },
       "LegendRowOut": {
@@ -2886,6 +3202,16 @@
             ],
             "title": "Level"
           },
+          "marks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarksIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "measure": {
             "anyOf": [
               {
@@ -3090,6 +3416,159 @@
         "title": "MappingOut",
         "type": "object"
       },
+      "MarkOut": {
+        "properties": {
+          "band": {
+            "title": "Band",
+            "type": "string"
+          },
+          "box": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Box",
+            "type": "array"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "item_human_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Human Id"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "object_type": {
+            "title": "Object Type",
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "X"
+          },
+          "y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Y"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "object_type",
+          "box",
+          "status",
+          "band",
+          "confidence",
+          "item_id",
+          "item_human_id",
+          "x",
+          "y",
+          "points",
+          "label"
+        ],
+        "title": "MarkOut",
+        "type": "object"
+      },
+      "MarksIn": {
+        "properties": {
+          "points": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "maxItems": 10000,
+            "minItems": 1,
+            "title": "Points",
+            "type": "array"
+          },
+          "view_id": {
+            "format": "uuid",
+            "title": "View Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "view_id",
+          "points"
+        ],
+        "title": "MarksIn",
+        "type": "object"
+      },
       "MeasureIn": {
         "properties": {
           "points": {
@@ -3250,6 +3729,35 @@
         "title": "ModelOut",
         "type": "object"
       },
+      "NameUnlistedRequest": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "object_type": {
+            "title": "Object Type",
+            "type": "string"
+          },
+          "symbol_key": {
+            "title": "Symbol Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol_key",
+          "object_type"
+        ],
+        "title": "NameUnlistedRequest",
+        "type": "object"
+      },
       "ObjectTypeChange": {
         "properties": {
           "attribute_schema": {
@@ -3343,6 +3851,11 @@
           },
           "label": {
             "title": "Label",
+            "type": "string"
+          },
+          "measure": {
+            "default": "count",
+            "title": "Measure",
             "type": "string"
           }
         },
@@ -3920,6 +4433,41 @@
         "title": "ProviderOut",
         "type": "object"
       },
+      "QueueRowOut": {
+        "properties": {
+          "impact": {
+            "title": "Impact",
+            "type": "number"
+          },
+          "item": {
+            "$ref": "#/components/schemas/ItemOut"
+          },
+          "risk": {
+            "title": "Risk",
+            "type": "number"
+          },
+          "sheet_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sheet Ids",
+            "type": "array"
+          },
+          "system": {
+            "title": "System",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item",
+          "risk",
+          "impact",
+          "system",
+          "sheet_ids"
+        ],
+        "title": "QueueRowOut",
+        "type": "object"
+      },
       "ReadingRequest": {
         "properties": {
           "consultant": {
@@ -3965,6 +4513,24 @@
           "revision"
         ],
         "title": "ReadingRequest",
+        "type": "object"
+      },
+      "ReasonOut": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "label"
+        ],
+        "title": "ReasonOut",
         "type": "object"
       },
       "RefusedOut": {
@@ -4022,6 +4588,41 @@
           "confirmation"
         ],
         "title": "RegisterStatus",
+        "type": "object"
+      },
+      "RejectIn": {
+        "properties": {
+          "item_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 5000,
+            "minItems": 1,
+            "title": "Item Ids",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reason_code": {
+            "title": "Reason Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_ids",
+          "reason_code"
+        ],
+        "title": "RejectIn",
         "type": "object"
       },
       "RejectRequest": {
@@ -5361,6 +5962,54 @@
         "title": "ViewOut",
         "type": "object"
       },
+      "ViewSummary": {
+        "properties": {
+          "denominator": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Denominator"
+          },
+          "extent": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Extent",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "measurable": {
+            "title": "Measurable",
+            "type": "boolean"
+          },
+          "scale_status": {
+            "title": "Scale Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "extent",
+          "scale_status",
+          "denominator",
+          "measurable"
+        ],
+        "title": "ViewSummary",
+        "type": "object"
+      },
       "WithdrawRequest": {
         "properties": {
           "reason": {
@@ -5374,6 +6023,92 @@
           "reason"
         ],
         "title": "WithdrawRequest",
+        "type": "object"
+      },
+      "WorkbenchSheet": {
+        "properties": {
+          "height_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Mm"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "sheet_id": {
+            "title": "Sheet Id",
+            "type": "string"
+          },
+          "sheet_number": {
+            "title": "Sheet Number",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "views": {
+            "items": {
+              "$ref": "#/components/schemas/ViewSummary"
+            },
+            "title": "Views",
+            "type": "array"
+          },
+          "width_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width Mm"
+          }
+        },
+        "required": [
+          "sheet_id",
+          "sheet_number",
+          "revision",
+          "title",
+          "level",
+          "width_mm",
+          "height_mm",
+          "views"
+        ],
+        "title": "WorkbenchSheet",
         "type": "object"
       }
     },
@@ -7440,7 +8175,7 @@
     },
     "/bids/{bid_id}/qto/g1": {
       "get": {
-        "description": "What stands between the takeoff and G1, checked now (FR-QTO-08, FR-QTO-09).",
+        "description": "What stands between the takeoff and G1, checked now (FR-QTO-08, 09; FR-REV-04).",
         "operationId": "g1_status_bids__bid_id__qto_g1_get",
         "parameters": [
           {
@@ -7952,6 +8687,69 @@
         ]
       }
     },
+    "/bids/{bid_id}/qto/overlay": {
+      "get": {
+        "description": "Everything drawn over one sheet, with its item, status and confidence band.",
+        "operationId": "overlay_bids__bid_id__qto_overlay_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MarkOut"
+                  },
+                  "title": "Response Overlay Bids  Bid Id  Qto Overlay Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Overlay",
+        "tags": [
+          "qto"
+        ]
+      }
+    },
     "/bids/{bid_id}/qto/parameters": {
       "get": {
         "description": "Every input the rules may use: read from sheet notes, or entered, oldest first.",
@@ -8108,6 +8906,59 @@
           }
         ],
         "summary": "Recompute",
+        "tags": [
+          "qto"
+        ]
+      }
+    },
+    "/bids/{bid_id}/qto/sheets": {
+      "get": {
+        "description": "The Current sheets takeoff reads, with their views and whether each can be measured.",
+        "operationId": "workbench_sheets_bids__bid_id__qto_sheets_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkbenchSheet"
+                  },
+                  "title": "Response Workbench Sheets Bids  Bid Id  Qto Sheets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Workbench Sheets",
         "tags": [
           "qto"
         ]
@@ -8461,6 +9312,606 @@
         "summary": "Export",
         "tags": [
           "registers"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review/accept": {
+      "post": {
+        "operationId": "accept_bids__bid_id__review_accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Accept",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review/actions": {
+      "get": {
+        "description": "The bid's latest actions, newest first: what undo offers.",
+        "operationId": "recent_actions_bids__bid_id__review_actions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ActionOut"
+                  },
+                  "title": "Response Recent Actions Bids  Bid Id  Review Actions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Recent Actions",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review/actions/{action_id}/undo": {
+      "post": {
+        "operationId": "undo_bids__bid_id__review_actions__action_id__undo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "action_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Action Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Undo",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review/coverage": {
+      "get": {
+        "description": "Verified share of the takeoff, by items and by value (FR-REV-04).",
+        "operationId": "coverage_bids__bid_id__review_coverage_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Coverage",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review/detections/reject": {
+      "post": {
+        "description": "What was found is not there: the detections leave takeoff, which is recomputed.",
+        "operationId": "reject_detections_bids__bid_id__review_detections_reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DetectionsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject Detections",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review/items/{item_id}/edit": {
+      "post": {
+        "operationId": "edit_bids__bid_id__review_items__item_id__edit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Edit",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review/queue": {
+      "get": {
+        "description": "Riskiest first; items still to decide before decided ones (FR-REV-02).",
+        "operationId": "queue_bids__bid_id__review_queue_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sheet_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sheet Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "system",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "System"
+            }
+          },
+          {
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Level"
+            }
+          },
+          {
+            "in": "query",
+            "name": "item_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Item Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QueueRowOut"
+                  },
+                  "title": "Response Queue Bids  Bid Id  Review Queue Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Queue",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review/reasons": {
+      "get": {
+        "operationId": "reasons_bids__bid_id__review_reasons_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReasonOut"
+                  },
+                  "title": "Response Reasons Bids  Bid Id  Review Reasons Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reasons",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review/reject": {
+      "post": {
+        "operationId": "reject_bids__bid_id__review_reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject",
+        "tags": [
+          "review"
         ]
       }
     },
@@ -9926,6 +11377,65 @@
           }
         ],
         "summary": "Object Type Choices",
+        "tags": [
+          "symbols"
+        ]
+      }
+    },
+    "/bids/{bid_id}/symbols/unlisted": {
+      "post": {
+        "description": "Say what a recurring symbol no legend explains is, often \"not an installed object\".",
+        "operationId": "name_unlisted_bids__bid_id__symbols_unlisted_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NameUnlistedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MappingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Name Unlisted",
         "tags": [
           "symbols"
         ]

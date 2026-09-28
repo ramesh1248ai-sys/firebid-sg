@@ -185,6 +185,25 @@ def inspect_dxf(payload: bytes) -> list[dict[str, Any]]:
     return facts
 
 
+def _model_extents(layout: Any) -> list[float] | None:
+    from ezdxf import bbox
+
+    if layout.name.lower() != "model":
+        return None
+    try:
+        extents = bbox.extents(layout, fast=True)
+    except Exception:
+        return None
+    if not extents.has_data:
+        return None
+    return [
+        float(extents.extmin.x),
+        float(extents.extmin.y),
+        float(extents.extmax.x),
+        float(extents.extmax.y),
+    ]
+
+
 def render_layout(payload: bytes, index: int, width_px: int, height_px: int) -> dict[str, Any]:
     """Plot one layout to raw RGB pixels, at the size asked for.
 
@@ -211,10 +230,19 @@ def render_layout(payload: bytes, index: int, width_px: int, height_px: int) -> 
     axes.set_axis_off()
     figure.patch.set_facecolor("white")
     buffer = io.BytesIO()
+    # The image is the sheet the geometry describes. For modelspace that is the drawing's
+    # extents, edge to edge (`geometry_dxf` places modelspace by them, whatever set the
+    # sheet's size). Left to itself matplotlib pads the axes and centres the drawing, and
+    # the overlay (sheet mm from the geometry) no longer lands on what it marks.
+    box = _model_extents(layout)
     try:
         Frontend(RenderContext(document), MatplotlibBackend(axes)).draw_layout(
             layout, finalize=True
         )
+        if box is not None:
+            axes.set_xlim(box[0], box[2])
+            axes.set_ylim(box[1], box[3])
+            axes.set_aspect("auto")
         figure.savefig(buffer, format="png", dpi=dpi, facecolor="white")
     except Exception as error:
         raise DxfUnreadable(f"this layout could not be drawn ({type(error).__name__})") from error
