@@ -9,6 +9,7 @@
     firebid-eval compare   --suite synthetic             fail if anything has regressed
     firebid-eval compare-models --route <r> --models a,b  evidence for changing a model
     firebid-eval calibrate --suite p1_detection          fit detection confidence (FR-VIS-09)
+    firebid-eval corrections --out corrections.jsonl     people's corrections (FR-REV-06)
 
 `import` and `compare` write nothing and exit non-zero when they are unhappy, which is what
 makes them usable in CI.
@@ -143,7 +144,15 @@ def main(argv: list[str] | None = None) -> int:
     calibrate.add_argument("--train", type=int, default=60)
     calibrate.add_argument("--holdout", type=int, default=40)
 
+    corrections = commands.add_parser(
+        "corrections", help="export the labelled corrections people made (FR-REV-06)"
+    )
+    corrections.add_argument("--out", type=Path, required=True)
+
     arguments = parser.parse_args(argv)
+
+    if arguments.command == "corrections":
+        return _run_corrections(arguments.out)
 
     if arguments.command == "calibrate":
         return _run_calibrate(arguments)
@@ -333,3 +342,24 @@ def _run_compare_models(arguments: argparse.Namespace) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
+
+
+def _run_corrections(out: Path) -> int:
+    """Every bid's corrections as JSON lines: derived labels only (requirements §11.4).
+
+    Read on the service role, as a cross-bid dataset is: what was proposed, what a person
+    made of it, why, and which detector, calibration and rule proposed it.
+    """
+    import json
+
+    from firebid.db.engine import service_session_scope
+    from firebid.services.review_actions import correction_rows
+
+    with service_session_scope() as session:
+        rows = correction_rows(session)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, sort_keys=True) + "\n")
+    print(f"wrote {len(rows)} corrections to {out}")
+    return 0

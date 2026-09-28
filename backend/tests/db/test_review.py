@@ -10,6 +10,7 @@ from __future__ import annotations
 import uuid
 from collections import Counter
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from sqlalchemy import select
@@ -465,3 +466,41 @@ class TestMarkedCounts:
         ]
         assert [(m.x, m.y) for m in marks] == [(100.0, 100.0), (120.0, 100.0), (140.0, 100.0)]
         assert refused.status_code == 409 and "calibrate it first" in refused.json()["detail"]
+
+
+@pytest.mark.req("FR-REV-06")
+def test_the_evaluation_harness_exports_the_corrections(
+    session: Session,
+    organisation: Organisation,
+    tender: Bid,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import json
+    from collections.abc import Iterator
+    from contextlib import contextmanager
+
+    from firebid.db import engine
+    from firebid.evals.cli import main
+
+    actor, _ = estimator(session, organisation, tender)
+    valve = items(session, tender)["Gate valve, DN150"]
+    review_actions.reject(session, tender.id, [valve.id], actor, "not_in_scope")
+
+    @contextmanager
+    def this_session() -> Iterator[Session]:
+        yield session
+
+    monkeypatch.setattr(engine, "service_session_scope", this_session)
+    out = tmp_path / "corrections.jsonl"
+
+    assert main(["corrections", "--out", str(out)]) == 0
+
+    [line] = out.read_text(encoding="utf-8").splitlines()
+    row = json.loads(line)
+    assert (row["kind"], row["reason_code"], row["object_type"]) == (
+        "reject",
+        "not_in_scope",
+        "gate_valve",
+    )
+    assert row["detector_version"] and row["data_policy"] == "derived-labels-only"

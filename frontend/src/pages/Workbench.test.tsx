@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -101,8 +101,50 @@ function view(status: string) {
   };
 }
 
-function stubs(views = [view("verified")]) {
+const COVERAGE = {
+  items_total: 13,
+  items_verified: 11,
+  items_percent: 84.62,
+  value_total: 200,
+  value_verified: 150,
+  value_percent: 75,
+  value_basis: "weighted by item class (no rates yet)",
+  policy_percent: 100,
+  met: false,
+};
+
+const BLOCKED = {
+  clear: false,
+  unresolved_groups: [{ id: "g1", kind: "enlarged_plan", level: "L05", reason: "repeats" }],
+  incomplete_items: [
+    { id: "11111111-0000-4000-8000-000000000002", human_id: "QTO-000011", missing: ["location.level"] },
+  ],
+  pending_work: [{ task: "detection.run", status: "todo", jobs: 1 }],
+  coverage: COVERAGE,
+  unmapped_symbols: [
+    { symbol_key: "shape:abc", description: null, instances: 14, status: "no legend", sheets: [SHEET], mapping_lineage_id: null },
+  ],
+};
+
+const CLEAR = {
+  clear: true,
+  unresolved_groups: [],
+  incomplete_items: [],
+  pending_work: [],
+  coverage: { ...COVERAGE, items_verified: 13, items_percent: 100, met: true },
+  unmapped_symbols: [],
+};
+
+function stubs(views = [view("verified")], g1: object = BLOCKED) {
   return stubApi({
+    "/qto/g1/approve": () =>
+      Response.json(
+        { id: "a1", gate: "G1", decision: "approved", decided_at: "2026-09-28T02:00:00Z", snapshot_hash: "x" },
+        { status: 201 },
+      ),
+    "/qto/g1": () => Response.json(g1),
+    "/review/coverage": () => Response.json((g1 as { coverage: object }).coverage),
+    "/qto/duplicates": () => Response.json([]),
     "/qto/sheets": () =>
       Response.json([
         {
@@ -234,5 +276,53 @@ describe("the workbench", () => {
     expect(within(tools).getByLabelText("nominal diameter mm")).toBeInTheDocument();
     await userEvent.click(within(tools).getByRole("button", { name: "Start measuring" }));
     expect(await within(tools).findByText(/Measuring Pipe/)).toBeInTheDocument();
+  });
+
+  // req: FR-REV-04
+  it("keeps G1 disabled and lists every blocker, with where to resolve it", async () => {
+    signedInAs({ name: "Sam Lim", preferred_username: "senior.estimator@firebid.test", roles: ["senior_estimator"] });
+    stubs();
+    renderAt(`/bids/${BID}/workbench`);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Coverage & G1" }));
+
+    const blockers = await screen.findByRole("list", { name: "What blocks G1" });
+    const items = within(blockers).getAllByRole("listitem").map((i) => i.textContent);
+    expect(items).toEqual([
+      expect.stringContaining("Coverage is 84.62%, the policy is 100%"),
+      expect.stringContaining("1 unresolved duplicate group"),
+      expect.stringContaining("1 symbol type(s) on Current sheets nobody has named"),
+      expect.stringContaining("QTO-000011 has an incomplete evidence record (location.level)"),
+      expect.stringContaining("still being read or detected"),
+    ]);
+    expect(screen.getByRole("button", { name: /Approve G1/ })).toBeDisabled();
+    expect(screen.getByRole("meter", { name: "Items verified" })).toHaveAttribute("aria-valuenow", "84.62");
+
+    await userEvent.click(within(blockers).getByRole("button", { name: "Resolve them" }));
+    expect(await screen.findByText("No repeats found across these sheets.")).toBeInTheDocument();
+  });
+
+  // req: FR-REV-04
+  it("lets only a senior estimator approve G1 once nothing blocks it", async () => {
+    stubs(undefined, CLEAR);
+    renderAt(`/bids/${BID}/workbench`);
+    await userEvent.click(await screen.findByRole("button", { name: "Coverage & G1" }));
+    expect(await screen.findByText("Only a Senior Estimator approves G1.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Approve G1/ })).toBeDisabled();
+  });
+
+  // req: FR-REV-04
+  it("approves G1 for a senior estimator", async () => {
+    signedInAs({ name: "Sam Lim", preferred_username: "senior.estimator@firebid.test", roles: ["senior_estimator"] });
+    const calls = stubs(undefined, CLEAR);
+    renderAt(`/bids/${BID}/workbench`);
+    await userEvent.click(await screen.findByRole("button", { name: "Coverage & G1" }));
+
+    const approve = await screen.findByRole("button", { name: /Approve G1/ });
+    await waitFor(() => expect(approve).toBeEnabled());
+    await userEvent.click(approve);
+
+    expect(await screen.findByText(/G1 approved at/)).toBeInTheDocument();
+    expect(calls.some((c) => c.url.endsWith("/qto/g1/approve") && c.method === "POST")).toBe(true);
   });
 });

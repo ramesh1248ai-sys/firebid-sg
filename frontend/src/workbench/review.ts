@@ -212,3 +212,84 @@ export function useReviewActions(bidId: string, onDone?: (action: ReviewAction) 
     }),
   };
 }
+
+// --- Duplicates, mappings, scale and G1 (P1-08 D) -------------------------------------------
+
+export function useDuplicates(bidId: string) {
+  return useQuery({
+    queryKey: ["duplicates", bidId],
+    queryFn: async (): Promise<Group[]> => {
+      const { data, error } = await api.GET("/bids/{bid_id}/qto/duplicates", {
+        params: { path: { bid_id: bidId } },
+      });
+      if (error || !data) throw new Error("Could not load the duplicate groups");
+      return data;
+    },
+  });
+}
+
+export type Approval = components["schemas"]["ApprovalOut"];
+
+export function useGateActions(bidId: string) {
+  const invalidate = useInvalidateReview(bidId);
+  const client = useQueryClient();
+  const path = { bid_id: bidId };
+  const done = async () => {
+    await invalidate();
+    await client.invalidateQueries({ queryKey: ["workbench-sheets", bidId] });
+  };
+  return {
+    decide: useMutation({
+      mutationFn: (input: { groupId: string; decision: "confirmed" | "not_duplicate"; note?: string }) =>
+        unwrap(
+          api.POST("/bids/{bid_id}/qto/duplicates/{group_id}", {
+            params: { path: { bid_id: bidId, group_id: input.groupId } },
+            body: { decision: input.decision, note: input.note ?? null },
+          }),
+          "Could not record the decision",
+        ),
+      onSuccess: done,
+    }),
+    nameSymbol: useMutation({
+      mutationFn: (input: { symbolKey: string; lineageId: string | null; objectType: string }) =>
+        input.lineageId
+          ? unwrap(
+              api.POST("/bids/{bid_id}/symbols/mappings/{lineage_id}/confirm", {
+                params: { path: { bid_id: bidId, lineage_id: input.lineageId } },
+                body: { object_type: input.objectType },
+              }),
+              "Could not confirm the mapping",
+            )
+          : unwrap(
+              api.POST("/bids/{bid_id}/symbols/unlisted", {
+                params: { path },
+                body: { symbol_key: input.symbolKey, object_type: input.objectType },
+              }),
+              "Could not name the symbol",
+            ),
+      onSuccess: done,
+    }),
+    calibrate: useMutation({
+      mutationFn: (input: { sheetId: string; viewId: string; points: number[][]; distanceMm: number }) =>
+        unwrap(
+          api.POST("/bids/{bid_id}/sheets/{sheet_id}/views/{view_id}/calibrate", {
+            params: { path: { bid_id: bidId, sheet_id: input.sheetId, view_id: input.viewId } },
+            body: { points: input.points, distance_mm: input.distanceMm },
+          }),
+          "Could not calibrate the view",
+        ),
+      onSuccess: done,
+    }),
+    approve: useMutation({
+      mutationFn: (comment: string) =>
+        unwrap(
+          api.POST("/bids/{bid_id}/qto/g1/approve", {
+            params: { path },
+            body: { comment: comment || null },
+          }),
+          "G1 was not approved",
+        ),
+      onSuccess: done,
+    }),
+  };
+}

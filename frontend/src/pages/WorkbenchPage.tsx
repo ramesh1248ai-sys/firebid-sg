@@ -2,7 +2,10 @@ import type { RowSelectionState } from "@tanstack/react-table";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 
+import { useAuth } from "@/auth/session";
 import { DrawingViewer, type Tool } from "@/workbench/DrawingViewer";
+import { DuplicatesPanel } from "@/workbench/DuplicatesPanel";
+import { GatePanel, SetupPanel, type Tab } from "@/workbench/GatePanel";
 import {
   useOverlay,
   useTileSource,
@@ -19,8 +22,13 @@ import { QueuePanel } from "@/workbench/QueuePanel";
 import {
   type EditInput,
   type QueueFilters,
+  type Approval,
   type QueueRow,
+  useBlockers,
+  useCoverage,
+  useDuplicates,
   useEvidence,
+  useGateActions,
   useQueue,
   useReasons,
   useRecentActions,
@@ -53,6 +61,17 @@ export function WorkbenchPage() {
   const [mode, setMode] = useState<"view" | "edit" | "reject">("view");
   const [remeasure, setRemeasure] = useState<{ reason: string; note: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("queue");
+  const [calibrating, setCalibrating] = useState<{ viewId: string; points: number[][] } | null>(
+    null,
+  );
+  const [approval, setApproval] = useState<Approval | null>(null);
+  const duplicates = useDuplicates(bidId);
+  const coverage = useCoverage(bidId);
+  const blockers = useBlockers(bidId);
+  const gate = useGateActions(bidId);
+  const { session } = useAuth();
+  const canApprove = Boolean(session?.roles.includes("senior_estimator"));
   const [manual, setManual] = useState<ManualDraft | null>(null);
   const [placed, setPlaced] = useState<number[][]>([]);
   const objectTypes = useObjectTypes(bidId);
@@ -80,7 +99,9 @@ export function WorkbenchPage() {
     setSelection({});
     post({ type: "changed" });
   });
-  const busy = Object.values(actions).some((m) => m.isPending);
+  const busy =
+    Object.values(actions).some((m) => m.isPending) ||
+    Object.values(gate).some((m) => m.isPending);
 
   function fail(caught: unknown) {
     setError(caught instanceof Error ? caught.message : "That did not work");
@@ -207,6 +228,11 @@ export function WorkbenchPage() {
   }
 
   function onLength(points: number[][]) {
+    if (calibrating) {
+      setCalibrating({ ...calibrating, points: [points[0]!, points[points.length - 1]!] });
+      setTool("select");
+      return;
+    }
     if (manual?.kind === "length") {
       saveManual(points, "length");
       return;
@@ -330,91 +356,193 @@ export function WorkbenchPage() {
         </div>
 
         <aside className="flex h-[calc(100vh-9rem)] min-h-[32rem] flex-col gap-3 overflow-hidden">
+          <nav className="flex gap-1 text-sm" aria-label="Workbench panels">
+            {(
+              [
+                ["queue", "Queue"],
+                ["duplicates", `Duplicates (${(duplicates.data ?? []).filter((g) => g.status === "unresolved").length})`],
+                ["setup", "Symbols & scale"],
+                ["g1", "Coverage & G1"],
+              ] as [Tab, string][]
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={tab === key}
+                className={`rounded px-2 py-1 ${tab === key ? "bg-accent font-medium" : "hover:bg-accent/50"}`}
+                onClick={() => setTab(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+          {tab === "queue" && (
+            <>
           <ManualTools
-            sheet={sheet}
-            types={objectTypes.data ?? []}
-            active={manual}
-            placed={placed.length}
-            busy={busy}
-            error={manual ? error : null}
-            onStart={(draft) => {
-              setError(null);
-              setManual(draft);
-              setPlaced([]);
-              setTool(draft.kind === "count" ? "count" : "length");
-            }}
-            onSave={() => saveManual(placed, "count")}
-            onCancel={stopManual}
-          />
-          {lassoMarks.length > 0 && (
-            <LassoPanel
-              marks={lassoMarks}
-              items={lassoItems}
-              reasons={reasons.data ?? []}
+              sheet={sheet}
+              types={objectTypes.data ?? []}
+              active={manual}
+              placed={placed.length}
               busy={busy}
-              onAccept={() => actions.accept.mutateAsync(lassoItems).catch(fail)}
-              onRejectDetections={(reason, note) =>
-                actions.rejectDetections
-                  .mutateAsync({
-                    detectionIds: lassoMarks.filter((m) => m.kind !== "manual").map((m) => m.id),
-                    reason,
-                    note,
-                  })
-                  .then(() => setLassoed(new Set()))
-                  .catch(fail)
-              }
-              onClear={() => setLassoed(new Set())}
+              error={manual ? error : null}
+              onStart={(draft) => {
+                setError(null);
+                setManual(draft);
+                setPlaced([]);
+                setTool(draft.kind === "count" ? "count" : "length");
+              }}
+              onSave={() => saveManual(placed, "count")}
+              onCancel={stopManual}
             />
-          )}
-          <div className="min-h-0 flex-1 rounded-lg border p-2">
-            {queue.isError ? (
-              <p role="alert" className="text-sm text-destructive">
-                Could not load the review queue.
-              </p>
-            ) : (
-              <QueuePanel
-                rows={rows}
-                filters={filters}
-                onFilters={setFilters}
-                levels={levels}
-                types={types}
-                openId={openId}
-                onOpen={(row) => openItem(row.item.id, row)}
-                selection={selection}
-                onSelection={setSelection}
+            {lassoMarks.length > 0 && (
+              <LassoPanel
+                marks={lassoMarks}
+                items={lassoItems}
                 reasons={reasons.data ?? []}
                 busy={busy}
-                onAccept={(ids) => actions.accept.mutateAsync(ids).catch(fail)}
-                onReject={(ids, reason) =>
-                  actions.reject.mutateAsync({ itemIds: ids, reason }).catch(fail)
-                }
-              />
-            )}
-          </div>
-          {open && (
-            <div className="max-h-[50%] overflow-auto rounded-lg border p-3">
-              <ItemPanel
-                item={open.item}
-                evidence={evidence.data}
-                reasons={reasons.data ?? []}
-                busy={busy}
-                error={error}
-                mode={mode}
-                onMode={setMode}
-                onAccept={() => actions.accept.mutateAsync([open.item.id]).catch(fail)}
-                onEdit={(change) =>
-                  actions.edit.mutateAsync({ itemId: open.item.id, change }).catch(fail)
-                }
-                onReject={(reason, note) =>
-                  actions.reject
-                    .mutateAsync({ itemIds: [open.item.id], reason, note })
+                onAccept={() => actions.accept.mutateAsync(lassoItems).catch(fail)}
+                onRejectDetections={(reason, note) =>
+                  actions.rejectDetections
+                    .mutateAsync({
+                      detectionIds: lassoMarks.filter((m) => m.kind !== "manual").map((m) => m.id),
+                      reason,
+                      note,
+                    })
+                    .then(() => setLassoed(new Set()))
                     .catch(fail)
                 }
-                onRemeasure={(reason, note) => {
-                  setRemeasure({ reason, note });
+                onClear={() => setLassoed(new Set())}
+              />
+            )}
+            <div className="min-h-0 flex-1 rounded-lg border p-2">
+              {queue.isError ? (
+                <p role="alert" className="text-sm text-destructive">
+                  Could not load the review queue.
+                </p>
+              ) : (
+                <QueuePanel
+                  rows={rows}
+                  filters={filters}
+                  onFilters={setFilters}
+                  levels={levels}
+                  types={types}
+                  openId={openId}
+                  onOpen={(row) => openItem(row.item.id, row)}
+                  selection={selection}
+                  onSelection={setSelection}
+                  reasons={reasons.data ?? []}
+                  busy={busy}
+                  onAccept={(ids) => actions.accept.mutateAsync(ids).catch(fail)}
+                  onReject={(ids, reason) =>
+                    actions.reject.mutateAsync({ itemIds: ids, reason }).catch(fail)
+                  }
+                />
+              )}
+            </div>
+            {open && (
+              <div className="max-h-[50%] overflow-auto rounded-lg border p-3">
+                <ItemPanel
+                  item={open.item}
+                  evidence={evidence.data}
+                  reasons={reasons.data ?? []}
+                  busy={busy}
+                  error={error}
+                  mode={mode}
+                  onMode={setMode}
+                  onAccept={() => actions.accept.mutateAsync([open.item.id]).catch(fail)}
+                  onEdit={(change) =>
+                    actions.edit.mutateAsync({ itemId: open.item.id, change }).catch(fail)
+                  }
+                  onReject={(reason, note) =>
+                    actions.reject
+                      .mutateAsync({ itemIds: [open.item.id], reason, note })
+                      .catch(fail)
+                  }
+                  onRemeasure={(reason, note) => {
+                    setRemeasure({ reason, note });
+                    setTool("length");
+                  }}
+                  onZoom={() => openItem(open.item.id, open)}
+                />
+              </div>
+            )}
+            </>
+          )}
+          {tab === "duplicates" && (
+            <div className="min-h-0 flex-1 overflow-auto rounded-lg border p-2">
+              <DuplicatesPanel
+                bidId={bidId}
+                groups={duplicates.data ?? []}
+                sheets={sheets.data}
+                busy={busy}
+                error={error}
+                onDecide={(groupId, decision) =>
+                  gate.decide
+                    .mutateAsync({ groupId, decision })
+                    .then(() => post({ type: "changed" }))
+                    .catch(fail)
+                }
+              />
+            </div>
+          )}
+          {tab === "setup" && (
+            <div className="min-h-0 flex-1 overflow-auto rounded-lg border p-2">
+              <SetupPanel
+                blockers={blockers.data}
+                types={objectTypes.data ?? []}
+                sheet={sheet}
+                busy={busy}
+                error={error}
+                calibrating={calibrating}
+                onName={(symbolKey, lineageId, objectType) =>
+                  gate.nameSymbol.mutateAsync({ symbolKey, lineageId, objectType }).catch(fail)
+                }
+                onStartCalibration={(viewId) => {
+                  setCalibrating({ viewId, points: [] });
                   setTool("length");
                 }}
-                onZoom={() => openItem(open.item.id, open)}
+                onCalibrate={(distanceMm) => {
+                  if (!calibrating || !sheetId) return;
+                  gate.calibrate
+                    .mutateAsync({
+                      sheetId,
+                      viewId: calibrating.viewId,
+                      points: calibrating.points,
+                      distanceMm,
+                    })
+                    .then(() => setCalibrating(null))
+                    .catch(fail);
+                }}
+                onCancelCalibration={() => {
+                  setCalibrating(null);
+                  setTool("select");
+                }}
+              />
+            </div>
+          )}
+          {tab === "g1" && (
+            <div className="min-h-0 flex-1 overflow-auto rounded-lg border p-2">
+              <GatePanel
+                coverage={coverage.data}
+                blockers={blockers.data}
+                canApprove={canApprove}
+                busy={busy}
+                error={error}
+                approval={approval}
+                onGo={(next, status) => {
+                  setTab(next);
+                  if (status) setFilters({ ...filters, status });
+                }}
+                onOpenItem={(itemId) => {
+                  setTab("queue");
+                  openItem(itemId);
+                }}
+                onApprove={(comment) =>
+                  gate.approve
+                    .mutateAsync(comment)
+                    .then(setApproval)
+                    .catch(fail)
+                }
               />
             </div>
           )}
