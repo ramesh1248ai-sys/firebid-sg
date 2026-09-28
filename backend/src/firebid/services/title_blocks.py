@@ -33,6 +33,7 @@ from firebid.drawings.title_block import (
     CANDIDATES,
     CRITICAL,
     DEFAULT_THRESHOLD,
+    DRAWING_NUMBER,
     Box,
     Field,
     FieldReading,
@@ -178,8 +179,15 @@ def _best_reading(
     best = SheetReading(read(spans, page), method, spans, page)
 
     # No text layer, or none that says what the sheet is: OCR the corners a title block sits
-    # in, most likely first, and stop at the first confident reading.
-    if document.kind == "pdf" and best.reading.needs_help(DEFAULT_THRESHOLD):
+    # in, most likely first, and stop at the first confident reading. A text layer that gave
+    # the drawing number is the drawing's own text: when it is unsure of something else (a
+    # REV cell its history contradicts), OCR of the same page only guesses at it, and once
+    # took the paper size for the revision. That doubt is a person's to settle.
+    if (
+        document.kind == "pdf"
+        and best.reading.needs_help(DEFAULT_THRESHOLD)
+        and not _number_from_text(best.reading)
+    ):
         for region in CANDIDATES:
             try:
                 ocr = run_sandboxed(
@@ -206,6 +214,18 @@ def _best_reading(
                 break
 
     return _with_remembered_layout(session, document, best)
+
+
+def _number_from_text(reading: TitleBlockReading) -> bool:
+    """The text layer read the drawing number, confidently and in a drawing number's form."""
+    found = reading.fields.get(Field.SHEET_NUMBER)
+    return bool(
+        found is not None
+        and found.value
+        and not found.from_ocr
+        and found.confidence >= DEFAULT_THRESHOLD
+        and DRAWING_NUMBER.fullmatch(found.value.upper())
+    )
 
 
 def _with_remembered_layout(

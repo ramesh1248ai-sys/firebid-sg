@@ -220,6 +220,52 @@ class TestLegends:
             symbol.description for symbol in fixtures.ALPHA.symbols
         ]
 
+    @pytest.mark.parametrize("form", ["dxf", "pdf"])
+    def test_category_columns_with_no_legend_heading_are_legends(
+        self, form: str, folder: Path
+    ) -> None:
+        """Seen on a real tender set: the legend is set out in category columns side by side
+        ("FIRE SPRINKLER SYSTEM", "VALVES & ACCESSORIES") and nothing says LEGEND outside the
+        title block. A stamp above the columns and a stack of codes beside symbols are not
+        legends."""
+        table = table_of(fixtures.category_legend_sheet(), form, folder, "category-legend")
+
+        found = legends.detect(table, A3)
+
+        described = {symbol.block: symbol.description for symbol in fixtures.GAMMA.symbols}
+        assert [(legend.heading, [row.description for row in legend.rows]) for legend in found] == [
+            (heading, [described[block] for block in blocks])
+            for heading, blocks in fixtures.GAMMA_COLUMNS
+        ]
+        assert all(row.symbol.signature is not None for legend in found for row in legend.rows)
+
+    def test_a_category_legend_s_symbols_match_their_rows(self, folder: Path) -> None:
+        table = table_of(fixtures.category_legend_sheet(), "dxf", folder, "category-legend")
+        rows = [row for legend in legends.detect(table, A3) for row in legend.rows]
+
+        signatures = [row.symbol.signature for row in rows]
+        for index, row in enumerate(rows):
+            assert row.symbol.signature is not None
+            match = symbols.best_match(row.symbol.signature, signatures)
+            assert match is not None and match.index == index, row.description
+
+    @pytest.mark.parametrize(
+        ("box", "line"),
+        [
+            ((0.0, 0.0, 16.7, 0.0), True),  # pipework: a short run of line, no height
+            ((0.0, 0.0, 16.7, 2.1), True),  # fire-rated pipework: a long thin band
+            ((0.0, 0.0, 0.1, 1.2), True),  # a sliver of a symbol, not the symbol
+            ((0.0, 0.0, 2.8, 2.8), False),  # a sprinkler head
+            ((0.0, 0.0, 6.0, 3.0), False),  # a valve
+        ],
+    )
+    def test_a_line_sample_is_no_point_symbol(
+        self, box: tuple[float, float, float, float], line: bool
+    ) -> None:
+        """Seen on a real tender: pipework rows in the legend show a sample of line. Matched
+        as a symbol, every stroke of pipe on a plan became an object (6,389 on one sheet)."""
+        assert legends.line_sample(symbols.Cluster(rows=(0,), box=box)) is line
+
     def test_the_title_block_is_not_a_legend_though_it_says_so(self, folder: Path) -> None:
         """The legend sheet's title is "LEGEND AND SYMBOLS", in its title block."""
         table = table_of(fixtures.legend_sheet(fixtures.ALPHA), "dxf", folder, "legend")

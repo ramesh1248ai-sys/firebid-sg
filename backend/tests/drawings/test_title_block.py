@@ -16,12 +16,14 @@ from ezdxf.document import Drawing
 from firebid.drawings.title_block import (
     CANDIDATES,
     DEFAULT_THRESHOLD,
+    DRAWING_NUMBER,
     Box,
     Field,
     Span,
     TitleBlockReading,
     discipline_of,
     fingerprint,
+    joined,
     learn,
     ocr_digits,
     parse_date,
@@ -319,6 +321,105 @@ class TestValues:
         self, number: str, discipline: str | None
     ) -> None:
         assert discipline_of(number) == discipline
+
+
+class TestAProjectNumberedTitleBlock:
+    """A layout seen on a real Singapore tender set: the drawing number is the project number,
+    a bracketed building code and a sheet code (`7310(ABC)-F/2C`), which the PDF writer splits
+    into two runs of text; the revision cell holds a dash (first issue); the date is a month
+    and year set in across its cell, with a (c) mark below it on the copyright line; and a
+    note elsewhere refers to another sheet by its number."""
+
+    def spans(self, history_row: bool = False) -> list[Span]:
+        spans = [
+            span("Drawing Title:", 720.8, 507.4, 3.3),
+            span("MAIN PIPING LAYOUT", 720.8, 516.4, 3.7),
+            span("BASEMENT 2M PLAN - ZONE 1", 720.8, 522.3, 3.7),
+            span("Drawing No.:", 720.8, 537.4, 3.3),
+            span("Revision:", 800.7, 537.4, 2.6),
+            # One number, two runs: `7310(ABC)-F/` then `2C`, 0.2 mm apart.
+            Span("7310(ABC)-F/", 743.2, 541.8, 786.1, 548.4),
+            Span("2C", 786.3, 541.8, 794.6, 547.0),
+            Span("-", 808.2, 545.4, 809.6, 545.8),
+            span("Date:", 720.8, 552.4, 2.6),
+            span("Scale:", 760.7, 552.4, 2.6),
+            span("Size:", 800.8, 552.4, 2.6),
+            Span("JUL 2026", 741.0, 556.3, 755.6, 558.9),
+            Span("AS SHOWN", 776.9, 556.3, 795.7, 558.9),
+            span("Drawn:", 720.8, 562.4, 2.6),
+            Span("A1", 806.4, 564.4, 811.4, 568.0),
+            Span("C", 721.5, 572.8, 723.0, 574.6),
+            Span("COPYRIGHT 2026 EXAMPLE CONSULTING ENGINEERS", 725.3, 572.8, 794.8, 574.6),
+            # A note on the plan naming another sheet, in small text.
+            span("7310(ABC)-F/1 FOR GENERAL NOTES", 700.0, 81.0, 2.0),
+        ]
+        if history_row:
+            spans += [
+                span("Rev", 720.0, 197.4, 2.0),
+                span("Date", 730.9, 197.4, 2.0),
+                span("Description", 771.9, 197.1, 2.0),
+                span("A", 721.4, 203.4, 2.0),
+                span("26.09.26", 728.9, 203.4, 2.0),
+                span("HEADS AND BRANCH PIPEWORK ADDED", 745.1, 203.8, 2.0),
+            ]
+        return spans
+
+    def test_the_split_number_the_dash_and_the_month_are_read(self) -> None:
+        reading = read(self.spans(), PAGE)
+
+        assert reading.value(Field.SHEET_NUMBER) == "7310(ABC)-F/2C"
+        assert reading.value(Field.REVISION) == "-"
+        assert reading.value(Field.REVISION_DATE) == "JUL 2026"
+        assert reading.value(Field.TITLE) == "MAIN PIPING LAYOUT BASEMENT 2M PLAN - ZONE 1"
+        assert not reading.needs_help(DEFAULT_THRESHOLD)
+
+    def test_a_history_naming_a_revision_the_rev_cell_does_not_is_a_question(self) -> None:
+        # A mark-up added "Rev A" to the history and left the REV cell at "-".
+        reading = read(self.spans(history_row=True), PAGE)
+
+        assert reading.value(Field.SHEET_NUMBER) == "7310(ABC)-F/2C"
+        assert reading.fields[Field.REVISION].confidence < DEFAULT_THRESHOLD
+
+    def test_a_doubtful_revision_does_not_send_a_read_number_to_ocr(self) -> None:
+        """On the real set, OCR of such a sheet took the paper size (A1) for the revision and,
+        scoring higher, replaced the text layer's right reading. The doubt goes to a person."""
+        from firebid.services.title_blocks import _number_from_text
+
+        doubtful = read(self.spans(history_row=True), PAGE)
+        unnumbered = read([s for s in self.spans() if not s.text.startswith(("7310", "2C"))], PAGE)
+
+        assert doubtful.needs_help(DEFAULT_THRESHOLD)
+        assert _number_from_text(doubtful) is True
+        assert _number_from_text(unnumbered) is False
+
+    @pytest.mark.parametrize(
+        ("text", "number"),
+        [
+            ("7310(ABC)-F/2C", True),
+            ("7310-F-001", True),
+            ("FP-L05-201", True),
+            ("2026-09-26", False),
+            ("26/09/2026", False),
+            ("26.09.26", False),
+        ],
+    )
+    def test_project_numbered_drawings_are_numbers_and_dates_are_not(
+        self, text: str, number: bool
+    ) -> None:
+        assert bool(DRAWING_NUMBER.fullmatch(text)) is number
+
+    def test_runs_are_joined_only_across_a_hairline_gap(self) -> None:
+        together = joined([Span("F/", 10.0, 0.0, 14.0, 5.0), Span("2C", 14.2, 0.3, 19.0, 4.8)])
+        apart = joined([Span("SCALE", 10.0, 0.0, 22.0, 5.0), Span("1:100", 25.0, 0.0, 36.0, 5.0)])
+        another_line = joined([Span("F/", 10.0, 0.0, 14.0, 5.0), Span("2C", 14.2, 9.0, 19.0, 14.0)])
+
+        assert [s.text for s in together] == ["F/2C"]
+        assert [s.text for s in apart] == ["SCALE", "1:100"]
+        assert sorted(s.text for s in another_line) == ["2C", "F/"]
+
+    def test_a_month_and_year_is_the_first_of_the_month(self) -> None:
+        parsed = parse_date("JUL 2026")
+        assert parsed is not None and (parsed.year, parsed.month, parsed.day) == (2026, 7, 1)
 
 
 class TestRememberedLayouts:

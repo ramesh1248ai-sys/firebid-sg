@@ -18,7 +18,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from firebid.db.models.documents import Document, DocumentRevision, Sheet, SheetRevision
-from firebid.drawings.title_block import DEFAULT_THRESHOLD
 from firebid.ingest.classification import Classification, Digest, DocType, classify
 from firebid.sandbox.runner import SandboxFailure, run_sandboxed
 
@@ -80,20 +79,24 @@ def classify_in_sandbox(session: Session, document: Document, payload: bytes) ->
 
 
 def _sheet_counts(session: Session, document: Document) -> tuple[int, int]:
-    """How many sheets this document became, and how many had a title block read well."""
+    """How many sheets this document became, and how many carry a title block.
+
+    A sheet carries one when its title block gave a drawing number, whatever became of the
+    other fields: a revision cell the history contradicts is a question about the revision,
+    not about whether the page is a drawing.
+    """
+    from firebid.drawings.title_block import DRAWING_NUMBER
+
     sheets = session.execute(
         select(func.count()).select_from(Sheet).where(Sheet.document_id == document.id)
     ).scalar_one()
-    identified = session.execute(
-        select(func.count())
-        .select_from(SheetRevision)
+    numbers = session.execute(
+        select(SheetRevision.sheet_number)
         .join(Sheet, Sheet.id == SheetRevision.sheet_id)
-        .where(
-            Sheet.document_id == document.id,
-            SheetRevision.source_confidence >= DEFAULT_THRESHOLD,
-        )
-    ).scalar_one()
-    return int(sheets), int(identified)
+        .where(Sheet.document_id == document.id)
+    ).scalars()
+    identified = sum(1 for number in numbers if number and DRAWING_NUMBER.fullmatch(number.upper()))
+    return int(sheets), identified
 
 
 def _record(document: Document, result: Classification, digest: Digest | None) -> None:

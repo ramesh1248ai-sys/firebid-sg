@@ -135,6 +135,70 @@ def _define(document: Drawing, consultant: Consultant) -> None:
     _graphic(document.blocks.new(consultant.mystery_block), "star")
 
 
+# A consultant whose legend has no LEGEND heading: category columns side by side, as on many
+# Singapore tender sets ("FIRE FIGHTING & ALARM SYSTEM", "VALVES & ACCESSORIES").
+GAMMA = Consultant(
+    name="GAMMA CONSULTING ENGINEERS PTE LTD",
+    symbols=(
+        Symbol("G-EXP", "EXPOSED SPRINKLER", "sprinkler_pendent", "circle_cross"),
+        Symbol("G-CON", "CONCEALED SPRINKLER", "sprinkler_pendent", "circle_dot"),
+        Symbol("G-SW", "SIDE-WALL SPRINKLER", "sprinkler_sidewall", "half_circle"),
+        Symbol("G-FS", "FLOW SWITCH", "flow_switch", "square_diagonal"),
+        Symbol("G-GV", "GATE VALVE", "gate_valve", "bow_tie"),
+        Symbol("G-CV", "CHECK VALVE", "check_valve", "arrow_bar"),
+        Symbol("G-BV", "BALL VALVE", "gate_valve", "circle_bar"),
+        Symbol("G-ST", "STRAINER", "strainer", "square_cross"),
+    ),
+)
+GAMMA_COLUMNS = (
+    ("FIRE SPRINKLER SYSTEM", ("G-EXP", "G-CON", "G-SW", "G-FS")),
+    ("VALVES & ACCESSORIES", ("G-GV", "G-CV", "G-BV", "G-ST")),
+)
+
+
+def category_legend_sheet(
+    consultant: Consultant = GAMMA,
+    columns: tuple[tuple[str, tuple[str, ...]], ...] = GAMMA_COLUMNS,
+    sheet_number: str = "FP-LEG-002",
+) -> Drawing:
+    """A legend in category columns with no LEGEND heading, a stamp above the columns, and
+    a stack of pipe sizes and room codes beside symbols that is not a legend at all."""
+    document, space = synthetic._new_drawing()
+    _define(document, consultant)
+    described = {symbol.block: symbol.description for symbol in consultant.symbols}
+    left = SHEET_ORIGIN[0] + 2_000
+    top = SHEET_ORIGIN[1] + SHEET_SIZE[1] - 3_000
+    space.add_text(
+        "PLEASE DELETE ACCORDINGLY", height=450, dxfattribs={"layer": LAYER_TEXT}
+    ).set_placement((left + 6_000, top + 1_200))
+    for index, (heading, blocks) in enumerate(columns):
+        x = left + index * 9_000
+        space.add_text(heading, height=350, dxfattribs={"layer": LAYER_TEXT}).set_placement(
+            (x, top)
+        )
+        for row, block in enumerate(blocks):
+            y = top - (row + 1.5) * 1_000
+            _insert(space, block, x + R, y)
+            space.add_text(
+                described[block], height=250, dxfattribs={"layer": LAYER_TEXT}
+            ).set_placement((x + 6 * R, y - 100))
+    # Not a legend: codes stacked beside symbols under a short upper-case label.
+    x = left + 22_000
+    space.add_text("PIPE SIZES", height=350, dxfattribs={"layer": LAYER_TEXT}).set_placement(
+        (x, top)
+    )
+    for row, code in enumerate(("DN100", "L17-TW.B-30", "DN50", "RM 4")):
+        y = top - (row + 1.5) * 1_000
+        _insert(space, consultant.symbols[0].block, x + R, y)
+        space.add_text(code, height=250, dxfattribs={"layer": LAYER_TEXT}).set_placement(
+            (x + 6 * R, y - 100)
+        )
+    synthetic._title_block(
+        space, sheet_number, "-", "AS SHOWN", title="NOTES & LEGEND", consultant=consultant.name
+    )
+    return document
+
+
 def _insert(
     space: Modelspace, block: str, x: float, y: float, rotation: float = 0.0, scale: float = 1.0
 ) -> None:
