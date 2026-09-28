@@ -166,6 +166,7 @@ class BlockersOut(BaseModel):
     clear: bool
     unresolved_groups: list[dict[str, Any]]
     incomplete_items: list[dict[str, Any]]
+    pending_work: list[dict[str, Any]]
 
 
 class ApproveIn(BaseModel):
@@ -593,6 +594,7 @@ def g1_status(context: CurrentBid, session: DbSession) -> BlockersOut:
         clear=found.clear,
         unresolved_groups=found.unresolved_groups,
         incomplete_items=found.incomplete_items,
+        pending_work=found.pending_work,
     )
 
 

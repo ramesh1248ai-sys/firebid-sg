@@ -29,7 +29,7 @@ from decimal import Decimal
 from typing import Any
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from firebid.db.audit import record_event
@@ -1136,16 +1136,51 @@ def verify(session: Session, item: QtoItem, actor: Actor, note: str | None = Non
 class Blockers:
     unresolved_groups: list[dict[str, Any]]
     incomplete_items: list[dict[str, Any]]
+    pending_work: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def clear(self) -> bool:
-        return not (self.unresolved_groups or self.incomplete_items)
+        return not (self.unresolved_groups or self.incomplete_items or self.pending_work)
+
+
+# Jobs that change what takeoff reads. A queued recompute is not here: approving G1
+# recomputes first, in its own transaction.
+_UPSTREAM = (
+    "parse.document",
+    "detection.run",
+    "detection.vision",
+    "spec.read",
+    "spec.sections",
+    "spec.attributes",
+)
+_PENDING = text(
+    """
+    SELECT task_name, status, count(*) AS jobs FROM procrastinate_jobs
+    WHERE status IN ('todo', 'doing') AND task_name = ANY(:tasks)
+      AND (args->>'bid_id' = :bid
+           OR args->>'document_id' IN (SELECT id::text FROM document WHERE bid_id = :bid_id)
+           OR args->>'sheet_id' IN (SELECT id::text FROM sheet WHERE bid_id = :bid_id)
+           OR args->>'revision_id' IN
+              (SELECT id::text FROM document_revision WHERE bid_id = :bid_id))
+    GROUP BY task_name, status ORDER BY task_name
+    """
+)
+
+
+def pending_work(session: Session, bid_id: uuid.UUID) -> list[dict[str, Any]]:
+    """Reading and detection still queued or running: the takeoff is not settled yet."""
+    rows = session.execute(
+        _PENDING, {"tasks": list(_UPSTREAM), "bid": str(bid_id), "bid_id": bid_id}
+    )
+    return [{"task": row.task_name, "status": row.status, "jobs": row.jobs} for row in rows]
 
 
 def g1_blockers(session: Session, bid_id: uuid.UUID) -> Blockers:
     """What stops G1: unresolved duplicate groups (FR-QTO-08), incomplete evidence (FR-QTO-09).
 
-    The verification coverage policy (FR-REV-04) joins these in P1-08.
+    Also, work still queued or running for the bid: drawings being read or detected
+    (the takeoff would change under the approval). The verification coverage policy
+    (FR-REV-04) joins these in P1-08.
     """
     groups = session.execute(
         select(DuplicateGroup)
@@ -1157,16 +1192,25 @@ def g1_blockers(session: Session, bid_id: uuid.UUID) -> Blockers:
             {"id": str(g.id), "kind": g.kind, "level": g.level, "reason": g.reason} for g in groups
         ],
         incomplete_items=completeness(session, bid_id),
+        pending_work=pending_work(session, bid_id),
     )
 
 
 def approve_g1(
     session: Session, bid: Bid, actor: Actor, role: str, comment: str | None = None
 ) -> Approval:
-    """Record G1, or raise `QtoError` listing what blocks it."""
+    """Record G1 on the takeoff as it stands now, or raise `QtoError` listing what blocks it.
+
+    Takeoff is recomputed first, so the approval never rests on a result a queued
+    recompute was about to change.
+    """
+    recompute(session, bid.id)
     blockers = g1_blockers(session, bid.id)
     if not blockers.clear:
         parts = []
+        if blockers.pending_work:
+            jobs = sum(int(w["jobs"]) for w in blockers.pending_work)
+            parts.append(f"{jobs} reading or detection job(s) still to finish")
         if blockers.unresolved_groups:
             parts.append(f"{len(blockers.unresolved_groups)} unresolved duplicate group(s)")
         if blockers.incomplete_items:

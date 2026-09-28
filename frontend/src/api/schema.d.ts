@@ -1758,6 +1758,10 @@ export interface components {
             incomplete_items: {
                 [key: string]: unknown;
             }[];
+            /** Pending Work */
+            pending_work: {
+                [key: string]: unknown;
+            }[];
             /** Unresolved Groups */
             unresolved_groups: {
                 [key: string]: unknown;

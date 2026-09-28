@@ -14,6 +14,7 @@ import csv
 import io
 from collections.abc import Iterator
 from decimal import Decimal
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -55,6 +56,8 @@ def tender(session: Session, bid: Bid, store: MemoryObjectStore) -> Iterator[Bid
     confirm_legend(session, bid, store)
     detect_bid(session, store, bid.id)
     qto.recompute(session, bid.id)
+    # `read` does what the parse job does; the jobs uploading queued have nothing left to do.
+    session.execute(text("DELETE FROM procrastinate_jobs"))
     session.commit()
     yield bid
 
@@ -231,6 +234,37 @@ class TestDuplicatesAndG1:
         assert approved.status_code == 201, approved.text
         assert approved.json()["gate"] == "G1" and approved.json()["snapshot_hash"]
 
+    def test_g1_waits_for_drawings_still_being_read(
+        self, session: Session, organisation: Organisation, tender: Bid
+    ) -> None:
+        """Approving while detection is queued would approve a takeoff about to change."""
+        from firebid.jobs.enqueue import enqueue
+        from firebid.jobs.tasks import run_detection
+
+        actor, _ = estimator(session, organisation, tender)
+        group = session.execute(
+            select(DuplicateGroup).where(DuplicateGroup.status == "unresolved")
+        ).scalar_one()
+        qto.decide_group(session, group, "confirmed", actor)
+        enqueue(session, run_detection, bid_id=str(tender.id), user_id="")
+
+        blockers = qto.g1_blockers(session, tender.id)
+
+        assert blockers.pending_work == [{"task": "detection.run", "status": "todo", "jobs": 1}]
+        with pytest.raises(qto.QtoError, match="still to finish"):
+            qto.approve_g1(session, tender, actor, "senior_estimator")
+
+    def test_approving_g1_recomputes_first(
+        self, session: Session, organisation: Organisation, tender: Bid
+    ) -> None:
+        """A group that only a recompute would find still blocks the approval."""
+        actor, _ = estimator(session, organisation, tender)
+        session.execute(text("DELETE FROM duplicate_group"))
+        session.flush()
+
+        with pytest.raises(qto.QtoError, match="unresolved duplicate"):
+            qto.approve_g1(session, tender, actor, "senior_estimator")
+
     def test_only_a_senior_estimator_approves_g1(
         self, session: Session, organisation: Organisation, tender: Bid, sign_in: SignIn
     ) -> None:
@@ -272,7 +306,7 @@ class TestEvidence:
         assert live and {item.id for item in live} == set(records)
         assert all(row.missing_fields == [] for row in records.values())
         branch = next(item for item in live if item.description == BRANCH)
-        record = records[branch.id].record
+        record: dict[str, Any] = dict(records[branch.id].record)
         assert record["source"]["sheet_number"] == "FP-L05-201"
         assert record["source"]["revision_label"] == "R01"
         assert record["detection_method"] == "cad_entity"
@@ -473,7 +507,9 @@ class TestRuleVersions:
         senior = member(session, organisation, tender, "sam", Role.SENIOR_ESTIMATOR)
         client = sign_in(senior)
         before = items(session, tender)[DROPS]
-        definition = dict(qto.rule_rows(session, organisation.id)["drop_length"].definition)
+        definition: dict[str, Any] = dict(
+            qto.rule_rows(session, organisation.id)["drop_length"].definition
+        )
         definition["defaults"] = {**definition["defaults"], "branch_elevation_mm": 3400}
 
         changed = client.post(

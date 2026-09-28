@@ -788,6 +788,14 @@
             "title": "Incomplete Items",
             "type": "array"
           },
+          "pending_work": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Pending Work",
+            "type": "array"
+          },
           "unresolved_groups": {
             "items": {
               "additionalProperties": true,
@@ -800,7 +808,8 @@
         "required": [
           "clear",
           "unresolved_groups",
-          "incomplete_items"
+          "incomplete_items",
+          "pending_work"
         ],
         "title": "BlockersOut",
         "type": "object"
