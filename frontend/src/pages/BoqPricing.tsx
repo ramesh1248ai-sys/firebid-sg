@@ -187,7 +187,10 @@ function PricingRow({
       <td className="py-2 pr-3">{line.item_no}</td>
       <td className="py-2 pr-3">
         {line.description}
-        {line.warnings.map((warning) => (
+        {/* An unset tender validity is said once, above the table, not on every line. */}
+        {line.warnings
+          .filter((warning) => warning.code !== "tender_validity_unknown")
+          .map((warning) => (
           <div key={warning.code} className="text-xs text-amber-700">
             {warning.message}
           </div>

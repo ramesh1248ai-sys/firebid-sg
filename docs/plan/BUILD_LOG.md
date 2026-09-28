@@ -1115,3 +1115,76 @@ Entry template:
   - **A 121-sheet file is one long job** that shows no sheets until it ends (about 13 s a sheet for title blocks at the time). The progress screen stays blank for a long time.
   - **The first virus scan of the 83 MB file timed out once**, and scanned in 11.5 s when retried.
   - **There is no bid delete in the app.** A test bid was removed directly from the database and object store.
+
+## P1-10 · Rate Library Pricing · 2026-09-29
+
+- **Summary:** estimators price BOQ lines from a company rate library in which every rate has a source (company standard, purchase order or quotation), a reference, an effective date and a validity. Built in parts A (library, matching, provenance, validity, totals, queue weighting) and B (API and screens).
+  - **The rate library:** entries are immutable. A changed rate is a new version and the old one is kept, with every line priced from it. An xlsx import is all or nothing, with every problem reported by row and column.
+  - **Keys:** each BOQ line gets an item key (type, DN, material, schedule, joining, brand) from what its QTO items agree on.
+  - **Matching:** an exact key prices a line by rule. Where entries differ only in something other than type and size, the model proposes one (it is never shown a rate) and an estimator confirms it. Estimators can also choose any entry.
+  - **Unpriced:** a line with no entry says "unpriced" and is left out of the total.
+  - **Provenance** is enforced in the domain (`domain.pricing.price_from`) and in the database (a check constraint, and a trigger holding rate and amount to the entry's).
+  - **Validity:** warnings for an expired rate, and for a rate ending before the tender validity (submission plus `tender_validity_days`).
+  - **Totals:** Decimal, half-up per line, section and grand, excluding GST.
+  - **Exports:** rates reach the client's workbook (through the P1-09 patcher) and our BOQ export (with each rate's source, and totals).
+  - **The review queue** weighs priced items by their rate.
+- **Key modules / files:**
+  - `pricing/keys.py`, `pricing/rates.py` (matching, validity, totals), `pricing/importer.py` (sandbox entry `read_json`).
+  - `domain/pricing.py`; `services/pricing.py`; `agents/rate_match.py`, with route `rate_match` (confidential: no rates sent) and prompt v1.
+  - Job `pricing.match`; `api/pricing.py` (`/rates`, `/rates/import`, `/rates/{id}/history`, `/bids/{id}/pricing`, `/run`, `/lines/{id}/confirm`, `/lines/{id}/rate`, `/lines/{id}/candidates`).
+  - Permission `rate_library.change` for the Senior Estimator; pricing actions use `boq.edit`.
+  - Migration `0026`: rate key parts, `retired_at`, one current version per item/unit/source; BOQ line item key, proposal, method and who priced it; check constraint `priced_from_rate`; trigger `boq_line_price_from_rate`.
+  - Config: `config/pricing.yaml` (source preference, to be confirmed); `config/review.yaml` gains `weight_unit_sgd: 40` (to be confirmed).
+  - Frontend: `pages/RatesPage.tsx`, `pages/BoqPricing.tsx` (on the BOQ page), a Rates link in the navigation.
+  - Fixture: `evals/synthetic_rates.py`.
+- **How to run and demo:**
+  1. `make up`. As `senior.estimator@firebid.test`, open **Rates** and import a rate list.
+  2. On a bid with a built BOQ, open **BOQ**, then **Price from the rate library**.
+  3. Confirm proposals, or **Choose…** an entry for a line.
+  4. Set the bid's tender validity to get the validity check.
+  5. Export our BOQ and the priced client workbook.
+- **Requirement IDs covered:** FR-CST-01, in `tests/pricing/test_pricing.py` (keys, matching, validity, hand-worked totals, domain refusal, import report) and `tests/db/test_pricing.py`:
+  - `TestProvenance`: domain and database refusal, the trigger, allowances;
+  - `TestMatching`: rule, proposal then confirmation, unpriced, a person's choice surviving a rebuild;
+  - `TestValidity`; `TestLibrary`: versions, all-or-nothing import; `TestTotals`; `TestExports`: the client-workbook round trip with rates, our BOQ export; `TestQueue`; `TestApi`;
+  - frontend: `Rates.test.tsx`.
+- **"Done when":**
+
+  | Criterion | Test |
+  |---|---|
+  | A price without a rate-entry reference is rejected by the domain and the database | `TestProvenance`, `TestDomain` |
+  | Rule matches price correctly; proposals wait; unmatched lines show "unpriced" | `TestMatching` |
+  | Validity warnings (ends before the tender, expired) | `TestValidity` (unit and database) |
+  | Totals match hand calculations, including rounding (0.025 → 0.03 half-up, 0.0125 → 0.01, a 1.005 rate as 1.01) | `TestTotals` |
+  | The priced client workbook passes the P1-09 round trip with rates filled | `TestExports`; the P1-09 test now prices from the library |
+  | Build log entry | this entry |
+
+- **Deviations and decisions** (approved in the plan):
+  - The net quantity is priced; wastage becomes a cost line in P2 (FR-CST-06).
+  - Rule matches price at once.
+  - Imports are all or nothing.
+  - The model never sees a rate.
+  - A blank key part matches only a blank; a blank against a value is a partial match.
+  - **New:**
+    - **The database also holds a rate and amount to the entry's rate** (a trigger), not only the rate reference.
+    - **Class weights and rates are on one scale** in the review queue: `weight_unit_sgd`, the SGD value of one weight unit (a sprinkler head).
+    - **Provisional and lump sums** keep an amount without a rate: the estimator's allowance, shown as such and totalled separately.
+- **Manual checks and results:**
+  - **Live on the rebuilt stack** (bid BID-2026-048):
+    - the synthetic rate list imported (10 entries);
+    - pricing priced 9 of 13 lines by rule and left 4 unpriced (no DN on this bid's riser and gate valve, tees with no exact entry), with the expired DN100 rate warned of; total SGD 3,612.10 excluding GST;
+    - after confirming the client mappings, the priced client workbook carries the rates in its own cells;
+    - coverage reads "SGD: 8 of 13 items from rates";
+    - screenshots of both screens checked.
+  - **Tests:**
+    - backend unit suite: 974 passed (19 of them pricing);
+    - pricing database/API: 18 passed;
+    - affected database suites (BOQ, review, takeoff, migrations, RLS): 82 passed;
+    - frontend: 15 page tests, including 4 new.
+    - ruff, mypy strict (342 files), tsc and oxlint are clean.
+- **Known gaps and follow-ups:**
+  - **The model's proposals** are tested with a fake adapter only (no key on the dev stack).
+  - **Weights and preferences to be confirmed:** `weight_unit_sgd` and `source_preference`.
+  - **No rate list from the business yet:** the synthetic one stands in.
+  - **Quotations** (FR-CST-02/03), GST (P2-04) and cost build-up (FR-CST-06) are Phase 2.
+  - **Order-dependent test:** `test_migrations_leave_application_logging_working` fails when run alone with `test_migrations.py` (on `main` too). It passes in the full suite.
