@@ -146,6 +146,17 @@ routes:
     max_output_tokens: 4000
     prompt: boq_mapping
 
+  # Which rate library entry a BOQ line is, among candidates that differ from it only in
+  # something other than type and size. Descriptions and keys only: no rate is ever sent,
+  # so this is confidential, not commercial (P1-10).
+  rate_match:
+    requires: [structured_output]
+    data_class: confidential
+    models: [claude-opus-5, gpt-5.1, gemini-3-pro]
+    reasoning: medium
+    max_output_tokens: 4000
+    prompt: rate_match
+
   # Proposes which columns of a client's bill hold the item, description, unit, quantity,
   # rate and amount, when the header words could not say (P1-09). Sent the top rows.
   boq_columns:

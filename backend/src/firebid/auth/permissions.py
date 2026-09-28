@@ -32,6 +32,7 @@ class Action(StrEnum):
     QTO_EDIT = "qto.edit"  # manual items, duplicate decisions, rule inputs, recompute
     BOQ_EDIT = "boq.edit"  # build the BOQ, map client lines, mark lines, conventions
     BOQ_TEMPLATE_CHANGE = "boq_template.change"  # the company BOQ templates (FR-ADM-03)
+    RATE_LIBRARY_CHANGE = "rate_library.change"  # the company rate library (FR-CST-01)
     SUPPLIER_PRICE_SELECT = "supplier_price.select"
     LABOUR_PRODUCTIVITY_ADJUST = "labour_productivity.adjust"
     ENGINEERING_OPTION_APPROVE = "engineering_option.approve"
@@ -74,6 +75,8 @@ _MATRIX: dict[Action, frozenset[str]] = {
     # measurement rules.
     Action.BOQ_EDIT: frozenset({Role.ESTIMATOR, Role.SENIOR_ESTIMATOR}),
     Action.BOQ_TEMPLATE_CHANGE: frozenset({Role.SENIOR_ESTIMATOR}),
+    # Rates are commercial: the senior estimator, who selects supplier prices, keeps them.
+    Action.RATE_LIBRARY_CHANGE: frozenset({Role.SENIOR_ESTIMATOR}),
     Action.SUPPLIER_PRICE_SELECT: frozenset({Role.SENIOR_ESTIMATOR}),
     Action.LABOUR_PRODUCTIVITY_ADJUST: frozenset({Role.SENIOR_ESTIMATOR}),
     Action.ENGINEERING_OPTION_APPROVE: frozenset({Role.DESIGN_MANAGER}),

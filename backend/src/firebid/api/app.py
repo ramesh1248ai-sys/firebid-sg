@@ -91,6 +91,7 @@ def create_app(
         detections,
         documents,
         library,
+        pricing,
         progress,
         qto,
         registers,
@@ -114,6 +115,8 @@ def create_app(
     app.include_router(review.router)
     app.include_router(boq.router)
     app.include_router(boq.templates_router)
+    app.include_router(pricing.router)
+    app.include_router(pricing.rates_router)
     app.include_router(registers.router)
     app.include_router(addenda.router)
     app.include_router(progress.router)

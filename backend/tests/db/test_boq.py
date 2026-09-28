@@ -34,7 +34,6 @@ from firebid.db.models.takeoff import QtoItem
 from firebid.db.models.workflow import Approval
 from firebid.domain.actors import Actor
 from firebid.domain.state_machines import Role
-from firebid.domain.values import Money
 from firebid.evals import synthetic_boq
 from firebid.ingest.scanning import AlwaysCleanScanner
 from firebid.services import boq, qto
@@ -434,7 +433,14 @@ class TestExports:
         for row in boq.mappings(session, tender.id).values():
             if row.boq_line_key:
                 boq.decide_mapping(session, row, estimator, decision="confirm")
-        line_for(session, tender, "Sprinkler, pendent").unit_rate = Money.of("85.50")
+        # Priced from the rate library, the only way a line gets a rate (P1-10).
+        from firebid.evals import synthetic_rates
+        from firebid.services import pricing
+
+        pricing.import_rates(
+            session, tender.organisation_id, synthetic_rates.rate_list(), estimator, "rates.xlsx"
+        )
+        pricing.price_boq(session, tender, estimator)
         session.commit()
 
         priced = boq.priced_client_workbook(session, store, tender.id, document.id)
@@ -450,7 +456,7 @@ class TestExports:
 
         sheet = load_workbook(io.BytesIO(priced))[synthetic_boq.BILL]
         _, rate_cell, amount_cell = synthetic_boq.client_boq().cells["A1"]
-        assert sheet[rate_cell].value == 85.5
+        assert sheet[rate_cell].value == 38.5
         assert str(sheet[amount_cell].value).startswith("="), "Excel works out the amount"
 
     def test_the_company_boq_exports_with_its_trace(

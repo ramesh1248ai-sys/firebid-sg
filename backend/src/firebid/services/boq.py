@@ -301,6 +301,12 @@ def build_company_boq(
         )
     session.flush()
     _relink(session, bid_id, boq)
+    # Prices people chose or confirmed follow their lines; the rules price the rest (P1-10).
+    from firebid.services import pricing
+
+    bid = session.get(Bid, bid_id)
+    if bid is not None:
+        pricing.after_build(session, bid, previous, boq, actor)
     record_event(
         session,
         context=_context(session, bid_id),
@@ -1038,25 +1044,48 @@ def priced_client_workbook(
 
 
 def company_workbook(session: Session, bid_id: uuid.UUID) -> bytes:
-    """The company BOQ as a new workbook (openpyxl may write this one: it is ours)."""
+    """The company BOQ as a new workbook (openpyxl may write this one: it is ours).
+
+    Each line's rate and amount name their rate library source; a line with neither says
+    "unpriced". Section and grand totals follow, excluding GST (P1-10).
+    """
     from openpyxl import Workbook
     from openpyxl.styles import Font
+
+    from firebid.db.models.commercial import Rate
+    from firebid.services.pricing import boq_totals
 
     boq = current_boq(session, bid_id)
     if boq is None:
         raise BoqError("build the BOQ first")
+    lines = lines_of(session, boq)
+    wanted = [line.rate_id for line in lines if line.rate_id]
+    sources = {
+        rate.id: f"{rate.source_type.replace('_', ' ')}: {rate.source_reference}"
+        for rate in session.execute(select(Rate).where(Rate.id.in_(wanted))).scalars()
+    }
     book = Workbook()
     sheet = book.active
     if sheet is None:  # pragma: no cover - a new workbook always has one
         sheet = book.create_sheet()
     sheet.title = "BOQ"
     sheet.append(
-        ["Item", "Description", "Unit", "Net qty", "Allowance %", "Rate", "Amount", "Trace"]
+        [
+            "Item",
+            "Description",
+            "Unit",
+            "Net qty",
+            "Allowance %",
+            "Rate",
+            "Amount",
+            "Source",
+            "Trace",
+        ]
     )
     for cell in sheet[1]:
         cell.font = Font(bold=True)
     section = None
-    for line in lines_of(session, boq):
+    for line in lines:
         if line.section != section:
             section = line.section
             sheet.append([None, section])
@@ -1064,6 +1093,12 @@ def company_workbook(session: Session, bid_id: uuid.UUID) -> bytes:
         marker = (
             "provisional sum" if line.is_provisional else "lump sum" if line.is_lump_sum else ""
         )
+        if line.rate_id:
+            source = sources.get(line.rate_id, "")
+        elif line.amount is not None:
+            source = "estimator's allowance"
+        else:
+            source = "unpriced"
         sheet.append(
             [
                 line.item_no,
@@ -1073,9 +1108,22 @@ def company_workbook(session: Session, bid_id: uuid.UUID) -> bytes:
                 float(line.allowance_percent) if line.allowance_percent is not None else None,
                 float(line.unit_rate.amount) if line.unit_rate else None,
                 float(line.amount.amount) if line.amount else None,
+                source,
                 marker or "QTO",
             ]
         )
+    totals = boq_totals(session, boq)
+    sheet.append([])
+    for name, amount in totals.sections.items():
+        sheet.append(
+            [None, f"Total: {name or 'no section'}", None, None, None, None, float(amount.amount)]
+        )
+    sheet.append(
+        [None, "Grand total (excluding GST)", None, None, None, None, float(totals.grand.amount)]
+    )
+    sheet.cell(row=sheet.max_row, column=2).font = Font(bold=True)
+    if totals.unpriced:
+        sheet.append([None, f"{totals.unpriced} line(s) unpriced: not in the total"])
     out = io.BytesIO()
     book.save(out)
     return out.getvalue()
