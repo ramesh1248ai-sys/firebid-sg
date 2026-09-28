@@ -51,7 +51,9 @@ from firebid.db.models.symbols import (
     SymbolMapping,
 )
 from firebid.db.models.takeoff import (
+    BidParameter,
     DetectedObject,
+    DuplicateGroup,
     Evidence,
     MeasurementRule,
     PipeRun,
@@ -71,6 +73,7 @@ __all__ = [
     "Bid",
     "BidBudget",
     "BidMember",
+    "BidParameter",
     "Boq",
     "BoqLine",
     "BoqLineSource",
@@ -82,6 +85,7 @@ __all__ = [
     "DetectedObject",
     "Document",
     "DocumentRevision",
+    "DuplicateGroup",
     "Evidence",
     "GeometryFeature",
     "HumanTask",

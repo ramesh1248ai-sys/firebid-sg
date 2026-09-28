@@ -96,6 +96,9 @@ def test_incomplete_evidence_reports_its_missing_fields(session: Session, bid: B
         verification_status="proposed",
     )
     assert set(record.missing_mandatory_fields()) == {
+        "location.level",
+        "calculation_note",
+        "run_metadata",
         "geometry_reference",
         "evidence_links",
         "source.sheet",
