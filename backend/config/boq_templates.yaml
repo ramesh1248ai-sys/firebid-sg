@@ -1,0 +1,42 @@
+# Company BOQ templates (FR-ADM-03, P1-09).
+#
+# Seeded as version 1 of each template the first time an organisation builds a BOQ. After
+# that a senior estimator edits them in the platform, and every edit is a new version.
+#
+# EVERYTHING HERE IS "TO BE CONFIRMED": a pilot estimator should set the company's own
+# structure, wording and roll-up (the business track).
+#
+# A description is a list of parts. A part is written only when every {attribute} in it is
+# known (not "not specified"), so an unspecified finish leaves no ", finish" behind.
+
+templates:
+  - key: company_standard
+    title: Company standard BOQ
+    status: to be confirmed
+    definition:
+      # system -> bill heading, in order
+      sections:
+        sprinkler: "FIRE SPRINKLER INSTALLATION"
+      # the groups within a bill, in order; each lists the item classes it holds and how
+      # they roll up: by level (one line per level) or building (one line for all levels)
+      groups:
+        - {key: heads, heading: "Sprinkler heads", classes: [sprinkler], by: level}
+        - {key: pipework, heading: "Pipework", classes: [main, branch, drop, riser], by: building}
+        - {key: fittings, heading: "Fittings", classes: [fitting], by: building}
+        - {key: valves, heading: "Valves and ancillaries", classes: [valve, device], by: building}
+      units: {"no": nr, "m": m}
+      descriptions:
+        sprinkler_pendent: ["Pendent sprinkler head", ", {response} response", ", K{k_factor}", ", {temperature_rating_c}°C", ", {finish} finish"]
+        sprinkler_upright: ["Upright sprinkler head", ", {response} response", ", K{k_factor}", ", {temperature_rating_c}°C", ", {finish} finish"]
+        sprinkler_sidewall: ["Sidewall sprinkler head", ", {response} response", ", K{k_factor}", ", {temperature_rating_c}°C", ", {finish} finish"]
+        sprinkler_concealed: ["Concealed sprinkler head", ", {response} response", ", K{k_factor}", ", {temperature_rating_c}°C", ", {finish} finish"]
+        pipe: ["{nominal_diameter_mm} mm", " {pipe_material}", " pipe", ", {pipe_standard}", ", {pipe_class}", ", {joining_method} joints", " ({class_label})"]
+        fitting_tee: ["Tee, {size}", " (rule-derived)"]
+        fitting_elbow: ["Elbow, {size}", " (rule-derived)"]
+        fitting_reducer: ["Reducer, {size}", " (rule-derived)"]
+        fitting_grooved_coupling: ["Grooved coupling, {size}", " (rule-derived)"]
+        fitting: ["{fitting}", ", {nominal_diameter_mm} mm"]
+        gate_valve: ["{nominal_diameter_mm} mm", " gate valve"]
+        check_valve: ["{nominal_diameter_mm} mm", " check valve"]
+        default: ["{label}"]
+      class_labels: {main: main, branch: branch, drop: sprinkler drop, riser: riser}
