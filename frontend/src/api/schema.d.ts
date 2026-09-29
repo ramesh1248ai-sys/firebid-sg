@@ -4080,6 +4080,11 @@ export interface components {
             finished: boolean;
             /** Sheets */
             sheets: number;
+            /**
+             * Sheets Parsed
+             * @default 0
+             */
+            sheets_parsed: number;
             /** Total */
             total: number;
         };

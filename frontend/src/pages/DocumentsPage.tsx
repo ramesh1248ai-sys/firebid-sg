@@ -19,6 +19,7 @@ type Progress = {
   total: number;
   counts: Record<string, number>;
   sheets: number;
+  sheets_parsed?: number;
   finished: boolean;
   failures: {
     id: string;
@@ -333,7 +334,9 @@ export function DocumentsPage() {
             <p role="status" className="text-sm text-muted-foreground">
               {progress.data.finished
                 ? `${progress.data.sheets} sheet${progress.data.sheets === 1 ? "" : "s"} ready to open.`
-                : "Reading the set…"}
+                : progress.data.sheets > 0
+                  ? `Reading the set: ${progress.data.sheets_parsed ?? 0} of ${progress.data.sheets} sheets read…`
+                  : "Reading the set…"}
             </p>
           )}
 

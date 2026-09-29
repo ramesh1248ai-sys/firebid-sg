@@ -74,6 +74,35 @@ describe("the tender documents page", () => {
     ).toBeInTheDocument();
   });
 
+  it("counts the sheets read while a drawing set is still being read", async () => {
+    stubApi({
+      "/progress/stream": noStream,
+      "/progress": () =>
+        Response.json(
+          progress({
+            counts: {
+              received: 0,
+              awaiting_scan: 0,
+              processing: 1,
+              done: 0,
+              rejected: 0,
+              quarantined: 0,
+            },
+            total: 1,
+            sheets: 121,
+            sheets_parsed: 84,
+            finished: false,
+          }),
+        ),
+      "/sheets": () => Response.json([sheet()]),
+    });
+    renderAt(`/bids/${BID}/documents`);
+
+    expect(
+      await screen.findByText("Reading the set: 84 of 121 sheets read…"),
+    ).toBeInTheDocument();
+  });
+
   it("names every file that needs attention, with the reason", async () => {
     stubApi({
       "/progress/stream": noStream,

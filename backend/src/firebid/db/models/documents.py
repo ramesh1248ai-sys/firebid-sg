@@ -102,6 +102,11 @@ class Sheet(UuidPk, BidScoped, Timestamped, Base):
     renderer_version: Mapped[str | None] = mapped_column(String(16))
     thumbnail_key: Mapped[str | None] = mapped_column(String(512))
 
+    # Its own parse job's outcome (ADR-010): when it finished, and why it failed if it did.
+    # A failed sheet is still finished, so one bad sheet never holds up its document.
+    parsed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    parse_error: Mapped[str | None] = mapped_column(Text)
+
 
 class SheetRevision(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     """A drawing number at one revision, pointing at the sheet that carries it.

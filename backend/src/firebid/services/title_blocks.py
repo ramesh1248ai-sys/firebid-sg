@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from firebid.db.models.core import Bid
@@ -72,6 +72,10 @@ class SheetReading:
     spans: list[Span]
     page: Box
     ocr_confidence: float | None = None
+    # The remembered layout that gave this reading, counted when the reading is stored.
+    layout_id: Any = None
+    # The title block's crop for the model check, rendered with the reading (ADR-010).
+    crop_key: str | None = None
 
 
 def read_title_blocks(
@@ -84,25 +88,80 @@ def read_title_blocks(
     silently missing from it.
     """
     payload = store.get(document.storage_key)
-    revisions = []
-    for sheet in sheets:
-        try:
-            revision = read_sheet(session, store, document, sheet, payload)
-            grade(sheet, revision)
-            revisions.append(revision)
-        except SandboxFailure as failure:
-            log.warning("title_block_unreadable", sheet_id=str(sheet.id), reason=failure.reason)
-            revision = SheetRevision(
-                bid_id=document.bid_id,
-                sheet_id=sheet.id,
-                reading={"method": "none", "fields": {}, "error": failure.reason},
-                created_by_id=document.created_by_id,
-            )
-            session.add(revision)
-            session.flush()
-            raise_review(session, revision, f"the title block could not be read: {failure.reason}")
-            revisions.append(revision)
-    return revisions
+    return [read_one(session, store, document, sheet, payload) for sheet in sheets]
+
+
+def read_one(
+    session: Session,
+    store: ObjectStore,
+    document: Document,
+    sheet: Sheet,
+    payload: bytes,
+    found: SheetReading | SandboxFailure | None = None,
+) -> SheetRevision:
+    """One sheet's title block, graded; a sheet that cannot be read gets a review task.
+
+    `found` is the reading when it was taken ahead (`reading_ahead`), outside the bid's lock;
+    a `SandboxFailure` there is the reason it could not be.
+    """
+    try:
+        if isinstance(found, SandboxFailure):
+            raise found
+        revision = read_sheet(session, store, document, sheet, payload, found=found)
+        grade(sheet, revision)
+        return revision
+    except SandboxFailure as failure:
+        log.warning("title_block_unreadable", sheet_id=str(sheet.id), reason=failure.reason)
+        revision = SheetRevision(
+            bid_id=document.bid_id,
+            sheet_id=sheet.id,
+            reading={"method": "none", "fields": {}, "error": failure.reason},
+            created_by_id=document.created_by_id,
+        )
+        session.add(revision)
+        session.flush()
+        raise_review(session, revision, f"the title block could not be read: {failure.reason}")
+        return revision
+
+
+def reading_ahead(
+    session: Session, store: ObjectStore, document: Document, sheet: Sheet, payload: bytes
+) -> SheetReading | SandboxFailure | None:
+    """The sheet's title block reading, taken before anything is stored (ADR-010).
+
+    The slow part of a title block, in the sandbox, with nothing written that another sheet
+    could depend on. None when the sheet already has its proposal.
+    """
+    existing = session.execute(
+        select(SheetRevision.id).where(SheetRevision.sheet_id == sheet.id)
+    ).first()
+    if existing is not None:
+        return None
+    try:
+        found = _best_reading(session, document, sheet, payload)
+    except SandboxFailure as failure:
+        return failure
+    if document.kind == "pdf" and found.reading.needs_help(DEFAULT_THRESHOLD):
+        # The crop the model check needs, rendered now, while no lock is held.
+        with contextlib.suppress(SandboxFailure):  # tried again, and reported, when stored
+            found.crop_key = _crop(store, document, sheet, payload, found)
+    return found
+
+
+def _crop(
+    store: ObjectStore, document: Document, sheet: Sheet, payload: bytes, found: SheetReading
+) -> str:
+    """Render and store the title block's crop for the model check; its key."""
+    from firebid.parsing import text as text_parsing
+
+    region = found.reading.region
+    corner = region.relative_to(found.page).padded(0.02) if region is not None else CANDIDATES[0]
+    bounds = [max(corner.x0, 0.0), max(corner.y0, 0.0), min(corner.x1, 1.0), min(corner.y1, 1.0)]
+    png = run_sandboxed(text_parsing.crop_png, payload, "pdf", sheet.index_in_document, bounds)
+    key = f"crops/title-blocks/{hashlib.sha256(png).hexdigest()}.png"
+    with contextlib.suppress(ObjectExists):  # the same crop, stored by an earlier run
+        store.put_once(key, png, content_type="image/png")
+    return key
 
 
 def grade(sheet: Sheet, revision: SheetRevision) -> None:
@@ -131,16 +190,34 @@ def grade(sheet: Sheet, revision: SheetRevision) -> None:
 
 
 def read_sheet(
-    session: Session, store: ObjectStore, document: Document, sheet: Sheet, payload: bytes
+    session: Session,
+    store: ObjectStore,
+    document: Document,
+    sheet: Sheet,
+    payload: bytes,
+    *,
+    found: SheetReading | None = None,
 ) -> SheetRevision:
-    """Read one sheet's title block and store it as a proposal. Idempotent per sheet."""
+    """Read one sheet's title block and store it as a proposal. Idempotent per sheet.
+
+    `found` is a reading already taken (`reading_ahead`); without it, it is taken here.
+    """
     existing = session.execute(
         select(SheetRevision).where(SheetRevision.sheet_id == sheet.id)
     ).scalar_one_or_none()
     if existing is not None:
         return existing
 
-    found = _best_reading(session, document, sheet, payload)
+    if found is None:
+        found = _best_reading(session, document, sheet, payload)
+    if found.layout_id is not None:
+        # Counted here, as the reading is stored, and in SQL: sheets of one tender are read
+        # side by side (ADR-010), and a count kept in Python would lose some of them.
+        session.execute(
+            update(TitleBlockLayout)
+            .where(TitleBlockLayout.id == found.layout_id)
+            .values(times_used=TitleBlockLayout.times_used + 1)
+        )
     if found.ocr_confidence is not None:
         sheet.quality_detail = {
             **(sheet.quality_detail or {}),
@@ -245,10 +322,14 @@ def _with_remembered_layout(
             continue
         reading = read_with_layout(found.spans, found.page, Layout.from_json(remembered.layout))
         if reading.confidence >= found.reading.confidence:
-            remembered.times_used += 1
             log.info("title_block_layout_used", consultant=remembered.consultant)
             return SheetReading(
-                reading, METHOD_LAYOUT, found.spans, found.page, found.ocr_confidence
+                reading,
+                METHOD_LAYOUT,
+                found.spans,
+                found.page,
+                found.ocr_confidence,
+                layout_id=remembered.id,
             )
     return found
 
@@ -363,7 +444,6 @@ def _ask_for_help(
     """
     from firebid.jobs.enqueue import enqueue
     from firebid.jobs.tasks import check_title_block
-    from firebid.parsing import text as text_parsing
 
     reading = revision.reading or {}
     if document.kind != "pdf":
@@ -372,10 +452,8 @@ def _ask_for_help(
         return
 
     region = found.reading.region
-    corner = region.relative_to(found.page).padded(0.02) if region is not None else CANDIDATES[0]
-    bounds = [max(corner.x0, 0.0), max(corner.y0, 0.0), min(corner.x1, 1.0), min(corner.y1, 1.0)]
     try:
-        png = run_sandboxed(text_parsing.crop_png, payload, "pdf", sheet.index_in_document, bounds)
+        key = found.crop_key or _crop(store, document, sheet, payload, found)
     except SandboxFailure as failure:
         task = raise_review(
             session, revision, f"the title block could not be cropped: {failure.reason}"
@@ -383,9 +461,6 @@ def _ask_for_help(
         revision.reading = {**reading, "review_task_id": str(task.id)}
         return
 
-    key = f"crops/title-blocks/{hashlib.sha256(png).hexdigest()}.png"
-    with contextlib.suppress(ObjectExists):  # the same crop, stored by an earlier run
-        store.put_once(key, png, content_type="image/png")
     text = "\n".join(span.clean for span in found.spans if region is None or region.contains(span))
     revision.reading = {**reading, "crop_key": key, "page_text": text[:4000]}
     enqueue(

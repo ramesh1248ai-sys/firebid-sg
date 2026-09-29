@@ -1243,6 +1243,8 @@ class Blockers:
 # recomputes first, in its own transaction.
 _UPSTREAM = (
     "parse.document",
+    "parse.sheet",
+    "parse.finish",
     "detection.run",
     "detection.vision",
     "spec.read",

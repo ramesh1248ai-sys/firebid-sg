@@ -2,7 +2,12 @@
 # Base image matches the Dev Container, so native libraries behave identically.
 FROM python:3.12-slim-bookworm
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
+# numpy's BLAS sizes its thread pool from the host's CPUs, not the container's limit, and
+# idle BLAS threads spin: with two jobs on 2 CPUs that made finding symbols 40 times
+# slower (P1-11, ADR-010). One thread each; parallelism comes from processes.
+ENV OPENBLAS_NUM_THREADS=1 \
+    OMP_NUM_THREADS=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \

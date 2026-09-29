@@ -4,6 +4,8 @@
 other task runs on the ordinary worker (see `firebid.jobs.worker`).
 """
 
+from typing import Any
+
 import structlog
 from procrastinate import JobContext
 from sqlalchemy import text
@@ -91,7 +93,7 @@ def heartbeat(timestamp: int) -> None:
 
 @app.task(name="parse.document", queue=PARSE_QUEUE, pass_context=True)
 def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[str, int]:
-    """Read one stored document: sheets and title blocks for a drawing, and a type for all.
+    """Read one stored document: a drawing's sheets, each in its own job; a type for all.
 
     On the `parse` queue, so only the sandbox pool takes it: this job opens a file that came
     from outside the company, and the pool is the only container allowed to do that.
@@ -99,25 +101,22 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
     Runs as `user_id`, the person who uploaded the file. Row-level security shows a
     transaction with no acting user nothing, so without it every document looks deleted.
 
-    Idempotent, because delivery is at-least-once. Sheets are keyed by document and page,
-    tiles by content hash, and title block proposals by sheet, so running it twice re-uses
-    everything and changes nothing.
+    A drawing is read in stages (ADR-010): this job registers its sheets and queues a
+    `parse.sheet` for each; the last of those queues `parse.finish`, which detects, classifies
+    and marks the document `done`. Idempotent: sheets are keyed by document and page, and a
+    parsed sheet is not queued again.
     """
     import uuid as uuid_module
 
     from firebid.db.identity import acting_as
     from firebid.db.models.documents import Document
     from firebid.services.classification import classify_in_sandbox
-    from firebid.services.detection import detect_all as detect_sheets
-    from firebid.services.geometry import extract_all
+    from firebid.services.parse_pipeline import start
     from firebid.services.revisions import read_transmittal
-    from firebid.services.sheets import process_document
-    from firebid.services.symbols import read_all as read_symbols
-    from firebid.services.title_blocks import read_title_blocks
-    from firebid.services.views import detect_all
     from firebid.storage.object_store import get_object_store
 
-    with acting_as(uuid_module.UUID(user_id)), session_scope() as session:
+    user = uuid_module.UUID(user_id)
+    with acting_as(user), session_scope() as session:
         document = session.get(Document, uuid_module.UUID(document_id))
         if document is None:
             # The bid was deleted while the job waited. Nothing to do, and not an error.
@@ -127,41 +126,123 @@ def parse_document(context: JobContext, document_id: str, user_id: str) -> dict[
         store = get_object_store()
         failure: str | None = None
         sheets = 0
-        tiles = 0
         if document.kind in SHEET_KINDS:
-            outcome = process_document(session, store, document)
-            failure = outcome.failure
-            sheets, tiles = len(outcome.sheets), outcome.tiles_written
-            if outcome.sheets:
-                # Straight after the sheets exist, in the same sandboxed job: reading a title
-                # block opens the tender file, so it cannot happen anywhere else.
-                read_title_blocks(session, store, document, outcome.sheets)
-                # Geometry for symbol matching, pipe tracing and measurement (FR-VIS-01).
-                extract_all(session, store, document, outcome.sheets)
-                # Views, their scales and grids, from that geometry (FR-VIS-05/07/08).
-                detect_all(session, store, outcome.sheets)
-                # Legends, symbol mappings and instances, from the same geometry (FR-VIS-02).
-                read_symbols(session, store, outcome.sheets, user_id=user_id)
-                # Detections from the symbols already confirmed for this consultant (FR-VIS-03).
-                detect_sheets(session, store, outcome.sheets)
-                # And takeoff from them, on the ordinary worker (P1-07).
-                from firebid.services.qto import queue_recompute
-
-                queue_recompute(session, document.bid_id, uuid_module.UUID(user_id))
-        if failure is None and document.state in ("received", "done"):
+            started = start(session, store, document, user)
+            failure, sheets = started.failure, started.sheets
+            if failure is None and sheets:
+                return {"sheets": sheets, "tiles": 0}
+        if failure is None and document.state in ("received", "processing", "done"):
             payload = store.get(document.storage_key)
             if document.kind == "xlsx":
                 # A drawing list or transmittal: the third source every revision is checked
                 # against. Read before classifying, which then knows the workbook is one.
                 read_transmittal(session, document, payload)
             classify_in_sandbox(session, document, payload)
-            # A workbook or a document becomes no sheets; being read and classified is
-            # what "done" means for it.
+            # A workbook, a document, or a drawing with no sheets: being read and classified
+            # is what "done" means for it.
             document.state = "done"
 
     if failure:
         log.warning("parse_failed", document_id=document_id, reason=failure)
-    return {"sheets": sheets, "tiles": tiles}
+    return {"sheets": sheets, "tiles": 0}
+
+
+@app.task(name="parse.sheet", queue=PARSE_QUEUE, pass_context=True)
+def parse_sheet(context: JobContext, sheet_id: str, user_id: str) -> dict[str, Any]:
+    """One sheet of a drawing, start to finish (ADR-010). In the sandbox pool, as its reader.
+
+    A sheet whose job fails is still finished, with the reason, in a transaction of its own:
+    one bad sheet never holds up the rest of its document. Skips a sheet already parsed.
+    """
+    import uuid as uuid_module
+
+    from firebid.db.identity import acting_as
+    from firebid.db.models.documents import Sheet
+    from firebid.services import parse_pipeline
+    from firebid.storage.object_store import get_object_store
+
+    user = uuid_module.UUID(user_id)
+    sheet_key = uuid_module.UUID(sheet_id)
+    try:
+        with acting_as(user), session_scope() as session:
+            sheet = session.get(Sheet, sheet_key)
+            if sheet is None:
+                log.info("parse_skipped_missing_sheet", sheet_id=sheet_id)
+                return {"skipped": True}
+            result = parse_pipeline.parse_sheet(session, get_object_store(), sheet, user)
+            return {"skipped": result.skipped, "last": result.last, "seconds": result.seconds}
+    except Exception as failure:
+        reason = f"{type(failure).__name__}: {failure}"
+        with acting_as(user), session_scope() as session:
+            last = parse_pipeline.mark_failed(session, sheet_key, user, reason)
+        return {"failed": reason[:300], "last": last}
+
+
+@app.task(name="parse.finish", queue=PARSE_QUEUE, pass_context=True)
+def parse_finish(context: JobContext, document_id: str, user_id: str) -> dict[str, int]:
+    """What needs a drawing's every sheet: match, detect, queue the takeoff, classify, and mark
+    it `done` (ADR-010). In the sandbox pool, because classifying opens the file.
+
+    A finish that fails leaves the document `rejected` with the reason, never `processing`
+    for good.
+    """
+    import uuid as uuid_module
+
+    from firebid.db.identity import acting_as
+    from firebid.db.models.documents import Document
+    from firebid.services import parse_pipeline
+    from firebid.storage.object_store import get_object_store
+
+    user = uuid_module.UUID(user_id)
+    try:
+        with acting_as(user), session_scope() as session:
+            document = session.get(Document, uuid_module.UUID(document_id))
+            if document is None:
+                log.info("parse_skipped_missing_document", document_id=document_id)
+                return {"sheets": 0}
+            return parse_pipeline.finish(session, get_object_store(), document, user)
+    except Exception as failure:
+        reason = f"the drawing was read but could not be finished: {type(failure).__name__}"
+        log.exception("parse_finish_failed", document_id=document_id)
+        with acting_as(user), session_scope() as session:
+            document = session.get(Document, uuid_module.UUID(document_id))
+            if document is not None:
+                document.state = "rejected"
+                document.rejected_reason = reason
+        return {"sheets": 0}
+
+
+@app.periodic(cron="*/5 * * * *", periodic_id="retry_stalled_parse")
+@app.task(
+    name="system.retry_stalled_parse", queue="default", queueing_lock="system.retry_stalled_parse"
+)
+def retry_stalled_parse(timestamp: int, heartbeat_seconds: int = 300) -> int:
+    """Queue again the parse jobs whose worker has stopped (ADR-010).
+
+    A worker that dies mid-job leaves its job `doing` for ever, and its document
+    `processing`. Every parse job is idempotent, so running one again is always safe.
+    """
+    with service_session_scope() as session:
+        stalled = list(
+            session.execute(
+                text(
+                    "SELECT job.id FROM procrastinate_jobs job "
+                    "LEFT JOIN procrastinate_workers worker ON worker.id = job.worker_id "
+                    "WHERE job.status = 'doing' AND job.queue_name = :queue "
+                    "AND (worker.id IS NULL OR worker.last_heartbeat < "
+                    "now() - make_interval(secs => :seconds))"
+                ),
+                {"queue": PARSE_QUEUE, "seconds": heartbeat_seconds},
+            ).scalars()
+        )
+        for job_id in stalled:
+            session.execute(
+                text("SELECT procrastinate_retry_job_v2(:id, now(), NULL, NULL, NULL)"),
+                {"id": job_id},
+            )
+    if stalled:
+        log.warning("parse_jobs_retried", jobs=stalled)
+    return len(stalled)
 
 
 @app.task(name="document.classify", queue="default", pass_context=True)

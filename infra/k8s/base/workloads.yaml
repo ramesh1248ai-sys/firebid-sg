@@ -159,6 +159,10 @@ spec:
         - name: sandbox
           image: firebid-sandbox
           command: ["python", "-m", "firebid.jobs.worker", "--queues", "parse"]
+          # Two sheet jobs at once per pod (ADR-010): each runs its heavy work in a sandboxed
+          # child, one at a time, so two children and the worker fit the 4 GiB.
+          env:
+            - {name: FIREBID_WORKER_CONCURRENCY, value: "2"}
           envFrom:
             - configMapRef: {name: firebid}
             - secretRef: {name: firebid-sandbox-secrets}

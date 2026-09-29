@@ -22,6 +22,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # uv installs the dependencies at build time and is not shipped: it is mounted into
 # the steps that need it, so the image carries no copy (NFR-06: nothing unused to patch).
 
+# numpy's BLAS sizes its thread pool from the host's CPUs, not the container's limit, and
+# idle BLAS threads spin: with two jobs on 2 CPUs that made finding symbols 40 times
+# slower (P1-11, ADR-010). One thread each; parallelism comes from processes.
 # MPLCONFIGDIR and HOME point at scratch because everything else is read-only at runtime, and
 # both matplotlib and LibreOffice insist on writing somewhere.
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -32,7 +35,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH="/opt/venv/bin:$PATH" \
     MPLCONFIGDIR=/scratch/matplotlib \
-    HOME=/scratch
+    HOME=/scratch \
+    OPENBLAS_NUM_THREADS=1 \
+    OMP_NUM_THREADS=1
 
 WORKDIR /app
 

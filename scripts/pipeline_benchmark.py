@@ -1,13 +1,17 @@
-"""End-to-end pipeline benchmark on the running stack (NFR-01; P1-11).
+"""End-to-end pipeline benchmark on the running stack (NFR-01; P1-11, ADR-010).
 
     uv run --project backend python scripts/pipeline_benchmark.py --pdf <file> [--label real-subset]
     uv run --project backend python scripts/pipeline_benchmark.py --synthetic 20
 
-Uploads a drawing set to a new bid through the API (as the dev senior estimator), waits for
-the document to be read, classified and detected, and reports the wall time, seconds per
-sheet, the time 300 sheets would take at that rate, and where the time went by stage (from
-the parser pool's structured logs). Writes `eval/results/bench/ingest.json` (or
-`--out`), which `firebid-eval exit` reads.
+Uploads a drawing set to a new bid through the API (as the dev senior estimator), waits
+until the document is read, classified and detected (`done`), and reports:
+
+- the wall time, seconds per sheet, and the time 300 sheets would take at that rate;
+- where the sheets' time went, stage by stage, summed over every `parse.sheet` job (from
+  their `sheet_parsed` events in the parser pool's structured logs);
+- how long the document and finish jobs took.
+
+Writes `eval/results/bench/ingest.json` (or `--out`), which `firebid-eval exit` reads.
 
 NFR-01: a 300-sheet set ingested and classified within 1 hour; first-pass QTO for 50 fire
 protection sheets within 4 hours.
@@ -19,6 +23,7 @@ import argparse
 import datetime as dt
 import io
 import json
+import re
 import subprocess
 import sys
 import time
@@ -32,19 +37,8 @@ ROOT = Path(__file__).resolve().parents[1]
 API = "http://localhost:8000"
 KEYCLOAK = "http://localhost:8081/realms/firebid/protocol/openid-connect/token"
 TARGET_300_SHEETS_S = 3600
-TARGET_50_SHEET_QTO_S = 4 * 3600
-STAGES = {
-    "document_registered": "register",
-    "sheet_rendered": "render",
-    "tiles_written": "render",
-    "title_block_read": "title blocks",
-    "title_block_rendition": "title blocks",
-    "geometry_extracted": "geometry",
-    "views_detected": "views",
-    "symbols_read": "symbols and legend",
-    "sheet_detected": "detection",
-    "document_classified": "classification",
-}
+IN_FLIGHT = ("received", "processing")
+LASTED = re.compile(r"Job (parse\.\w+)\[\d+\]\((.*)\) ended with status: (\w+), lasted ([\d.]+) s")
 
 
 def client() -> httpx.Client:
@@ -81,8 +75,8 @@ def synthetic_pdf(sheets: int) -> bytes:
     return buffer.getvalue()
 
 
-def job_events(since: str, document_id: str) -> tuple[list[dict[str, Any]], bool]:
-    """The parser pool's log events for this document's parse job, and whether it ended."""
+def pool_events(since: str) -> list[dict[str, Any]]:
+    """The parser pool's structured log events since `since`."""
     logs = subprocess.run(  # noqa: S603 - fixed arguments, a developer's own stack
         [  # noqa: S607 - docker from PATH, as the Makefile runs it
             "docker",
@@ -99,35 +93,45 @@ def job_events(since: str, document_id: str) -> tuple[list[dict[str, Any]], bool
         text=True,
         check=False,
     ).stdout.splitlines()
-    events: list[dict[str, Any]] = []
-    inside = False
+    events = []
     for line in logs:
         try:
-            event = json.loads(line)
+            events.append(json.loads(line))
         except ValueError:
             continue
-        name = str(event.get("event", ""))
-        if name.startswith("Starting job parse.document") and document_id in name:
-            inside = True
-        if inside:
-            events.append(event)
-            if "ended with status" in name and document_id in name:
-                return events, True
-    return events, False
+    return events
 
 
-def stage_times(events: list[dict[str, Any]]) -> dict[str, float]:
-    """Seconds spent before each stage's log event, summed by stage."""
-    totals: dict[str, float] = defaultdict(float)
-    previous = None
+def breakdown(
+    events: list[dict[str, Any]], document_id: str, sheet_ids: set[str]
+) -> dict[str, Any]:
+    """Per-stage seconds summed over this document's sheet jobs, and each job kind's time."""
+    stages: dict[str, float] = defaultdict(float)
     for event in events:
-        at = dt.datetime.fromisoformat(str(event["timestamp"]).replace("Z", "+00:00"))
-        if previous is not None:
-            stage = STAGES.get(str(event.get("event")), "other")
-            totals[stage] += (at - previous).total_seconds()
-        previous = at
+        if event.get("event") == "sheet_parsed" and event.get("sheet_id") in sheet_ids:
+            for key, value in event.items():
+                if key.endswith("_s") and isinstance(value, int | float):
+                    stages[key.removesuffix("_s")] += float(value)
+    jobs: dict[str, list[float]] = defaultdict(list)
+    for event in events:
+        found = LASTED.search(str(event.get("event", "")))
+        if not found:
+            continue
+        task, args, _, lasted = found.groups()
+        if document_id in args or any(sheet in args for sheet in sheet_ids):
+            jobs[task].append(float(lasted))
     return {
-        stage: round(seconds, 1) for stage, seconds in sorted(totals.items(), key=lambda kv: -kv[1])
+        "sheet_stages_seconds": {
+            stage: round(value, 1) for stage, value in sorted(stages.items(), key=lambda kv: -kv[1])
+        },
+        "jobs": {
+            task: {
+                "count": len(times),
+                "total_seconds": round(sum(times), 1),
+                "longest_seconds": round(max(times), 1),
+            }
+            for task, times in sorted(jobs.items())
+        },
     }
 
 
@@ -172,16 +176,24 @@ def main() -> int:
         print("not stored:", {k: v for k, v in stored.items() if v}, file=sys.stderr)
         return 1
     document = stored["stored"][0]["id"]
-    # Waits for the parse job, not the document: a drawing is "done" as soon as its sheets
-    # exist, before title blocks, symbols and detection are read.
+    # `done` only once every sheet is read and the set is detected and classified (ADR-010).
+    last_report = 0.0
     while True:
-        events, ended = job_events(since, document)
-        if ended:
+        state = api.get(f"/bids/{bid}/documents").json()[0]["state"]
+        if state not in IN_FLIGHT:
             break
-        time.sleep(10)
+        if time.monotonic() - last_report > 60:
+            progress = api.get(f"/bids/{bid}/progress").json()
+            print(
+                f"  {(time.monotonic() - started) / 60:5.1f} min: "
+                f"{progress.get('sheets_parsed', 0)} of {progress.get('sheets', 0)} sheets read",
+                flush=True,
+            )
+            last_report = time.monotonic()
+        time.sleep(5)
     seconds = time.monotonic() - started
-    state = api.get(f"/bids/{bid}/documents").json()[0]["state"]
-    sheets = len(api.get(f"/bids/{bid}/sheets").json())
+    sheet_rows = api.get(f"/bids/{bid}/sheets").json()
+    sheets = len(sheet_rows)
     per_sheet = seconds / sheets if sheets else None
     projected = per_sheet * 300 if per_sheet else None
     result: dict[str, Any] = {
@@ -192,11 +204,10 @@ def main() -> int:
         "seconds_per_sheet": round(per_sheet, 1) if per_sheet else None,
         "projected_300_sheets_minutes": round(projected / 60, 1) if projected else None,
         "meets_nfr01_ingest": bool(projected and projected <= TARGET_300_SHEETS_S),
-        "projected_50_sheet_qto_minutes": round(per_sheet * 50 / 60, 1) if per_sheet else None,
-        "stages_seconds": stage_times(events),
+        **breakdown(pool_events(since), document, {str(row["id"]) for row in sheet_rows}),
         "measured_at": dt.datetime.now(dt.UTC).isoformat(),
         "scan_retries": rescans,
-        "environment": "local docker compose (one sandbox worker)",
+        "environment": "local docker compose: one sandbox container, 2 CPU, 4 GiB, 2 jobs at once",
     }
     result["summary"] = (
         f"{label}: {sheets} sheets in {seconds / 60:.1f} min "
@@ -207,7 +218,7 @@ def main() -> int:
     arguments.out.parent.mkdir(parents=True, exist_ok=True)
     arguments.out.write_text(json.dumps(result, indent=1), encoding="utf-8", newline="\n")
     print(result["summary"])
-    print(json.dumps(result["stages_seconds"], indent=1))
+    print(json.dumps({k: result[k] for k in ("sheet_stages_seconds", "jobs")}, indent=1))
     return 0
 
 
