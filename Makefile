@@ -10,7 +10,7 @@ API_URL := http://$(STACK_HOST):$(or $(FIREBID_API_PORT),8000)
 PHASE ?=
 IDS ?=
 
-.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client data-inventory golden-template eval eval-docs eval-gate exit-report ingest-benchmark req-coverage check
+.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client data-inventory golden-template eval eval-docs eval-gate exit-report security ingest-benchmark req-coverage check
 
 help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -71,6 +71,15 @@ eval: ## Run the synthetic evaluation suite and write a report
 
 eval-docs: ## Measure title block reading (FR-DOC-02); needs Tesseract for the OCR tenders
 	cd backend && uv run firebid-eval --root ../eval run --suite doc_classification 		--report ../eval/results/doc_classification.md
+
+security: ## Run the CI security scans locally (NFR-06): dependencies, code, secrets, IaC
+	uv export --project backend --format requirements-txt --no-hashes --no-emit-project --frozen > .requirements.txt
+	uvx pip-audit --strict --progress-spinner off -r .requirements.txt; rm -f .requirements.txt
+	npm audit --prefix frontend --audit-level=high
+	uvx bandit -r backend/src -q --severity-level high --confidence-level medium
+	docker run --rm -v "$$PWD:/src" -w /src semgrep/semgrep semgrep scan --metrics off --config p/python --config p/typescript --config p/react --severity ERROR --error --exclude frontend/src/api/schema.d.ts backend/src frontend/src
+	docker run --rm -v "$$PWD:/repo" zricethezav/gitleaks:latest detect --source /repo --redact --no-banner
+	docker run --rm -v "$$PWD:/repo" aquasec/trivy:latest fs --quiet --exit-code 1 --severity HIGH,CRITICAL --scanners misconfig,secret --skip-dirs /repo/frontend/node_modules --skip-dirs /repo/backend/.venv --skip-files /repo/infra/keycloak/Dockerfile --skip-files /repo/infra/seaweedfs/Dockerfile /repo
 
 exit-report: ## Write the Phase 1 exit report (P1-11); INDICATIVE=<dir> adds a real-drawing sample, LIVE=1 every bid's measures
 	cd backend && uv run firebid-eval --root ../eval exit --out ../docs/reports/phase1-exit.md \n		$(if $(INDICATIVE),--indicative-root "$(INDICATIVE)") $(if $(LIVE),--live)

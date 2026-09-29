@@ -1,0 +1,21 @@
+# Retention and archival (NFR-07 PDPA, NFR-09 auditability; P1-11).
+#
+# "TO BE CONFIRMED" against the company records policy and contractual limitation periods.
+# The audit log's retention cannot be set below 7 years (NFR-09): the job refuses a shorter
+# value rather than deleting evidence.
+
+status: to be confirmed
+
+audit:
+  retain_years: 7
+  # Months of audit events copied, verified, to the archive (object storage; object-locked
+  # in production) once they are this old. The rows stay until `retain_years` has passed.
+  archive_after_months: 24
+
+# Personal and transient data kept only as long as it is useful.
+delete_after_days:
+  activity_minute: 400         # time on task: kept a year and a month for the QTO effort trend
+  procrastinate_jobs: 90       # finished job history
+
+# Expired by their own `expires_at`: the AI response cache and debugging payloads.
+expire: [llm_response_cache, llm_payload]

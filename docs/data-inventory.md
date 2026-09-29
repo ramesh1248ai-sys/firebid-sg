@@ -9,6 +9,7 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 
 | Table | Column | Type | Nullable | Why it is held |
 |---|---|---|---|---|
+| `activity_minute` | `user_id` | CHAR(32) | no | time on task, for the QTO effort measure |
 | `app_user` | `external_id` | VARCHAR(64) | no | identifies the person at the identity provider (Entra ID 'oid') |
 | `app_user` | `username` | VARCHAR(256) | no | sign-in name, usually a work email address |
 | `app_user` | `display_name` | VARCHAR(200) | no | shown on approvals and the audit trail |
@@ -21,4 +22,4 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `measurement_rule` | `source_note` | TEXT | yes | may name the estimator whose judgement set the rule |
 | `review_action` | `actor_label` | VARCHAR(200) | no | who took the action |
 
-11 columns hold personal data.
+12 columns hold personal data.

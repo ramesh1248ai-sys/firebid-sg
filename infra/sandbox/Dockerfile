@@ -19,7 +19,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.25 /uv /usr/local/bin/uv
+# uv installs the dependencies at build time and is not shipped: it is mounted into
+# the steps that need it, so the image carries no copy (NFR-06: nothing unused to patch).
 
 # MPLCONFIGDIR and HOME point at scratch because everything else is read-only at runtime, and
 # both matplotlib and LibreOffice insist on writing somewhere.
@@ -37,11 +38,11 @@ WORKDIR /app
 
 # Dependencies first, so code changes reuse the cached dependency layer.
 COPY pyproject.toml uv.lock .python-version README.md ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN --mount=from=ghcr.io/astral-sh/uv:0.11.25,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev --no-install-project
 
 COPY config ./config
 COPY src ./src
-RUN uv sync --frozen --no-dev
+RUN --mount=from=ghcr.io/astral-sh/uv:0.11.25,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev
 
 ARG GIT_SHA=unknown
 ENV FIREBID_GIT_SHA=$GIT_SHA

@@ -77,7 +77,7 @@ BEGIN
     RETURN part_name;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-"""  # noqa: S608 - fixed policy text defined in this module
+"""  # noqa: S608  # nosec B608 - fixed policy text defined in this module
 
 
 def _partitions(check: str) -> str:
@@ -96,7 +96,7 @@ BEGIN
                        part.relname);
     END LOOP;
 END $$;
-"""  # noqa: S608 - fixed policy text defined in this module
+"""  # noqa: S608  # nosec B608 - fixed policy text defined in this module
 
 
 def upgrade() -> None:

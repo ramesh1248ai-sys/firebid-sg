@@ -69,9 +69,24 @@ def ensure_audit_partitions(timestamp: int, months_ahead: int = 3) -> list[str]:
 @app.periodic(cron="* * * * *", periodic_id="heartbeat")
 @app.task(name="system.heartbeat", queueing_lock="system.heartbeat", queue="default")
 def heartbeat(timestamp: int) -> None:
-    """Runs every minute. /health reports the queue unhealthy when the heartbeat is stale."""
+    """Runs every minute. /health reports the queue unhealthy when the heartbeat is stale.
+
+    It also logs how many jobs wait in each queue (`queue_depth`), which the monitoring alert
+    on a backed-up queue reads (ADR-008).
+    """
+    from sqlalchemy import text
+
     with session_scope() as session:
         record_heartbeat(session, HEARTBEAT_NAME)
+        waiting = session.execute(
+            text(
+                "SELECT queue_name, count(*) FROM procrastinate_jobs "
+                "WHERE status = 'todo' GROUP BY queue_name"
+            )
+        ).tuples()
+        depths = dict(waiting.all())
+    for queue in sorted({"default", "system", PARSE_QUEUE} | set(depths)):
+        log.info("queue_depth", queue=queue, todo=int(depths.get(queue, 0)))
 
 
 @app.task(name="parse.document", queue=PARSE_QUEUE, pass_context=True)
@@ -430,3 +445,28 @@ def match_rates_job(context: JobContext, bid_id: str, user_id: str) -> int:
         if bid is None:
             return 0
         return price_boq(session, bid, SYSTEM_ACTOR, gateway()).proposed
+
+
+@app.periodic(cron="40 2 * * *", periodic_id="retention")
+@app.task(name="system.retention", queueing_lock="system.retention")
+def retention(timestamp: int) -> dict[str, int]:
+    """Delete what the retention policy no longer keeps; archive old audit months (NFR-07/09)."""
+    from firebid.db.engine import service_session_scope
+    from firebid.services import retention as policy
+    from firebid.storage.object_store import get_object_store
+
+    with service_session_scope() as session:
+        run = policy.purge(session)
+        archived = policy.archive_months(session, get_object_store())
+    return {**run.deleted, "archived_months": len(archived)}
+
+
+@app.periodic(cron="50 3 * * *", periodic_id="verify_audit_chains")
+@app.task(name="system.verify_audit_chains", queueing_lock="system.verify_audit_chains")
+def verify_audit_chains(timestamp: int) -> int:
+    """Every audit chain verified end to end each night. A break is logged for the alert."""
+    from firebid.db.engine import service_session_scope
+    from firebid.services.retention import verify_all_chains
+
+    with service_session_scope() as session:
+        return len(verify_all_chains(session))

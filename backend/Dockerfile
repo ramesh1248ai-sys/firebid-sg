@@ -10,19 +10,20 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.25 /uv /usr/local/bin/uv
+# uv installs the dependencies at build time and is not shipped: it is mounted into
+# the steps that need it, so the image carries no copy (NFR-06: nothing unused to patch).
 
 WORKDIR /app
 
 # Dependencies first, so code changes reuse the cached dependency layer.
 COPY pyproject.toml uv.lock .python-version README.md ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN --mount=from=ghcr.io/astral-sh/uv:0.11.25,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev --no-install-project
 
 COPY alembic.ini ./
 # The LLM routing table. It is read at runtime, and /health fails without it.
 COPY config ./config
 COPY src ./src
-RUN uv sync --frozen --no-dev
+RUN --mount=from=ghcr.io/astral-sh/uv:0.11.25,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev
 
 ARG GIT_SHA=unknown
 ENV FIREBID_GIT_SHA=$GIT_SHA
