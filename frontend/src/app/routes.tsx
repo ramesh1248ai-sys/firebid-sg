@@ -9,6 +9,7 @@ import { BoqPage } from "@/pages/BoqPage";
 import { CallbackPage } from "@/pages/CallbackPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { DocumentsPage } from "@/pages/DocumentsPage";
+import { KpisPage } from "@/pages/KpisPage";
 import { LibraryPage } from "@/pages/LibraryPage";
 import { NewBidPage } from "@/pages/NewBidPage";
 import { OverlayBenchPage } from "@/pages/OverlayBenchPage";
@@ -43,6 +44,7 @@ export const routes: RouteObject[] = [
           { path: "audit", element: <AuditPage /> },
           { path: "library", element: <LibraryPage /> },
           { path: "rates", element: <RatesPage /> },
+          { path: "kpis", element: <KpisPage /> },
           { path: "admin", element: <AdminPage /> },
         ],
       },

@@ -76,3 +76,28 @@ def test_agent_runs_give_escalation_success_and_cost_by_model(session: Session, 
     assert found.agents.cost_sgd == Decimal("0.85")
     assert found.agents.by_model[0]["route"] == "boq_mapping"
     assert found.target_cost_sgd is not None
+
+
+@pytest.mark.req("NFR-15")
+def test_the_dashboard_shows_a_member_their_bids_with_cost_by_model(
+    session: Session, bid: Bid, organisation: Organisation, sign_in: SignIn
+) -> None:
+    session.add(
+        AgentRun(
+            bid_id=bid.id,
+            route="rate_match",
+            provider="primary",
+            model="first",
+            state="succeeded",
+            cost_sgd=Decimal("0.20"),
+        )
+    )
+    session.commit()
+    client = sign_in(member(session, organisation, bid, "esther", Role.ESTIMATOR))
+
+    portfolio = client.get("/kpis").json()
+    one = client.get(f"/bids/{bid.id}/kpis").json()
+
+    assert [row["human_id"] for row in portfolio["bids"]] == [bid.human_id]
+    assert one["cost_by_model"][0]["route"] == "rate_match"
+    assert portfolio["target_cost_sgd"] is not None

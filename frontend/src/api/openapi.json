@@ -548,6 +548,143 @@
         "title": "BidCreate",
         "type": "object"
       },
+      "BidKpisOut": {
+        "properties": {
+          "agent_runs": {
+            "title": "Agent Runs",
+            "type": "integer"
+          },
+          "ai_items": {
+            "title": "Ai Items",
+            "type": "integer"
+          },
+          "bid_id": {
+            "format": "uuid",
+            "title": "Bid Id",
+            "type": "string"
+          },
+          "budget_sgd": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Sgd"
+          },
+          "cost_by_model": {
+            "items": {
+              "$ref": "#/components/schemas/CostLine"
+            },
+            "title": "Cost By Model",
+            "type": "array"
+          },
+          "cost_sgd": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cost Sgd",
+            "type": "string"
+          },
+          "duplicate_groups": {
+            "title": "Duplicate Groups",
+            "type": "integer"
+          },
+          "escalation_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Rate"
+          },
+          "false_detection_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "False Detection Rate"
+          },
+          "human_id": {
+            "title": "Human Id",
+            "type": "string"
+          },
+          "minutes_on_task": {
+            "title": "Minutes On Task",
+            "type": "integer"
+          },
+          "missed_item_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missed Item Rate"
+          },
+          "success_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Rate"
+          },
+          "target_cost_sgd": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Cost Sgd"
+          },
+          "unresolved_duplicates": {
+            "title": "Unresolved Duplicates",
+            "type": "integer"
+          },
+          "verified_items": {
+            "title": "Verified Items",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "bid_id",
+          "human_id",
+          "ai_items",
+          "verified_items",
+          "false_detection_rate",
+          "missed_item_rate",
+          "duplicate_groups",
+          "unresolved_duplicates",
+          "minutes_on_task",
+          "agent_runs",
+          "escalation_rate",
+          "success_rate",
+          "cost_sgd",
+          "budget_sgd",
+          "target_cost_sgd",
+          "cost_by_model"
+        ],
+        "title": "BidKpisOut",
+        "type": "object"
+      },
       "BidOut": {
         "properties": {
           "clarification_cutoff": {
@@ -1840,6 +1977,40 @@
           "qualification_text"
         ],
         "title": "ConventionsOut",
+        "type": "object"
+      },
+      "CostLine": {
+        "properties": {
+          "cost_sgd": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cost Sgd",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "route": {
+            "title": "Route",
+            "type": "string"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "route",
+          "provider",
+          "model",
+          "runs",
+          "cost_sgd"
+        ],
+        "title": "CostLine",
         "type": "object"
       },
       "CountedOut": {
@@ -3483,6 +3654,76 @@
           "item_ids"
         ],
         "title": "ItemsIn",
+        "type": "object"
+      },
+      "KpisOut": {
+        "properties": {
+          "agent_runs": {
+            "title": "Agent Runs",
+            "type": "integer"
+          },
+          "bids": {
+            "items": {
+              "$ref": "#/components/schemas/BidKpisOut"
+            },
+            "title": "Bids",
+            "type": "array"
+          },
+          "cost_sgd": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cost Sgd",
+            "type": "string"
+          },
+          "escalation_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Rate"
+          },
+          "success_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Rate"
+          },
+          "target_cost_sgd": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Cost Sgd"
+          },
+          "targets": {
+            "additionalProperties": true,
+            "title": "Targets",
+            "type": "object"
+          }
+        },
+        "required": [
+          "bids",
+          "agent_runs",
+          "escalation_rate",
+          "success_rate",
+          "cost_sgd",
+          "target_cost_sgd",
+          "targets"
+        ],
+        "title": "KpisOut",
         "type": "object"
       },
       "LegendRowOut": {
@@ -10359,6 +10600,55 @@
         ]
       }
     },
+    "/bids/{bid_id}/kpis": {
+      "get": {
+        "description": "One bid's measures and its AI cost report by route, provider and model.",
+        "operationId": "for_bid_bids__bid_id__kpis_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BidKpisOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "For Bid",
+        "tags": [
+          "kpis"
+        ]
+      }
+    },
     "/bids/{bid_id}/members": {
       "get": {
         "operationId": "list_members_bids__bid_id__members_get",
@@ -14730,6 +15020,33 @@
         "summary": "Live",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/kpis": {
+      "get": {
+        "description": "Every bid this person can see, and the AI totals across them.",
+        "operationId": "portfolio_kpis_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KpisOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Portfolio",
+        "tags": [
+          "kpis"
         ]
       }
     },

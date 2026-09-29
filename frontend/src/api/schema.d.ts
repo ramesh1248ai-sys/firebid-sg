@@ -750,6 +750,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/kpis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * For Bid
+         * @description One bid's measures and its AI cost report by route, provider and model.
+         */
+        get: operations["for_bid_bids__bid_id__kpis_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/members": {
         parameters: {
             query?: never;
@@ -2023,6 +2043,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/kpis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Portfolio
+         * @description Every bid this person can see, and the AI totals across them.
+         */
+        get: operations["portfolio_kpis_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/library/consultants": {
         parameters: {
             query?: never;
@@ -2468,6 +2508,44 @@ export interface components {
             /** Tender Validity Days */
             tender_validity_days?: number | null;
         };
+        /** BidKpisOut */
+        BidKpisOut: {
+            /** Agent Runs */
+            agent_runs: number;
+            /** Ai Items */
+            ai_items: number;
+            /**
+             * Bid Id
+             * Format: uuid
+             */
+            bid_id: string;
+            /** Budget Sgd */
+            budget_sgd: string | null;
+            /** Cost By Model */
+            cost_by_model: components["schemas"]["CostLine"][];
+            /** Cost Sgd */
+            cost_sgd: string;
+            /** Duplicate Groups */
+            duplicate_groups: number;
+            /** Escalation Rate */
+            escalation_rate: number | null;
+            /** False Detection Rate */
+            false_detection_rate: number | null;
+            /** Human Id */
+            human_id: string;
+            /** Minutes On Task */
+            minutes_on_task: number;
+            /** Missed Item Rate */
+            missed_item_rate: number | null;
+            /** Success Rate */
+            success_rate: number | null;
+            /** Target Cost Sgd */
+            target_cost_sgd: string | null;
+            /** Unresolved Duplicates */
+            unresolved_duplicates: number;
+            /** Verified Items */
+            verified_items: number;
+        };
         /** BidOut */
         BidOut: {
             /** Clarification Cutoff */
@@ -2902,6 +2980,19 @@ export interface components {
             qualification_text: string;
             /** Version */
             version: number | null;
+        };
+        /** CostLine */
+        CostLine: {
+            /** Cost Sgd */
+            cost_sgd: string;
+            /** Model */
+            model: string;
+            /** Provider */
+            provider: string;
+            /** Route */
+            route: string;
+            /** Runs */
+            runs: number;
         };
         /** CountedOut */
         CountedOut: {
@@ -3381,6 +3472,25 @@ export interface components {
             item_ids: string[];
             /** Note */
             note?: string | null;
+        };
+        /** KpisOut */
+        KpisOut: {
+            /** Agent Runs */
+            agent_runs: number;
+            /** Bids */
+            bids: components["schemas"]["BidKpisOut"][];
+            /** Cost Sgd */
+            cost_sgd: string;
+            /** Escalation Rate */
+            escalation_rate: number | null;
+            /** Success Rate */
+            success_rate: number | null;
+            /** Target Cost Sgd */
+            target_cost_sgd: string | null;
+            /** Targets */
+            targets: {
+                [key: string]: unknown;
+            };
         };
         /** LegendRowOut */
         LegendRowOut: {
@@ -6075,6 +6185,37 @@ export interface operations {
             };
         };
     };
+    for_bid_bids__bid_id__kpis_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BidKpisOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_members_bids__bid_id__members_get: {
         parameters: {
             query?: never;
@@ -8458,6 +8599,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Liveness"];
+                };
+            };
+        };
+    };
+    portfolio_kpis_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KpisOut"];
                 };
             };
         };
