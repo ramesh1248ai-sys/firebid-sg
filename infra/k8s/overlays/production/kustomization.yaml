@@ -1,0 +1,14 @@
+# FireBid production. Set PROJECT, HOSTNAME and the image tag at release; see docs/runbooks/deploy.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - {name: firebid-backend, newName: asia-southeast1-docker.pkg.dev/PROJECT/firebid-production/firebid-backend, newTag: RELEASE}
+  - {name: firebid-sandbox, newName: asia-southeast1-docker.pkg.dev/PROJECT/firebid-production/firebid-sandbox, newTag: RELEASE}
+  - {name: firebid-frontend, newName: asia-southeast1-docker.pkg.dev/PROJECT/firebid-production/firebid-frontend, newTag: RELEASE}
+configMapGenerator:
+  - name: firebid
+    namespace: firebid
+    behavior: merge
+    literals: [FIREBID_ENV=production]

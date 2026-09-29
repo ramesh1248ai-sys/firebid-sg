@@ -1,0 +1,88 @@
+# Autoscaling per pool, and the edge: managed certificate, TLS 1.2+ and Cloud Armor (ADR-008).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: firebid-api
+  namespace: firebid
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: firebid-api}
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource: {name: cpu, target: {type: Utilization, averageUtilization: 65}}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: firebid-worker
+  namespace: firebid
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: firebid-worker}
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: firebid-sandbox
+  namespace: firebid
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: firebid-sandbox}
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}
+---
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: firebid
+  namespace: firebid
+spec:
+  domains: [HOSTNAME]
+---
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: firebid
+  namespace: firebid
+spec:
+  sslPolicy: firebid-ENV-tls12
+  redirectToHttps: {enabled: true}
+---
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: firebid-frontend
+  namespace: firebid
+spec:
+  securityPolicy: {name: firebid-ENV-edge}
+  healthCheck: {requestPath: /, port: 8080}
+---
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: firebid-api
+  namespace: firebid
+spec:
+  securityPolicy: {name: firebid-ENV-edge}
+  healthCheck: {requestPath: /health/live, port: 8000}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: firebid
+  namespace: firebid
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: firebid-ENV-edge
+    networking.gke.io/managed-certificates: firebid
+    networking.gke.io/v1beta1.FrontendConfig: firebid
+    kubernetes.io/ingress.allow-http: "false"
+spec:
+  defaultBackend:
+    service: {name: firebid-frontend, port: {number: 80}}

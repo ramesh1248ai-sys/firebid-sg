@@ -1,0 +1,329 @@
+# FireBid SG workloads on GKE Autopilot (ADR-008). Images and hostnames are set per
+# environment by the overlays; secrets come from Secret Manager through the CSI driver.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: firebid
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: firebid-api
+  namespace: firebid
+  annotations:
+    iam.gke.io/gcp-service-account: firebid-ENV-api@PROJECT.iam.gserviceaccount.com
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: firebid-worker
+  namespace: firebid
+  annotations:
+    iam.gke.io/gcp-service-account: firebid-ENV-worker@PROJECT.iam.gserviceaccount.com
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: firebid-sandbox
+  namespace: firebid
+  annotations:
+    iam.gke.io/gcp-service-account: firebid-ENV-sandbox@PROJECT.iam.gserviceaccount.com
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: firebid
+  namespace: firebid
+data:
+  FIREBID_ENV: production
+  FIREBID_LOG_LEVEL: INFO
+  FIREBID_DATABASE_URL_HOST: pgbouncer.firebid.svc.cluster.local
+  FIREBID_CLAMAV_HOST: clamav.firebid.svc.cluster.local
+  FIREBID_CLAMAV_PORT: "3310"
+  FIREBID_S3_ENDPOINT_URL: https://storage.googleapis.com
+---
+# The API: stateless, scaled on CPU.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firebid-api
+  namespace: firebid
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: firebid-api}
+  template:
+    metadata:
+      labels: {app: firebid-api, tier: api}
+    spec:
+      serviceAccountName: firebid-api
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: api
+          image: firebid-backend
+          ports: [{containerPort: 8000}]
+          envFrom:
+            - configMapRef: {name: firebid}
+            - secretRef: {name: firebid-secrets}
+          resources:
+            requests: {cpu: "1", memory: 2Gi}
+            limits: {memory: 2Gi}
+          readinessProbe:
+            httpGet: {path: /health, port: 8000}
+            periodSeconds: 15
+            timeoutSeconds: 10
+          livenessProbe:
+            httpGet: {path: /health/live, port: 8000}
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+      volumes: [{name: tmp, emptyDir: {}}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: firebid-api
+  namespace: firebid
+  annotations:
+    cloud.google.com/backend-config: '{"default": "firebid-api"}'
+spec:
+  selector: {app: firebid-api}
+  ports: [{port: 8000, targetPort: 8000}]
+---
+# The job workers: default and system queues. Scaled on CPU.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firebid-worker
+  namespace: firebid
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: firebid-worker}
+  template:
+    metadata:
+      labels: {app: firebid-worker, tier: worker}
+    spec:
+      serviceAccountName: firebid-worker
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: worker
+          image: firebid-backend
+          command: ["python", "-m", "firebid.jobs.worker", "--queues", "default,system"]
+          envFrom:
+            - configMapRef: {name: firebid}
+            - secretRef: {name: firebid-secrets}
+          resources:
+            requests: {cpu: "1", memory: 2Gi}
+            limits: {memory: 2Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+      volumes: [{name: tmp, emptyDir: {}}]
+---
+# The parser sandbox: the parse queue, under GKE Sandbox (gVisor): each pod has its own
+# user-space kernel. Its egress is limited by network-policies.yaml. Scales to zero.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firebid-sandbox
+  namespace: firebid
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: firebid-sandbox}
+  template:
+    metadata:
+      labels: {app: firebid-sandbox, tier: sandbox}
+    spec:
+      serviceAccountName: firebid-sandbox
+      runtimeClassName: gvisor
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: sandbox
+          image: firebid-sandbox
+          command: ["python", "-m", "firebid.jobs.worker", "--queues", "parse"]
+          envFrom:
+            - configMapRef: {name: firebid}
+            - secretRef: {name: firebid-sandbox-secrets}
+          resources:
+            requests: {cpu: "2", memory: 4Gi, ephemeral-storage: 8Gi}
+            limits: {memory: 4Gi, ephemeral-storage: 8Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts: [{name: scratch, mountPath: /scratch}]
+      volumes: [{name: scratch, emptyDir: {sizeLimit: 8Gi}}]
+---
+# The web app: static files and the /api proxy, as in the local stack.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firebid-frontend
+  namespace: firebid
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: firebid-frontend}
+  template:
+    metadata:
+      labels: {app: firebid-frontend, tier: web}
+    spec:
+      securityContext:
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: web
+          image: firebid-frontend
+          ports: [{containerPort: 8080}]
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {memory: 256Mi}
+          readinessProbe:
+            httpGet: {path: /, port: 8080}
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: cache, mountPath: /var/cache/nginx}
+            - {name: run, mountPath: /var/run}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: cache, emptyDir: {}}
+        - {name: run, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: firebid-frontend
+  namespace: firebid
+  annotations:
+    cloud.google.com/backend-config: '{"default": "firebid-frontend"}'
+spec:
+  selector: {app: firebid-frontend}
+  ports: [{port: 80, targetPort: 8080}]
+---
+# Malware scanning before any parser opens a file (guardrail 9).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clamav
+  namespace: firebid
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: clamav}
+  template:
+    metadata:
+      labels: {app: clamav, tier: scanner}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: clamav
+          image: clamav/clamav:1.4
+          ports: [{containerPort: 3310}]
+          resources:
+            requests: {cpu: 500m, memory: 3Gi}
+            limits: {memory: 3Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: signatures, mountPath: /var/lib/clamav}
+            - {name: run, mountPath: /run/clamav}
+            - {name: logs, mountPath: /var/log/clamav}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: signatures, emptyDir: {}}
+        - {name: run, emptyDir: {}}
+        - {name: logs, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clamav
+  namespace: firebid
+spec:
+  selector: {app: clamav}
+  ports: [{port: 3310, targetPort: 3310}]
+---
+# Connection pooling for every pool (transaction mode). Pool sizes sum to under Cloud SQL's
+# max_connections (200 by default): api 2x20, worker 2x15, sandbox up to 4x10, plus the
+# service role's 20, is 130.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer
+  namespace: firebid
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: pgbouncer}
+  template:
+    metadata:
+      labels: {app: pgbouncer, tier: database}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        seccompProfile: {type: RuntimeDefault}
+      volumes:
+        - {name: conf, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
+        - {name: logs, emptyDir: {}}
+      containers:
+        - name: pgbouncer
+          image: bitnami/pgbouncer:1
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: conf, mountPath: /opt/bitnami/pgbouncer/conf}
+            - {name: tmp, mountPath: /opt/bitnami/pgbouncer/tmp}
+            - {name: logs, mountPath: /opt/bitnami/pgbouncer/logs}
+          ports: [{containerPort: 6432}]
+          env:
+            - {name: PGBOUNCER_POOL_MODE, value: transaction}
+            - {name: PGBOUNCER_DEFAULT_POOL_SIZE, value: "60"}
+            - {name: PGBOUNCER_MAX_CLIENT_CONN, value: "500"}
+            - {name: PGBOUNCER_DATABASE, value: firebid}
+          envFrom:
+            - secretRef: {name: firebid-pgbouncer}
+          resources:
+            requests: {cpu: 250m, memory: 128Mi}
+            limits: {memory: 128Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer
+  namespace: firebid
+spec:
+  selector: {app: pgbouncer}
+  ports: [{port: 6432, targetPort: 6432}]
