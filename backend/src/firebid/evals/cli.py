@@ -430,8 +430,7 @@ def _run_shadow(arguments: argparse.Namespace) -> int:
     )
     out = arguments.out or (results / f"{truth.tender_id}.md")
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(found.markdown(), encoding="utf-8", newline="
-")
+    out.write_text(found.markdown(), encoding="utf-8", newline="\n")
     print(f"wrote {out} ({len(found.lines)} lines)")
     return 0
 
@@ -452,8 +451,7 @@ def _run_exit(arguments: argparse.Namespace) -> int:
         for g in (curated or {}).get("gaps", [])
     ]
     arguments.out.parent.mkdir(parents=True, exist_ok=True)
-    arguments.out.write_text(p1_exit.report(inputs, gaps), encoding="utf-8", newline="
-")
+    arguments.out.write_text(p1_exit.report(inputs, gaps), encoding="utf-8", newline="\n")
     print(f"wrote {arguments.out}")
     return 0
 
