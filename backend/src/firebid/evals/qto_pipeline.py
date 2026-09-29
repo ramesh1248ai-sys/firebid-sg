@@ -15,7 +15,7 @@ from firebid.drawings import geometry
 from firebid.drawings.detection import SheetDetections, detect, placed_from_legend, views_of
 from firebid.drawings.grids import GridSystem
 from firebid.drawings.legends import detect as detect_legends
-from firebid.drawings.symbols import best_match, clusters
+from firebid.drawings.symbols import Candidates, best_match, clusters
 from firebid.evals import synthetic
 from firebid.evals.detection_calibration import type_of_factory
 from firebid.qto.model import Detection, Placement, Run, level_of
@@ -68,7 +68,7 @@ def _placed_from(table: Any, excluded: Any, references: list[Any], type_of: Any)
     from firebid.drawings.pipe_network import Placed
 
     placed = []
-    signatures = [row.symbol.signature for row in references]
+    signatures = Candidates([row.symbol.signature for row in references])
     for cluster in clusters(table, excluding=excluded):
         if cluster.signature is None:
             continue

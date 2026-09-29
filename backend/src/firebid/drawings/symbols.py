@@ -414,37 +414,107 @@ class Match:
     how: str  # block_hash | block | shape
 
 
-def best_match(signature: Signature, candidates: list[Signature]) -> Match | None:
+WIDTH = (len(D2_BINS) - 1) + (len(RADIAL_BINS) - 1) + (len(TURN_BINS) - 1)
+_PART_STARTS = np.array([0, len(D2_BINS) - 1, len(D2_BINS) + len(RADIAL_BINS) - 2])
+
+
+class Candidates:
+    """Signatures to match against, their descriptors stacked once.
+
+    A sheet has thousands of instances to match against the same legend rows or mappings:
+    comparing one against all of them as arrays, not pair by pair, is what keeps symbol
+    reading to seconds a sheet (P1-11). Grows by `append`, for grouping unknown symbols.
+    """
+
+    def __init__(self, signatures: list[Signature] | tuple[Signature, ...] = ()) -> None:
+        self.signatures: list[Signature] = []
+        self._rows = np.zeros((max(len(signatures), 16), WIDTH))
+        self._tolerances = np.zeros(self._rows.shape[0])
+        self._hashes: dict[str, int] = {}
+        # Candidates with no descriptor never match by shape; ones of another width (an
+        # older signature version) are compared one by one, and are always far.
+        self._odd: list[int] = []
+        for signature in signatures:
+            self.append(signature)
+
+    def __len__(self) -> int:
+        return len(self.signatures)
+
+    def __getitem__(self, index: int) -> Signature:
+        return self.signatures[index]
+
+    def append(self, signature: Signature) -> None:
+        index = len(self.signatures)
+        self.signatures.append(signature)
+        if signature.block_hash and signature.block_hash not in self._hashes:
+            self._hashes[signature.block_hash] = index
+        if index == self._rows.shape[0]:
+            self._rows = np.vstack([self._rows, np.zeros_like(self._rows)])
+            self._tolerances = np.concatenate([self._tolerances, np.zeros_like(self._tolerances)])
+        self._tolerances[index] = signature.tolerance
+        if len(signature.descriptor) == WIDTH:
+            self._rows[index] = signature.descriptor
+        else:
+            self._rows[index] = np.nan
+            if signature.descriptor:
+                self._odd.append(index)
+
+    def by_hash(self, block_hash: str) -> int | None:
+        return self._hashes.get(block_hash)
+
+    def gaps(self, signature: Signature) -> tuple[np.ndarray, np.ndarray]:
+        """Each candidate's `distance` from `signature` (NaN: no descriptor), and the
+        tolerance each pair is held to."""
+        count = len(self.signatures)
+        tolerances = np.minimum(self._tolerances[:count], signature.tolerance)
+        rows = self._rows[:count]
+        if len(signature.descriptor) == WIDTH:
+            halves = 0.5 * np.abs(rows - np.asarray(signature.descriptor))
+            found = np.add.reduceat(halves, _PART_STARTS, axis=1).mean(axis=1)
+        else:
+            found = np.where(np.isnan(rows[:, 0]), np.nan, 1.0)
+        for index in self._odd:
+            found[index] = distance(signature.descriptor, self.signatures[index].descriptor)
+        return found, tolerances
+
+
+def _as_candidates(candidates: Candidates | list[Signature]) -> Candidates:
+    return candidates if isinstance(candidates, Candidates) else Candidates(candidates)
+
+
+def best_match(signature: Signature, candidates: Candidates | list[Signature]) -> Match | None:
     """The candidate this signature is, if any: same block geometry first, then same shape.
 
     A block name alone is not enough: consultants reuse names. A name with a different hash
-    falls through to the shape comparison like any PDF symbol.
+    falls through to the shape comparison like any PDF symbol. Pass `Candidates` when
+    matching many signatures against the same list.
     """
+    stacked = _as_candidates(candidates)
+    if len(stacked) == 0:
+        return None
     if signature.block_hash:
-        for index, candidate in enumerate(candidates):
-            if candidate.block_hash == signature.block_hash:
-                return Match(index, 0.0, "block_hash")
-    best: Match | None = None
-    for index, candidate in enumerate(candidates):
-        if not candidate.descriptor:
-            continue
-        gap = distance(signature.descriptor, candidate.descriptor)
-        if gap <= min(signature.tolerance, candidate.tolerance) and (
-            best is None or gap < best.distance
-        ):
-            best = Match(index, gap, "shape")
-    return best
+        index = stacked.by_hash(signature.block_hash)
+        if index is not None:
+            return Match(index, 0.0, "block_hash")
+    gaps, tolerances = stacked.gaps(signature)
+    within = np.flatnonzero(gaps <= tolerances)
+    if within.size == 0:
+        return None
+    index = int(within[np.argmin(gaps[within])])
+    return Match(index, float(gaps[index]), "shape")
 
 
-def near_match(signature: Signature, candidates: list[Signature], factor: float) -> Match | None:
+def near_match(
+    signature: Signature, candidates: Candidates | list[Signature], factor: float
+) -> Match | None:
     """The closest candidate a shape is *nearly* like: outside its tolerance, within
     `factor` times it. What vision assist may be asked about; never a match by itself."""
-    best: Match | None = None
-    for index, candidate in enumerate(candidates):
-        if not candidate.descriptor:
-            continue
-        tolerance = min(signature.tolerance, candidate.tolerance)
-        gap = distance(signature.descriptor, candidate.descriptor)
-        if tolerance < gap <= factor * tolerance and (best is None or gap < best.distance):
-            best = Match(index, gap, "near")
-    return best
+    stacked = _as_candidates(candidates)
+    if len(stacked) == 0:
+        return None
+    gaps, tolerances = stacked.gaps(signature)
+    near = np.flatnonzero((gaps > tolerances) & (gaps <= factor * tolerances))
+    if near.size == 0:
+        return None
+    index = int(near[np.argmin(gaps[near])])
+    return Match(index, float(gaps[index]), "near")

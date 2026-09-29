@@ -383,13 +383,29 @@ class SheetSymbols:
 
 
 def read_sheet(
-    session: Session, store: ObjectStore, record: SheetGeometry, consultant: Consultant
+    session: Session,
+    store: ObjectStore,
+    record: SheetGeometry,
+    consultant: Consultant,
+    *,
+    match: bool = True,
+    shapes: Shapes | None = None,
 ) -> SheetSymbols:
-    """A sheet's legends and symbols, recorded again from its geometry (idempotent)."""
-    table = geometry_service.load(store, record)
+    """A sheet's legends and symbols, recorded again from its geometry (idempotent).
+
+    `match=False` leaves matching the bid's instances to the caller, who reads several
+    sheets and matches once after the last (`read_all`). `shapes` are the sheet's legends
+    and symbols when they were found ahead, in parallel (`read_all`).
+    """
     page = (record.page[0], record.page[1], record.page[2], record.page[3])
-    found = legends.detect(table, page)
+    table: Any = None
+    if shapes is None:
+        table = geometry_service.load(store, record)
+        shapes = _shapes_of(table, page)
+    found, placed = shapes
     outcome = SheetSymbols()
+    if table is None and any(legend.rows for legend in found):
+        table = geometry_service.load(store, record)  # each legend row is cropped from it
 
     session.execute(delete(LegendEntry).where(LegendEntry.sheet_id == record.sheet_id))
     session.execute(delete(SymbolInstance).where(SymbolInstance.sheet_id == record.sheet_id))
@@ -428,7 +444,9 @@ def read_sheet(
                     mappings.append(mapping)
             outcome.entries.append(entry)
 
-    outcome.instances = _record_instances(session, record, table, page, found, consultant)
+    outcome.instances = _record_instances(session, record, placed)
+    if match:
+        match_instances(session, record.bid_id, consultant)
     session.flush()
     log.info(
         "symbols_read",
@@ -507,26 +525,72 @@ def _resolve(
     entry.status = AWAITING_MODEL
 
 
-def _record_instances(
-    session: Session,
-    record: SheetGeometry,
-    table: Any,
-    page: tuple[float, float, float, float],
-    found: list[legends.Legend],
-    consultant: Consultant,
-) -> int:
-    """Every symbol installed on the sheet: outside its legends and its title block."""
+Shapes = tuple[list[legends.Legend], list[symbols.Cluster]]
+
+
+def _shapes_of(table: Any, page: tuple[float, float, float, float]) -> Shapes:
+    """A sheet's legends, and every symbol installed on it: outside its legends and its
+    title block. Pure work on the geometry, no database."""
     from firebid.drawings.geometry import texts
     from firebid.drawings.views import _title_block_region
 
+    found = legends.detect(table, page)
     excluded = [legend.box for legend in found]
     region = _title_block_region(texts(table), page)
     if region is not None:
         excluded.append((region.x0, region.y0, region.x1, region.y1))
+    return found, symbols.clusters(table, excluding=excluded)
+
+
+def sheet_shapes(parquet: bytes, page: tuple[float, float, float, float]) -> Shapes:
+    """`_shapes_of` from the geometry file itself: what a worker process is given."""
+    from firebid.drawings.geometry import from_parquet
+
+    return _shapes_of(from_parquet(parquet), page)
+
+
+def _shapes_ahead(store: ObjectStore, records: list[SheetGeometry]) -> dict[uuid.UUID, Shapes]:
+    """Every sheet's shapes, several sheets at a time (NFR-01; P1-11).
+
+    Finding symbols is most of reading a sheet, and it needs only the sheet's own geometry,
+    so worker processes do it side by side, as many as `parse_concurrency` allows. The job
+    then records each sheet in turn. A sheet that fails here is read again there, where the
+    failure is reported.
+    """
+    import multiprocessing
+    from concurrent.futures import ProcessPoolExecutor
+
+    from firebid.settings import get_settings
+
+    workers = min(max(1, get_settings().parse_concurrency), len(records))
+    if workers <= 1:
+        return {}
+    shapes: dict[uuid.UUID, Shapes] = {}
+    context = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(max_workers=workers, mp_context=context) as pool:
+        pending = {
+            record.sheet_id: pool.submit(
+                sheet_shapes,
+                store.get(record.object_key),
+                (record.page[0], record.page[1], record.page[2], record.page[3]),
+            )
+            for record in records
+        }
+        for sheet_id, future in pending.items():
+            try:
+                shapes[sheet_id] = future.result()
+            except Exception as failure:  # read again in the job, which reports why
+                log.warning("symbols_ahead_failed", sheet_id=str(sheet_id), reason=str(failure))
+    return shapes
+
+
+def _record_instances(
+    session: Session, record: SheetGeometry, placed: list[symbols.Cluster]
+) -> int:
+    """Every symbol installed on the sheet, with the geometry rows it is made of."""
     views = list(
         session.execute(select(SheetView).where(SheetView.sheet_id == record.sheet_id)).scalars()
     )
-    placed = symbols.clusters(table, excluding=excluded)
     for cluster in placed:
         if cluster.signature is None:  # clusters() returns only signed clusters
             continue
@@ -552,30 +616,32 @@ def _record_instances(
                 rotation=cluster.rotation,
                 scale=cluster.scale,
                 signature=cluster.signature.as_json(),
+                geometry_rows=list(cluster.rows),
                 detector_version=DETECTOR_VERSION,
             )
         )
     session.flush()
-    match_instances(session, record.bid_id, consultant)
     return len(placed)
 
 
 def match_instances(session: Session, bid_id: uuid.UUID, consultant: Consultant) -> None:
     """Match the bid's instances to its legend rows, else to the consultant's mappings.
 
-    Run after every sheet, because files arrive in any order: a plan read before its legend
-    sheet is matched again once the legend is known.
+    Run after every document, because files arrive in any order: a plan read before its
+    legend sheet is matched again once the legend is known. Once per document, not per
+    sheet: every instance of the bid is matched again, so per sheet it grew with the square
+    of the sheet count (P1-11).
     """
     entries = list(
         session.execute(select(LegendEntry).where(LegendEntry.bid_id == bid_id)).scalars()
     )
-    entry_signatures = [Signature.from_json(entry.signature) for entry in entries]
+    entry_signatures = symbols.Candidates([Signature.from_json(e.signature) for e in entries])
     mappings = _usable_for(
         current_mappings(session, consultant.organisation_id, consultant.key),
         consultant.project_id,
     )
-    mapping_signatures = [Signature.from_json(m.signature) for m in mappings]
-    unknown: list[tuple[Signature, str]] = []
+    mapping_signatures = symbols.Candidates([Signature.from_json(m.signature) for m in mappings])
+    unknown: tuple[symbols.Candidates, list[str]] = (symbols.Candidates(), [])
     for instance in session.execute(
         select(SymbolInstance).where(SymbolInstance.bid_id == bid_id)
     ).scalars():
@@ -603,20 +669,22 @@ def match_instances(session: Session, bid_id: uuid.UUID, consultant: Consultant)
     session.flush()
 
 
-def _unknown_key(signature: Signature, seen: list[tuple[Signature, str]]) -> str:
+def _unknown_key(signature: Signature, seen: tuple[symbols.Candidates, list[str]]) -> str:
     """Symbols nobody has explained, grouped so recurring ones are raised as one."""
     if signature.block_hash:
         return f"block:{signature.block_hash}"
-    found = symbols.best_match(signature, [item[0] for item in seen]) if seen else None
+    shapes, keys = seen
+    found = symbols.best_match(signature, shapes)
     if found is not None:
-        return seen[found.index][1]
+        return keys[found.index]
     key = (
         "shape:"
         + hashlib.sha256(",".join(f"{v:.2f}" for v in signature.descriptor).encode()).hexdigest()[
             :16
         ]
     )
-    seen.append((signature, key))
+    shapes.append(signature)
+    keys.append(key)
     return key
 
 
@@ -635,10 +703,19 @@ def read_all(
 
     consultant = consultant_of(session, sheets[0].bid_id)
     object_library.ensure_seeded(session, consultant.organisation_id)
-    records = session.execute(
-        select(SheetGeometry).where(SheetGeometry.sheet_id.in_([sheet.id for sheet in sheets]))
-    ).scalars()
-    outcomes = [read_sheet(session, store, record, consultant) for record in records]
+    records = list(
+        session.execute(
+            select(SheetGeometry).where(SheetGeometry.sheet_id.in_([sheet.id for sheet in sheets]))
+        ).scalars()
+    )
+    ahead = _shapes_ahead(store, records)
+    outcomes = [
+        read_sheet(
+            session, store, record, consultant, match=False, shapes=ahead.get(record.sheet_id)
+        )
+        for record in records
+    ]
+    match_instances(session, sheets[0].bid_id, consultant)
     for outcome in outcomes:
         for entry_id in outcome.awaiting_model:
             enqueue(session, propose_symbol, entry_id=str(entry_id), user_id=user_id)

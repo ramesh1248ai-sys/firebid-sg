@@ -285,7 +285,7 @@ class DetectionPredictor:
         )
 
     def _placed(self, sheet: dict[str, Any], rows: list[Any]) -> list[Placed]:
-        references = [row.symbol.signature for row in rows]
+        references = symbols.Candidates([row.symbol.signature for row in rows])
         placed = []
         for cluster in symbols.clusters(sheet["table"], excluding=sheet["excluded"]):
             if cluster.signature is None:

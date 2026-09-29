@@ -120,15 +120,22 @@ def _placed(
             select(LegendEntry).where(LegendEntry.bid_id == _bid_of(session, sheet_id))
         ).scalars()
     }
-    clusters = {
-        (round(c.centre[0], 2), round(c.centre[1], 2)): c
-        for c in symbols.clusters(table, excluding=excluded)
-    }
+    instances = list(
+        session.execute(select(SymbolInstance).where(SymbolInstance.sheet_id == sheet_id)).scalars()
+    )
+    # Each instance records the geometry rows it is made of. Only instances read before
+    # that (migration 0028) need the sheet's symbols found again to know them.
+    clusters = (
+        {
+            (round(c.centre[0], 2), round(c.centre[1], 2)): c.rows
+            for c in symbols.clusters(table, excluding=excluded)
+        }
+        if any(instance.geometry_rows is None for instance in instances)
+        else {}
+    )
     placed: list[Placed] = []
     skipped = 0
-    for instance in session.execute(
-        select(SymbolInstance).where(SymbolInstance.sheet_id == sheet_id)
-    ).scalars():
+    for instance in instances:
         entry = entries.get(instance.legend_entry_id) if instance.legend_entry_id else None
         lineage = instance.mapping_lineage_id or (entry.mapping_lineage_id if entry else None)
         mapping = symbol_service.current(session, lineage) if lineage else None
@@ -141,7 +148,11 @@ def _placed(
             # to detect, and its strokes stay free for pipe tracing, in case what was named
             # was a stub of pipe the symbol reader grouped as a shape (found in P1-08).
             continue
-        cluster = clusters.get((round(instance.cx, 2), round(instance.cy, 2)))
+        rows = (
+            tuple(instance.geometry_rows)
+            if instance.geometry_rows is not None
+            else clusters.get((round(instance.cx, 2), round(instance.cy, 2)), ())
+        )
         signature = Signature.from_json(instance.signature)
         reference = Signature.from_json(entry.signature if entry else mapping.signature)
         rotation = instance.rotation
@@ -161,7 +172,7 @@ def _placed(
                 match_distance=float(instance.match_distance or 0.0),
                 tolerance=reference.tolerance,
                 attributes=dict(mapping.attributes or {}),
-                rows=cluster.rows if cluster else (),
+                rows=rows,
                 description=entry.description if entry else mapping.description,
                 instance_id=instance.id,
             )
@@ -422,7 +433,7 @@ def queue_vision(
     entries = list(
         session.execute(select(LegendEntry).where(LegendEntry.bid_id == sheet.bid_id)).scalars()
     )
-    references = [Signature.from_json(entry.signature) for entry in entries]
+    references = symbols.Candidates([Signature.from_json(entry.signature) for entry in entries])
     taken = {(round(p.cx, 2), round(p.cy, 2)) for p in placed}
     queued = 0
     for cluster in symbols.clusters(table, excluding=excluded):

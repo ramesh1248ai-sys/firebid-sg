@@ -155,6 +155,9 @@ class SymbolInstance(BidScoped, Base):
     match_distance: Mapped[float | None] = mapped_column(Float)
     # Kept so an instance found before its legend was read can be matched once it is.
     signature: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    # The geometry rows this instance is made of, so detection need not find it again
+    # (P1-11). Null on instances read before migration 0028.
+    geometry_rows: Mapped[list[int] | None] = mapped_column(JSONB)
     detector_version: Mapped[str] = mapped_column(String(16), nullable=False)
 
 

@@ -8,6 +8,7 @@ its spatial index are written for this bid.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import time
 from typing import Any
@@ -77,6 +78,7 @@ def extract_sheet(
     record.note = meta.get("primary_failure") or meta.get("ocr_note")
     if existing is None:
         session.add(record)
+    indexing = time.perf_counter()
     _index(session, sheet, table)
     session.flush()
     log.info(
@@ -84,6 +86,9 @@ def extract_sheet(
         sheet_id=str(sheet.id),
         from_cache=from_cache,
         seconds=record.seconds,
+        # Writing the spatial index is outside `seconds` (the extraction); logged apart so
+        # a slow write shows up as one (P1-11 benchmark).
+        index_seconds=round(time.perf_counter() - indexing, 3),
         primitives=table.num_rows,
     )
     return record
@@ -139,6 +144,47 @@ def load(store: ObjectStore, record: SheetGeometry) -> pa.Table:
     return geometry.from_parquet(store.get(record.object_key))
 
 
+def _uncached(store: ObjectStore, sheets: list[Sheet]) -> list[Sheet]:
+    stage = cache(store)
+    seen: set[str] = set()
+    missing = []
+    for sheet in sheets:
+        digest = sheet.content_hash
+        if digest and digest not in seen and not store.exists(stage.key(digest)):
+            seen.add(digest)
+            missing.append(sheet)
+    return missing
+
+
+def _extract_ahead(
+    store: ObjectStore, document: Document, sheets: list[Sheet], payload: bytes
+) -> None:
+    """Extract sheets into the stage cache several at a time (NFR-01; P1-11).
+
+    Each extraction is its own sandboxed process, so threads that wait on them run the
+    sheets truly in parallel, as many as `parse_concurrency` allows. Only the cache is
+    written here; the loop after it records every sheet from the cache, in order, in the
+    job's session. A sheet that fails here is simply tried again there, which records why.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from firebid.sandbox.runner import SandboxFailure
+    from firebid.settings import get_settings
+
+    stage = cache(store)
+
+    def one(sheet: Sheet) -> None:
+        with contextlib.suppress(SandboxFailure):
+            table = _extract(document, sheet, payload)
+            stage.put(str(sheet.content_hash), geometry.to_parquet(table), PARQUET)
+
+    workers = max(1, get_settings().parse_concurrency)
+    if workers == 1 or len(sheets) == 1:
+        return  # nothing to overlap: the loop extracts as it goes
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="geometry") as pool:
+        list(pool.map(one, sheets))
+
+
 def extract_all(
     session: Session, store: ObjectStore, document: Document, sheets: list[Sheet]
 ) -> list[SheetGeometry]:
@@ -146,10 +192,14 @@ def extract_all(
     from firebid.sandbox.runner import SandboxFailure
 
     payload: bytes | None = None
+    missing = _uncached(store, sheets)
+    if missing:
+        payload = store.get(document.storage_key)
+        _extract_ahead(store, document, missing, payload)
     records = []
     for sheet in sheets:
         try:
-            if payload is None and cache(store).get(sheet.content_hash or "") is None:
+            if payload is None and not store.exists(cache(store).key(sheet.content_hash or "")):
                 payload = store.get(document.storage_key)
             records.append(extract_sheet(session, store, document, sheet, payload))
         except SandboxFailure as failure:

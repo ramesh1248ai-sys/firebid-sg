@@ -10,7 +10,7 @@ API_URL := http://$(STACK_HOST):$(or $(FIREBID_API_PORT),8000)
 PHASE ?=
 IDS ?=
 
-.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client data-inventory golden-template eval eval-docs eval-gate exit-report security ingest-benchmark req-coverage check
+.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client data-inventory golden-template eval eval-docs eval-gate exit-report security ingest-benchmark pipeline-benchmark req-coverage check
 
 help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -64,7 +64,12 @@ api-client: ## Regenerate the frontend API client from the backend's OpenAPI sch
 	cd frontend && npm run -s api:generate
 
 ingest-benchmark: ## Time a synthetic tender set through ingestion (NFR-01); SHEETS=300
-	cd backend && uv run python -m firebid.evals.ingest_benchmark 		--sheets $(or $(SHEETS),300) --report ../eval/results/ingest-throughput.md
+	cd backend && uv run python -m firebid.evals.ingest_benchmark \
+		--sheets $(or $(SHEETS),300) --report ../eval/results/ingest-throughput.md
+
+pipeline-benchmark: ## Time a drawing set through the whole parse job on the running stack (NFR-01); PDF=<file> or SHEETS=<n>
+	uv run --project backend python scripts/pipeline_benchmark.py \
+		$(if $(PDF),--pdf "$(PDF)",--synthetic $(or $(SHEETS),20)) $(if $(OUT),--out "$(OUT)")
 
 eval: ## Run the synthetic evaluation suite and write a report
 	cd backend && uv run firebid-eval --root ../eval run --report ../eval/results/synthetic.md
@@ -82,7 +87,8 @@ security: ## Run the CI security scans locally (NFR-06): dependencies, code, sec
 	docker run --rm -v "$$PWD:/repo" aquasec/trivy:latest fs --quiet --exit-code 1 --severity HIGH,CRITICAL --scanners misconfig,secret --skip-dirs /repo/frontend/node_modules --skip-dirs /repo/backend/.venv --skip-files /repo/infra/keycloak/Dockerfile --skip-files /repo/infra/seaweedfs/Dockerfile /repo
 
 exit-report: ## Write the Phase 1 exit report (P1-11); INDICATIVE=<dir> adds a real-drawing sample, LIVE=1 every bid's measures
-	cd backend && uv run firebid-eval --root ../eval exit --out ../docs/reports/phase1-exit.md \n		$(if $(INDICATIVE),--indicative-root "$(INDICATIVE)") $(if $(LIVE),--live)
+	cd backend && uv run firebid-eval --root ../eval exit --out ../docs/reports/phase1-exit.md \
+		$(if $(INDICATIVE),--indicative-root "$(INDICATIVE)") $(if $(LIVE),--live)
 
 eval-gate: ## Fail if any metric has regressed against the accepted baseline (FR-LRN-01)
 	cd backend && uv run firebid-eval --root ../eval compare

@@ -151,9 +151,11 @@ def build(
     symbol_rows = {row for symbol in placed for row in symbol.rows}
 
     keep: list[int] = []
+    # Once, not per segment: `lengths` computes every segment's length each time it is read.
+    lengths = lines.lengths
     for i in range(len(lines)):
         row = int(lines.row[i])
-        if groups[row] in insert_groups or row in symbol_rows or lines.lengths[i] < MIN_PIPE_MM:
+        if groups[row] in insert_groups or row in symbol_rows or lengths[i] < MIN_PIPE_MM:
             continue
         mid = ((lines.x0[i] + lines.x1[i]) / 2, (lines.y0[i] + lines.y1[i]) / 2)
         if excluded and any(_inside(mid, box) for box in excluded):
