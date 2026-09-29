@@ -89,3 +89,19 @@ def test_the_drill_passes_only_inside_rpo_and_rto_with_everything_matching() -> 
 
     assert good.passed and "11.0 min" in good.to_json()["summary"]
     assert not slow.passed and not stale.passed and not broken.passed
+
+
+@pytest.mark.req("NFR-04")
+def test_verifying_a_restore_done_elsewhere_checks_every_table_and_chain(
+    database_url: str, bid: Bid
+) -> None:
+    """The staging drill verifies a Cloud SQL clone; here a database is its own clone."""
+    from firebid.db.engine import sqlalchemy_url
+    from firebid.ops.restore_drill import compare
+
+    url = sqlalchemy_url(database_url)
+    drill = compare(url, url, environment="t", restore_seconds=900, data_lost_seconds=300)
+
+    assert drill.passed, drill.to_json()["summary"]
+    assert drill.tables_checked > 40 and not drill.mismatched_tables
+    assert drill.rto_seconds >= 900

@@ -3,6 +3,8 @@
     firebid-ops deploy-guard --start 2026-10-03T18:00Z --end 2026-10-03T22:00Z
     firebid-ops game-day [--primary anthropic] [--live]
     firebid-ops restore-drill --local
+    firebid-ops restore-drill --original URL --restored URL
+        --restore-minutes 18 --data-lost-minutes 5
     firebid-ops provider-terms
 
 Each writes JSON under `<root>/results/ops/`, which `firebid-eval exit` reads. `deploy-guard`
@@ -46,7 +48,13 @@ def main(argv: list[str] | None = None) -> int:
     day.add_argument("--live", action="store_true", help="real adapters (staging only)")
 
     drill = commands.add_parser("restore-drill", help="back up, restore, verify, time (NFR-04)")
-    drill.add_argument("--local", action="store_true", required=True)
+    where = drill.add_mutually_exclusive_group(required=True)
+    where.add_argument("--local", action="store_true", help="dump and restore the local stack")
+    where.add_argument("--restored", help="verify a restore done elsewhere (a staging clone)")
+    drill.add_argument("--original", help="with --restored: the database it was restored from")
+    drill.add_argument("--environment", default="staging")
+    drill.add_argument("--restore-minutes", type=float, default=0.0)
+    drill.add_argument("--data-lost-minutes", type=float, default=0.0)
 
     commands.add_parser("provider-terms", help="record each enabled provider's data terms")
 
@@ -98,7 +106,18 @@ def main(argv: list[str] | None = None) -> int:
     if arguments.command == "restore-drill":
         from firebid.ops import restore_drill
 
-        rehearsal = restore_drill.local()
+        if arguments.restored:
+            if not arguments.original:
+                parser.error("--restored needs --original")
+            rehearsal = restore_drill.compare(
+                arguments.original,
+                arguments.restored,
+                environment=arguments.environment,
+                restore_seconds=arguments.restore_minutes * 60,
+                data_lost_seconds=arguments.data_lost_minutes * 60,
+            )
+        else:
+            rehearsal = restore_drill.local()
         out = _write(arguments.root, "restore-drill", rehearsal.to_json())
         print(rehearsal.to_json()["summary"], f"-> {out}")
         return 0 if rehearsal.passed else 1

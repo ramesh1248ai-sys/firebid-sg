@@ -52,6 +52,9 @@ spec:
   egress:
     - to: [{podSelector: {matchLabels: {tier: database}}}]
       ports: [{port: 6432}]
+    # The service role's sweeps reach Cloud SQL directly (infra/k8s/sync-secrets.sh).
+    - to: [{ipBlock: {cidr: 10.0.0.0/8}}]
+      ports: [{port: 5432}]
     - to: [{podSelector: {matchLabels: {tier: scanner}}}]
       ports: [{port: 3310}]
     - to: [{ipBlock: {cidr: 0.0.0.0/0, except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]}}]

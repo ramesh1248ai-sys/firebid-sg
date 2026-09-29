@@ -33,7 +33,7 @@ resource "google_monitoring_uptime_check_config" "health" {
       host       = var.hostname
     }
   }
-  checker_type = "STATIC_IP_CHECKERS"
+  checker_type     = "STATIC_IP_CHECKERS"
   selected_regions = ["ASIA_PACIFIC", "USA_OREGON", "EUROPE"]
 }
 
@@ -63,10 +63,10 @@ resource "google_monitoring_alert_policy" "down" {
 
 resource "google_logging_metric" "events" {
   for_each = {
-    audit_chain_broken      = "jsonPayload.event=\"audit_chain_broken\""
-    audit_partition_failed  = "jsonPayload.event=\"audit_partition_failed\" OR (jsonPayload.logger=\"firebid.jobs\" AND jsonPayload.event=~\"partition\" AND severity>=ERROR)"
-    parse_failed            = "jsonPayload.event=\"parse_failed\""
-    server_errors           = "httpRequest.status>=500"
+    audit_chain_broken     = "jsonPayload.event=\"audit_chain_broken\""
+    audit_partition_failed = "jsonPayload.event=\"audit_partition_failed\" OR (jsonPayload.logger=\"firebid.jobs\" AND jsonPayload.event=~\"partition\" AND severity>=ERROR)"
+    parse_failed           = "jsonPayload.event=\"parse_failed\""
+    server_errors          = "httpRequest.status>=500"
   }
   project = var.project_id
   name    = "${local.name}-${each.key}"

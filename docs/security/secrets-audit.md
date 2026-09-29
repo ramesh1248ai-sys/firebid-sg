@@ -22,7 +22,7 @@ Carried out 29 Sep 2026 on `main` plus the P1-11 branch.
 
 ## Rotation
 
-Production secrets are held in Google Secret Manager and read at start-up. The procedure for rotating each kind (database roles, object storage keys, LLM provider keys, the OIDC client) is in [`docs/runbooks/key-rotation.md`](../runbooks/key-rotation.md).
+Production secrets are held in Google Secret Manager. `infra/k8s/sync-secrets.sh` builds the cluster's secrets from it at each release, giving each workload only what it needs (the parser sandbox never holds a model key), and the pods read them at start-up. The procedure for rotating each kind (database roles, object storage keys, LLM provider keys, the OIDC client) is in [`docs/runbooks/key-rotation.md`](../runbooks/key-rotation.md).
 
 ## Result
 

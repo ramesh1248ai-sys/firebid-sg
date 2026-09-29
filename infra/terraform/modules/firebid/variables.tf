@@ -55,6 +55,7 @@ variable "secret_names" {
   description = "Secrets the workloads read, by short name."
   type        = list(string)
   default = [
+    "database-owner-password",
     "database-app-password",
     "database-service-password",
     "storage-hmac-key",

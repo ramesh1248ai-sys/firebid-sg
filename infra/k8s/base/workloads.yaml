@@ -1,5 +1,6 @@
 # FireBid SG workloads on GKE Autopilot (ADR-008). Images and hostnames are set per
-# environment by the overlays; secrets come from Secret Manager through the CSI driver.
+# environment by the overlays; the secrets they read are built from Secret Manager by
+# infra/k8s/sync-secrets.sh at each release (docs/runbooks/deploy.md).
 apiVersion: v1
 kind: Namespace
 metadata:

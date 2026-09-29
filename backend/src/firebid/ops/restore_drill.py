@@ -125,6 +125,42 @@ def _chains(url: str) -> tuple[int, list[str]]:
         engine.dispose()
 
 
+def verify(drill: Drill, original_url: str, restored_url: str) -> Drill:
+    """Every table's rows and every audit hash chain of the restored database, against the
+    original, timed. Queue and heartbeat tables change by the minute and are left out."""
+    started = time.monotonic()
+    original = _counts(original_url)
+    restored = _counts(restored_url)
+    compared = [name for name in original if not name.startswith(VOLATILE)]
+    drill.tables_checked = len(compared)
+    drill.mismatched_tables = sorted(
+        name for name in compared if original[name] != restored.get(name)
+    )
+    drill.chains_checked, drill.broken_chains = _chains(restored_url)
+    drill.verify_seconds = time.monotonic() - started
+    return drill
+
+
+def compare(
+    original_url: str,
+    restored_url: str,
+    *,
+    environment: str,
+    restore_seconds: float,
+    data_lost_seconds: float,
+) -> Drill:
+    """The drill's verification for a restore done elsewhere: a Cloud SQL point-in-time
+    clone in staging (docs/runbooks/restore.md). Run it while the original is quiet (the
+    workers scaled to zero), or its rows will have moved on since the recovery point."""
+    drill = Drill(
+        environment=environment,
+        ran_at=datetime.now(UTC).isoformat(),
+        restore_seconds=restore_seconds,
+        backup_age_seconds=data_lost_seconds,
+    )
+    return verify(drill, original_url, restored_url)
+
+
 def local(host_url: str = "postgresql+psycopg://firebid:firebid@localhost:55432") -> Drill:
     """The drill on the docker-compose stack. Leaves the original database untouched."""
     drill = Drill(
@@ -180,16 +216,7 @@ def local(host_url: str = "postgresql+psycopg://firebid:firebid@localhost:55432"
     )
     drill.restore_seconds = time.monotonic() - started
 
-    started = time.monotonic()
-    original = _counts(f"{host_url}/firebid")
-    restored = _counts(f"{host_url}/firebid_restore")
-    compared = [name for name in original if not name.startswith(VOLATILE)]
-    drill.tables_checked = len(compared)
-    drill.mismatched_tables = sorted(
-        name for name in compared if original[name] != restored.get(name)
-    )
-    drill.chains_checked, drill.broken_chains = _chains(f"{host_url}/firebid_restore")
-    drill.verify_seconds = time.monotonic() - started
+    verify(drill, f"{host_url}/firebid", f"{host_url}/firebid_restore")
 
     _run(
         [

@@ -42,7 +42,7 @@ The code expects PostgreSQL, S3-compatible object storage and OIDC. Nothing in i
   - alert policies on availability, 5xx rate, job-queue depth, audit partition creation failures and audit chain breaks (log-based metrics from the structured logs);
   - Cloud SQL storage and CPU alerts.
 - **Environments:** staging and production as separate projects, from one module, with a remote state bucket per environment.
-- **Maintenance:** releases go through `scripts/deploy_guard.py`, which refuses a planned maintenance window within 48 hours of any active bid's submission deadline (NFR-03).
+- **Maintenance:** releases go through `firebid-ops deploy-guard`, which refuses a planned maintenance window within 48 hours of any active bid's submission deadline (NFR-03).
 
 ## Consequences
 

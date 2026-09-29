@@ -309,9 +309,22 @@ resource "google_service_account" "workloads" {
   display_name = "FireBid ${each.value} (${var.environment})"
 }
 
-# Every workload reads the secrets it needs; the sandbox reads documents, never snapshots.
+# Every workload reads the secrets it needs, and no more: the sandbox opens files from
+# outside the company, so it never reads a model key or the database owner's password.
+locals {
+  secret_readers = {
+    api     = [for s in var.secret_names : s if s != "database-owner-password"]
+    worker  = [for s in var.secret_names : s if s != "database-owner-password"]
+    sandbox = ["database-app-password", "storage-hmac-key", "storage-hmac-secret"]
+  }
+}
+
 resource "google_secret_manager_secret_iam_member" "readers" {
-  for_each  = { for pair in setproduct(["api", "worker", "sandbox"], var.secret_names) : "${pair[0]}-${pair[1]}" => pair }
+  for_each = {
+    for pair in flatten([
+      for workload, names in local.secret_readers : [for name in names : [workload, name]]
+    ]) : "${pair[0]}-${pair[1]}" => pair
+  }
   project   = var.project_id
   secret_id = google_secret_manager_secret.secrets[each.value[1]].secret_id
   role      = "roles/secretmanager.secretAccessor"
