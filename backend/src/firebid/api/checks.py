@@ -7,7 +7,7 @@ from sqlalchemy import select, text
 from firebid.api.health import CheckResult, HealthCheck
 from firebid.db.engine import get_engine, session_scope
 from firebid.db.system import SystemHeartbeat
-from firebid.jobs.tasks import HEARTBEAT_NAME
+from firebid.jobs.heartbeat import HEARTBEAT_NAME
 from firebid.settings import Settings
 
 

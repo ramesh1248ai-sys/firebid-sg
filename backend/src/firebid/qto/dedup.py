@@ -79,6 +79,8 @@ def _member(item: Detection | Run, keep: bool, excluded_length: int = 0) -> dict
 
 def find(detections: list[Detection], runs: list[Run]) -> list[Group]:
     groups: dict[str, Group] = {}
+    # Who is already in each group, so adding a member does not search the group for it.
+    seen: dict[int, set[tuple[str, str]]] = {}
 
     # Schematics and sections: excluded by default, one group per sheet.
     everything: list[Detection | Run] = [*detections, *runs]
@@ -102,54 +104,107 @@ def find(detections: list[Detection], runs: list[Run]) -> list[Group]:
     for detection in plan_detections:
         by_level[detection.at.level].append(detection)
     for level, items in by_level.items():
-        for index, first in enumerate(items):
-            for second in items[index + 1 :]:
-                if first.at.sheet_id == second.at.sheet_id:
-                    continue
-                if (first.object_type, first.kind) != (second.object_type, second.kind):
-                    continue
-                a, b = first.grid_index, second.grid_index
-                if a is None or b is None:  # filtered above; for the type checker
-                    continue
-                if abs(a[0] - b[0]) > SAME_PLACE or abs(a[1] - b[1]) > SAME_PLACE:
-                    continue
-                kept, other = sorted(
-                    (first, second), key=lambda d: _rank(d.at.view_kind, d.at.sheet_number)
-                )
-                group = _pair_group(groups, level, kept, other)
-                _add_once(group, _member(kept, keep=True))
-                _add_once(group, _member(other, keep=False))
+        for index, other_index in _near_detections(items):
+            first, second = items[index], items[other_index]
+            kept, other = sorted(
+                (first, second), key=lambda d: _rank(d.at.view_kind, d.at.sheet_number)
+            )
+            group = _pair_group(groups, level, kept, other)
+            _add_once(group, _member(kept, keep=True), seen)
+            _add_once(group, _member(other, keep=False), seen)
 
     plan_runs = [r for r in runs if r.at.view_kind in PLANS and r.length_mm]
     runs_by_level: dict[str | None, list[Run]] = defaultdict(list)
     for run in plan_runs:
         runs_by_level[run.at.level].append(run)
     for level, run_items in runs_by_level.items():
-        for index, first_run in enumerate(run_items):
-            for second_run in run_items[index + 1 :]:
-                if first_run.at.sheet_id == second_run.at.sheet_id:
-                    continue
-                overlap = _overlap(first_run, second_run)
-                if overlap is None:
-                    continue
-                kept_run, other_run = sorted(
-                    (first_run, second_run),
-                    key=lambda r: _rank(r.at.view_kind, r.at.sheet_number),
-                )
-                length = other_run.length_mm or 0
-                per_unit = _mm_per_grid_unit(other_run)
-                taken = min(length, round(overlap * per_unit)) if per_unit else 0
-                if taken <= 0:
-                    continue
-                group = _pair_group(groups, level, kept_run, other_run)
-                _add_once(group, _member(kept_run, keep=True))
-                member = _member(other_run, keep=False, excluded_length=taken)
-                if other_run.dn is None and kept_run.dn is not None:
-                    # A size written on one side of a match line applies on the other.
-                    member["carried_dn"] = kept_run.dn
-                    member["carried_from"] = kept_run.at.sheet_number
-                group.members.append(member)
+        for index, other_index, overlap in _overlapping_runs(run_items):
+            first_run, second_run = run_items[index], run_items[other_index]
+            kept_run, other_run = sorted(
+                (first_run, second_run),
+                key=lambda r: _rank(r.at.view_kind, r.at.sheet_number),
+            )
+            length = other_run.length_mm or 0
+            per_unit = _mm_per_grid_unit(other_run)
+            taken = min(length, round(overlap * per_unit)) if per_unit else 0
+            if taken <= 0:
+                continue
+            group = _pair_group(groups, level, kept_run, other_run)
+            _add_once(group, _member(kept_run, keep=True), seen)
+            member = _member(other_run, keep=False, excluded_length=taken)
+            if other_run.dn is None and kept_run.dn is not None:
+                # A size written on one side of a match line applies on the other.
+                member["carried_dn"] = kept_run.dn
+                member["carried_from"] = kept_run.at.sheet_number
+            group.members.append(member)
+            _members_of(group, seen).add((member["kind"], member["id"]))
     return list(groups.values())
+
+
+def _near_detections(items: list[Detection]) -> list[tuple[int, int]]:
+    """Pairs of one level's detections that are the same thing at the same grid position on
+    different sheets, as (earlier, later) positions in `items`, in that order.
+
+    Found through a grid of cells twice `SAME_PLACE` wide: two detections that close are in
+    the same cell or in neighbouring ones, so each is compared with its few neighbours and
+    not with every other detection of the level, which on a real tender is thousands.
+    """
+    cell = 2 * SAME_PLACE
+    cells: dict[tuple[str, str, int, int], list[int]] = defaultdict(list)
+    for position, item in enumerate(items):
+        at = item.grid_index
+        if at is None:  # filtered by the caller; for the type checker
+            continue
+        cells[(item.object_type, item.kind, int(at[0] // cell), int(at[1] // cell))].append(
+            position
+        )
+    pairs: list[tuple[int, int]] = []
+    for (object_type, kind, column, row), members in cells.items():
+        for across in (-1, 0, 1):
+            for up in (-1, 0, 1):
+                for other in cells.get((object_type, kind, column + across, row + up), ()):
+                    for position in members:
+                        if position >= other:
+                            continue
+                        first, second = items[position], items[other]
+                        a, b = first.grid_index, second.grid_index
+                        if a is None or b is None or first.at.sheet_id == second.at.sheet_id:
+                            continue
+                        if abs(a[0] - b[0]) > SAME_PLACE or abs(a[1] - b[1]) > SAME_PLACE:
+                            continue
+                        pairs.append((position, other))
+    return sorted(pairs)
+
+
+def _overlapping_runs(items: list[Run]) -> list[tuple[int, int, float]]:
+    """Pairs of one level's runs drawn along the same line on different sheets, with how far
+    they overlap in grid units, as (earlier, later) positions in `items`, in that order.
+
+    Each run's line is worked out once, and runs are looked up by axis and offset, so a run
+    is compared with those along its own line and not with every run of the level.
+    """
+    cell = 2 * SAME_LINE
+    lines = [_grid_line(run) for run in items]
+    along: dict[tuple[str, int], list[int]] = defaultdict(list)
+    for position, line in enumerate(lines):
+        if line is not None:
+            along[(line[0], int(line[1] // cell))].append(position)
+    pairs: list[tuple[int, int, float]] = []
+    for (axis, offset), members in along.items():
+        for step in (-1, 0, 1):
+            for other in along.get((axis, offset + step), ()):
+                for position in members:
+                    if position >= other:
+                        continue
+                    if items[position].at.sheet_id == items[other].at.sheet_id:
+                        continue
+                    a, b = lines[position], lines[other]
+                    if a is None or b is None or abs(a[1] - b[1]) > SAME_LINE:
+                        continue
+                    shared = min(a[3], b[3]) - max(a[2], b[2])
+                    if shared > SAME_LINE:
+                        pairs.append((position, other, shared))
+    return sorted(pairs)
 
 
 def _pair_group(
@@ -174,9 +229,20 @@ def _pair_group(
     )
 
 
-def _add_once(group: Group, member: dict[str, Any]) -> None:
-    if not any(m["kind"] == member["kind"] and m["id"] == member["id"] for m in group.members):
+def _members_of(group: Group, seen: dict[int, set[tuple[str, str]]]) -> set[tuple[str, str]]:
+    known = seen.get(id(group))
+    if known is None:
+        known = seen[id(group)] = {(m["kind"], m["id"]) for m in group.members}
+    return known
+
+
+def _add_once(
+    group: Group, member: dict[str, Any], seen: dict[int, set[tuple[str, str]]] | None = None
+) -> None:
+    known = _members_of(group, seen if seen is not None else {})
+    if (member["kind"], member["id"]) not in known:
         group.members.append(member)
+        known.add((member["kind"], member["id"]))
 
 
 def _grid_line(run: Run) -> tuple[str, float, float, float] | None:

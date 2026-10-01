@@ -109,6 +109,7 @@ Conventions, stack and guardrails: `project-context.md`.
 | **P1-09** | BOQ generation and client BOQ reconciliation | FR-BOQ-01–06; FR-ADM-03; NFR-13 (xlsx) | P1-07 | L | [P1-09](prompts/P1-09-boq-and-reconciliation.md) |
 | **P1-10** | Rate library pricing | FR-CST-01 | P1-09 | S | [P1-10](prompts/P1-10-rate-library-pricing.md) |
 | **P1-11** | Phase 1 hardening, pilot support and exit evaluation | NFR-01–07, 09, 14, 15; P1 exit criteria | All P1 | L | [P1-11](prompts/P1-11-phase1-hardening-and-exit.md) |
+| **P1-12** | Design development and folder intake (added after the exit report; ADR-011) | FR-DSN-01–04; FR-DOC-09, 10 | P1-01, P1-03, P1-05, P1-07, P1-08 | L | [P1-12](prompts/P1-12-design-development-and-folder-intake.md) |
 | **P2-01** | Extended fire protection systems and supports | FR-VIS-04; FR-QTO-06, 07 | P1-11 | L | [P2-01](prompts/P2-01-extended-systems-and-supports.md) |
 | **P2-02** | Revision deltas, multi-bid projects and sampling | FR-DOC-08; FR-QTO-12; FR-BID-04; FR-REV-05 | P1-11 | L | [P2-02](prompts/P2-02-revision-deltas-multibid-sampling.md) |
 | **P2-03** | Full specification analysis and scope matrix | FR-SPEC-02, 03, 04 | P1-11 | L | [P2-03](prompts/P2-03-full-spec-analysis.md) |

@@ -399,6 +399,23 @@ Human verification is the platform's main quality control. The workbench is wher
 | FR-ADM-04 | Provide an audit log viewer with export. | M | P1 |
 | FR-ADM-05 | Monitor usage and AI processing cost per bid, with budget alerts. | S | P1 |
 
+### 6.17 Design Development and Folder Intake (FR-DSN, FR-DOC-09/10): proposed addition
+
+<!-- Proposed on 2026-10-01 from the MOH (TTSH) design-intent tender, and NOT yet in the approved .docx. These rows were added here so the build can be traced and tested; carry them into the .docx (or strike them) at the next requirements review. See ADR-011. -->
+
+A design-intent tender draws the mains and leaves the heads and range pipes to the contractor ("the contractor shall be responsible for the further development and detailed design"). A takeoff of what is drawn counts no heads, so most of the sprinkler cost is missed. These requirements let the platform propose that development as an estimating aid. A proposed layout is never a design for the Qualified Person's approval or for construction (§2.1).
+
+| ID | Requirement | Priority | Phase |
+|---|---|---|---|
+| FR-DSN-01 | Recognise a design-intent sheet from its notes, and read the design criteria its notes state (maximum spacing, area per head, K-factor) as proposals, each citing the sheet and the words it was read from. No layout is made until a Senior Estimator or Design Manager confirms the criterion for the sheet. Acceptance: A sheet with heads already drawn is flagged, so a layout is not counted on top of them. A sheet with no plan view at a verified or calibrated scale is refused, with the reason. | M | P1 |
+| FR-DSN-02 | Find the spaces of a plan from the architect's base linework (rooms through their doorways, open floors, the building's outline), with each space's name and area. Lift shafts, risers, voids and stairs are left without heads, and every omission is listed with the rule that omitted it. Acceptance: On the synthetic plan, each room's area is within 5% of its drawn area, and nothing outside the building is a space. | M | P1 |
+| FR-DSN-03 | Propose sprinkler heads and range pipes for each space from a versioned set of design rules (preferred grid, omissions, head type and rating by space and level, range-pipe sizing table), never exceeding the confirmed criterion. Range pipes are sized by the heads each length feeds and fed from the nearest drawn pipe; a row with no drawn pipe in reach is given an allowance and says so. Acceptance: No head covers more than the criterion's area. The same sheet, criterion and rule version give the same proposal. | M | P1 |
+| FR-DSN-04 | Take proposed heads, drops and range pipe into the QTO as rule-derived items of their own, marked "proposed layout, not drawn", never added into what was drawn. Each carries the design rule, its version, the criterion and its source in its evidence record, and goes through the same verification as any other proposal. Acceptance: What was drawn is counted exactly as before. A person's rejection of a proposed head survives a new layout. | M | P1 |
+| FR-DSN-05 | Export a sheet's proposed layout over its tender drawing as PDF or DXF, stamped "For estimation only: not for construction". | S | P2 |
+| FR-DSN-06 | Limit each sheet's layout to its own side of its match lines, so floors shared between sheets are designed once. | S | P2 |
+| FR-DOC-09 | Accept a whole folder as one upload, keeping each file's path within it, with files of any size the store allows and `.rar` archives opened as `.zip` archives are. Acceptance: Every file in the folder is either stored or reported with the reason, and a file already in the bid is not stored twice. | M | P1 |
+| FR-DOC-10 | Give each uploaded document an origin: tender document (client-issued), our working document, reference, or ignored. The platform proposes it from the file's folder and name and a person confirms it. Only tender documents feed the registers, revision control, takeoff and BOQ mapping. Acceptance: A contractor's marked-up copy of a tender drawing never becomes the Current revision of that drawing. | M | P1 |
+
 ## 7. State Models
 
 v1 used a single approval state machine. It mixed the contractor's own workflow with external design and SCDF approvals the contractor does not own. v2 defines five separate state models. Transitions are recorded in the audit log with user, time and reason.

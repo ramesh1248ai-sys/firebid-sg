@@ -42,3 +42,52 @@ def test_a_job_can_be_queued_from_inside_the_worker(
     job_id = enqueue(session, add_example, a=3, b=4)
 
     assert queued(session, job_id) == {"task": "system.add_example", "args": {"a": 3, "b": 4}}
+
+
+def waiting(session: Session, lock: str) -> int:
+    return int(
+        session.execute(
+            text("SELECT count(*) FROM procrastinate_jobs WHERE queueing_lock = :lock"),
+            {"lock": lock},
+        ).scalar_one()
+    )
+
+
+def test_a_job_already_waiting_is_not_queued_again_and_the_caller_carries_on(
+    session: Session,
+) -> None:
+    from firebid.jobs.enqueue import enqueue_once
+
+    first = enqueue_once(session, add_example, "once:test", a=1, b=2)
+    second = enqueue_once(session, add_example, "once:test", a=1, b=2)
+
+    assert first is not None and second is None
+    # The refusal did not abort the transaction: the caller's own work still commits.
+    session.execute(text("CREATE TEMP TABLE caller_work (n int) ON COMMIT DROP"))
+    session.execute(text("INSERT INTO caller_work VALUES (1)"))
+    assert session.execute(text("SELECT count(*) FROM caller_work")).scalar_one() == 1
+    assert waiting(session, "once:test") == 1
+    session.commit()
+    assert waiting(session, "once:test") == 1
+
+
+def test_a_refusal_at_the_start_of_a_transaction_leaves_it_usable(session: Session) -> None:
+    from firebid.jobs.enqueue import enqueue_once
+
+    enqueue_once(session, add_example, "once:start", a=1, b=2)
+    session.commit()
+
+    # Nothing has run in this transaction yet when the duplicate is refused.
+    assert enqueue_once(session, add_example, "once:start", a=1, b=2) is None
+    assert waiting(session, "once:start") == 1
+    session.commit()
+
+
+def test_a_once_only_job_is_queued_in_the_callers_transaction(session: Session) -> None:
+    from firebid.jobs.enqueue import enqueue_once
+
+    session.commit()
+    assert enqueue_once(session, add_example, "once:rollback", a=1, b=2) is not None
+    session.rollback()
+
+    assert waiting(session, "once:rollback") == 0, "a rollback takes the job with it"

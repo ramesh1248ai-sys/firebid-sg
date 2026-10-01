@@ -153,12 +153,13 @@ def tile(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "the sheet's document is gone")
 
     from firebid.sandbox.runner import SandboxFailure
+    from firebid.services.pages import sheet_payload
     from firebid.services.sheets import render_tile
 
     try:
         payload = render_tile(
             store,
-            store.get(document.storage_key),
+            sheet_payload(store, document, sheet),
             str(document.kind),
             sheet,
             level,

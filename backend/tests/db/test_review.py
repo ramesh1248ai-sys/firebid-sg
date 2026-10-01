@@ -416,6 +416,43 @@ class TestCoverageAndG1:
         assert review.unmapped_in_scope(session, tender.id) == []
 
 
+@pytest.mark.req("NFR-01")
+def test_naming_an_unlisted_symbol_matches_only_what_no_legend_row_claimed(
+    session: Session, organisation: Organisation, tender: Bid
+) -> None:
+    """The result is what matching the whole bid again gives, without reading the symbols
+    already matched to a legend row: on a real tender those are six in seven."""
+    from firebid.db.models.symbols import SymbolInstance
+    from firebid.services import symbols
+
+    actor, _ = estimator(session, organisation, tender)
+
+    def state() -> dict[int, tuple[object, object, str, object]]:
+        session.expire_all()
+        return {
+            i.id: (i.legend_entry_id, i.mapping_lineage_id, i.symbol_key, i.match_distance)
+            for i in session.execute(
+                select(SymbolInstance).where(SymbolInstance.bid_id == tender.id)
+            ).scalars()
+        }
+
+    before = state()
+    claimed = {key for key, value in before.items() if value[0] is not None}
+    assert claimed, "the legend claims the installed symbols"
+    unlisted = review.unmapped_in_scope(session, tender.id)[0]
+
+    symbols.name_unlisted(session, tender.id, unlisted["symbol_key"], "not_an_object", actor)
+    session.commit()
+
+    named = state()
+    # A symbol a legend row claimed is still that row's.
+    assert {key: named[key][0] for key in claimed} == {key: before[key][0] for key in claimed}
+    assert named != before, "the unlisted symbol's instances now have a mapping"
+    symbols.match_instances(session, tender.id, symbols.consultant_of(session, tender.id))
+    session.commit()
+    assert state() == named
+
+
 def name_every_unlisted_symbol(session: Session, bid: Bid, actor: Actor) -> None:
     """What a person does once per consultant: grid bubbles and the like are not objects."""
     from firebid.services import symbols

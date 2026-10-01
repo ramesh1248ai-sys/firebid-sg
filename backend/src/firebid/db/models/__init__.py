@@ -33,6 +33,7 @@ from firebid.db.models.core import (
     TenderPackage,
     UserRole,
 )
+from firebid.db.models.design import SheetDesign
 from firebid.db.models.documents import (
     Addendum,
     Document,
@@ -112,6 +113,7 @@ __all__ = [
     "RegisterConfirmation",
     "ReviewAction",
     "Sheet",
+    "SheetDesign",
     "SheetGeometry",
     "SheetRevision",
     "SheetView",

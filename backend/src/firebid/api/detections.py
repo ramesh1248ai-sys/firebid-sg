@@ -132,9 +132,16 @@ def run_detection_again(
     session: DbSession,
     principal: Annotated[Principal, require(Action.DOCUMENT_REVIEW)],
 ) -> dict[str, str]:
-    """Queue detection of every sheet again, as confirming a mapping does."""
-    from firebid.jobs.enqueue import enqueue
+    """Queue detection of every sheet again, whether or not anything changed: a person asked."""
+    from firebid.jobs.enqueue import enqueue_once
     from firebid.jobs.tasks import run_detection
 
-    enqueue(session, run_detection, bid_id=str(context.bid.id), user_id=str(principal.user_id))
+    enqueue_once(
+        session,
+        run_detection,
+        f"detection.run:{context.bid.id}:forced",
+        bid_id=str(context.bid.id),
+        user_id=str(principal.user_id),
+        force=True,
+    )
     return {"status": "queued"}

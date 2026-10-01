@@ -52,6 +52,9 @@ class SheetGeometry(UuidPk, BidScoped, Base):
         Boolean, nullable=False, default=False, server_default=false()
     )
     note: Mapped[str | None] = mapped_column(Text)
+    # A digest of everything the sheet's detection was last made from. The same digest
+    # again means the stored detections stand, and the sheet is not detected again.
+    detection_fingerprint: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

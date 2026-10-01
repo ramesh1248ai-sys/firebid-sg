@@ -38,6 +38,13 @@ def main(argv: list[str] | None = None) -> None:
     configure_logging(settings.log_level)
 
     queues = [name.strip() for name in arguments.queues.split(",") if name.strip()] or None
+    # The ordinary worker says it is alive from a thread of its own, so the job it is
+    # running cannot starve its heartbeat. The parser pool does not: its jobs are counted
+    # in the queue depths the ordinary worker logs.
+    if queues is None or "default" in queues:
+        from firebid.jobs import heartbeat
+
+        heartbeat.start()
     app.run_worker(
         concurrency=settings.worker_concurrency,
         name=settings.worker_name,

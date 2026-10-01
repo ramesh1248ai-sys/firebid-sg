@@ -43,13 +43,21 @@ def enqueue_once(
     not block a new one, so the work runs again after it, which idempotent tasks allow.
     """
     from procrastinate.exceptions import AlreadyEnqueued
+    from sqlalchemy import text
 
+    # The caller's transaction must be open on the driver before the savepoint below: the
+    # driver opens one with its first statement, and a "savepoint" taken before that would
+    # be a transaction of its own, committed apart from the caller's.
+    session.execute(text("SELECT 1"))
     connection = session.connection().connection.driver_connection
+    if connection is None:
+        raise RuntimeError("the session has no database connection")
     job = task.configure(connection=connection, queueing_lock=queueing_lock).job
-    # A savepoint, rolled back when the insert is refused, so the refusal does not abort the
-    # caller's transaction. The exception must leave the `with` for that rollback to happen.
+    # A savepoint on the driver's own connection, which is the one the job row is written
+    # on: rolled back when the insert is refused, so the refusal does not abort the caller's
+    # transaction and take the caller's work with it.
     try:
-        with session.begin_nested():
+        with connection.transaction():
             job_id: int = JobDeferrer(_manager(), job, connection=connection).defer(**task_kwargs)
     except AlreadyEnqueued:
         return None

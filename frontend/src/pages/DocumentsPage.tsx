@@ -6,6 +6,7 @@ import { api, apiErrorMessage } from "@/api/client";
 import { AuthorisedImage } from "@/components/AuthorisedImage";
 import { Button } from "@/components/ui/button";
 import { accessToken } from "@/auth/oidc";
+import { FolderUpload } from "@/pages/FolderUpload";
 
 /**
  * The tender set: send files, watch them land, and see what was refused.
@@ -282,7 +283,7 @@ export function DocumentsPage() {
         </h1>
         <p className="text-sm text-muted-foreground">
           Drawings, specifications and schedules. A whole set can be sent as one
-          zip.
+          zip, or as the folder it sits in.
         </p>
       </div>
 
@@ -316,6 +317,8 @@ export function DocumentsPage() {
           </p>
         )}
       </form>
+
+      <FolderUpload bidId={bidId} />
 
       {progress.isPending && (
         <p role="status" className="text-sm text-muted-foreground">

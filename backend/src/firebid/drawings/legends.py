@@ -74,7 +74,12 @@ class Legend:
     rows: tuple[LegendRow, ...]
 
 
-def detect(table: pa.Table, page: tuple[float, float, float, float]) -> list[Legend]:
+def detect(
+    table: pa.Table,
+    page: tuple[float, float, float, float],
+    found: list[Cluster] | None = None,
+) -> list[Legend]:
+    """The sheet's legends. `found` is the sheet's symbol candidates, when already known."""
     spans = [span for span in texts(table) if span["text"] and span["minx"] is not None]
     region = _title_block(spans, page)
     outside = [span for span in spans if not _in(span, region)]
@@ -82,7 +87,7 @@ def detect(table: pa.Table, page: tuple[float, float, float, float]) -> list[Leg
     lines = _lines(outside)
     # Where the shapes are is enough to find the rows; only the symbols kept as legend rows
     # are signed, which on a busy plan is thousands of signatures fewer.
-    shapes = _Shapes(clusters(table, signed=False))
+    shapes = _Shapes(clusters(table, signed=False, found=found))
     categories = [line for line in _category_headings(lines, shapes) if not _covers(named, line)]
     headings = named + categories
     legends = []

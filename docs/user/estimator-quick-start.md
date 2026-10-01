@@ -33,6 +33,15 @@ Open the bid, go to **Tender documents**, and upload the whole set at once: draw
 - **Reading.** Drawings are read in the background: sheets, title blocks, views and scales, symbols, then detections. A large set takes a while, and you can keep working.
 - **Registers.** Check them for the drawing register, revisions and missing sheets. A sheet on the drawing list but not in the upload is flagged.
 
+**Sending a whole folder.** Use **Or send a whole folder** to pick the tender folder as it sits on your drive. Before anything is sent, FireBid lists each folder with what it thinks is in it:
+
+- **Tender documents:** what the client issued. Only these are read and taken off.
+- **Our working documents:** your own marked-up drawings. Kept with the bid, not read. This matters: a marked-up copy carries the client's drawing number, and read as a tender drawing it could replace the client's own sheet.
+- **Reference:** earlier responses, reviews and registers. Kept, not read.
+- **Leave out:** not sent.
+
+Change any folder that is wrong, then send. Files go in batches and every one is accounted for at the end. A file over 200 MB is named, not sent: if it is a zip of the same folder, you do not need it. A document found inside a zip that looks like one of yours is kept unread until you say whose it is.
+
 ## 3. Confirm the symbols
 
 Go to **Symbols**. FireBid reads the legend sheets and proposes a meaning for each symbol, such as "upright sprinkler, 68 °C".
@@ -42,6 +51,22 @@ Go to **Symbols**. FireBid reads the legend sheets and proposes a meaning for ea
 - **Unnamed symbols** appear on plans but in no legend. Name the ones that matter; the rest are listed, not counted.
 
 Detection runs again every time you confirm a mapping. Symbols you have not confirmed are never counted.
+
+### If the tender is drawn as design intent
+
+Some tenders show the mains and leave the heads and range pipes to you ("the contractor shall be responsible for the further development and detailed design"). A takeoff of what is drawn then counts no heads. Go to **Design development**:
+
+1. **Read the design basis.** FireBid lists each plan sheet with the design criteria its notes state, such as "4 m × 3 m, 12 m² a head".
+2. **Confirm the criterion.** A senior estimator or design manager picks the criterion for the selected sheets. Nothing is laid out before this.
+3. **Check the proposal.** FireBid proposes heads and range pipes for each room. They appear on the Workbench like any other item, marked *proposed layout, not drawn*, and you accept or reject them there. Each sheet lists the spaces it left without heads (lifts, shafts, stairs) and the rule that left them out.
+
+Things to know:
+
+- **It is an estimating aid, not a design.** It does no hydraulic calculation and is not for submission or construction.
+- **The design rules start as defaults** and say "to be confirmed" until a senior estimator has reviewed them (grid, omissions, pipe sizing).
+- **A sheet needs a verified scale.** Calibrate the view first if the sheet is shown as *cannot be laid out*.
+- **Sheets that share a floor** across match lines are each laid out in full. Resolve the duplicate groups, and check the shared area by eye.
+- **A sheet with heads already drawn** is flagged. Do not confirm it, or those heads are counted twice.
 
 ## 4. Verify the takeoff (G1)
 

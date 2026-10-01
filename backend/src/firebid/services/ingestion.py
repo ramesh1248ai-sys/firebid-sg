@@ -20,7 +20,10 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from firebid.db.models.documents import Document
+from firebid.db.audit import record_event
+from firebid.db.models.core import Bid
+from firebid.db.models.documents import Document, Sheet
+from firebid.domain.actors import Actor, AuditContext
 from firebid.ingest.archives import ArchiveRefused, expand
 from firebid.ingest.detection import (
     LEGACY_OFFICE,
@@ -30,6 +33,7 @@ from firebid.ingest.detection import (
     detect,
     dwg_supported,
 )
+from firebid.ingest.origin import STORED, Origin, clean_path, propose
 from firebid.ingest.scanning import Scanner, Verdict
 from firebid.storage.object_store import ObjectExists, ObjectStore
 
@@ -42,6 +46,9 @@ REASON_DWG_UNAVAILABLE = (
     "Send the DXF export of this drawing and it will be read."
 )
 REASON_EMPTY = "the file is empty"
+REASON_RAR = "RAR archives cannot be opened; upload the folder itself, or re-pack it as a ZIP"
+RAR_MAGIC = b"Rar!\x1a\x07"
+NOT_READ = "kept, not read: only tender documents are read"
 
 
 @dataclass
@@ -57,6 +64,8 @@ class IngestOutcome:
     converted: list[tuple[str, str]] = field(default_factory=list)
     # Files a rescan released from `awaiting_scan`, clean or not. Only a release sets it.
     moved: int = 0
+    # Files that are not documents (an office lock file, Thumbs.db): reported, never stored.
+    ignored: list[tuple[str, str]] = field(default_factory=list)
 
     @property
     def accounted_for(self) -> int:
@@ -72,6 +81,7 @@ class IngestOutcome:
             + len(self.rejected)
             + len(self.quarantined)
             + len(self.held)
+            + len(self.ignored)
         )
 
 
@@ -103,6 +113,7 @@ class Ingestor:
         bid_id: uuid.UUID,
         tender_package_id: uuid.UUID | None = None,
         created_by_id: uuid.UUID | None = None,
+        created_by: str | None = None,
     ) -> None:
         self._session = session
         self._store = store
@@ -110,23 +121,47 @@ class Ingestor:
         self._bid_id = bid_id
         self._package_id = tender_package_id
         self._created_by_id = created_by_id
+        self._created_by = created_by
 
-    def ingest(self, filename: str, payload: bytes) -> IngestOutcome:
-        """Take one uploaded file. An archive is expanded; everything else is one document."""
+    def ingest(
+        self,
+        filename: str,
+        payload: bytes,
+        *,
+        source_path: str | None = None,
+        origin: Origin | None = None,
+    ) -> IngestOutcome:
+        """Take one uploaded file. An archive is expanded; everything else is one document.
+
+        `source_path` is the file's path in the folder it came from. `origin` is what the
+        person sending it said it is; without one it is proposed from the path, and anything
+        proposed as other than a tender document waits for a person (FR-DOC-10).
+        """
         outcome = IngestOutcome()
+        path = clean_path(source_path) if source_path else None
 
         if not payload:
             outcome.rejected.append((filename, REASON_EMPTY))
             return outcome
+        if origin is Origin.IGNORED:
+            outcome.ignored.append((filename, "left out by the person who sent the folder"))
+            return outcome
 
         kind = detect(payload, filename).kind
         if kind is FileKind.ZIP:
-            self._ingest_archive(filename, payload, outcome)
+            self._ingest_archive(filename, payload, outcome, path, origin)
         else:
-            self._ingest_one(filename, payload, outcome)
+            self._ingest_one(filename, payload, outcome, path, origin)
         return outcome
 
-    def _ingest_archive(self, filename: str, payload: bytes, outcome: IngestOutcome) -> None:
+    def _ingest_archive(
+        self,
+        filename: str,
+        payload: bytes,
+        outcome: IngestOutcome,
+        path: str | None,
+        origin: Origin | None,
+    ) -> None:
         """A whole set in one upload. A refused archive refuses as one thing, not silently."""
         try:
             entries = list(expand(payload))
@@ -139,10 +174,30 @@ class Ingestor:
             outcome.rejected.append((filename, "the archive holds no files"))
             return
 
+        inside = path or filename
         for entry in entries:
-            self._ingest_one(entry.name, entry.payload, outcome)
+            # A file inside an archive nobody has looked into: what the sender said holds
+            # only if they said it is not tender input. Otherwise each entry's own path
+            # decides, so a marked-up copy inside a tender zip still waits for a person.
+            said = origin if origin not in (None, Origin.TENDER) else None
+            self._ingest_one(entry.name, entry.payload, outcome, f"{inside}/{entry.name}", said)
 
-    def _ingest_one(self, filename: str, payload: bytes, outcome: IngestOutcome) -> None:
+    def _ingest_one(
+        self,
+        filename: str,
+        payload: bytes,
+        outcome: IngestOutcome,
+        path: str | None = None,
+        origin: Origin | None = None,
+    ) -> None:
+        proposal = propose(path or filename)
+        if proposal.origin is Origin.IGNORED:
+            outcome.ignored.append((filename, proposal.reason))
+            return
+        if payload[: len(RAR_MAGIC)] == RAR_MAGIC:
+            outcome.rejected.append((filename, REASON_RAR))
+            return
+        self._path, self._origin, self._proposal = path, origin, proposal
         digest = checksum(payload)
 
         already = existing_document(self._session, self._bid_id, digest)
@@ -185,7 +240,7 @@ class Ingestor:
         self, document: Document, payload: bytes, detected: Detected, outcome: IngestOutcome
     ) -> None:
         """A file that scanned clean: ready to be read, and given a modern copy if it needs one."""
-        document.state = "received"
+        document.state = "received" if readable(document) else "done"
         document.rejected_reason = None
         document.scanned_at = datetime.now(UTC)
         outcome.stored.append(document)
@@ -235,6 +290,28 @@ class Ingestor:
         if outcome.moved:
             log.info("rescan_completed", bid_id=str(self._bid_id), moved=outcome.moved)
         return outcome
+
+    _path: str | None = None
+    _origin: Origin | None = None
+    _proposal = propose("")
+
+    def _origin_fields(self) -> dict[str, object]:
+        """Whose document the file being registered is, and who or what said so."""
+        if self._origin is not None:
+            return {
+                "origin": str(self._origin),
+                "origin_status": "confirmed",
+                "origin_reason": "said by the person who sent it",
+                "origin_by": self._created_by,
+                "origin_at": datetime.now(UTC),
+            }
+        return {
+            "origin": str(self._proposal.origin),
+            # A tender document is what an upload is unless something says otherwise; any
+            # other proposal waits for a person.
+            "origin_status": "confirmed" if self._proposal.origin is Origin.TENDER else "proposed",
+            "origin_reason": self._proposal.reason,
+        }
 
     def _refusal_for(self, detected: Detected) -> str | None:
         """Whether this kind can be read at all, before spending a scan on it."""
@@ -293,6 +370,9 @@ class Ingestor:
             state="received",
         )
         derived.derived_from_id = original.id
+        derived.origin, derived.origin_status = original.origin, original.origin_status
+        derived.origin_reason, derived.origin_by = original.origin_reason, original.origin_by
+        derived.state = "received" if readable(derived) else "done"
         derived.scanned_at = original.scanned_at
         # What produced it, so a file that looks wrong later is answerable.
         derived.rejected_reason = None
@@ -333,6 +413,8 @@ class Ingestor:
             storage_key=key,
             state=state,
             created_by_id=self._created_by_id,
+            source_path=(self._path or "")[:1024] or None,
+            **self._origin_fields(),
         )
         self._session.add(document)
         self._session.flush()
@@ -344,6 +426,57 @@ class Ingestor:
             byte_size=len(payload),
         )
         return document
+
+
+def readable(document: Document) -> bool:
+    """Whether a document may be read: a tender document whose origin is confirmed."""
+    return document.origin == str(Origin.TENDER) and document.origin_status == "confirmed"
+
+
+def set_origin(
+    session: Session, document: Document, origin: Origin, actor: Actor, reason: str | None = None
+) -> bool:
+    """A person says whose document this is. Returns whether it now needs to be read.
+
+    A document already read as tender input cannot be taken out of the registers here: its
+    sheets and revisions are in use. It is refused, with what to do instead.
+    """
+    if str(origin) not in STORED:
+        raise ValueError("a stored document is a tender, working or reference document")
+    was_read = (
+        session.execute(select(Sheet.id).where(Sheet.document_id == document.id).limit(1)).first()
+        is not None
+    )
+    if origin is not Origin.TENDER and readable(document) and was_read:
+        raise ValueError(
+            "this document has already been read as tender input; its sheets are in the "
+            "registers. Mark its revisions superseded in the drawing register instead"
+        )
+    before = {"origin": document.origin, "origin_status": document.origin_status}
+    needs_reading = origin is Origin.TENDER and not (readable(document) and was_read)
+    document.origin = str(origin)
+    document.origin_status = "confirmed"
+    document.origin_reason = reason or f"set by {actor.label}"
+    document.origin_by = actor.label
+    document.origin_at = datetime.now(UTC)
+    if document.state in ("received", "done"):
+        document.state = "received" if needs_reading else "done"
+    session.flush()
+    organisation_id = session.execute(
+        select(Bid.organisation_id).where(Bid.id == document.bid_id)
+    ).scalar_one()
+    record_event(
+        session,
+        context=AuditContext(organisation_id=organisation_id, bid_id=document.bid_id),
+        actor=actor,
+        action="document origin: set",
+        entity_type=Document.__tablename__,
+        entity_id=document.id,
+        before=before,
+        after={"origin": document.origin, "origin_status": "confirmed"},
+        reason=reason,
+    )
+    return needs_reading and document.state == "received"
 
 
 def legacy_needs_conversion(document: Document) -> bool:

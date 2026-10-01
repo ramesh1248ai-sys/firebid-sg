@@ -18,8 +18,11 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `bid_budget` | `owner_email` | VARCHAR(320) | yes | who to tell when the bid's AI budget runs down |
 | `bid_parameter` | `source` | TEXT | no | may name the estimator who entered it |
 | `document` | `filename` | VARCHAR(512) | no | a consultant's file name can contain a person's name |
+| `document` | `source_path` | VARCHAR(1024) | yes | a folder or file name can contain a person's name |
+| `document` | `origin_by` | VARCHAR(200) | yes | the name of the person who confirmed the origin |
 | `duplicate_group` | `decided_by` | VARCHAR(200) | yes | the name of the person who decided |
 | `measurement_rule` | `source_note` | TEXT | yes | may name the estimator whose judgement set the rule |
 | `review_action` | `actor_label` | VARCHAR(200) | no | who took the action |
+| `sheet_design` | `confirmed_by` | VARCHAR(200) | yes | the name of the person who confirmed the design basis |
 
-12 columns hold personal data.
+15 columns hold personal data.

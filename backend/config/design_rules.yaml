@@ -1,0 +1,77 @@
+# Design rules: how the platform proposes what a design-intent tender leaves undrawn (P1-12).
+#
+# The seed of an organisation's rule set, loaded as version 1 the first time it designs. After
+# that a senior estimator edits it in the platform, and every edit is a new version; a design
+# keeps the version it was made with.
+#
+# EVERY VALUE HERE IS "TO BE CONFIRMED". They follow the method in SJ M&E's MOH (TTSH) tender
+# response (sheets 14, 15 and 17 of the RFP response workbook, Rev B plans) and SS CP 52 as
+# that response read it; the QP confirms them for each project.
+
+status: to be confirmed
+
+# The preferred head grid, real mm (along, across). Never wider than the design criterion
+# allows; the stricter governs. MOH: 2.8 x 2.8 m on the 8.4 m structural grid (FC03).
+grid_mm: [2800, 2800]
+# Spaces at least this large follow the preferred grid. A smaller room is set out on its own
+# walls, with the fewest heads the design criterion allows.
+grid_from_m2: 50
+
+# The criterion used where the tender's notes state none (SS CP 52 Ordinary Hazard).
+default_criterion:
+  key: oh_default
+  title: Ordinary Hazard (SS CP 52), design rules default
+  max_area_m2: 12
+  max_spacing_mm: [4000, 4000]
+
+# Spaces left without heads, by name (regular expressions). FC07: lift shafts, service risers
+# and shafts, voids and stairs; every omission is listed on the design and qualified.
+omit_names:
+  - '\bLIFT\b'
+  - '\bSHAFT\b'
+  - 'RISER\b'
+  - '\bVOID\b'
+  - '\bSTAIR'
+
+# What kind of head a space gets. The first rule that matches wins; the default otherwise.
+# FC05: plant rooms at an intermediate rating. FC16: car parks with upright heads (exposed
+# services). FC04: quick response throughout a hospital.
+head_rules:
+  - when_name: '\b(AHU|MV|PUMP|GENSET|KITCHEN|CHWP|PLANT|BOILER|TRANSFORMER|SWITCH)\b'
+    object_type: sprinkler_pendent
+    temperature_c: 93
+    note: plant room, intermediate rating (FC05)
+  - when_level: '^B\d+$'
+    object_type: sprinkler_upright
+    temperature_c: 68
+    note: basement car park, upright for exposed services (FC16)
+default_head:
+  object_type: sprinkler_pendent
+  temperature_c: 68
+  note: concealed ceiling, pendent quick response (FC04)
+
+# SS CP 52 pre-calculated range-pipe limits for Ordinary Hazard, as the MOH response used
+# them (sheet 17): the most heads a size may feed. Smallest first.
+range_limits:
+  - [25, 2]
+  - [32, 3]
+  - [40, 4]
+  - [50, 9]
+  - [65, 18]
+  - [80, 48]
+  - [100, 1000]
+
+# A row further than this from any drawn pipe is fed by allowance (sheet 17: "no drawn main
+# within 20 m"), at this length and size per head.
+feed_reach_mm: 20000
+remote_feed_mm_per_head: 6000
+remote_feed_dn: 32
+
+# How spaces are found on the plan (real mm).
+spaces:
+  door_gap_mm: 1200
+  facade_gap_mm: 3000
+  furniture_mm: 2400
+  wall_strip_mm: 600
+  min_room_m2: 1.5
+  min_building_m2: 40

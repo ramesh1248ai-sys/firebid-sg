@@ -8,6 +8,7 @@ import { BidDetailPage } from "@/pages/BidDetailPage";
 import { BoqPage } from "@/pages/BoqPage";
 import { CallbackPage } from "@/pages/CallbackPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { DesignPage } from "@/pages/DesignPage";
 import { DocumentsPage } from "@/pages/DocumentsPage";
 import { KpisPage } from "@/pages/KpisPage";
 import { LibraryPage } from "@/pages/LibraryPage";
@@ -38,6 +39,7 @@ export const routes: RouteObject[] = [
           { path: "bids/:bidId/registers", element: <RegistersPage /> },
           { path: "bids/:bidId/symbols", element: <SymbolsPage /> },
           { path: "bids/:bidId/specification", element: <SpecificationPage /> },
+          { path: "bids/:bidId/design", element: <DesignPage /> },
           { path: "bids/:bidId/sheets/:sheetId", element: <SheetViewerPage /> },
           { path: "bids/:bidId/workbench", element: <WorkbenchPage /> },
           { path: "bids/:bidId/boq", element: <BoqPage /> },

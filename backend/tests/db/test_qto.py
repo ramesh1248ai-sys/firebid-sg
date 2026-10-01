@@ -414,6 +414,74 @@ class TestRecompute:
         assert old.human_id == drops.human_id and old.net_quantity == Decimal("12.000")
 
 
+@pytest.mark.req("NFR-01")
+class TestRecomputeAtScale:
+    """Found on a real tender of 121 sheets: what must stay true as a bid grows."""
+
+    def test_an_unchanged_recompute_writes_nothing_and_asks_once_not_once_an_item(
+        self, session: Session, tender: Bid
+    ) -> None:
+        from sqlalchemy import event
+
+        qto.recompute(session, tender.id)
+        session.commit()
+        statements: list[str] = []
+
+        def record(_conn: Any, _cursor: Any, statement: str, *_rest: Any) -> None:
+            statements.append(statement)
+
+        engine = session.get_bind()
+        event.listen(engine, "before_cursor_execute", record)
+        try:
+            outcome = qto.recompute(session, tender.id)
+            session.flush()
+        finally:
+            event.remove(engine, "before_cursor_execute", record)
+
+        assert (outcome.created, outcome.superseded) == (0, 0)
+        writes = [s for s in statements if s.lstrip().upper().startswith(("UPDATE", "INSERT"))]
+        # Nothing about the takeoff or its evidence is rewritten when nothing changed.
+        assert not [s for s in writes if "qto_item" in s or "evidence" in s], writes[:3]
+        # The project and the people who verified are read once, however many items.
+        assert sum("FROM project" in s for s in statements) <= 1
+        assert sum("FROM app_user" in s for s in statements) <= 1
+        assert sum("FROM qto_item" in s for s in statements) <= 2
+
+    def test_an_item_stored_twice_under_one_key_is_retired_and_stays_retired(
+        self, session: Session, tender: Bid
+    ) -> None:
+        pendent = items(session, tender)[PENDENT]
+        # What an earlier recompute left behind when two items shared a key: a second live
+        # item with the first one's key.
+        session.execute(
+            text(
+                "INSERT INTO qto_item (id, bid_id, human_id, item_type, classification, "
+                "description, attributes, unit, net_quantity, calculation_method, is_manual, "
+                "confidence, state, version, item_key, inputs_hash, derivation, created_at) "
+                "SELECT gen_random_uuid(), bid_id, 'QTO-999999', item_type, classification, "
+                "description, attributes, unit, net_quantity, calculation_method, is_manual, "
+                "confidence, state, version, item_key, inputs_hash, derivation, "
+                "created_at - interval '1 hour' FROM qto_item WHERE id = :id"
+            ),
+            {"id": pendent.id},
+        )
+        session.commit()
+        assert (
+            len([i for i in qto.live_items(session, tender.id) if i.item_key == pendent.item_key])
+            == 2
+        )
+
+        first = qto.recompute(session, tender.id)
+        session.commit()
+        second = qto.recompute(session, tender.id)
+
+        assert (first.created, first.superseded) == (0, 1)
+        assert (second.created, second.superseded) == (0, 0)
+        live = [i for i in qto.live_items(session, tender.id) if i.item_key == pendent.item_key]
+        # The newer of the two is kept: the one the takeoff was last made as.
+        assert [i.id for i in live] == [pendent.id]
+
+
 @pytest.mark.req("FR-QTO-11")
 class TestManualItems:
     def _views(self, session: Session) -> dict[str, SheetView]:

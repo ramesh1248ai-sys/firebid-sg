@@ -208,3 +208,52 @@ class TestDeterminism:
         changed = {key for key in before if before[key] != after[key]}
         assert before.keys() == after.keys()
         assert len(changed) == 1  # the drops, and nothing else
+
+
+@pytest.mark.req("FR-QTO-04")
+class TestEveryItemHasItsOwnKey:
+    """An item is matched to its earlier self by key at every recompute. Two items with one
+    key take each other's place: one is created anew each time and never superseded."""
+
+    def test_no_two_items_share_a_key(self, with_enlarged_and_schematic: Tender) -> None:
+        keys = [item.key for item in with_enlarged_and_schematic.items()]
+
+        assert len(keys) == len(set(keys))
+
+    def test_risers_on_a_sheet_with_no_grid_are_separate_items_with_stable_keys(
+        self, general: Tender
+    ) -> None:
+        from dataclasses import replace
+
+        from firebid.qto import generate
+        from tests.qto.conftest import CEILING, spec
+
+        riser = next(d for d in general.detections if d.kind == "riser")
+        before = next(i.key for i in general.items() if i.classification == "riser")
+        # Three risers the sheet cannot place on a grid, as on a plan drawn without one.
+        ungridded = [
+            replace(riser, id=f"riser-{n}", grid_reference=None, x=100.0 + 50 * n, y=40.0)
+            for n in range(3)
+        ]
+        others = [d for d in general.detections if d.kind != "riser"]
+
+        first = generate.generate([*others, *ungridded], general.runs, spec, RULES, [CEILING])
+        again = generate.generate(
+            [*others, *reversed(ungridded)], general.runs, spec, RULES, [CEILING]
+        )
+
+        risers = [i.key for i in first if i.classification == "riser"]
+        assert len(risers) == 3 and len(set(risers)) == 3
+        # The same risers give the same keys, whatever order they are read in.
+        assert sorted(i.key for i in again if i.classification == "riser") == sorted(risers)
+        # Two drawn at the very same point are still two items, with keys that hold.
+        twins = [replace(ungridded[0], id="twin-a"), replace(ungridded[0], id="twin-b")]
+        doubled = [
+            generate.generate([*others, *order], general.runs, spec, RULES, [CEILING])
+            for order in (twins, list(reversed(twins)))
+        ]
+        twin_keys = [sorted(i.key for i in run if i.classification == "riser") for run in doubled]
+        assert len(set(twin_keys[0])) == 2 and twin_keys[0] == twin_keys[1]
+        # A riser alone at its grid reference keeps the key it always had.
+        alone = generate.generate(general.detections, general.runs, spec, RULES, [CEILING])
+        assert next(i.key for i in alone if i.classification == "riser") == before

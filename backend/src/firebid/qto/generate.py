@@ -7,6 +7,9 @@
 * **Rule-derived:** a drop at every sprinkler, a riser at every riser symbol, and the
   fittings the drawing does not show (`qto.fittings`), each with its rule, version, inputs
   and their sources.
+* **Designed:** the heads and range pipes a design-intent tender leaves to the contractor,
+  as the design rules proposed them (P1-12). Kept as items of their own, never added to
+  what was drawn, each with the design rule, its version, and the criterion it followed.
 
 Each attribute is resolved in order and records which source supplied it: the drawing (the
 detection's own attributes), then the verified specification (P1-06), then "not specified".
@@ -22,13 +25,13 @@ Pure: detections, runs, specification, rules and parameters in; item drafts out.
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable
 from decimal import Decimal
 from typing import Any
 
 from firebid.qto import fittings, rules
-from firebid.qto.model import Detection, ItemDraft, Run, SpecValue, key_of
+from firebid.qto.model import DESIGNED, Detection, ItemDraft, Run, SpecValue, key_of
 
 # system, DN -> attribute -> verified values
 SpecLookup = Callable[[str, int | None], dict[str, list[SpecValue]]]
@@ -162,14 +165,15 @@ def generate(
     kept = [d for d in detections if d.id not in excluded]
     carried = carried or {}
     runs = [_with_carried(run, carried) for run in runs]
-    measured = [r for r in runs if r.id not in excluded and r.length_mm is not None]
+    lengths = [r for r in runs if r.id not in excluded and r.length_mm is not None]
+    measured = [r for r in lengths if r.origin != DESIGNED]
     allowance = rule_set.get("allowance")
     drafts: list[ItemDraft] = []
 
     # --- Counted: sprinklers, valves, devices, drawn fittings ----------------------------
     groups: dict[str, tuple[dict[str, Any], list[Detection]]] = {}
     for detection in kept:
-        if detection.kind != "object":
+        if detection.kind != "object" or detection.method == DESIGNED:
             continue
         drawn = dict(detection.attributes)
         if detection.category == "sprinkler":
@@ -289,6 +293,8 @@ def generate(
     # --- Rule-derived: drops and risers --------------------------------------------------
     drafts.extend(_drops(kept, rule_set, parameters, allowance))
     drafts.extend(_risers(kept, runs, rule_set, parameters, allowance))
+    drafts.extend(_designed_heads(kept, spec(system, None), allowance))
+    drafts.extend(_designed_pipe(lengths, spec, system, allowance))
     drafts.extend(
         fittings.derive(
             measured,
@@ -368,12 +374,28 @@ def _risers(
     if rule is None:
         return []
     out = []
-    for riser in (d for d in detections if d.kind == "riser"):
+    risers = [d for d in detections if d.kind == "riser"]
+    # A riser is its own item, so its key must be its own. Where it is on the grid says
+    # which riser it is; on a sheet with no grid, or with two risers in one bay, that is
+    # shared, and the items took each other's place at every recompute: each new one was
+    # created and none superseded (found on a real tender: 34,000 rows for 6,860 risers).
+    # Those are told apart by where they are on the sheet, and two drawn at the very same
+    # point by their order there. A key that was already its own stays as it was, so an
+    # item verified under it is not disturbed.
+    shared = Counter(
+        (riser.at.level, riser.at.sheet_number, riser.grid_reference) for riser in risers
+    )
+    taken: Counter[tuple[Any, ...]] = Counter()
+    for riser in risers:
         each = rules.riser_length(rule, parameters, riser.at.level)
         dn = dn_at(riser, runs)
+        where = (riser.at.level, riser.at.sheet_number, riser.grid_reference)
+        place: tuple[Any, ...] = (round(riser.x, 1), round(riser.y, 1)) if shared[where] > 1 else ()
+        nth = taken[(*where, *place)]
+        taken[(*where, *place)] += 1
         out.append(
             ItemDraft(
-                key=key_of("riser", riser.at.level, riser.at.sheet_number, riser.grid_reference),
+                key=key_of("riser", *where, *place, *((nth,) if nth else ())),
                 item_type="pipe",
                 classification="riser",
                 description=f"Riser, DN{dn or '?'} (vertical, not drawn)",
@@ -401,6 +423,148 @@ def _risers(
                 geometry=[
                     {"sheet": riser.at.sheet_number, "x": round(riser.x, 3), "y": round(riser.y, 3)}
                 ],
+            )
+        )
+    return out
+
+
+NOT_DRAWN = "proposed layout, not drawn"
+
+
+def _design_rule(evidence: dict[str, Any], value: int) -> dict[str, Any]:
+    """The design rule a head or pipe was proposed by, as a rule-derived item records it."""
+    rule = dict(evidence.get("rule") or {})
+    return {
+        "rule_key": rule.get("rule_key", "sprinkler_layout"),
+        "rule_version": rule.get("rule_version"),
+        "rule_status": rule.get("rule_status", "to be confirmed"),
+        "inputs": list(rule.get("inputs") or []),
+        "value": value,
+    }
+
+
+def _designed_heads(
+    detections: list[Detection], values: dict[str, list[SpecValue]], allowance: rules.Rule | None
+) -> list[ItemDraft]:
+    """Proposed heads, by type and rating, level and zone, and the rule version they follow."""
+    groups: dict[str, tuple[dict[str, Any], list[Detection]]] = {}
+    for detection in detections:
+        if detection.kind != "object" or detection.method != DESIGNED:
+            continue
+        version = (detection.evidence.get("rule") or {}).get("rule_version")
+        source = f"design rule v{version}"
+        kind = detection.object_type.removeprefix("sprinkler_")
+        clauses = {v.clause for v in values.get("sprinkler_type", []) if v.value == kind}
+        attributes = {}
+        for name in SPRINKLER_ATTRIBUTES:
+            attributes[name] = resolve(name, {}, values.get(name, []), clauses)
+            stated = detection.attributes.get(name)
+            if attributes[name]["value"] == NOT_SPECIFIED and stated not in (None, ""):
+                # The specification is silent: the design rule's value, and it says so.
+                attributes[name] = {"value": str(stated), "source": source}
+        key = key_of(
+            DESIGNED,
+            detection.object_type,
+            {k: v["value"] for k, v in attributes.items()},
+            detection.at.level,
+            detection.at.zone,
+            version,
+        )
+        groups.setdefault(key, (attributes, []))[1].append(detection)
+    out = []
+    for key, (attributes, members) in groups.items():
+        first = members[0]
+        grid_from, grid_to = _where(list(members))
+        spaces = {(m.at.sheet_id, (m.evidence.get("space") or {}).get("index")) for m in members}
+        out.append(
+            ItemDraft(
+                key=key,
+                item_type=first.object_type,
+                classification=first.category or "sprinkler",
+                description=f"{_describe(first.object_type, attributes)} [{NOT_DRAWN}]",
+                attributes=attributes,
+                unit="no",
+                net_quantity=Decimal(len(members)),
+                length_mm=None,
+                level=first.at.level,
+                zone=first.at.zone,
+                grid_from=grid_from,
+                grid_to=grid_to,
+                calculation_method="rule_derived",
+                detection_method=DESIGNED,
+                confidence=_confidence(list(members)),
+                members=[_member(m) for m in members],
+                sources=_sources(list(members)),
+                rule=_design_rule(first.evidence, len(members)),
+                allowance_percent=rules.allowance_percent(allowance, "sprinkler"),
+                geometry=[
+                    {"sheet": m.at.sheet_number, "x": round(m.x, 3), "y": round(m.y, 3)}
+                    for m in members
+                ],
+                note=f"{len(members)} heads proposed in {len(spaces)} spaces",
+            )
+        )
+    return out
+
+
+def _designed_pipe(
+    runs: list[Run], spec: SpecLookup, system: str, allowance: rules.Rule | None
+) -> list[ItemDraft]:
+    """Proposed range pipe, by size, level and zone."""
+    groups: dict[str, tuple[dict[str, Any], list[Run]]] = {}
+    for run in runs:
+        if run.origin != DESIGNED:
+            continue
+        version = (run.evidence.get("rule") or {}).get("rule_version")
+        values = spec(system, run.dn)
+        attributes: dict[str, Any] = {
+            "nominal_diameter_mm": {"value": str(run.dn), "source": f"design rule v{version}"},
+            **{name: resolve(name, {}, values.get(name, [])) for name in PIPE_ATTRIBUTES},
+        }
+        key = key_of(
+            DESIGNED,
+            "pipe",
+            {k: v["value"] for k, v in attributes.items()},
+            run.at.level,
+            run.at.zone,
+            version,
+        )
+        groups.setdefault(key, (attributes, []))[1].append(run)
+    out = []
+    for key, (attributes, members) in groups.items():
+        lead = members[0]
+        length = sum(m.length_mm or 0 for m in members)
+        remote = sum(m.length_mm or 0 for m in members if m.evidence.get("remote"))
+        grid_from, grid_to = _where(list(members))
+        note = f"{len(members)} lengths of range pipe and feed"
+        if remote:
+            note += f"; {remote} mm of it is an allowance where no drawn main is in reach"
+        out.append(
+            ItemDraft(
+                key=key,
+                item_type="pipe",
+                classification="range",
+                description=f"{_describe_pipe(attributes, 'range')} [{NOT_DRAWN}]",
+                attributes=attributes,
+                unit="m",
+                net_quantity=(Decimal(length) / Decimal(1000)).quantize(Decimal("0.001")),
+                length_mm=length,
+                level=lead.at.level,
+                zone=lead.at.zone,
+                grid_from=grid_from,
+                grid_to=grid_to,
+                calculation_method="rule_derived",
+                detection_method=DESIGNED,
+                confidence=_confidence(list(members)),
+                members=[_member(m) for m in members],
+                sources=_sources(list(members)),
+                rule=_design_rule(lead.evidence, length),
+                allowance_percent=rules.allowance_percent(allowance, "pipe"),
+                geometry=[
+                    {"sheet": m.at.sheet_number, "points": [list(p) for p in m.points]}
+                    for m in members
+                ],
+                note=note,
             )
         )
     return out

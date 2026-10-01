@@ -63,3 +63,14 @@ curl -s localhost:8000/health       # llm_routing reports the config version and
 
 `pytest -m live` is what catches a model ID that no longer exists. It costs money and is never
 part of `make check`.
+
+# `design_rules.yaml` and `intake.yaml` (P1-12)
+
+- **`design_rules.yaml`** is the seed of the `sprinkler_layout` rule: the preferred head grid,
+  the spaces left without heads, head type and rating by space and level, and the range-pipe
+  sizing table. It is loaded as version 1 the first time an organisation designs. After that
+  the rule is edited in the platform like any measurement rule (`POST /measurement-rules/sprinkler_layout`),
+  and each edit is a new version. Every seeded value is "to be confirmed".
+- **`intake.yaml`** holds the rules that propose whose document an uploaded file is, from its
+  path: tender, working, reference or ignored. The first rule that matches wins. Add your
+  company's own mark under `working`; restart to apply.

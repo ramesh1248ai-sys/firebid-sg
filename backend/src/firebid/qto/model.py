@@ -62,6 +62,8 @@ class Run:
     confidence: float
     labels: tuple[str, ...] = ()
     scale: float | None = None  # drawing mm per sheet mm: the view's verified scale
+    origin: str = "detected"  # detected | designed (proposed by the design rules, not drawn)
+    evidence: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -132,6 +134,11 @@ def without_ids(value: Any) -> Any:
 
 def key_of(*parts: Any) -> str:
     return hashlib.sha256(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()[:24]
+
+
+# How a detection or run that is not on the drawing says so: proposed by the design rules
+# for a design-intent tender (P1-12).
+DESIGNED = "designed"
 
 
 LEVEL_IN_NUMBER = re.compile(r"(?:^|[-_])(L\d{1,2}|B\d{1,2}|RF)(?=[-_]|$)")

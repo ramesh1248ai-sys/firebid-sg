@@ -47,7 +47,8 @@ async function describe(input: Request | URL | string, init?: RequestInit): Prom
   };
 }
 
-export function stubApi(routeTable: Record<string, () => Response>): Call[] {
+/** Each handler may look at the call it answers (its method, say). */
+export function stubApi(routeTable: Record<string, (call: Call) => Response>): Call[] {
   const calls: Call[] = [];
   const keys = Object.keys(routeTable).sort((a, b) => b.length - a.length);
   vi.stubGlobal(
@@ -58,7 +59,7 @@ export function stubApi(routeTable: Record<string, () => Response>): Call[] {
       const key = keys.find((candidate) => new URL(call.url).pathname.includes(candidate));
       const handler = key === undefined ? undefined : routeTable[key];
       if (!handler) return new Response("no stub", { status: 404 });
-      return handler();
+      return handler(call);
     }),
   );
   return calls;

@@ -249,3 +249,152 @@ def test_the_api_lists_detections_least_confident_first(
     assert body["runs"][0]["size_status"] == "conflict", "the flagged run first"
     assert {o["kind"] for o in body["objects"]} == {"object", "riser", "drop"}
     assert all(o["state"] == "proposed" for o in body["objects"])
+
+
+@pytest.mark.req("NFR-01")
+class TestOnlyWhatChanged:
+    """Detection is asked for after every mapping decision. It does the work once."""
+
+    def test_detecting_again_with_nothing_changed_leaves_the_rows_alone(
+        self, session: Session, bid: Bid, store: MemoryObjectStore
+    ) -> None:
+        installation(session, bid, store)
+        confirm_legend(session, bid, store)
+        first = detect_bid(session, store, bid.id)
+        session.commit()
+        before = {o.id for o in stored(session, bid)[0]} | {r.id for r in stored(session, bid)[1]}
+
+        second = detect_bid(session, store, bid.id)
+        session.commit()
+
+        assert [outcome.unchanged for outcome in first] == [False]
+        assert [outcome.unchanged for outcome in second] == [True]
+        # The same rows, not new rows for the same symbols: verification keeps its links.
+        after = {o.id for o in stored(session, bid)[0]} | {r.id for r in stored(session, bid)[1]}
+        assert after == before
+        assert (second[0].objects, second[0].runs) == (first[0].objects, first[0].runs)
+
+    def test_a_person_can_have_every_sheet_detected_anyway(
+        self, session: Session, bid: Bid, store: MemoryObjectStore
+    ) -> None:
+        installation(session, bid, store)
+        confirm_legend(session, bid, store)
+        detect_bid(session, store, bid.id)
+        session.commit()
+        before = {o.id for o in stored(session, bid)[0]}
+
+        forced = detect_bid(session, store, bid.id, force=True)
+        session.commit()
+
+        assert [outcome.unchanged for outcome in forced] == [False]
+        assert {o.id for o in stored(session, bid)[0]}.isdisjoint(before)
+
+    def test_a_changed_mapping_is_detected_again(
+        self, session: Session, bid: Bid, store: MemoryObjectStore
+    ) -> None:
+        installation(session, bid, store)
+        confirm_legend(session, bid, store)
+        detect_bid(session, store, bid.id)
+        session.commit()
+        pendents = sum(1 for o in stored(session, bid)[0] if o.object_type == "sprinkler_pendent")
+        assert pendents
+        entry = next(
+            e
+            for e in session.execute(
+                select(LegendEntry).where(LegendEntry.bid_id == bid.id)
+            ).scalars()
+            if DESCRIBED[e.description] == "sprinkler_pendent"
+        )
+        assert entry.mapping_lineage_id is not None
+
+        symbol_service.reject(session, entry.mapping_lineage_id, PERSON, note="not ours")
+        again = detect_bid(session, store, bid.id)
+        session.commit()
+
+        assert [outcome.unchanged for outcome in again] == [False]
+        assert not any(o.object_type == "sprinkler_pendent" for o in stored(session, bid)[0])
+
+    def test_a_run_asks_for_each_mapping_once_however_many_symbols_share_it(
+        self, session: Session, bid: Bid, store: MemoryObjectStore
+    ) -> None:
+        from sqlalchemy import event
+
+        installation(session, bid, store)
+        confirm_legend(session, bid, store)
+        statements: list[str] = []
+
+        def record(_conn: Any, _cursor: Any, statement: str, *_rest: Any) -> None:
+            statements.append(statement)
+
+        engine = session.get_bind()
+        event.listen(engine, "before_cursor_execute", record)
+        try:
+            detect_bid(session, store, bid.id)
+        finally:
+            event.remove(engine, "before_cursor_execute", record)
+
+        mapping_reads = [s for s in statements if "FROM symbol_mapping" in s and "SELECT" in s]
+        lineages = {
+            e.mapping_lineage_id
+            for e in session.execute(
+                select(LegendEntry).where(LegendEntry.bid_id == bid.id)
+            ).scalars()
+        }
+        instances = len(stored(session, bid)[0])
+        assert instances > len(lineages) * 2, "the plan draws many symbols of few kinds"
+        assert len(mapping_reads) <= len(lineages)
+
+
+@pytest.mark.req("NFR-01")
+class TestOneJobForManyDecisions:
+    def test_confirming_row_by_row_queues_one_detection(
+        self, session: Session, organisation: Any, bid: Bid, store: MemoryObjectStore, sign_in: Any
+    ) -> None:
+        from firebid.domain.state_machines import Role
+        from tests.db.test_sheet_views import member
+
+        installation(session, bid, store)
+        session.execute(text("DELETE FROM procrastinate_jobs"))
+        session.commit()
+        client = sign_in(member(session, organisation, bid, "esther", Role.ESTIMATOR))
+        lineages = {
+            e.mapping_lineage_id
+            for e in session.execute(
+                select(LegendEntry).where(LegendEntry.bid_id == bid.id)
+            ).scalars()
+            if e.mapping_lineage_id is not None
+        }
+        assert len(lineages) >= 3
+
+        for lineage in list(lineages)[:3]:
+            response = client.post(
+                f"/bids/{bid.id}/symbols/mappings/{lineage}/confirm",
+                json={"object_type": "sprinkler_pendent"},
+            )
+            assert response.status_code == 200, response.text
+
+        waiting = session.execute(
+            text(
+                "SELECT count(*) FROM procrastinate_jobs "
+                "WHERE task_name = 'detection.run' AND status = 'todo'"
+            )
+        ).scalar_one()
+        assert waiting == 1
+        # And every decision was kept: a job that was not queued again took nothing with it.
+        session.expire_all()
+        for lineage in list(lineages)[:3]:
+            mapping = symbol_service.current(session, lineage)
+            assert mapping is not None and mapping.state == "confirmed"
+
+    def test_takeoff_asked_for_twice_is_queued_once(self, session: Session, bid: Bid) -> None:
+        from firebid.services import qto
+
+        session.execute(text("DELETE FROM procrastinate_jobs"))
+        qto.queue_recompute(session, bid.id, None)
+        qto.queue_recompute(session, bid.id, None)
+        session.commit()
+
+        waiting = session.execute(
+            text("SELECT count(*) FROM procrastinate_jobs WHERE task_name = 'qto.recompute'")
+        ).scalar_one()
+        assert waiting == 1

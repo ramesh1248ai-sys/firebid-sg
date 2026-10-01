@@ -34,7 +34,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from firebid.db.audit import record_event
@@ -329,7 +329,9 @@ def name_unlisted(
     row = confirm(
         session, proposed.lineage_id, actor, object_type=object_type, note=note, bid_id=bid_id
     )
-    match_instances(session, bid_id, consultant)
+    # A new mapping cannot reach a symbol already matched to a legend row: rows are tried
+    # first, and none has changed. Only the rest are matched again.
+    match_instances(session, bid_id, consultant, beyond_legends_only=True)
     return row
 
 
@@ -534,12 +536,14 @@ def _shapes_of(table: Any, page: tuple[float, float, float, float]) -> Shapes:
     from firebid.drawings.geometry import texts
     from firebid.drawings.views import _title_block_region
 
-    found = legends.detect(table, page)
+    # The shapes are found once: the legends and the installed symbols are both read from them.
+    shapes = symbols.candidates(table)
+    found = legends.detect(table, page, shapes)
     excluded = [legend.box for legend in found]
     region = _title_block_region(texts(table), page)
     if region is not None:
         excluded.append((region.x0, region.y0, region.x1, region.y1))
-    return found, symbols.clusters(table, excluding=excluded)
+    return found, symbols.clusters(table, excluding=excluded, found=shapes)
 
 
 def sheet_shapes(parquet: bytes, page: tuple[float, float, float, float]) -> Shapes:
@@ -624,13 +628,24 @@ def _record_instances(
     return len(placed)
 
 
-def match_instances(session: Session, bid_id: uuid.UUID, consultant: Consultant) -> None:
+def match_instances(
+    session: Session,
+    bid_id: uuid.UUID,
+    consultant: Consultant,
+    *,
+    beyond_legends_only: bool = False,
+) -> None:
     """Match the bid's instances to its legend rows, else to the consultant's mappings.
 
     Run after every document, because files arrive in any order: a plan read before its
     legend sheet is matched again once the legend is known. Once per document, not per
     sheet: every instance of the bid is matched again, so per sheet it grew with the square
     of the sheet count (P1-11).
+
+    `beyond_legends_only` matches again only the instances no legend row claimed, for when
+    a mapping was added and the legend rows are what they were: an instance matched to a
+    row matches it still, so reading it again changes nothing. On a real tender that is a
+    seventh of the instances.
     """
     entries = list(
         session.execute(select(LegendEntry).where(LegendEntry.bid_id == bid_id)).scalars()
@@ -642,9 +657,22 @@ def match_instances(session: Session, bid_id: uuid.UUID, consultant: Consultant)
     )
     mapping_signatures = symbols.Candidates([Signature.from_json(m.signature) for m in mappings])
     unknown: tuple[symbols.Candidates, list[str]] = (symbols.Candidates(), [])
-    for instance in session.execute(
-        select(SymbolInstance).where(SymbolInstance.bid_id == bid_id)
-    ).scalars():
+    wanted = select(SymbolInstance).where(SymbolInstance.bid_id == bid_id)
+    if beyond_legends_only:
+        wanted = wanted.where(SymbolInstance.legend_entry_id.is_(None))
+        # What matching again would do for the rest: each takes its row's mapping as it
+        # stands now. In one statement, and only where it differs.
+        session.execute(
+            update(SymbolInstance)
+            .where(
+                SymbolInstance.bid_id == bid_id,
+                SymbolInstance.legend_entry_id == LegendEntry.id,
+                SymbolInstance.mapping_lineage_id.is_distinct_from(LegendEntry.mapping_lineage_id),
+            )
+            .values(mapping_lineage_id=LegendEntry.mapping_lineage_id)
+            .execution_options(synchronize_session=False)
+        )
+    for instance in session.execute(wanted).scalars():
         signature = Signature.from_json(instance.signature)
         found = symbols.best_match(signature, entry_signatures) if entries else None
         if found is not None:
@@ -667,6 +695,23 @@ def match_instances(session: Session, bid_id: uuid.UUID, consultant: Consultant)
         instance.match_distance = None
         instance.symbol_key = _unknown_key(signature, unknown)
     session.flush()
+
+
+def link_instances(session: Session, entry: LegendEntry) -> int:
+    """Point the instances matched to a legend row at the mapping the row now has.
+
+    For when only the row's mapping changed (a proposal arrived for it). Which row an
+    instance matches depends on the shapes, which have not changed, so nothing needs
+    matching again: one statement, where `match_instances` reads every instance of the bid.
+    On a 121-sheet tender that was 150,000 instances, once for each of 61 proposals.
+    Returns how many instances were updated.
+    """
+    result = session.execute(
+        update(SymbolInstance)
+        .where(SymbolInstance.bid_id == entry.bid_id, SymbolInstance.legend_entry_id == entry.id)
+        .values(mapping_lineage_id=entry.mapping_lineage_id)
+    )
+    return int(getattr(result, "rowcount", 0) or 0)
 
 
 def _unknown_key(signature: Signature, seen: tuple[symbols.Candidates, list[str]]) -> str:
@@ -744,7 +789,7 @@ def propose_with_model(
     )
     _resolve(session, entry, signature, consultant, mappings)
     if entry.status != AWAITING_MODEL:
-        match_instances(session, entry.bid_id, consultant)
+        link_instances(session, entry)
         return entry
 
     choices = [(t.key, t.label) for t in object_library.usable(session, consultant.organisation_id)]
@@ -798,7 +843,7 @@ def propose_with_model(
     )
     entry.mapping_lineage_id, entry.status = proposal.lineage_id, PROPOSED
     session.flush()
-    match_instances(session, entry.bid_id, consultant)
+    link_instances(session, entry)
     return entry
 
 

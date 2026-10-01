@@ -39,6 +39,7 @@ from firebid.imaging.pyramid import (
     content_hash,
 )
 from firebid.sandbox.runner import SandboxFailure, run_sandboxed
+from firebid.services.pages import page_index, store_pages
 from firebid.storage.object_store import ObjectExists, ObjectStore
 
 log = structlog.get_logger("firebid.sheets")
@@ -112,6 +113,8 @@ def process_document(
         outcome.tiles_written += written
 
     if staged:
+        # Each sheet is read in its own job: give each its own page to fetch.
+        store_pages(store, document, payload, len(pages))
         session.flush()
         log.info("document_sheets_registered", document_id=str(document.id), sheets=len(pages))
         return outcome
@@ -223,7 +226,7 @@ def _render_low_levels(
         _render_and_cut,
         document.kind,
         payload,
-        sheet.index_in_document,
+        page_index(sheet, payload),
         render_width,
         render_height,
         pyramid.width_px,
@@ -311,7 +314,7 @@ def render_tile(
             _render_level_tiles,
             document_kind,
             document_payload,
-            sheet.index_in_document,
+            page_index(sheet, document_payload),
             sheet.base_width_px,
             sheet.base_height_px,
             level,

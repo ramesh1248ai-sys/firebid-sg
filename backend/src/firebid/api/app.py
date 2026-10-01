@@ -88,6 +88,7 @@ def create_app(
         audit,
         bids,
         boq,
+        design,
         detections,
         documents,
         kpis,
@@ -109,6 +110,7 @@ def create_app(
     app.include_router(views.router)
     app.include_router(symbols.router)
     app.include_router(detections.router)
+    app.include_router(design.router)
     app.include_router(specs.router)
     app.include_router(library.router)
     app.include_router(qto.router)

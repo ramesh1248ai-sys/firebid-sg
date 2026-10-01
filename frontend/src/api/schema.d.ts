@@ -510,6 +510,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/design": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Designs
+         * @description Each plan sheet's design basis and proposed layout, in sheet order.
+         */
+        get: operations["list_designs_bids__bid_id__design_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/design/basis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Basis
+         * @description Queue reading every Current plan sheet's design basis.
+         */
+        post: operations["read_basis_bids__bid_id__design_basis_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/design/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Basis
+         * @description Confirm the criterion for these sheets and queue their layout.
+         */
+        post: operations["confirm_basis_bids__bid_id__design_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/design/sheets/{sheet_id}/scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Scope
+         * @description The part of the plan this sheet answers for: its side of a match line.
+         */
+        put: operations["set_scope_bids__bid_id__design_sheets__sheet_id__scope_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/design/sheets/{sheet_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw Design
+         * @description Remove a sheet's proposed layout from the bid.
+         */
+        post: operations["withdraw_design_bids__bid_id__design_sheets__sheet_id__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/detections": {
         parameters: {
             query?: never;
@@ -617,8 +717,56 @@ export interface paths {
          *
          *     With `addendum_id`, the files are that addendum's: every revision read from them is
          *     linked to it, and its date orders them against what they replace.
+         *
+         *     For a folder, `paths` gives each file's path in it and `origins` what the person said
+         *     each is, one per file and in the files' order. A file with no origin given has one
+         *     proposed from its path; anything proposed as other than a tender document is kept
+         *     unread until a person confirms it.
          */
         post: operations["upload_bids__bid_id__documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/documents/origin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change Origin
+         * @description Say whose documents these are. One that becomes a tender document is queued to be read.
+         */
+        post: operations["change_origin_bids__bid_id__documents_origin_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/documents/origins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose Origins
+         * @description Whose document each path looks like, before anything is sent (FR-DOC-10).
+         *
+         *     A proposal only: the person sending the folder confirms or changes it, and what they
+         *     say is what each file is stored with.
+         */
+        post: operations["propose_origins_bids__bid_id__documents_origins_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2689,6 +2837,10 @@ export interface components {
             addendum_id?: string | null;
             /** Files */
             files: string[];
+            /** Origins */
+            origins?: string[] | null;
+            /** Paths */
+            paths?: string[] | null;
         };
         /** BoqOut */
         BoqOut: {
@@ -2911,10 +3063,14 @@ export interface components {
             /** Storage Key */
             storage_key: string;
         };
-        /** ConfirmRequest */
-        ConfirmRequest: {
-            /** Comment */
-            comment?: string | null;
+        /** ConfirmOut */
+        ConfirmOut: {
+            /** Confirmed */
+            confirmed: string[];
+            /** Skipped */
+            skipped: {
+                [key: string]: string;
+            };
         };
         /** ConfirmationOut */
         ConfirmationOut: {
@@ -3035,6 +3191,23 @@ export interface components {
             /** Value Verified */
             value_verified: number;
         };
+        /** CriterionOut */
+        CriterionOut: {
+            /** K Factor */
+            k_factor?: string | null;
+            /** Key */
+            key: string;
+            /** Max Area M2 */
+            max_area_m2: number;
+            /** Max Spacing Mm */
+            max_spacing_mm: number[];
+            /** Response */
+            response?: string | null;
+            /** Source */
+            source: string;
+            /** Title */
+            title: string;
+        };
         /** DecideGroupIn */
         DecideGroupIn: {
             /**
@@ -3093,6 +3266,15 @@ export interface components {
             rule_version: number;
             /** Value */
             value: number;
+        };
+        /** DesignOut */
+        DesignOut: {
+            /** Rule Status */
+            rule_status: string;
+            /** Rule Version */
+            rule_version: number;
+            /** Sheets */
+            sheets: components["schemas"]["SheetDesignOut"][];
         };
         /** DetectionOut */
         DetectionOut: {
@@ -3181,10 +3363,24 @@ export interface components {
             kind: string | null;
             /** Media Type */
             media_type: string;
+            /**
+             * Origin
+             * @default tender
+             */
+            origin: string;
+            /** Origin Reason */
+            origin_reason?: string | null;
+            /**
+             * Origin Status
+             * @default confirmed
+             */
+            origin_status: string;
             /** Rejected Reason */
             rejected_reason?: string | null;
             /** Sha256 */
             sha256: string;
+            /** Source Path */
+            source_path?: string | null;
             /** State */
             state: string;
         };
@@ -3303,6 +3499,18 @@ export interface components {
             minutes: number;
             /** People */
             people: number;
+        };
+        /** EnteredCriterion */
+        EnteredCriterion: {
+            /** Max Area M2 */
+            max_area_m2: number;
+            /** Max Spacing Mm */
+            max_spacing_mm: number[];
+            /**
+             * Title
+             * @default entered criterion
+             */
+            title: string;
         };
         /** FailedDocument */
         FailedDocument: {
@@ -3941,6 +4149,39 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** OriginChange */
+        OriginChange: {
+            /** Document Ids */
+            document_ids: string[];
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "tender" | "working" | "reference";
+            /** Reason */
+            reason?: string | null;
+        };
+        /** OriginChanged */
+        OriginChanged: {
+            /** Changed */
+            changed: string[];
+            /** Refused */
+            refused: {
+                [key: string]: string;
+            };
+        };
+        /** OriginProposal */
+        OriginProposal: {
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "tender" | "working" | "reference" | "ignored";
+            /** Path */
+            path: string;
+            /** Reason */
+            reason: string;
+        };
         /** ParameterIn */
         ParameterIn: {
             /** Level */
@@ -4331,6 +4572,59 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** ScopeRequest */
+        ScopeRequest: {
+            /** Polygon */
+            polygon?: number[][] | null;
+        };
+        /** SheetDesignOut */
+        SheetDesignOut: {
+            /** Confirmed At */
+            confirmed_at: string | null;
+            /** Confirmed By */
+            confirmed_by: string | null;
+            /** Criteria */
+            criteria: components["schemas"]["CriterionOut"][];
+            criterion: components["schemas"]["CriterionOut"] | null;
+            /** Design Intent */
+            design_intent: boolean;
+            /** Drawn Heads */
+            drawn_heads: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Intent Quote */
+            intent_quote: string | null;
+            /** Laid Out At */
+            laid_out_at: string | null;
+            /** Level */
+            level: string | null;
+            /** Note */
+            note: string | null;
+            /** Rule Version */
+            rule_version: number | null;
+            /** Scope */
+            scope: number[][] | null;
+            /**
+             * Sheet Id
+             * Format: uuid
+             */
+            sheet_id: string;
+            /** Sheet Number */
+            sheet_number: string;
+            /** Spaces */
+            spaces: components["schemas"]["SpaceOut"][];
+            /** State */
+            state: string;
+            /** Totals */
+            totals: {
+                [key: string]: unknown;
+            };
+            /** View Id */
+            view_id: string | null;
+        };
         /** SheetDetail */
         SheetDetail: {
             /** Base Height Px */
@@ -4438,6 +4732,27 @@ export interface components {
             } | null;
             /** Width Mm */
             width_mm: number | null;
+        };
+        /** SpaceOut */
+        SpaceOut: {
+            /** Area M2 */
+            area_m2: number;
+            /** Box */
+            box: number[];
+            /** Heads */
+            heads: number;
+            /** Index */
+            index: number;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Note */
+            note: string | null;
+            /** Omitted By */
+            omitted_by: string | null;
+            /** Pitch Mm */
+            pitch_mm: number[];
         };
         /** SpecAttributeOut */
         SpecAttributeOut: {
@@ -4644,6 +4959,11 @@ export interface components {
              */
             duplicates: components["schemas"]["DocumentOut"][];
             /**
+             * Ignored
+             * @default []
+             */
+            ignored: components["schemas"]["RefusedOut"][];
+            /**
              * Quarantined
              * @default []
              */
@@ -4757,11 +5077,6 @@ export interface components {
             /** Message */
             message: string;
         };
-        /** WithdrawRequest */
-        WithdrawRequest: {
-            /** Reason */
-            reason: string;
-        };
         /** WorkbenchSheet */
         WorkbenchSheet: {
             /** Height Mm */
@@ -4780,6 +5095,29 @@ export interface components {
             views: components["schemas"]["ViewSummary"][];
             /** Width Mm */
             width_mm: number | null;
+        };
+        /** ConfirmRequest */
+        firebid__api__design__ConfirmRequest: {
+            entered?: components["schemas"]["EnteredCriterion"] | null;
+            /** Key */
+            key?: string | null;
+            /** Sheet Ids */
+            sheet_ids: string[];
+        };
+        /** WithdrawRequest */
+        firebid__api__design__WithdrawRequest: {
+            /** Reason */
+            reason?: string | null;
+        };
+        /** ConfirmRequest */
+        firebid__api__registers__ConfirmRequest: {
+            /** Comment */
+            comment?: string | null;
+        };
+        /** WithdrawRequest */
+        firebid__api__registers__WithdrawRequest: {
+            /** Reason */
+            reason: string;
         };
     };
     responses: never;
@@ -5745,6 +6083,173 @@ export interface operations {
             };
         };
     };
+    list_designs_bids__bid_id__design_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_basis_bids__bid_id__design_basis_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_basis_bids__bid_id__design_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["firebid__api__design__ConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_scope_bids__bid_id__design_sheets__sheet_id__scope_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheet_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScopeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_design_bids__bid_id__design_sheets__sheet_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheet_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["firebid__api__design__WithdrawRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_detections_bids__bid_id__detections_get: {
         parameters: {
             query?: {
@@ -5895,7 +6400,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["WithdrawRequest"];
+                "application/json": components["schemas"]["firebid__api__registers__WithdrawRequest"];
             };
         };
         responses: {
@@ -5972,6 +6477,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UploadReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_origin_bids__bid_id__documents_origin_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OriginChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OriginChanged"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_origins_bids__bid_id__documents_origins_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": string[];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OriginProposal"][];
                 };
             };
             /** @description Validation Error */
@@ -7077,7 +7652,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ConfirmRequest"];
+                "application/json": components["schemas"]["firebid__api__registers__ConfirmRequest"];
             };
         };
         responses: {
@@ -7684,7 +8259,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["WithdrawRequest"];
+                "application/json": components["schemas"]["firebid__api__registers__WithdrawRequest"];
             };
         };
         responses: {

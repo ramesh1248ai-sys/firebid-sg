@@ -253,6 +253,7 @@ def clusters(
     within: tuple[float, float, float, float] | None = None,
     excluding: list[tuple[float, float, float, float]] | None = None,
     signed: bool = True,
+    found: list[Cluster] | None = None,
 ) -> list[Cluster]:
     """Every candidate symbol on the sheet, each with its signature.
 
@@ -261,7 +262,31 @@ def clusters(
     `within` keeps only clusters centred in that box; `excluding` drops those centred in any
     of these (a legend is not a place where objects are installed). `signed=False` leaves the
     signatures off, which are nearly all the cost, for a caller that needs only where the
-    shapes are.
+    shapes are. `found` is the sheet's `candidates`, when the caller already has them: a
+    sheet's legends and its installed symbols are read from the same shapes.
+    """
+    if found is None:
+        found = candidates(table)
+    kept = []
+    for cluster in found:
+        cx, cy = cluster.centre
+        if within is not None and not _inside(cx, cy, within):
+            continue
+        if excluding and any(_inside(cx, cy, box) for box in excluding):
+            continue
+        if not signed:
+            kept.append(cluster)
+            continue
+        signature = signature_of(table, cluster)
+        if signature is not None:
+            kept.append(_with(cluster, signature))
+    return kept
+
+
+def candidates(table: pa.Table) -> list[Cluster]:
+    """Where every candidate symbol on the sheet is, unsigned and unfiltered.
+
+    Depends only on the sheet's geometry, so it is found once and shared.
     """
     columns = table.select(
         [
@@ -321,21 +346,7 @@ def clusters(
         box = _box_of(columns, group)
         if _symbol_sized(box):
             found.append(Cluster(rows=tuple(group), box=box))
-
-    kept = []
-    for cluster in found:
-        cx, cy = cluster.centre
-        if within is not None and not _inside(cx, cy, within):
-            continue
-        if excluding and any(_inside(cx, cy, box) for box in excluding):
-            continue
-        if not signed:
-            kept.append(cluster)
-            continue
-        signature = signature_of(table, cluster)
-        if signature is not None:
-            kept.append(_with(cluster, signature))
-    return kept
+    return found
 
 
 def _with(cluster: Cluster, signature: Signature) -> Cluster:
@@ -370,37 +381,89 @@ def _symbol_sized(box: tuple[float, float, float, float]) -> bool:
     return SYMBOL_MIN_MM <= diagonal <= SYMBOL_MAX_MM * math.sqrt(2)
 
 
+# Candidate pairs examined at a time: bounds memory on a sheet dense with small strokes.
+PAIR_CHUNK = 2_000_000
+
+
 def _touching(columns: dict[str, list[Any]], rows: list[int]) -> list[list[int]]:
-    """Groups of primitives whose boxes touch, by union-find over a sort-and-sweep.
+    """Groups of primitives whose boxes touch (within `TOUCH_MM`), each in the rows' order.
 
     Only primitives drawn alike (same layer and colour) join: a symbol is drawn in one pen,
     so the pipe running into a valve's body stays pipe rather than becoming part of it.
+
+    In arrays, because a busy plan has tens of thousands of small strokes and this is most
+    of reading its symbols (P1-12 benchmark: a third of a sheet's time, as a Python loop).
+    Within each pen the boxes are sorted by their left edge; a box can only touch those
+    whose left edge is no further right than its own right edge, which a binary search
+    finds; the pairs that also meet in y are then joined into groups.
     """
-    parent = {row: row for row in rows}
+    count = len(rows)
+    if count == 0:
+        return []
+    index = np.asarray(rows, dtype=np.int64)
+    minx, miny, maxx, maxy = (
+        np.asarray([columns[name][row] for row in rows], dtype=np.float64)
+        for name in ("minx", "miny", "maxx", "maxy")
+    )
+    pens: dict[tuple[Any, Any], int] = {}
+    pen = np.fromiter(
+        (
+            pens.setdefault((columns["layer"][row], columns["color"][row]), len(pens))
+            for row in rows
+        ),
+        dtype=np.int64,
+        count=count,
+    )
+    # By pen, then by left edge: a pen's boxes are one run, in the order the sweep needs.
+    order = np.lexsort((minx, pen))
+    pen_s, minx_s, maxx_s = pen[order], minx[order], maxx[order]
+    miny_s, maxy_s = miny[order], maxy[order]
+    starts = np.flatnonzero(np.r_[True, pen_s[1:] != pen_s[:-1]])
+    ends = np.r_[starts[1:], count]
+    # For each box, the boxes after it in its pen whose left edge its right edge reaches.
+    reach = np.empty(count, dtype=np.int64)
+    for start, end in zip(starts.tolist(), ends.tolist(), strict=True):
+        reach[start:end] = start + np.searchsorted(
+            minx_s[start:end], maxx_s[start:end] + TOUCH_MM, side="right"
+        )
+    first = np.arange(count, dtype=np.int64) + 1
+    width = np.maximum(reach - first, 0)
 
-    def root(row: int) -> int:
-        while parent[row] != row:
-            parent[row] = parent[parent[row]]
-            row = parent[row]
-        return row
+    label = np.arange(count, dtype=np.int64)
+    edges_a: list[np.ndarray] = []
+    edges_b: list[np.ndarray] = []
+    total = np.cumsum(width)
+    low = 0
+    while low < count:
+        base = int(total[low - 1]) if low else 0
+        high = int(np.searchsorted(total, base + PAIR_CHUNK, side="right"))
+        high = max(high, low + 1)
+        widths = width[low:high]
+        a = np.repeat(np.arange(low, high, dtype=np.int64), widths)
+        offsets = np.arange(a.size, dtype=np.int64) - np.repeat(np.cumsum(widths) - widths, widths)
+        b = np.repeat(first[low:high], widths) + offsets
+        meet = (miny_s[a] <= maxy_s[b] + TOUCH_MM) & (maxy_s[a] >= miny_s[b] - TOUCH_MM)
+        edges_a.append(a[meet])
+        edges_b.append(b[meet])
+        low = high
+    a, b = np.concatenate(edges_a), np.concatenate(edges_b)
+    # Connected groups: every box takes the lowest label it can reach, until none changes.
+    while a.size:
+        lowest = np.minimum(label[a], label[b])
+        updated = label.copy()
+        np.minimum.at(updated, a, lowest)
+        np.minimum.at(updated, b, lowest)
+        updated = updated[updated]
+        if np.array_equal(updated, label):
+            break
+        label = updated
 
-    ordered = sorted(rows, key=lambda row: columns["minx"][row])
-    active: list[int] = []
-    for row in ordered:
-        left = columns["minx"][row] - TOUCH_MM
-        active = [other for other in active if columns["maxx"][other] >= left]
-        for other in active:
-            if (
-                columns["layer"][other] == columns["layer"][row]
-                and columns["color"][other] == columns["color"][row]
-                and columns["miny"][other] <= columns["maxy"][row] + TOUCH_MM
-                and columns["maxy"][other] >= columns["miny"][row] - TOUCH_MM
-            ):
-                parent[root(other)] = root(row)
-        active.append(row)
+    # Back in the rows' own order: groups by their first row, members as the rows came.
+    of_row = np.empty(count, dtype=np.int64)
+    of_row[order] = label
     groups: dict[int, list[int]] = {}
-    for row in rows:
-        groups.setdefault(root(row), []).append(row)
+    for row, group in zip(index.tolist(), of_row.tolist(), strict=True):
+        groups.setdefault(group, []).append(row)
     return list(groups.values())
 
 

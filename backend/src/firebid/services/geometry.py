@@ -23,6 +23,7 @@ from firebid.db.models.drawings import GeometryFeature, SheetGeometry
 from firebid.drawings import geometry
 from firebid.drawings.stage_cache import StageCache
 from firebid.sandbox.runner import run_sandboxed
+from firebid.services.pages import page_index
 from firebid.storage.object_store import ObjectStore
 
 log = structlog.get_logger("firebid.geometry")
@@ -101,7 +102,7 @@ def _extract(document: Document, sheet: Sheet, payload: bytes) -> pa.Table:
         layout = None if sheet.layout_name in (None, "Model") else sheet.layout_name
         result: dict[str, Any] = run_sandboxed(geometry_dxf.extract, payload, layout)
     else:
-        result = run_sandboxed(geometry_pdf.extract, payload, sheet.index_in_document)
+        result = run_sandboxed(geometry_pdf.extract, payload, page_index(sheet, payload))
         result.setdefault(
             "page", [0.0, 0.0, float(sheet.width_mm or 0), float(sheet.height_mm or 0)]
         )

@@ -47,6 +47,7 @@ from firebid.drawings.title_block import (
     similarity,
 )
 from firebid.sandbox.runner import SandboxFailure, run_sandboxed
+from firebid.services.pages import page_index
 from firebid.storage.object_store import ObjectExists, ObjectStore
 
 log = structlog.get_logger("firebid.title_blocks")
@@ -157,7 +158,7 @@ def _crop(
     region = found.reading.region
     corner = region.relative_to(found.page).padded(0.02) if region is not None else CANDIDATES[0]
     bounds = [max(corner.x0, 0.0), max(corner.y0, 0.0), min(corner.x1, 1.0), min(corner.y1, 1.0)]
-    png = run_sandboxed(text_parsing.crop_png, payload, "pdf", sheet.index_in_document, bounds)
+    png = run_sandboxed(text_parsing.crop_png, payload, "pdf", page_index(sheet, payload), bounds)
     key = f"crops/title-blocks/{hashlib.sha256(png).hexdigest()}.png"
     with contextlib.suppress(ObjectExists):  # the same crop, stored by an earlier run
         store.put_once(key, png, content_type="image/png")
@@ -248,7 +249,7 @@ def _best_reading(
         data = run_sandboxed(text_parsing.dxf_text, payload, layout_name)
         method = METHOD_CAD
     else:
-        data = run_sandboxed(text_parsing.pdf_text, payload, sheet.index_in_document)
+        data = run_sandboxed(text_parsing.pdf_text, payload, page_index(sheet, payload))
         method = METHOD_TEXT_LAYER
 
     spans = [Span(*span) for span in data["spans"]]
@@ -271,7 +272,7 @@ def _best_reading(
                     text_parsing.ocr_text,
                     payload,
                     "pdf",
-                    sheet.index_in_document,
+                    page_index(sheet, payload),
                     [region.x0, region.y0, region.x1, region.y1],
                 )
             except SandboxFailure as failure:

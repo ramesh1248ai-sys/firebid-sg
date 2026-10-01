@@ -321,6 +321,55 @@ class TestProposals:
         assert mapping.provenance["agent_run_id"]
         assert len(adapter.calls) == 1, "one model call for the one undecided row"
 
+    @pytest.mark.req("NFR-01")
+    def test_a_proposal_reaches_its_row_s_instances_without_matching_the_bid_again(
+        self,
+        session: Session,
+        bid: Bid,
+        store: MemoryObjectStore,
+        router: Callable[..., tuple[Router, FakeAdapter]],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from firebid.db.models.symbols import SymbolInstance
+
+        from_consultant(session, bid, "Alpha Consultants")
+        tender(session, bid, store, fixtures.ALPHA)
+
+        def state() -> dict[int, tuple[Any, Any, str]]:
+            session.expire_all()
+            return {
+                i.id: (i.legend_entry_id, i.mapping_lineage_id, i.symbol_key)
+                for i in session.execute(
+                    select(SymbolInstance).where(SymbolInstance.bid_id == bid.id)
+                ).scalars()
+            }
+
+        # The rows the rules could not decide: the legend sheet's and the plan's own.
+        waiting = {e.id for e in entries(session, bid) if e.status == "awaiting_model"}
+        drawn = {key for key, (row, _, _) in state().items() if row in waiting}
+        assert waiting and drawn, "the plan draws a symbol whose row waits for the model"
+        assert {state()[key][1] for key in drawn} == {None}
+
+        # Matching every instance of the bid again is what this must not do: on a real
+        # tender that is 150,000 instances for each proposal.
+        def refuse(*_args: object, **_kwargs: object) -> None:
+            raise AssertionError("a proposal matched the whole bid again")
+
+        monkeypatch.setattr(service, "match_instances", refuse)
+        routed, _ = router(UPRIGHT)
+        ask_the_model(session, store, bid, routed)
+        monkeypatch.undo()
+
+        linked = state()
+        lineage_of = {e.id: e.mapping_lineage_id for e in entries(session, bid)}
+        for key in drawn:
+            row, lineage, _ = linked[key]
+            assert lineage is not None and lineage == lineage_of[row]
+        # And it is what matching the whole bid again gives.
+        service.match_instances(session, bid.id, service.consultant_of(session, bid.id))
+        session.commit()
+        assert state() == linked
+
     def test_a_rule_proposal_carries_the_rule_version(
         self, session: Session, bid: Bid, store: MemoryObjectStore
     ) -> None:

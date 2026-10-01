@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 from firebid.db.models.documents import Document, Sheet
 from firebid.db.models.drawings import SheetGeometry
 from firebid.sandbox.runner import SandboxFailure, run_sandboxed
+from firebid.services.pages import sheet_payload
 from firebid.storage.object_store import ObjectStore
 
 log = structlog.get_logger("firebid.parse_pipeline")
@@ -127,8 +128,9 @@ def parse_sheet(
         result.seconds[stage] = round(now - clock, 3)
         clock = now
 
-    # 1. The slow work, outside the lock: none of it is read by another sheet.
-    payload = store.get(document.storage_key)
+    # 1. The slow work, outside the lock: none of it is read by another sheet. The sheet's
+    #    own page where the document was cut into pages, not the whole set again.
+    payload = sheet_payload(store, document, sheet)
     lap("fetch")
     render_sheet(store, document, payload, sheet)
     lap("tiles")

@@ -11,13 +11,12 @@ from procrastinate import JobContext
 from sqlalchemy import text
 
 from firebid.db.engine import service_session_scope, session_scope
-from firebid.db.system import record_heartbeat, record_job_result
+from firebid.db.system import record_job_result
 from firebid.jobs.app import app
 from firebid.jobs.worker import PARSE_QUEUE
 
 log = structlog.get_logger(__name__)
 
-HEARTBEAT_NAME = "worker"
 # Kinds that become sheets. Everything the parse job reads is also classified.
 SHEET_KINDS = frozenset({"pdf", "dxf"})
 
@@ -68,27 +67,14 @@ def ensure_audit_partitions(timestamp: int, months_ahead: int = 3) -> list[str]:
     return created
 
 
-@app.periodic(cron="* * * * *", periodic_id="heartbeat")
 @app.task(name="system.heartbeat", queueing_lock="system.heartbeat", queue="default")
-def heartbeat(timestamp: int) -> None:
-    """Runs every minute. /health reports the queue unhealthy when the heartbeat is stale.
+def heartbeat(timestamp: int = 0) -> None:
+    """One heartbeat, as a job. No longer scheduled: the worker beats from a thread of its
+    own (`firebid.jobs.heartbeat`), so a long job cannot starve it. Kept so that a heartbeat
+    job still waiting from before the change runs instead of failing."""
+    from firebid.jobs.heartbeat import beat
 
-    It also logs how many jobs wait in each queue (`queue_depth`), which the monitoring alert
-    on a backed-up queue reads (ADR-008).
-    """
-    from sqlalchemy import text
-
-    with session_scope() as session:
-        record_heartbeat(session, HEARTBEAT_NAME)
-        waiting = session.execute(
-            text(
-                "SELECT queue_name, count(*) FROM procrastinate_jobs "
-                "WHERE status = 'todo' GROUP BY queue_name"
-            )
-        ).tuples()
-        depths = dict(waiting.all())
-    for queue in sorted({"default", "system", PARSE_QUEUE} | set(depths)):
-        log.info("queue_depth", queue=queue, todo=int(depths.get(queue, 0)))
+    beat()
 
 
 @app.task(name="parse.document", queue=PARSE_QUEUE, pass_context=True)
@@ -269,10 +255,12 @@ def classify_document_with_model(context: JobContext, document_id: str, user_id:
 
 
 @app.task(name="detection.run", queue="default", pass_context=True)
-def run_detection(context: JobContext, bid_id: str, user_id: str) -> int:
-    """Detect every sheet of a bid again, after a symbol mapping was confirmed or changed.
+def run_detection(context: JobContext, bid_id: str, user_id: str, force: bool = False) -> int:
+    """Detect a bid's sheets again, after a symbol mapping was confirmed or changed.
 
-    On the ordinary worker: it reads stored geometry, never the tender file.
+    On the ordinary worker: it reads stored geometry, never the tender file. Only the sheets
+    the change reaches are detected: a sheet whose inputs are what they were keeps its
+    detections. `force` detects every sheet regardless, for a person who asks for it.
     """
     import uuid as uuid_module
 
@@ -283,7 +271,7 @@ def run_detection(context: JobContext, bid_id: str, user_id: str) -> int:
 
     acting = uuid_module.UUID(user_id) if user_id else None
     with acting_as(acting), session_scope() as session:
-        outcomes = detect_bid(session, get_object_store(), uuid_module.UUID(bid_id))
+        outcomes = detect_bid(session, get_object_store(), uuid_module.UUID(bid_id), force=force)
         # Takeoff follows what was detected (P1-07), in the same transaction.
         queue_recompute(session, uuid_module.UUID(bid_id), acting)
         return sum(outcome.objects + outcome.runs for outcome in outcomes)
@@ -551,3 +539,42 @@ def verify_audit_chains(timestamp: int) -> int:
 
     with service_session_scope() as session:
         return len(verify_all_chains(session))
+
+
+@app.task(name="design.basis", queue="default", pass_context=True)
+def read_design_basis(context: JobContext, bid_id: str, user_id: str) -> int:
+    """Read each Current plan sheet's design basis from its stored geometry (P1-12).
+
+    On the ordinary worker: it reads stored geometry, never the tender file. Idempotent: a
+    confirmed sheet keeps its confirmation.
+    """
+    import uuid as uuid_module
+
+    from firebid.db.identity import acting_as
+    from firebid.services.design import read_basis
+    from firebid.storage.object_store import get_object_store
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        return len(read_basis(session, get_object_store(), uuid_module.UUID(bid_id)))
+
+
+@app.task(name="design.layout", queue="default", pass_context=True)
+def lay_out_design(context: JobContext, bid_id: str, user_id: str) -> dict[str, int]:
+    """Lay out every sheet whose design basis a person confirmed, then take off again (P1-12).
+
+    Idempotent: the same sheet, criterion and rules give the same proposal.
+    """
+    import uuid as uuid_module
+
+    from firebid.db.identity import acting_as
+    from firebid.services.design import lay_out_bid
+    from firebid.services.qto import queue_recompute
+    from firebid.storage.object_store import get_object_store
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        outcome = lay_out_bid(session, get_object_store(), uuid_module.UUID(bid_id))
+        # Takeoff follows what was proposed, in the same transaction.
+        queue_recompute(session, uuid_module.UUID(bid_id), acting)
+        return {"sheets": outcome.sheets, "heads": outcome.heads, "blocked": outcome.blocked}
