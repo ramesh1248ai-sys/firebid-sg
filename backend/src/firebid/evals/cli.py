@@ -388,10 +388,6 @@ def _run_compare_models(arguments: argparse.Namespace) -> int:
     return 1 if any(candidate.refused_because for candidate in comparison.candidates) else 0
 
 
-if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(main())
-
-
 def _run_shadow(arguments: argparse.Namespace) -> int:
     """A manual takeoff beside the bid's verified AI-assisted one, with the effort of each."""
     import json
@@ -475,3 +471,7 @@ def _run_corrections(out: Path) -> int:
             handle.write(json.dumps(row, sort_keys=True) + "\n")
     print(f"wrote {len(rows)} corrections to {out}")
     return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())

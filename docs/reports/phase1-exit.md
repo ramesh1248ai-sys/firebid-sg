@@ -1,6 +1,6 @@
 # Phase 1 exit report
 
-Generated 28 Sep 2026 21:00 UTC by `firebid-eval exit`. Detection, classification and mapping measured on **synthetic tenders only (no golden set yet)**.
+Generated 01 Oct 2026 08:27 UTC by `firebid-eval exit`. Detection, classification and mapping measured on **synthetic tenders only (no golden set yet)**.
 
 ## Exit criteria (requirements §13.2)
 
@@ -50,19 +50,21 @@ Generated 28 Sep 2026 21:00 UTC by `firebid-eval exit`. Detection, classificatio
 
 ## Shadow mode
 
-No shadow-mode comparison recorded yet.
+| Tender | Kind | Lines | Manual h | AI-assisted h | Effort reduction |
+|---|---|---|---|---|---|
+| SYNTH-SHADOW-001 | synthetic | 11 | - | 0.05 | - |
 
 ## Non-functional evidence
 
 | Evidence | Status | Result |
 |---|---|---|
-| ingest benchmark | **pending** | not yet run |
-| QTO benchmark | **pending** | not yet run |
-| load test | **pending** | not yet run |
-| restore drill | **pending** | not yet run |
-| provider game day | **pending** | not yet run |
-| deployment guard | **pending** | not yet run |
-| provider data terms | **pending** | not yet run |
+| ingest benchmark | recorded | synthetic-50: 50 sheets in 3.9 min (4.6 s a sheet); 300 sheets projected at 23.2 min (meets the 60 min of NFR-01) |
+| QTO benchmark | recorded | synthetic-50: first-pass takeoff of 50 sheets (14 items) in 7.0 min of machine time (legend confirmed by script); 50 sheets projected at 7.0 min (meets the 240 min of NFR-01) |
+| load test | recorded | 10 bids and 20 users: 10 of 10 bids taken off in 2.3 min; 1831 requests, 0 failed; workbench p95 0.094 s (meets NFR-02 and the 2 s p95 of NFR-01) |
+| restore drill | recorded | local rehearsal (docker compose): 120 MB restored and verified in 0.2 min (RTO target 8 h); data lost 0.0 min back (RPO target 24 h); 58 tables and 83 audit chains match |
+| provider game day | recorded | local rehearsal: primary 'anthropic' down; 9 route(s) served by an approved fallback, 1 escalated cleanly, 0 failed |
+| deployment guard | recorded | window refused: 45 bid(s) due within 48 h (BID-2026-034 due 11 Oct 18:39 UTC, BID-2026-035 due 11 Oct 18:52 UTC, BID-2026-036 due 11 Oct 21:48 UTC, BID-2026-037 due 11 Oct 23:09 UTC, BID-2026-038 due 12 Oct 07:53 UTC and 40 more) |
+| provider data terms | **misses** | to confirm under decision D2: anthropic, openai, google |
 
 ## Gap list
 
@@ -72,13 +74,7 @@ No shadow-mode comparison recorded yet.
 | Indicative real sample: sprinkler count accuracy 1.2% | see the gap entries on legend typing and head-type matching | confirm the legend on the Symbols page, then re-measure; fix matching |
 | Indicative real sample: missed-item rate 100.0% | see the gap entries on legend typing and head-type matching | confirm the legend on the Symbols page, then re-measure; fix matching |
 | Indicative real sample: false-detection rate 100.0% | see the gap entries on legend typing and head-type matching | confirm the legend on the Symbols page, then re-measure; fix matching |
-| Ingest benchmark: no evidence yet | not run | run it (see runbooks) |
-| Qto benchmark: no evidence yet | not run | run it (see runbooks) |
-| Load test: no evidence yet | not run | run it (see runbooks) |
-| Restore drill: no evidence yet | not run | run it (see runbooks) |
-| Provider game day: no evidence yet | not run | run it (see runbooks) |
-| Deployment guard: no evidence yet | not run | run it (see runbooks) |
-| Provider data terms: no evidence yet | not run | run it (see runbooks) |
+| Provider data terms: misses its target | to confirm under decision D2: anthropic, openai, google | sponsor decision D2: confirm each provider's region, retention and no-training terms, then record them in llm.yaml |
 | Real drawings: head types confused by symbol matching; some sheets undercount | Circle-type sprinkler symbols (concealed, exposed quick-response) are close in the shape descriptor. On the 6405 sample, concealed heads matched the exposed quick-response symbol, and F/18 matched 179 heads against a reference of 329. | A dedicated step on head-type matching, using the 6405 sample and the golden set: richer descriptors (fill, concentric rings), and confirmation-driven calibration. |
 | Legend rows the keyword rules cannot type stay uncounted until a person confirms them | By design, ambiguous rows ("EXPOSED SPRINKLER": pendent or upright?) go to a person or the model. With no model key and no confirmation, the automatic count is zero. | Pilot runbook: confirm the legend on the Symbols page first. With D2, enable the model route for legend mapping. |
 | Pipe runs are not identified from the legend's line styles | Pipework legend rows (a sample of line) are recognised and kept out of symbol matching, but are not yet used to pick out pipe runs on a PDF. | Phase 2 (P2-01): line-style classification from legend samples. |
@@ -86,7 +82,9 @@ No shadow-mode comparison recorded yet.
 | Not deployed in a Singapore region | ADR-004 is proposed and D2 is open; ADR-008 (hosting on Google Cloud, asia-southeast1) is proposed. No cloud account exists. | Sponsor decision D2 and ADR-008; create the project; `terraform apply` for staging, then run the restore drill and game day there; then production. |
 | No target AI cost per tender | Phase 0 did not set one (NFR-15). `config/kpi.yaml` holds a placeholder. | Sponsor sets the target; the cost report compares against it. |
 | Commercial settings are placeholders | Rate list (synthetic), queue weights and `weight_unit_sgd`, source preference, BOQ variance threshold, measurement convention wording and BOQ template are all marked "to be confirmed". | Commercial team and senior estimator confirm them before the pilot prices a bid. |
+| Rule-derived pipe (sprinkler drops, riser main) rests on default inputs | The synthetic shadow comparison matched every drawn quantity, and differed only where measurement rules add what no drawing shows: 24 drops x 500 mm of DN25 (branch elevation 3300, ceiling 2750) and 4 m of DN150 riser (floor to floor 4000, one level). Those inputs are rule defaults marked "to be confirmed", and an estimator's takeoff may or may not include such items. | Senior estimator confirms the drop and riser rules and their inputs per project (the measurement rules page); the shadow pilot's live tenders show whether estimators take these off. |
 | Estimator usability session not run | Needs two or three estimators (P1-08 guide in docs/plan/usability/). | Run it with the pilot's estimator champions; record findings in the build log. |
 | BOQ mapping accuracy measured on the synthetic bill only | No real client bills with verified mappings. | Add client bills to the golden set (D3); re-run `firebid-eval run --suite p1_boq`. |
 | A bid cannot be deleted in the app | No delete flow; a test bid was removed directly in the database. | An administrator delete with its own audit entry and retention rules. |
+| A job on the ordinary worker queue whose worker died stays running for ever | system.retry_stalled_parse re-queues only the parser pool's jobs (ADR-010). Found in the P1-11 benchmarks: a symbol.propose job left `doing` with no worker after a container restart, 7 hours later, so its legend row never got the model's proposal. | Extend the stall check to the default queue: re-queue the idempotent tasks (detection, takeoff, the model proposals) and fail the rest with a reason a person sees; alert on any job `doing` for over an hour. |
 | Two order-dependent tests | `test_migrations_leave_application_logging_working` fails when run alone with the migration tests; `Specification.test.tsx` timed out once under load. | Isolate their set-up; neither affects the product. |

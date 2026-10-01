@@ -67,9 +67,13 @@ ingest-benchmark: ## Time a synthetic tender set through ingestion (NFR-01); SHE
 	cd backend && uv run python -m firebid.evals.ingest_benchmark \
 		--sheets $(or $(SHEETS),300) --report ../eval/results/ingest-throughput.md
 
-pipeline-benchmark: ## Time a drawing set through the whole parse job on the running stack (NFR-01); PDF=<file> or SHEETS=<n>
+pipeline-benchmark: ## Time a drawing set through parsing and first-pass takeoff on the running stack (NFR-01); PDF=<file> or SHEETS=<n>
 	uv run --project backend python scripts/pipeline_benchmark.py \
 		$(if $(PDF),--pdf "$(PDF)",--synthetic $(or $(SHEETS),20)) $(if $(OUT),--out "$(OUT)")
+
+load-test: ## 10 concurrent bids and 20 users on the running stack (NFR-01, NFR-02); BIDS=<n> USERS=<n>
+	uv run --project backend python scripts/load_test.py \
+		$(if $(BIDS),--bids $(BIDS)) $(if $(USERS),--users $(USERS))
 
 eval: ## Run the synthetic evaluation suite and write a report
 	cd backend && uv run firebid-eval --root ../eval run --report ../eval/results/synthetic.md

@@ -65,6 +65,38 @@ class Evidence:
     def present(self) -> bool:
         return self.data is not None
 
+    @property
+    def passed(self) -> bool | None:
+        """The run's own verdict, in whichever form its tool writes one; None if it has none.
+
+        A deployment guard passes by refusing: `allowed: false` is the evidence wanted.
+        """
+        data = self.data or {}
+        if "passed" in data:
+            return bool(data["passed"])
+        meets = [bool(value) for key, value in data.items() if key.startswith("meets_")]
+        if meets:
+            return all(meets)
+        if "confirmed" in data:
+            return bool(data["confirmed"])
+        if "allowed" in data:
+            return not data["allowed"]
+        return None
+
+
+# What to do when a piece of non-functional evidence misses its target.
+MISSED_ACTIONS = {
+    "ingest benchmark": "profile the slowest stage (the benchmark's stage breakdown); scale the "
+    "parser pool; re-run",
+    "QTO benchmark": "profile the finish and takeoff jobs; re-run",
+    "load test": "find the slow or failing requests in the load test's breakdown; fix; re-run",
+    "restore drill": "follow docs/runbooks/restore.md; fix the step that failed; re-run",
+    "provider game day": "give the failing routes an approved fallback, or make them escalate",
+    "deployment guard": "fix the guard so it refuses a window near a deadline; re-run",
+    "provider data terms": "sponsor decision D2: confirm each provider's region, retention and "
+    "no-training terms, then record them in llm.yaml",
+}
+
 
 @dataclass
 class ExitInputs:
@@ -328,7 +360,8 @@ def report(inputs: ExitInputs, gaps: list[tuple[str, str, str]]) -> str:
     for evidence in inputs.evidence.values():
         if evidence.present and evidence.data is not None:
             summary = evidence.data.get("summary", "recorded")
-            lines.append(f"| {evidence.name} | recorded | {summary} |")
+            verdict = "**misses**" if evidence.passed is False else "recorded"
+            lines.append(f"| {evidence.name} | {verdict} | {summary} |")
         else:
             lines.append(f"| {evidence.name} | **pending** | not yet run |")
 
@@ -380,5 +413,13 @@ def dynamic_gaps(inputs: ExitInputs) -> list[tuple[str, str, str]]:
         if not evidence.present:
             gaps.append(
                 (f"{name.capitalize()}: no evidence yet", "not run", "run it (see runbooks)")
+            )
+        elif evidence.passed is False and evidence.data is not None:
+            gaps.append(
+                (
+                    f"{name.capitalize()}: misses its target",
+                    str(evidence.data.get("summary", evidence.path.name)),
+                    MISSED_ACTIONS.get(name, "investigate; re-run"),
+                )
             )
     return gaps

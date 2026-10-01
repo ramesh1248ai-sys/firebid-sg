@@ -1188,3 +1188,102 @@ Entry template:
   - **No rate list from the business yet:** the synthetic one stands in.
   - **Quotations** (FR-CST-02/03), GST (P2-04) and cost build-up (FR-CST-06) are Phase 2.
   - **Order-dependent test:** `test_migrations_leave_application_logging_working` fails when run alone with `test_migrations.py` (on `main` too). It passes in the full suite.
+
+## P1-11 · Phase 1 Hardening, Pilot Support and Exit Evaluation · 2026-10-01
+
+- **Summary:** Phase 1 is measured against its exit criteria and made ready for a gate review. The work came in parts A to G:
+  - **A, exit evaluation and shadow mode:** `firebid-eval exit` writes `docs/reports/phase1-exit.md`. It covers:
+    - every KPI and exit criterion against its target, sliced by input class and consultant;
+    - an indicative real-drawing sample, reported apart from the golden set;
+    - live bid measures (`--live`);
+    - pending evidence, named as pending;
+    - the gap list.
+
+    `firebid-eval shadow` sets an estimator's manual takeoff beside the verified AI-assisted one, line by line, with effort. The workbench records minutes on task (a heartbeat).
+  - **B, KPI dashboard:** a KPIs page and AI cost per bid, broken down by route, provider and model.
+  - **C and C2, performance:**
+    - profiling on real sheets removed two O(n²) hot spots (segment lengths, pairwise symbol matching);
+    - the parse job became a staged, per-sheet pipeline ([ADR-010](../adr/ADR-010-staged-per-sheet-parse-pipeline.md)): one job per sheet, each committing its own work, with stalled parse jobs re-queued;
+    - real A1 sheets went from 72 s a sheet to 9.4 s.
+  - **D, security, privacy and retention:**
+    - scans in CI: pip-audit, npm audit, Bandit, Semgrep, gitleaks and Trivy;
+    - the ASVS 5.0 Level 2 checklist, a secrets audit and a pen-test scope;
+    - nightly retention by configurable policy, and a nightly audit hash chain check.
+  - **E, deployment:**
+    - Terraform for staging and production on Google Cloud, asia-southeast1 ([ADR-008](../adr/ADR-008-hosting-on-google-cloud.md), proposed): validated, not applied;
+    - `firebid-ops deploy-guard`, `restore-drill`, `game-day` and `provider-terms`.
+  - **F, runbooks and user material:** deploy, restore, incident response and key rotation runbooks; an estimator quick start; a one-day training outline.
+  - **G, load and takeoff benchmarks:**
+    - `make load-test` runs 10 bids and 20 users;
+    - `make pipeline-benchmark` now also times the first-pass takeoff;
+    - the exit report marks evidence that misses its own target, and adds it to the gap list with an action.
+- **Key modules / files:**
+  - Evaluation: `evals/p1_exit.py`, `evals/shadow.py`, `docs/reports/phase1-exit.md`, `docs/reports/phase1-gaps.yaml` (hand-kept gaps).
+  - Benchmarks: `scripts/pipeline_benchmark.py`, `scripts/load_test.py`; results under `eval/results/bench/`, `eval/results/ops/` and `eval/results/shadow/`.
+  - Operations: `ops/` (deploy guard, restore drill, game day, provider terms); `infra/terraform/`, `infra/k8s/`.
+  - Documents: `docs/security/`, `docs/runbooks/`, `docs/user/`; ADR-008 and ADR-010.
+- **How to run and demo:**
+  1. `make up`.
+  2. `make pipeline-benchmark SHEETS=50`, then `make load-test`.
+  3. `firebid-eval shadow --synthetic --bid <shadow_bid>`, with the bid the load test prints.
+  4. `make exit-report INDICATIVE=<folder holding the real sample>`. The 6405 sample stays outside the repo.
+  5. Open **KPIs** in the app.
+- **Requirement IDs covered:** `make req-coverage PHASE=P1` reports **62 of 62 covered**. That is every Phase 1 FR, and NFR-01 to 15. New in this step:
+  - NFR-01, NFR-02: `test_parse_pipeline.py`, `test_geometry_budget.py`, `test_p1_exit.py::test_a_load_test_that_misses_its_target_is_reported_with_an_action`;
+  - NFR-03, NFR-04: `test_ops.py::TestDeploymentGuard`, the game-day test, and the restore drill tests;
+  - NFR-07, NFR-09: `test_retention.py`;
+  - NFR-14, NFR-15: `test_effort_and_kpis.py`, `Kpis.test.tsx`.
+- **"Done when":**
+
+  | Criterion | Status |
+  |---|---|
+  | `phase1-exit.md` with every KPI and exit criterion against target, and a gap list | **Done.** The accuracy criteria are *pending*: there is no golden set (D3). |
+  | `req-coverage PHASE=P1` covers every Phase 1 FR and the NFRs | **Done:** 62 of 62. |
+  | Benchmark and load results against NFR-01 and NFR-02, with misses in the gap list | **Done, all met** (below). |
+  | Restore drill in staging; deployment guard blocks near a seeded deadline | **Partly done.** The guard refused a window with 45 bids due within 48 h. The restore drill ran as a **local rehearsal** only: there is no staging (D2). |
+  | Security scans in CI with no open high or critical findings; ASVS complete | **Done** (part D). |
+  | Shadow comparison report | **Done**, for a synthetic tender: the pilot has not started. |
+  | Production in Singapore; provider data terms recorded | **Not done.** The Terraform is written but not applied. The provider data terms are recorded as **unconfirmed** for all three providers (D2). |
+  | Provider-outage game day in staging | **Local rehearsal only:** 9 routes fell back, 1 escalated cleanly, 0 failed. |
+  | Build log entry with a gate recommendation | This entry. |
+
+- **Deviations and decisions:**
+  - ADR-008 (hosting on Google Cloud) is **proposed**, not accepted. Applying it waits on D2.
+  - ADR-010 replaces the single parse job.
+  - The QTO benchmark confirms the legend by script, as an estimator's first step. The person's minutes on the legend are not counted as machine time.
+  - The load test reads NFR-02's "without degradation" as two things: no failed request, and the 2 s workbench p95 kept while ten bids are parsed at once.
+- **Manual checks and results** (local Docker Compose stack: one API, one worker, and one sandbox with 2 CPU and 2 jobs at once):
+
+  | Measure | Result | Target |
+  |---|---|---|
+  | Ingest, 50 synthetic sheets | 3.9 min (4.6 s a sheet); 300 sheets projected at 23.2 min | ≤ 60 min |
+  | First-pass takeoff, 50 sheets | 7.0 min of machine time | ≤ 240 min |
+  | Load: 10 bids, 20 users | 1,831 requests, 0 failed; workbench p50 0.016 s, p95 0.094 s; all 10 bids taken off in 2.3 min | p95 ≤ 2 s |
+  | Restore rehearsal | 120 MB in 0.2 min; 58 tables and 83 audit chains match | RPO ≤ 24 h, RTO ≤ 8 h |
+  | Real sheets (6 × A1) | 9.4 s a sheet | — |
+
+  - **Synthetic shadow comparison:** every drawn quantity matched. It differed only on rule-derived DN25 drops and the DN150 riser (now in the gap list).
+  - **Tests on 2026-10-01:**
+    - backend without `tests/db`: 999 passed, 8 skipped;
+    - frontend: 66 passed;
+    - ruff, mypy strict (367 files), tsc and oxlint are clean.
+  - **Not run on 2026-10-01:** the database suites, because Docker Desktop was failing on the host. They passed with parts A to F.
+- **Known gaps and follow-ups:** the gap list in `docs/reports/phase1-exit.md` (kept in `phase1-gaps.yaml`). The ones that decide the gate:
+  - **No golden set (D3):** the ≥98% count and ±5% pipe criteria cannot be measured.
+  - **Real drawings perform badly.** On the indicative 6405 sample, count accuracy is 1.2% before the legend is confirmed, and head types are confused. This needs its own step.
+  - **The shadow pilot has not run:** the −30% QTO effort criterion is unmeasured.
+  - **D2 is open:** no staging or production deployment, no provider data terms, and no model run against a real provider.
+  - **Smaller gaps:**
+    - a job on the default queue whose worker died stays `doing` for ever;
+    - there is no bid delete;
+    - two order-dependent tests;
+    - the earlier notes on restricting owner access and on revisiting partition counts, both for staging.
+- **Recommendation for the Phase 1 gate review: do not pass the gate yet. Approve a shadow pilot instead.**
+  - **What is ready:** the platform's functional scope is complete, with every Phase 1 requirement covered by tests. It meets NFR-01 and NFR-02 locally with wide margins, and its security, retention, runbooks and deployment code are ready.
+  - **Why not pass:** none of the three exit criteria can be measured yet, and the one real drawing set we have shows head-type matching is not ready for live tenders.
+  - **Proposed conditions:**
+    1. The sponsor decides D2 and accepts ADR-008. Then `terraform apply` for staging, the restore drill and the game day are re-run there, and production is deployed.
+    2. D3's golden set is collected (10 to 20 tenders) and `make exit-report` is re-run.
+    3. A head-type matching step is run against the 6405 sample and the golden set before the pilot.
+    4. The shadow pilot runs on 3 live tenders, with legends confirmed first.
+  - **Then:** re-review the gate on that evidence.

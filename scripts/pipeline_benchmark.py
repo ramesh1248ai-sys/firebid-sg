@@ -9,9 +9,12 @@ until the document is read, classified and detected (`done`), and reports:
 - the wall time, seconds per sheet, and the time 300 sheets would take at that rate;
 - where the sheets' time went, stage by stage, summed over every `parse.sheet` job (from
   their `sheet_parsed` events in the parser pool's structured logs);
-- how long the document and finish jobs took.
+- how long the document and finish jobs took;
+- when the first-pass takeoff (`qto.recompute`, queued by the finish job) was done, and the
+  time 50 sheets would take at that rate.
 
-Writes `eval/results/bench/ingest.json` (or `--out`), which `firebid-eval exit` reads.
+Writes `eval/results/bench/ingest.json` (or `--out`) and `eval/results/bench/qto.json` (or
+`--qto-out`), which `firebid-eval exit` reads.
 
 NFR-01: a 300-sheet set ingested and classified within 1 hour; first-pass QTO for 50 fire
 protection sheets within 4 hours.
@@ -27,6 +30,7 @@ import re
 import subprocess
 import sys
 import time
+import uuid
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -37,35 +41,61 @@ ROOT = Path(__file__).resolve().parents[1]
 API = "http://localhost:8000"
 KEYCLOAK = "http://localhost:8081/realms/firebid/protocol/openid-connect/token"
 TARGET_300_SHEETS_S = 3600
+TARGET_50_SHEET_QTO_S = 4 * 3600
 IN_FLIGHT = ("received", "processing")
 LASTED = re.compile(r"Job (parse\.\w+)\[\d+\]\((.*)\) ended with status: (\w+), lasted ([\d.]+) s")
 
 
-def client() -> httpx.Client:
-    token = httpx.post(
-        KEYCLOAK,
-        data={
-            "grant_type": "password",
-            "client_id": "firebid-dev-tests",
-            "username": "senior.estimator@firebid.test",
-            "password": "firebid-dev",
-        },
-    ).json()["access_token"]
-    return httpx.Client(base_url=API, headers={"Authorization": f"Bearer {token}"}, timeout=900)
+class DevLogin(httpx.Auth):
+    """A dev account's bearer token, fetched again when it expires: a benchmark outlasts one."""
+
+    def __init__(self, username: str) -> None:
+        self.username = username
+        self.token = self.fetch()
+
+    def fetch(self) -> str:
+        return str(
+            httpx.post(
+                KEYCLOAK,
+                data={
+                    "grant_type": "password",
+                    "client_id": "firebid-dev-tests",
+                    "username": self.username,
+                    "password": "firebid-dev",
+                },
+            ).json()["access_token"]
+        )
+
+    def auth_flow(self, request: httpx.Request) -> Any:
+        request.headers["Authorization"] = f"Bearer {self.token}"
+        response = yield request
+        if response.status_code == 401:
+            self.token = self.fetch()
+            request.headers["Authorization"] = f"Bearer {self.token}"
+            yield request
+
+
+def client(username: str = "senior.estimator@firebid.test", timeout: float = 900) -> httpx.Client:
+    return httpx.Client(base_url=API, auth=DevLogin(username), timeout=timeout)
 
 
 def synthetic_pdf(sheets: int) -> bytes:
-    """A multi-page set of synthetic general arrangements, each its own sheet number."""
+    """A multi-page set of fire protection layouts, each its own sheet number.
+
+    Each is the takeoff fixture's general arrangement (`synthetic_qto`), with its legend, so
+    the set is not only read but detected and taken off: a first-pass takeoff with nothing
+    in it would time nothing.
+    """
     import tempfile
 
     import pypdfium2 as pdfium
-    from firebid.evals import synthetic
+    from firebid.evals import synthetic, synthetic_qto
 
     out = pdfium.PdfDocument.new()
     with tempfile.TemporaryDirectory() as folder:
         for index in range(sheets):
             number = f"FP-L{index % 40:02d}-{200 + index}"
-            document, _ = synthetic.general_arrangement(sheet_number=number)
+            document, _ = synthetic_qto.general_arrangement(number)
             path = synthetic.write_pdf(document, Path(folder) / f"{index}.pdf", live_text=True)
             page = pdfium.PdfDocument(str(path))
             out.import_pages(page)
@@ -75,24 +105,69 @@ def synthetic_pdf(sheets: int) -> bytes:
     return buffer.getvalue()
 
 
-def pool_events(since: str) -> list[dict[str, Any]]:
-    """The parser pool's structured log events since `since`."""
-    logs = subprocess.run(  # noqa: S603 - fixed arguments, a developer's own stack
+def compose(*arguments: str) -> str:
+    return subprocess.run(  # noqa: S603 - fixed arguments, a developer's own stack
         [  # noqa: S607 - docker from PATH, as the Makefile runs it
             "docker",
             "compose",
             "-f",
             str(ROOT / "infra/docker-compose.yml"),
-            "logs",
-            "sandbox",
-            "--since",
-            since,
-            "--no-log-prefix",
+            *arguments,
         ],
         capture_output=True,
         text=True,
         check=False,
-    ).stdout.splitlines()
+    ).stdout
+
+
+def psql(query: str) -> list[list[str]]:
+    """Rows from the local database, as text (a developer's own stack)."""
+    out = compose(
+        "exec", "-T", "postgres", "psql", "-U", "firebid", "-d", "firebid", "-tAF|", "-c", query
+    )
+    return [row.split("|") for row in out.splitlines() if row]
+
+
+def bid_jobs(bid: str) -> dict[str, int]:
+    """The bid's own queued jobs, as "task status" to count (the job queue has no API)."""
+    rows = psql(
+        "select task_name || ' ' || status, count(*) from procrastinate_jobs "  # noqa: S608 - a parsed UUID
+        f"where args->>'bid_id' = '{uuid.UUID(bid)}' group by 1"
+    )
+    return {key: int(count) for key, count in rows}
+
+
+def wait_for_takeoff(bid: str, limit_s: float = TARGET_50_SHEET_QTO_S) -> bool:
+    """True once a takeoff for the bid has succeeded and none of its jobs is still queued."""
+    deadline = time.monotonic() + limit_s
+    while time.monotonic() < deadline:
+        jobs = bid_jobs(bid)
+        busy = any(key.endswith((" todo", " doing")) for key in jobs)
+        if jobs.get("qto.recompute succeeded") and not busy:
+            return True
+        time.sleep(2)
+    return False
+
+
+def confirm_legend(api: httpx.Client, bid: str) -> int:
+    """Confirm each legend row the rules typed, as the estimator does before a takeoff (the
+    pilot runbook's first step); rows the rules could not type are left, as a person would
+    have to decide them. Returns how many mappings were confirmed."""
+    lineages = {
+        row["mapping"]["lineage_id"]
+        for row in api.get(f"/bids/{bid}/symbols/legend").json()
+        if row["mapping"]
+        and row["mapping"]["state"] == "proposed"
+        and row["mapping"]["object_type"]
+    }
+    for lineage in lineages:
+        api.post(f"/bids/{bid}/symbols/mappings/{lineage}/confirm", json={}).raise_for_status()
+    return len(lineages)
+
+
+def pool_events(since: str) -> list[dict[str, Any]]:
+    """The parser pool's structured log events since `since`."""
+    logs = compose("logs", "sandbox", "--since", since, "--no-log-prefix").splitlines()
     events = []
     for line in logs:
         try:
@@ -142,6 +217,12 @@ def main() -> int:
     source.add_argument("--synthetic", type=int)
     parser.add_argument("--label", default=None)
     parser.add_argument("--out", type=Path, default=ROOT / "eval/results/bench/ingest.json")
+    parser.add_argument("--qto-out", type=Path, default=ROOT / "eval/results/bench/qto.json")
+    parser.add_argument(
+        "--ingest-only",
+        action="store_true",
+        help="stop once the set is read: for a real tender, whose legend a person confirms",
+    )
     arguments = parser.parse_args()
 
     payload = arguments.pdf.read_bytes() if arguments.pdf else synthetic_pdf(arguments.synthetic)
@@ -192,10 +273,18 @@ def main() -> int:
             last_report = time.monotonic()
         time.sleep(5)
     seconds = time.monotonic() - started
+    # The machine's time to a first-pass takeoff: reading the set, then detecting and taking
+    # off once the legend is confirmed. The person's minutes on the legend are not counted.
+    takeoff = state == "done" and not arguments.ingest_only
+    confirmed = confirm_legend(api, bid) if takeoff else 0
+    confirmed_at = time.monotonic()
+    took_off = takeoff and wait_for_takeoff(bid)
+    qto_seconds = seconds + time.monotonic() - confirmed_at
     sheet_rows = api.get(f"/bids/{bid}/sheets").json()
     sheets = len(sheet_rows)
     per_sheet = seconds / sheets if sheets else None
     projected = per_sheet * 300 if per_sheet else None
+    environment = "local docker compose: one sandbox container, 2 CPU, 4 GiB, 2 jobs at once"
     result: dict[str, Any] = {
         "label": label,
         "sheets": sheets,
@@ -207,7 +296,7 @@ def main() -> int:
         **breakdown(pool_events(since), document, {str(row["id"]) for row in sheet_rows}),
         "measured_at": dt.datetime.now(dt.UTC).isoformat(),
         "scan_retries": rescans,
-        "environment": "local docker compose: one sandbox container, 2 CPU, 4 GiB, 2 jobs at once",
+        "environment": environment,
     }
     result["summary"] = (
         f"{label}: {sheets} sheets in {seconds / 60:.1f} min "
@@ -215,9 +304,39 @@ def main() -> int:
         f"300 sheets projected at {result['projected_300_sheets_minutes']} min "
         f"({'meets' if result['meets_nfr01_ingest'] else 'MISSES'} the 60 min of NFR-01)"
     )
-    arguments.out.parent.mkdir(parents=True, exist_ok=True)
-    arguments.out.write_text(json.dumps(result, indent=1), encoding="utf-8", newline="\n")
-    print(result["summary"])
+    items = len(api.get(f"/bids/{bid}/qto/items").json()) if took_off else 0
+    projected_qto = qto_seconds / sheets * 50 if took_off and sheets else None
+    qto: dict[str, Any] = {
+        "label": label,
+        "sheets": sheets,
+        "took_off": took_off,
+        "items": items,
+        "legend_mappings_confirmed": confirmed,
+        "machine_seconds_to_takeoff": round(qto_seconds, 1),
+        "projected_50_sheets_minutes": round(projected_qto / 60, 1) if projected_qto else None,
+        # An empty takeoff times nothing: it cannot meet the target.
+        "meets_nfr01_qto": bool(items and projected_qto and projected_qto <= TARGET_50_SHEET_QTO_S),
+        "measured_at": result["measured_at"],
+        "environment": environment,
+    }
+    qto["summary"] = (
+        f"{label}: first-pass takeoff of {sheets} sheets ({items} items) "
+        f"in {qto_seconds / 60:.1f} min of machine time (legend confirmed by script); "
+        "50 sheets projected at "
+        f"{qto['projected_50_sheets_minutes']} min "
+        f"({'meets' if qto['meets_nfr01_qto'] else 'MISSES'} the 240 min of NFR-01)"
+        if took_off and items
+        else f"{label}: the takeoff found no items, so there was nothing to time"
+        if took_off
+        else f"{label}: no takeoff within the 240 min of NFR-01 (document {state})"
+    )
+    written = [(arguments.out, result)]
+    if not arguments.ingest_only:
+        written.append((arguments.qto_out, qto))
+    for path, data in written:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, indent=1), encoding="utf-8", newline="\n")
+        print(data["summary"])
     print(json.dumps({k: result[k] for k in ("sheet_stages_seconds", "jobs")}, indent=1))
     return 0
 

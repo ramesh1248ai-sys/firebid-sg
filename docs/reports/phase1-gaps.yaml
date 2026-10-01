@@ -45,6 +45,17 @@ gaps:
       variance threshold, measurement convention wording and BOQ template are all marked
       "to be confirmed".
     action: "Commercial team and senior estimator confirm them before the pilot prices a bid."
+  - gap: "Rule-derived pipe (sprinkler drops, riser main) rests on default inputs"
+    cause: >-
+      The synthetic shadow comparison matched every drawn quantity, and differed only where
+      measurement rules add what no drawing shows: 24 drops x 500 mm of DN25 (branch
+      elevation 3300, ceiling 2750) and 4 m of DN150 riser (floor to floor 4000, one level).
+      Those inputs are rule defaults marked "to be confirmed", and an estimator's takeoff may
+      or may not include such items.
+    action: >-
+      Senior estimator confirms the drop and riser rules and their inputs per project (the
+      measurement rules page); the shadow pilot's live tenders show whether estimators take
+      these off.
   - gap: "Estimator usability session not run"
     cause: "Needs two or three estimators (P1-08 guide in docs/plan/usability/)."
     action: "Run it with the pilot's estimator champions; record findings in the build log."
@@ -54,6 +65,15 @@ gaps:
   - gap: "A bid cannot be deleted in the app"
     cause: "No delete flow; a test bid was removed directly in the database."
     action: "An administrator delete with its own audit entry and retention rules."
+  - gap: "A job on the ordinary worker queue whose worker died stays running for ever"
+    cause: >-
+      system.retry_stalled_parse re-queues only the parser pool's jobs (ADR-010). Found in the
+      P1-11 benchmarks: a symbol.propose job left `doing` with no worker after a container
+      restart, 7 hours later, so its legend row never got the model's proposal.
+    action: >-
+      Extend the stall check to the default queue: re-queue the idempotent tasks (detection,
+      takeoff, the model proposals) and fail the rest with a reason a person sees; alert on
+      any job `doing` for over an hour.
   - gap: "Two order-dependent tests"
     cause: >-
       `test_migrations_leave_application_logging_working` fails when run alone with the

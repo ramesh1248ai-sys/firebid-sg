@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, func, select, table, text
 from sqlalchemy.orm import Session
 
 RPO_HOURS = 24
@@ -98,7 +98,10 @@ def _counts(url: str) -> dict[str, int]:
                 )
             ).scalars()
             return {
-                name: int(connection.execute(text(f'SELECT count(*) FROM "{name}"')).scalar_one())  # noqa: S608
+                # `table()` quotes the name as an identifier: no SQL is assembled from text.
+                name: int(
+                    connection.execute(select(func.count()).select_from(table(name))).scalar_one()
+                )
                 for name in tables
             }
     finally:
