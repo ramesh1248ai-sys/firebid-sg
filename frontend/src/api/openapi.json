@@ -94,6 +94,17 @@
         "title": "ActionOut",
         "type": "object"
       },
+      "ActivityIn": {
+        "properties": {
+          "area": {
+            "default": "review",
+            "title": "Area",
+            "type": "string"
+          }
+        },
+        "title": "ActivityIn",
+        "type": "object"
+      },
       "AddendumIn": {
         "properties": {
           "issued_on": {
@@ -537,6 +548,143 @@
         "title": "BidCreate",
         "type": "object"
       },
+      "BidKpisOut": {
+        "properties": {
+          "agent_runs": {
+            "title": "Agent Runs",
+            "type": "integer"
+          },
+          "ai_items": {
+            "title": "Ai Items",
+            "type": "integer"
+          },
+          "bid_id": {
+            "format": "uuid",
+            "title": "Bid Id",
+            "type": "string"
+          },
+          "budget_sgd": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Sgd"
+          },
+          "cost_by_model": {
+            "items": {
+              "$ref": "#/components/schemas/CostLine"
+            },
+            "title": "Cost By Model",
+            "type": "array"
+          },
+          "cost_sgd": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cost Sgd",
+            "type": "string"
+          },
+          "duplicate_groups": {
+            "title": "Duplicate Groups",
+            "type": "integer"
+          },
+          "escalation_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Rate"
+          },
+          "false_detection_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "False Detection Rate"
+          },
+          "human_id": {
+            "title": "Human Id",
+            "type": "string"
+          },
+          "minutes_on_task": {
+            "title": "Minutes On Task",
+            "type": "integer"
+          },
+          "missed_item_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missed Item Rate"
+          },
+          "success_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Rate"
+          },
+          "target_cost_sgd": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Cost Sgd"
+          },
+          "unresolved_duplicates": {
+            "title": "Unresolved Duplicates",
+            "type": "integer"
+          },
+          "verified_items": {
+            "title": "Verified Items",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "bid_id",
+          "human_id",
+          "ai_items",
+          "verified_items",
+          "false_detection_rate",
+          "missed_item_rate",
+          "duplicate_groups",
+          "unresolved_duplicates",
+          "minutes_on_task",
+          "agent_runs",
+          "escalation_rate",
+          "success_rate",
+          "cost_sgd",
+          "budget_sgd",
+          "target_cost_sgd",
+          "cost_by_model"
+        ],
+        "title": "BidKpisOut",
+        "type": "object"
+      },
       "BidOut": {
         "properties": {
           "clarification_cutoff": {
@@ -966,6 +1114,34 @@
             },
             "title": "Files",
             "type": "array"
+          },
+          "origins": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origins"
+          },
+          "paths": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paths"
           }
         },
         "required": [
@@ -1636,22 +1812,32 @@
         "title": "CompleteRequest",
         "type": "object"
       },
-      "ConfirmRequest": {
+      "ConfirmOut": {
         "properties": {
-          "comment": {
-            "anyOf": [
-              {
-                "maxLength": 2000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Comment"
+          "confirmed": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Confirmed",
+            "type": "array"
+          },
+          "skipped": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Skipped",
+            "type": "object"
           }
         },
-        "title": "ConfirmRequest",
+        "required": [
+          "confirmed",
+          "skipped"
+        ],
+        "title": "ConfirmOut",
         "type": "object"
       },
       "ConfirmationOut": {
@@ -1831,6 +2017,40 @@
         "title": "ConventionsOut",
         "type": "object"
       },
+      "CostLine": {
+        "properties": {
+          "cost_sgd": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cost Sgd",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "route": {
+            "title": "Route",
+            "type": "string"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "route",
+          "provider",
+          "model",
+          "runs",
+          "cost_sgd"
+        ],
+        "title": "CostLine",
+        "type": "object"
+      },
       "CountedOut": {
         "properties": {
           "count": {
@@ -1939,6 +2159,64 @@
           "met"
         ],
         "title": "CoverageOut",
+        "type": "object"
+      },
+      "CriterionOut": {
+        "properties": {
+          "k_factor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "K Factor"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "max_area_m2": {
+            "title": "Max Area M2",
+            "type": "number"
+          },
+          "max_spacing_mm": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Max Spacing Mm",
+            "type": "array"
+          },
+          "response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "max_area_m2",
+          "max_spacing_mm",
+          "source"
+        ],
+        "title": "CriterionOut",
         "type": "object"
       },
       "DecideGroupIn": {
@@ -2145,6 +2423,32 @@
           "value"
         ],
         "title": "DerivedByOut",
+        "type": "object"
+      },
+      "DesignOut": {
+        "properties": {
+          "rule_status": {
+            "title": "Rule Status",
+            "type": "string"
+          },
+          "rule_version": {
+            "title": "Rule Version",
+            "type": "integer"
+          },
+          "sheets": {
+            "items": {
+              "$ref": "#/components/schemas/SheetDesignOut"
+            },
+            "title": "Sheets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rule_version",
+          "rule_status",
+          "sheets"
+        ],
+        "title": "DesignOut",
         "type": "object"
       },
       "DetectionOut": {
@@ -2408,6 +2712,27 @@
             "title": "Media Type",
             "type": "string"
           },
+          "origin": {
+            "default": "tender",
+            "title": "Origin",
+            "type": "string"
+          },
+          "origin_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Reason"
+          },
+          "origin_status": {
+            "default": "confirmed",
+            "title": "Origin Status",
+            "type": "string"
+          },
           "rejected_reason": {
             "anyOf": [
               {
@@ -2422,6 +2747,17 @@
           "sha256": {
             "title": "Sha256",
             "type": "string"
+          },
+          "source_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Path"
           },
           "state": {
             "title": "State",
@@ -2868,6 +3204,68 @@
           "reason_code"
         ],
         "title": "EditIn",
+        "type": "object"
+      },
+      "EffortOut": {
+        "properties": {
+          "by_area": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Area",
+            "type": "object"
+          },
+          "hours": {
+            "title": "Hours",
+            "type": "number"
+          },
+          "minutes": {
+            "title": "Minutes",
+            "type": "integer"
+          },
+          "people": {
+            "title": "People",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "minutes",
+          "hours",
+          "by_area",
+          "people"
+        ],
+        "title": "EffortOut",
+        "type": "object"
+      },
+      "EnteredCriterion": {
+        "properties": {
+          "max_area_m2": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 50.0,
+            "title": "Max Area M2",
+            "type": "number"
+          },
+          "max_spacing_mm": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Max Spacing Mm",
+            "type": "array"
+          },
+          "title": {
+            "default": "entered criterion",
+            "maxLength": 200,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "max_area_m2",
+          "max_spacing_mm"
+        ],
+        "title": "EnteredCriterion",
         "type": "object"
       },
       "FailedDocument": {
@@ -3441,6 +3839,76 @@
           "item_ids"
         ],
         "title": "ItemsIn",
+        "type": "object"
+      },
+      "KpisOut": {
+        "properties": {
+          "agent_runs": {
+            "title": "Agent Runs",
+            "type": "integer"
+          },
+          "bids": {
+            "items": {
+              "$ref": "#/components/schemas/BidKpisOut"
+            },
+            "title": "Bids",
+            "type": "array"
+          },
+          "cost_sgd": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cost Sgd",
+            "type": "string"
+          },
+          "escalation_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escalation Rate"
+          },
+          "success_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Rate"
+          },
+          "target_cost_sgd": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Cost Sgd"
+          },
+          "targets": {
+            "additionalProperties": true,
+            "title": "Targets",
+            "type": "object"
+          }
+        },
+        "required": [
+          "bids",
+          "agent_runs",
+          "escalation_rate",
+          "success_rate",
+          "cost_sgd",
+          "target_cost_sgd",
+          "targets"
+        ],
+        "title": "KpisOut",
         "type": "object"
       },
       "LegendRowOut": {
@@ -5059,6 +5527,104 @@
         "title": "ObjectTypeOut",
         "type": "object"
       },
+      "OriginChange": {
+        "properties": {
+          "document_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 5000,
+            "minItems": 1,
+            "title": "Document Ids",
+            "type": "array"
+          },
+          "origin": {
+            "enum": [
+              "tender",
+              "working",
+              "reference"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "document_ids",
+          "origin"
+        ],
+        "title": "OriginChange",
+        "type": "object"
+      },
+      "OriginChanged": {
+        "properties": {
+          "changed": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Changed",
+            "type": "array"
+          },
+          "refused": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "title": "Refused",
+            "type": "object"
+          }
+        },
+        "required": [
+          "changed",
+          "refused"
+        ],
+        "title": "OriginChanged",
+        "type": "object"
+      },
+      "OriginProposal": {
+        "properties": {
+          "origin": {
+            "enum": [
+              "tender",
+              "working",
+              "reference",
+              "ignored"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "origin",
+          "reason"
+        ],
+        "title": "OriginProposal",
+        "type": "object"
+      },
       "ParameterIn": {
         "properties": {
           "level": {
@@ -5475,6 +6041,11 @@
           },
           "sheets": {
             "title": "Sheets",
+            "type": "integer"
+          },
+          "sheets_parsed": {
+            "default": 0,
+            "title": "Sheets Parsed",
             "type": "integer"
           },
           "total": {
@@ -6296,6 +6867,223 @@
         "title": "RuleOut",
         "type": "object"
       },
+      "ScopeRequest": {
+        "properties": {
+          "polygon": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "maxItems": 200,
+                "minItems": 3,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Polygon"
+          }
+        },
+        "title": "ScopeRequest",
+        "type": "object"
+      },
+      "SheetDesignOut": {
+        "properties": {
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "confirmed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed By"
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionOut"
+            },
+            "title": "Criteria",
+            "type": "array"
+          },
+          "criterion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CriterionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "design_intent": {
+            "title": "Design Intent",
+            "type": "boolean"
+          },
+          "drawn_heads": {
+            "title": "Drawn Heads",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "intent_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intent Quote"
+          },
+          "laid_out_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Laid Out At"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "rule_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Version"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          },
+          "sheet_id": {
+            "format": "uuid",
+            "title": "Sheet Id",
+            "type": "string"
+          },
+          "sheet_number": {
+            "title": "Sheet Number",
+            "type": "string"
+          },
+          "spaces": {
+            "items": {
+              "$ref": "#/components/schemas/SpaceOut"
+            },
+            "title": "Spaces",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "totals": {
+            "additionalProperties": true,
+            "title": "Totals",
+            "type": "object"
+          },
+          "view_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View Id"
+          }
+        },
+        "required": [
+          "id",
+          "sheet_id",
+          "sheet_number",
+          "level",
+          "view_id",
+          "state",
+          "note",
+          "design_intent",
+          "intent_quote",
+          "drawn_heads",
+          "criteria",
+          "criterion",
+          "scope",
+          "rule_version",
+          "totals",
+          "spaces",
+          "laid_out_at",
+          "confirmed_by",
+          "confirmed_at"
+        ],
+        "title": "SheetDesignOut",
+        "type": "object"
+      },
       "SheetDetail": {
         "properties": {
           "base_height_px": {
@@ -6612,6 +7400,79 @@
           "base_height_px"
         ],
         "title": "SheetOut",
+        "type": "object"
+      },
+      "SpaceOut": {
+        "properties": {
+          "area_m2": {
+            "title": "Area M2",
+            "type": "number"
+          },
+          "box": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Box",
+            "type": "array"
+          },
+          "heads": {
+            "title": "Heads",
+            "type": "integer"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "omitted_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Omitted By"
+          },
+          "pitch_mm": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Pitch Mm",
+            "type": "array"
+          }
+        },
+        "required": [
+          "index",
+          "kind",
+          "name",
+          "area_m2",
+          "heads",
+          "pitch_mm",
+          "omitted_by",
+          "note",
+          "box"
+        ],
+        "title": "SpaceOut",
         "type": "object"
       },
       "SpecAttributeOut": {
@@ -7244,6 +8105,14 @@
             "title": "Duplicates",
             "type": "array"
           },
+          "ignored": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RefusedOut"
+            },
+            "title": "Ignored",
+            "type": "array"
+          },
           "quarantined": {
             "default": [],
             "items": {
@@ -7573,21 +8442,6 @@
         "title": "WarningOut",
         "type": "object"
       },
-      "WithdrawRequest": {
-        "properties": {
-          "reason": {
-            "maxLength": 2000,
-            "minLength": 3,
-            "title": "Reason",
-            "type": "string"
-          }
-        },
-        "required": [
-          "reason"
-        ],
-        "title": "WithdrawRequest",
-        "type": "object"
-      },
       "WorkbenchSheet": {
         "properties": {
           "height_mm": {
@@ -7672,6 +8526,97 @@
           "views"
         ],
         "title": "WorkbenchSheet",
+        "type": "object"
+      },
+      "firebid__api__design__ConfirmRequest": {
+        "properties": {
+          "entered": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnteredCriterion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "sheet_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 2000,
+            "minItems": 1,
+            "title": "Sheet Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sheet_ids"
+        ],
+        "title": "ConfirmRequest",
+        "type": "object"
+      },
+      "firebid__api__design__WithdrawRequest": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "WithdrawRequest",
+        "type": "object"
+      },
+      "firebid__api__registers__ConfirmRequest": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "title": "ConfirmRequest",
+        "type": "object"
+      },
+      "firebid__api__registers__WithdrawRequest": {
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "WithdrawRequest",
         "type": "object"
       }
     },
@@ -9508,6 +10453,291 @@
         ]
       }
     },
+    "/bids/{bid_id}/design": {
+      "get": {
+        "description": "Each plan sheet's design basis and proposed layout, in sheet order.",
+        "operationId": "list_designs_bids__bid_id__design_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Designs",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/bids/{bid_id}/design/basis": {
+      "post": {
+        "description": "Queue reading every Current plan sheet's design basis.",
+        "operationId": "read_basis_bids__bid_id__design_basis_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Read Basis Bids  Bid Id  Design Basis Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Read Basis",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/bids/{bid_id}/design/confirm": {
+      "post": {
+        "description": "Confirm the criterion for these sheets and queue their layout.",
+        "operationId": "confirm_basis_bids__bid_id__design_confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/firebid__api__design__ConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Confirm Basis",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/bids/{bid_id}/design/sheets/{sheet_id}/scope": {
+      "put": {
+        "description": "The part of the plan this sheet answers for: its side of a match line.",
+        "operationId": "set_scope_bids__bid_id__design_sheets__sheet_id__scope_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScopeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Scope",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/bids/{bid_id}/design/sheets/{sheet_id}/withdraw": {
+      "post": {
+        "description": "Remove a sheet's proposed layout from the bid.",
+        "operationId": "withdraw_design_bids__bid_id__design_sheets__sheet_id__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/firebid__api__design__WithdrawRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Withdraw Design",
+        "tags": [
+          "design"
+        ]
+      }
+    },
     "/bids/{bid_id}/detections": {
       "get": {
         "operationId": "list_detections_bids__bid_id__detections_get",
@@ -9575,7 +10805,7 @@
     },
     "/bids/{bid_id}/detections/run": {
       "post": {
-        "description": "Queue detection of every sheet again, as confirming a mapping does.",
+        "description": "Queue detection of every sheet again, whether or not anything changed: a person asked.",
         "operationId": "run_detection_again_bids__bid_id__detections_run_post",
         "parameters": [
           {
@@ -9791,7 +11021,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/WithdrawRequest"
+                "$ref": "#/components/schemas/firebid__api__registers__WithdrawRequest"
               }
             }
           },
@@ -9883,7 +11113,7 @@
         ]
       },
       "post": {
-        "description": "Upload one or more files, or one archive holding a whole set.\n\nWith `addendum_id`, the files are that addendum's: every revision read from them is\nlinked to it, and its date orders them against what they replace.",
+        "description": "Upload one or more files, or one archive holding a whole set.\n\nWith `addendum_id`, the files are that addendum's: every revision read from them is\nlinked to it, and its date orders them against what they replace.\n\nFor a folder, `paths` gives each file's path in it and `origins` what the person said\neach is, one per file and in the files' order. A file with no origin given has one\nproposed from its path; anything proposed as other than a tender document is kept\nunread until a person confirms it.",
         "operationId": "upload_bids__bid_id__documents_post",
         "parameters": [
           {
@@ -9935,6 +11165,134 @@
           }
         ],
         "summary": "Upload",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/bids/{bid_id}/documents/origin": {
+      "post": {
+        "description": "Say whose documents these are. One that becomes a tender document is queued to be read.",
+        "operationId": "change_origin_bids__bid_id__documents_origin_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OriginChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OriginChanged"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Origin",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/bids/{bid_id}/documents/origins": {
+      "post": {
+        "description": "Whose document each path looks like, before anything is sent (FR-DOC-10).\n\nA proposal only: the person sending the folder confirms or changes it, and what they\nsay is what each file is stored with.",
+        "operationId": "propose_origins_bids__bid_id__documents_origins_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "maxLength": 1024,
+                  "type": "string"
+                },
+                "maxItems": 20000,
+                "title": "Body",
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OriginProposal"
+                  },
+                  "title": "Response Propose Origins Bids  Bid Id  Documents Origins Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Propose Origins",
         "tags": [
           "documents"
         ]
@@ -10314,6 +11672,55 @@
         "summary": "Confirm Type",
         "tags": [
           "registers"
+        ]
+      }
+    },
+    "/bids/{bid_id}/kpis": {
+      "get": {
+        "description": "One bid's measures and its AI cost report by route, provider and model.",
+        "operationId": "for_bid_bids__bid_id__kpis_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BidKpisOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "For Bid",
+        "tags": [
+          "kpis"
         ]
       }
     },
@@ -11784,7 +13191,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ConfirmRequest"
+                "$ref": "#/components/schemas/firebid__api__registers__ConfirmRequest"
               }
             }
           },
@@ -12296,6 +13703,58 @@
         ]
       }
     },
+    "/bids/{bid_id}/review/activity": {
+      "post": {
+        "description": "A heartbeat: the signed-in person is working on this bid's takeoff this minute.",
+        "operationId": "activity_bids__bid_id__review_activity_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivityIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Activity",
+        "tags": [
+          "review"
+        ]
+      }
+    },
     "/bids/{bid_id}/review/coverage": {
       "get": {
         "description": "Verified share of the takeoff, by items and by value (FR-REV-04).",
@@ -12399,6 +13858,55 @@
           }
         ],
         "summary": "Reject Detections",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review/effort": {
+      "get": {
+        "description": "Minutes spent on the takeoff in the workbench, for the QTO effort measure.",
+        "operationId": "time_on_task_bids__bid_id__review_effort_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EffortOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Time On Task",
         "tags": [
           "review"
         ]
@@ -12881,7 +14389,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/WithdrawRequest"
+                "$ref": "#/components/schemas/firebid__api__registers__WithdrawRequest"
               }
             }
           },
@@ -14587,6 +16095,33 @@
         "summary": "Live",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/kpis": {
+      "get": {
+        "description": "Every bid this person can see, and the AI totals across them.",
+        "operationId": "portfolio_kpis_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KpisOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Portfolio",
+        "tags": [
+          "kpis"
         ]
       }
     },

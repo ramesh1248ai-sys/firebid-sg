@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     # Jobs per worker process. Keep 1 for synchronous tasks; add processes to scale.
     worker_concurrency: int = 1
     worker_name: str = "worker"
+    # Sheets one parse job reads at once, each in its own sandboxed process (NFR-01). Each
+    # may use up to its sandbox memory limit (2 GiB), so this times 2 GiB must fit the
+    # parser pool's memory: 2 for the 2 CPU, 4 GiB pods of ADR-008.
+    parse_concurrency: int = 2
 
     organisation_name: str = "FireBid SG"
 

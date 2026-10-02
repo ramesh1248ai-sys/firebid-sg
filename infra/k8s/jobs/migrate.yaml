@@ -1,0 +1,44 @@
+# The schema migration for one release (docs/runbooks/deploy.md). Not part of the kustomization:
+# applied once per release, before the new images roll out, with IMAGE and RELEASE set:
+#
+#   sed -e "s|IMAGE|<registry>/firebid-backend:<tag>|" -e "s|RELEASE|<tag>|" \
+#     infra/k8s/jobs/migrate.yaml | kubectl apply -f -
+#
+# Runs as the database owner (secret `firebid-migrate`, from infra/k8s/sync-secrets.sh),
+# straight to Cloud SQL's private IP, not through PgBouncer: a migration holds its session.
+# Migrations are written to be safe while the previous release still serves (expand first,
+# contract in a later release), so the old pods keep working until the rollout replaces them.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: firebid-migrate-RELEASE
+  namespace: firebid
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels: {app: firebid-migrate, tier: database}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: firebid-worker
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: migrate
+          image: IMAGE
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef: {name: firebid}
+            - secretRef: {name: firebid-migrate}
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+      volumes: [{name: tmp, emptyDir: {}}]

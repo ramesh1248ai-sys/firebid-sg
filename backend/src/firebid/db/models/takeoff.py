@@ -272,6 +272,7 @@ class PipeRun(Timestamped, Base):
         ),
         CheckConstraint("size_status <> 'conflict' OR nominal_dn IS NULL", name="conflict_unsized"),
         CheckConstraint(LOCATED_OR_SAYS_WHY, name="located_or_says_why"),
+        CheckConstraint("origin IN ('detected', 'designed')", name="origin_known"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -302,3 +303,8 @@ class PipeRun(Timestamped, Base):
     detector_version: Mapped[str] = mapped_column(String(16), nullable=False)
     gaps: Mapped[dict[str, str]] = mapped_column(JSONB, default=dict, nullable=False)
     state: Mapped[str] = mapped_column(String(16), nullable=False, default="proposed")
+    # P1-12: read from the drawing, or proposed by the design rules for a design-intent
+    # sheet. Detecting a sheet again replaces only what it detected.
+    origin: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="detected", server_default="detected"
+    )

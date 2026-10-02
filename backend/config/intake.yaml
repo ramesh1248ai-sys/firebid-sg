@@ -1,0 +1,39 @@
+# Folder intake: whose document is it? (FR-DOC-10)
+#
+# A tender folder on an estimator's drive mixes what the client issued with the company's own
+# marked-up drawings and earlier responses. Read together, a marked-up copy can become the
+# "Current" revision of the client's drawing, and a response workbook can be read as a client
+# BOQ. Each uploaded file is therefore given an origin, proposed here from its path and
+# confirmed by a person:
+#
+#   tender     client-issued: read, registered and taken off
+#   working    the company's own working documents: kept, not read as tender input
+#   reference  earlier responses, reviews and registers: kept, not read
+#   ignored    not a document at all: reported, never stored
+#
+# The first rule that matches wins, tried on the whole path (folders and file name), without
+# regard to case. Anything no rule matches is a tender document.
+#
+# TO BE CONFIRMED: `working` names the company's own marks. SJME is SJ M&E's; add yours.
+
+rules:
+  - origin: ignored
+    reason: an office lock or system file, not a document
+    patterns:
+      - '(^|/)~\$'
+      - '(^|/)Thumbs\.db$'
+      - '(^|/)\.DS_Store$'
+      - '(^|/)desktop\.ini$'
+      - '\.(tmp|bak|lnk)$'
+  - origin: working
+    reason: carries the company's own mark, so it is our working document
+    patterns:
+      - '(^|[/_\-\s])SJME([_\-\s.]|$)'
+      - '(^|/)(MARK[\s_-]?UPS?|WORKING|OUR[\s_-]DRAWINGS?)(/|$)'
+  - origin: reference
+    reason: a response, review or register the company prepared
+    patterns:
+      - 'RFP[\s_-]*RESPONSE'
+      - 'TENDER[\s_-]*REVIEW'
+      - 'RFI[\s_-]*(REGISTER|LOG)'
+      - '(^|/)(RESPONSE|SUBMISSION|REFERENCE)S?(/|$)'

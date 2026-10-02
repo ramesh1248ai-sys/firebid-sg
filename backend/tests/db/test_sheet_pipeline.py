@@ -12,11 +12,10 @@ pickled, which is exactly where a change breaks them.
 from __future__ import annotations
 
 import io
-from typing import Any, cast
+from typing import Any
 
 import pytest
 from PIL import Image
-from procrastinate import JobContext
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -25,11 +24,11 @@ from firebid.db.models.documents import Document, Sheet, SheetRevision
 from firebid.evals.synthetic import dxf_bytes, general_arrangement, write_pdf, write_raster
 from firebid.imaging.pyramid import Pyramid, thumbnail_key, tile_key
 from firebid.ingest.scanning import AlwaysCleanScanner
-from firebid.jobs.tasks import parse_document
 from firebid.services.ingestion import Ingestor
 from firebid.services.sheets import process_document, render_tile
 from firebid.storage import object_store
 from firebid.storage.object_store import MemoryObjectStore
+from tests.db.jobs import run_parse
 
 pytestmark = pytest.mark.req("FR-DOC-01")
 
@@ -364,9 +363,7 @@ class TestTheParseJob:
         document = ingest(session, bid, store, "FP-L05-201.pdf", vector_pdf)
         session.commit()
 
-        result = parse_document(
-            cast(JobContext, None), document_id=str(document.id), user_id=str(user.id)
-        )
+        result = run_parse(session, document.id, user.id)
 
         assert result["sheets"] == 1, "a job with no acting user sees no documents at all"
         session.expire_all()
@@ -387,7 +384,7 @@ class TestTheParseJob:
         document = ingest(session, bid, store, "FP-L05-201.pdf", vector_pdf)
         session.commit()
 
-        parse_document(cast(JobContext, None), document_id=str(document.id), user_id=str(user.id))
+        run_parse(session, document.id, user.id)
 
         session.expire_all()
         sheet = session.execute(select(Sheet).where(Sheet.document_id == document.id)).scalar_one()

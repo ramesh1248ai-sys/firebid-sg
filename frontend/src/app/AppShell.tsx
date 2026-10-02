@@ -8,6 +8,7 @@ const navItems = [
   { to: "/", label: "Bids", end: true },
   { to: "/library", label: "Library", end: false },
   { to: "/rates", label: "Rates", end: false },
+  { to: "/kpis", label: "KPIs", end: false },
   { to: "/audit", label: "History", end: false },
 ];
 

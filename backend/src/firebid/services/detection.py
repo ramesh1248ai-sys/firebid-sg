@@ -14,15 +14,17 @@ saying why the sheet cannot give them; the database refuses anything else (migra
 
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import structlog
 import yaml
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from firebid.db.models.documents import Sheet, SheetRevision
@@ -64,6 +66,86 @@ class SheetOutcome:
     objects: int
     runs: int
     skipped_unconfirmed: int
+    # Nothing this sheet's detection depends on has changed since it was last detected, so
+    # what is stored was left as it is (the stage-caching convention).
+    unchanged: bool = False
+
+
+@dataclass
+class Lookups:
+    """What every sheet of a run needs, read once for the run and not once a sheet or once
+    a symbol: a real tender has 150,000 symbol instances, and a query for each was most of
+    detecting it."""
+
+    organisation_id: uuid.UUID
+    kinds: dict[str, Any]
+    entries: dict[uuid.UUID, LegendEntry]
+    profile: Profile | None
+    maps: Any
+    snap_mm: float
+    mappings: dict[uuid.UUID, Any] = field(default_factory=dict)
+    digests: dict[tuple[str, uuid.UUID], str] = field(default_factory=dict)
+
+    def mapping(self, session: Session, lineage: uuid.UUID) -> Any:
+        """A lineage's current mapping, asked for once however many symbols share it."""
+        if lineage not in self.mappings:
+            self.mappings[lineage] = symbol_service.current(session, lineage)
+        return self.mappings[lineage]
+
+    def resolved(
+        self, session: Session, entry_id: uuid.UUID | None, lineage: uuid.UUID | None
+    ) -> list[str | None]:
+        """What a symbol's legend row and mapping resolve to, as digests worked out once a
+        row and once a lineage: thousands of symbols share a few dozen of each."""
+        entry = self.entries.get(entry_id) if entry_id else None
+        lineage = lineage or (entry.mapping_lineage_id if entry else None)
+        out: list[str | None] = [None, None]
+        if entry is not None:
+            key = ("entry", entry.id)
+            if key not in self.digests:
+                self.digests[key] = _digest([entry.signature, entry.description])
+            out[0] = self.digests[key]
+        if lineage is not None:
+            key = ("lineage", lineage)
+            if key not in self.digests:
+                mapping = self.mapping(session, lineage)
+                kind = self.kinds.get(mapping.object_type_key or "") if mapping else None
+                self.digests[key] = _digest(
+                    [
+                        str(mapping.id),
+                        mapping.state,
+                        mapping.object_type_key,
+                        mapping.attributes,
+                        mapping.signature,
+                        mapping.description,
+                        [kind.key, kind.category, kind.measure] if kind else None,
+                    ]
+                    if mapping
+                    else None
+                )
+            out[1] = self.digests[key]
+        return out
+
+
+def _digest(value: Any) -> str:
+    return hashlib.sha256(json.dumps(value, sort_keys=True, default=str).encode()).hexdigest()
+
+
+def lookups_for(session: Session, bid_id: uuid.UUID) -> Lookups:
+    consultant = symbol_service.consultant_of(session, bid_id)
+    return Lookups(
+        organisation_id=consultant.organisation_id,
+        kinds={k.key: k for k in object_library.current(session, consultant.organisation_id)},
+        entries={
+            entry.id: entry
+            for entry in session.execute(
+                select(LegendEntry).where(LegendEntry.bid_id == bid_id)
+            ).scalars()
+        },
+        profile=profile_for(session, consultant.organisation_id, consultant.key),
+        maps=calibration_maps.load(),
+        snap_mm=float(settings().get("snap_mm", 0.6)),
+    )
 
 
 def profile_for(
@@ -105,33 +187,46 @@ def _views(session: Session, sheet_id: uuid.UUID) -> list[ViewInfo]:
     ]
 
 
+def _instances(session: Session, sheet_id: uuid.UUID) -> list[SymbolInstance]:
+    return list(
+        session.execute(
+            select(SymbolInstance)
+            .where(SymbolInstance.sheet_id == sheet_id)
+            .order_by(SymbolInstance.id)
+        ).scalars()
+    )
+
+
+def _mapping_of(session: Session, instance: SymbolInstance, lookups: Lookups) -> tuple[Any, Any]:
+    """An instance's legend row and the current mapping of its lineage."""
+    entry = lookups.entries.get(instance.legend_entry_id) if instance.legend_entry_id else None
+    lineage = instance.mapping_lineage_id or (entry.mapping_lineage_id if entry else None)
+    return entry, (lookups.mapping(session, lineage) if lineage else None)
+
+
 def _placed(
     session: Session,
     table: Any,
-    sheet_id: uuid.UUID,
-    organisation_id: uuid.UUID,
+    instances: list[SymbolInstance],
+    lookups: Lookups,
     excluded: list[tuple[float, float, float, float]],
 ) -> tuple[list[Placed], int]:
     """The sheet's installed symbols whose mapping a person has confirmed."""
-    kinds = {kind.key: kind for kind in object_library.current(session, organisation_id)}
-    entries = {
-        entry.id: entry
-        for entry in session.execute(
-            select(LegendEntry).where(LegendEntry.bid_id == _bid_of(session, sheet_id))
-        ).scalars()
-    }
-    clusters = {
-        (round(c.centre[0], 2), round(c.centre[1], 2)): c
-        for c in symbols.clusters(table, excluding=excluded)
-    }
+    kinds = lookups.kinds
+    # Each instance records the geometry rows it is made of. Only instances read before
+    # that (migration 0028) need the sheet's symbols found again to know them.
+    clusters = (
+        {
+            (round(c.centre[0], 2), round(c.centre[1], 2)): c.rows
+            for c in symbols.clusters(table, excluding=excluded)
+        }
+        if any(instance.geometry_rows is None for instance in instances)
+        else {}
+    )
     placed: list[Placed] = []
     skipped = 0
-    for instance in session.execute(
-        select(SymbolInstance).where(SymbolInstance.sheet_id == sheet_id)
-    ).scalars():
-        entry = entries.get(instance.legend_entry_id) if instance.legend_entry_id else None
-        lineage = instance.mapping_lineage_id or (entry.mapping_lineage_id if entry else None)
-        mapping = symbol_service.current(session, lineage) if lineage else None
+    for instance in instances:
+        entry, mapping = _mapping_of(session, instance, lookups)
         kind = kinds.get(mapping.object_type_key or "") if mapping else None
         if mapping is None or mapping.state != "confirmed" or kind is None:
             skipped += 1
@@ -141,7 +236,11 @@ def _placed(
             # to detect, and its strokes stay free for pipe tracing, in case what was named
             # was a stub of pipe the symbol reader grouped as a shape (found in P1-08).
             continue
-        cluster = clusters.get((round(instance.cx, 2), round(instance.cy, 2)))
+        rows = (
+            tuple(instance.geometry_rows)
+            if instance.geometry_rows is not None
+            else clusters.get((round(instance.cx, 2), round(instance.cy, 2)), ())
+        )
         signature = Signature.from_json(instance.signature)
         reference = Signature.from_json(entry.signature if entry else mapping.signature)
         rotation = instance.rotation
@@ -161,12 +260,72 @@ def _placed(
                 match_distance=float(instance.match_distance or 0.0),
                 tolerance=reference.tolerance,
                 attributes=dict(mapping.attributes or {}),
-                rows=cluster.rows if cluster else (),
+                rows=rows,
                 description=entry.description if entry else mapping.description,
                 instance_id=instance.id,
             )
         )
     return placed, skipped
+
+
+def fingerprint(
+    session: Session,
+    record: SheetGeometry,
+    legend_boxes: list[tuple[float, float, float, float]],
+    views: list[ViewInfo],
+    lookups: Lookups,
+) -> str:
+    """Everything a sheet's detection is made from, as one digest.
+
+    The same digest means the same detections, so the sheet need not be detected again:
+    confirming one symbol re-detects the sheets that draw it, and leaves the rest alone.
+    It covers the sheet's geometry (by its content hash and the extractor's version), its
+    legend rows and views, every symbol instance with the row, mapping and object type it
+    resolves to, the consultant's pipe profile, the settings, the calibration maps, and the
+    detector's version. Anything added to what `detect_sheet` reads must be added here.
+
+    A symbol instance is written once, when its sheet is read (reading the sheet again
+    replaces its instances, with new IDs); only which row and mapping it is matched to
+    changes afterwards. So an instance is its ID and its match here, read as four plain
+    columns: on a real tender that is 150,000 instances, and reading each one's shape to
+    find nothing changed took half a minute.
+    """
+    matches = session.execute(
+        select(
+            SymbolInstance.id,
+            SymbolInstance.legend_entry_id,
+            SymbolInstance.mapping_lineage_id,
+            SymbolInstance.match_distance,
+        )
+        .where(SymbolInstance.sheet_id == record.sheet_id)
+        .order_by(SymbolInstance.id)
+    ).all()
+    body = {
+        "detector": DETECTOR_VERSION,
+        "geometry": [record.content_hash, record.extractor_version, record.page],
+        # Detections are stamped with the sheet's revision, and takeoff reads them by it.
+        "revision": _current_revision(session, record.sheet_id),
+        "legend_boxes": legend_boxes,
+        "views": [
+            [
+                str(v.id),
+                v.extent,
+                v.denominator,
+                asdict(v.grid) if v.grid else None,
+                v.level,
+                v.kind,
+            ]
+            for v in views
+        ],
+        "symbols": [
+            [identity, distance, *lookups.resolved(session, entry_id, lineage)]
+            for identity, entry_id, lineage, distance in matches
+        ],
+        "profile": [lookups.profile.layers, lookups.profile.colours] if lookups.profile else None,
+        "settings": settings(),
+        "calibration": lookups.maps.version,
+    }
+    return _digest(body)
 
 
 def _bid_of(session: Session, sheet_id: uuid.UUID) -> uuid.UUID:
@@ -189,40 +348,55 @@ def _gaps(item: Detected | DetectedRun, has_grid: bool) -> dict[str, str]:
     return gaps
 
 
-def detect_sheet(session: Session, store: ObjectStore, record: SheetGeometry) -> SheetOutcome:
-    """Detect one sheet again from its stored geometry and confirmed mappings."""
+def detect_sheet(
+    session: Session,
+    store: ObjectStore,
+    record: SheetGeometry,
+    lookups: Lookups | None = None,
+    *,
+    force: bool = False,
+) -> SheetOutcome:
+    """Detect one sheet again from its stored geometry and confirmed mappings.
+
+    A sheet whose inputs are what they were when it was last detected is left as it is,
+    unless `force` says to detect it anyway (a person asked for it).
+    """
     from firebid.drawings.geometry import texts
     from firebid.drawings.views import _title_block_region as title_block
 
     sheet = session.get(Sheet, record.sheet_id)
     if sheet is None:
         raise ValueError("no such sheet")
-    consultant = symbol_service.consultant_of(session, sheet.bid_id)
-    table = geometry_service.load(store, record)
-    page = (record.page[0], record.page[1], record.page[2], record.page[3])
+    lookups = lookups or lookups_for(session, sheet.bid_id)
     excluded = [
         (e.row_box[0], e.row_box[1], e.row_box[2], e.row_box[3])
-        for e in session.execute(
-            select(LegendEntry).where(LegendEntry.sheet_id == sheet.id)
-        ).scalars()
+        for e in lookups.entries.values()
+        if e.sheet_id == sheet.id
     ]
+    views = _views(session, sheet.id)
+    digest = fingerprint(session, record, list(excluded), views, lookups)
+    if not force and record.detection_fingerprint == digest:
+        return _unchanged(session, sheet)
+
+    instances = _instances(session, sheet.id)
+    table = geometry_service.load(store, record)
+    page = (record.page[0], record.page[1], record.page[2], record.page[3])
     region = title_block(texts(table), page)
     if region is not None:
         excluded.append((region.x0, region.y0, region.x1, region.y1))
-    views = _views(session, sheet.id)
-    placed, skipped = _placed(session, table, sheet.id, consultant.organisation_id, excluded)
+    placed, skipped = _placed(session, table, instances, lookups, excluded)
     found = detect(
         table,
         placed,
         views,
         excluded=excluded,
-        profile=profile_for(session, consultant.organisation_id, consultant.key),
-        snap_mm=float(settings().get("snap_mm", 0.6)),
+        profile=lookups.profile,
+        snap_mm=lookups.snap_mm,
     )
-    maps = calibration_maps.load()
-    calibration_maps.calibrate(found, maps)
-    _replace(session, sheet, found, maps.version)
+    calibration_maps.calibrate(found, lookups.maps)
+    _replace(session, sheet, found, lookups.maps.version)
     queue_vision(session, store, sheet, table, placed, excluded)
+    record.detection_fingerprint = digest
     log.info(
         "sheet_detected",
         sheet_id=str(sheet.id),
@@ -232,6 +406,26 @@ def detect_sheet(session: Session, store: ObjectStore, record: SheetGeometry) ->
         pipe=found.pipe_key,
     )
     return SheetOutcome(sheet.id, len(found.objects), len(found.runs), skipped)
+
+
+def _unchanged(session: Session, sheet: Sheet) -> SheetOutcome:
+    """What is stored for a sheet that was not detected again."""
+    objects = session.execute(
+        select(func.count())
+        .select_from(DetectedObject)
+        .where(
+            DetectedObject.bid_id == sheet.bid_id,
+            DetectedObject.sheet_id == sheet.id,
+            DetectedObject.extraction_method.not_in(("vision", "designed")),
+        )
+    ).scalar_one()
+    runs = session.execute(
+        select(func.count())
+        .select_from(PipeRun)
+        .where(PipeRun.sheet_id == sheet.id, PipeRun.origin == "detected")
+    ).scalar_one()
+    log.debug("sheet_detection_unchanged", sheet_id=str(sheet.id))
+    return SheetOutcome(sheet.id, int(objects), int(runs), 0, unchanged=True)
 
 
 def _current_revision(session: Session, sheet_id: uuid.UUID) -> uuid.UUID | None:
@@ -254,6 +448,7 @@ def _rejected_places(session: Session, sheet: Sheet) -> tuple[set[Any], list[lis
             DetectedObject.bid_id == sheet.bid_id,
             DetectedObject.sheet_id == sheet.id,
             DetectedObject.state == "rejected",
+            DetectedObject.extraction_method != "designed",
         )
     ).scalars():
         position = dict(row.geometry_ref or {})
@@ -261,7 +456,11 @@ def _rejected_places(session: Session, sheet: Sheet) -> tuple[set[Any], list[lis
     runs = [
         [list(p) for p in row.points]
         for row in session.execute(
-            select(PipeRun).where(PipeRun.sheet_id == sheet.id, PipeRun.state == "rejected")
+            select(PipeRun).where(
+                PipeRun.sheet_id == sheet.id,
+                PipeRun.state == "rejected",
+                PipeRun.origin == "detected",
+            )
         ).scalars()
     ]
     return objects, runs
@@ -288,14 +487,17 @@ def _replace(session: Session, sheet: Sheet, found: SheetDetections, version: st
     # symbol or run is rejected too.
     rejected_objects, rejected_runs = _rejected_places(session, sheet)
     # Vision detections are kept: they are the model's work, and asking again is not free.
+    # So is a proposed design (P1-12): it is replaced when it is laid out again, not here.
     session.execute(
         delete(DetectedObject).where(
             DetectedObject.bid_id == sheet.bid_id,
             DetectedObject.sheet_id == sheet.id,
-            DetectedObject.extraction_method != "vision",
+            DetectedObject.extraction_method.not_in(("vision", "designed")),
         )
     )
-    session.execute(delete(PipeRun).where(PipeRun.sheet_id == sheet.id))
+    session.execute(
+        delete(PipeRun).where(PipeRun.sheet_id == sheet.id, PipeRun.origin == "detected")
+    )
     revision = _current_revision(session, sheet.id)
     for item in found.objects:
         has_grid = item.view is not None and item.view.grid is not None
@@ -375,17 +577,28 @@ def _replace(session: Session, sheet: Sheet, found: SheetDetections, version: st
     session.flush()
 
 
-def detect_all(session: Session, store: ObjectStore, sheets: list[Sheet]) -> list[SheetOutcome]:
+def detect_all(
+    session: Session, store: ObjectStore, sheets: list[Sheet], *, force: bool = False
+) -> list[SheetOutcome]:
+    if not sheets:
+        return []
     records = session.execute(
         select(SheetGeometry).where(SheetGeometry.sheet_id.in_([sheet.id for sheet in sheets]))
     ).scalars()
-    return [detect_sheet(session, store, record) for record in records]
+    lookups = lookups_for(session, sheets[0].bid_id)
+    return [detect_sheet(session, store, record, lookups, force=force) for record in records]
 
 
-def detect_bid(session: Session, store: ObjectStore, bid_id: uuid.UUID) -> list[SheetOutcome]:
-    """Every sheet of a bid again: after a mapping is confirmed, changed or rejected."""
+def detect_bid(
+    session: Session, store: ObjectStore, bid_id: uuid.UUID, *, force: bool = False
+) -> list[SheetOutcome]:
+    """Every sheet of a bid again: after a mapping is confirmed, changed or rejected.
+
+    Only the sheets the change reaches are detected; the others are found unchanged.
+    """
     records = session.execute(select(SheetGeometry).where(SheetGeometry.bid_id == bid_id)).scalars()
-    return [detect_sheet(session, store, record) for record in records]
+    lookups = lookups_for(session, bid_id)
+    return [detect_sheet(session, store, record, lookups, force=force) for record in records]
 
 
 # --- Vision assist (optional, off by default: config/detection.yaml) -----------------------
@@ -422,7 +635,7 @@ def queue_vision(
     entries = list(
         session.execute(select(LegendEntry).where(LegendEntry.bid_id == sheet.bid_id)).scalars()
     )
-    references = [Signature.from_json(entry.signature) for entry in entries]
+    references = symbols.Candidates([Signature.from_json(entry.signature) for entry in entries])
     taken = {(round(p.cx, 2), round(p.cy, 2)) for p in placed}
     queued = 0
     for cluster in symbols.clusters(table, excluding=excluded):

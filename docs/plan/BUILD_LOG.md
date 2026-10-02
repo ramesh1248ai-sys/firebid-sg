@@ -1188,3 +1188,213 @@ Entry template:
   - **No rate list from the business yet:** the synthetic one stands in.
   - **Quotations** (FR-CST-02/03), GST (P2-04) and cost build-up (FR-CST-06) are Phase 2.
   - **Order-dependent test:** `test_migrations_leave_application_logging_working` fails when run alone with `test_migrations.py` (on `main` too). It passes in the full suite.
+
+## P1-11 · Phase 1 Hardening, Pilot Support and Exit Evaluation · 2026-10-01
+
+- **Summary:** Phase 1 is measured against its exit criteria and made ready for a gate review. The work came in parts A to G:
+  - **A, exit evaluation and shadow mode:** `firebid-eval exit` writes `docs/reports/phase1-exit.md`. It covers:
+    - every KPI and exit criterion against its target, sliced by input class and consultant;
+    - an indicative real-drawing sample, reported apart from the golden set;
+    - live bid measures (`--live`);
+    - pending evidence, named as pending;
+    - the gap list.
+
+    `firebid-eval shadow` sets an estimator's manual takeoff beside the verified AI-assisted one, line by line, with effort. The workbench records minutes on task (a heartbeat).
+  - **B, KPI dashboard:** a KPIs page and AI cost per bid, broken down by route, provider and model.
+  - **C and C2, performance:**
+    - profiling on real sheets removed two O(n²) hot spots (segment lengths, pairwise symbol matching);
+    - the parse job became a staged, per-sheet pipeline ([ADR-010](../adr/ADR-010-staged-per-sheet-parse-pipeline.md)): one job per sheet, each committing its own work, with stalled parse jobs re-queued;
+    - real A1 sheets went from 72 s a sheet to 9.4 s.
+  - **D, security, privacy and retention:**
+    - scans in CI: pip-audit, npm audit, Bandit, Semgrep, gitleaks and Trivy;
+    - the ASVS 5.0 Level 2 checklist, a secrets audit and a pen-test scope;
+    - nightly retention by configurable policy, and a nightly audit hash chain check.
+  - **E, deployment:**
+    - Terraform for staging and production on Google Cloud, asia-southeast1 ([ADR-008](../adr/ADR-008-hosting-on-google-cloud.md), proposed): validated, not applied;
+    - `firebid-ops deploy-guard`, `restore-drill`, `game-day` and `provider-terms`.
+  - **F, runbooks and user material:** deploy, restore, incident response and key rotation runbooks; an estimator quick start; a one-day training outline.
+  - **G, load and takeoff benchmarks:**
+    - `make load-test` runs 10 bids and 20 users;
+    - `make pipeline-benchmark` now also times the first-pass takeoff;
+    - the exit report marks evidence that misses its own target, and adds it to the gap list with an action.
+- **Key modules / files:**
+  - Evaluation: `evals/p1_exit.py`, `evals/shadow.py`, `docs/reports/phase1-exit.md`, `docs/reports/phase1-gaps.yaml` (hand-kept gaps).
+  - Benchmarks: `scripts/pipeline_benchmark.py`, `scripts/load_test.py`; results under `eval/results/bench/`, `eval/results/ops/` and `eval/results/shadow/`.
+  - Operations: `ops/` (deploy guard, restore drill, game day, provider terms); `infra/terraform/`, `infra/k8s/`.
+  - Documents: `docs/security/`, `docs/runbooks/`, `docs/user/`; ADR-008 and ADR-010.
+- **How to run and demo:**
+  1. `make up`.
+  2. `make pipeline-benchmark SHEETS=50`, then `make load-test`.
+  3. `firebid-eval shadow --synthetic --bid <shadow_bid>`, with the bid the load test prints.
+  4. `make exit-report INDICATIVE=<folder holding the real sample>`. The 6405 sample stays outside the repo.
+  5. Open **KPIs** in the app.
+- **Requirement IDs covered:** `make req-coverage PHASE=P1` reports **62 of 62 covered**. That is every Phase 1 FR, and NFR-01 to 15. New in this step:
+  - NFR-01, NFR-02: `test_parse_pipeline.py`, `test_geometry_budget.py`, `test_p1_exit.py::test_a_load_test_that_misses_its_target_is_reported_with_an_action`;
+  - NFR-03, NFR-04: `test_ops.py::TestDeploymentGuard`, the game-day test, and the restore drill tests;
+  - NFR-07, NFR-09: `test_retention.py`;
+  - NFR-14, NFR-15: `test_effort_and_kpis.py`, `Kpis.test.tsx`.
+- **"Done when":**
+
+  | Criterion | Status |
+  |---|---|
+  | `phase1-exit.md` with every KPI and exit criterion against target, and a gap list | **Done.** The accuracy criteria are *pending*: there is no golden set (D3). |
+  | `req-coverage PHASE=P1` covers every Phase 1 FR and the NFRs | **Done:** 62 of 62. |
+  | Benchmark and load results against NFR-01 and NFR-02, with misses in the gap list | **Done, all met** (below). |
+  | Restore drill in staging; deployment guard blocks near a seeded deadline | **Partly done.** The guard refused a window with 45 bids due within 48 h. The restore drill ran as a **local rehearsal** only: there is no staging (D2). |
+  | Security scans in CI with no open high or critical findings; ASVS complete | **Done** (part D). |
+  | Shadow comparison report | **Done**, for a synthetic tender: the pilot has not started. |
+  | Production in Singapore; provider data terms recorded | **Not done.** The Terraform is written but not applied. The provider data terms are recorded as **unconfirmed** for all three providers (D2). |
+  | Provider-outage game day in staging | **Local rehearsal only:** 9 routes fell back, 1 escalated cleanly, 0 failed. |
+  | Build log entry with a gate recommendation | This entry. |
+
+- **Deviations and decisions:**
+  - ADR-008 (hosting on Google Cloud) is **proposed**, not accepted. Applying it waits on D2.
+  - ADR-010 replaces the single parse job.
+  - The QTO benchmark confirms the legend by script, as an estimator's first step. The person's minutes on the legend are not counted as machine time.
+  - The load test reads NFR-02's "without degradation" as two things: no failed request, and the 2 s workbench p95 kept while ten bids are parsed at once.
+- **Manual checks and results** (local Docker Compose stack: one API, one worker, and one sandbox with 2 CPU and 2 jobs at once):
+
+  | Measure | Result | Target |
+  |---|---|---|
+  | Ingest, 50 synthetic sheets | 3.9 min (4.6 s a sheet); 300 sheets projected at 23.2 min | ≤ 60 min |
+  | First-pass takeoff, 50 sheets | 7.0 min of machine time | ≤ 240 min |
+  | Load: 10 bids, 20 users | 1,831 requests, 0 failed; workbench p50 0.016 s, p95 0.094 s; all 10 bids taken off in 2.3 min | p95 ≤ 2 s |
+  | Restore rehearsal | 120 MB in 0.2 min; 58 tables and 83 audit chains match | RPO ≤ 24 h, RTO ≤ 8 h |
+  | Real sheets (6 × A1) | 9.4 s a sheet | — |
+
+  - **Synthetic shadow comparison:** every drawn quantity matched. It differed only on rule-derived DN25 drops and the DN150 riser (now in the gap list).
+  - **Tests on 2026-10-01:**
+    - backend without `tests/db`: 999 passed, 8 skipped;
+    - frontend: 66 passed;
+    - ruff, mypy strict (367 files), tsc and oxlint are clean.
+  - **Not run on 2026-10-01:** the database suites, because Docker Desktop was failing on the host. They passed with parts A to F.
+- **Known gaps and follow-ups:** the gap list in `docs/reports/phase1-exit.md` (kept in `phase1-gaps.yaml`). The ones that decide the gate:
+  - **No golden set (D3):** the ≥98% count and ±5% pipe criteria cannot be measured.
+  - **Real drawings perform badly.** On the indicative 6405 sample, count accuracy is 1.2% before the legend is confirmed, and head types are confused. This needs its own step.
+  - **The shadow pilot has not run:** the −30% QTO effort criterion is unmeasured.
+  - **D2 is open:** no staging or production deployment, no provider data terms, and no model run against a real provider.
+  - **Smaller gaps:**
+    - a job on the default queue whose worker died stays `doing` for ever;
+    - there is no bid delete;
+    - two order-dependent tests;
+    - the earlier notes on restricting owner access and on revisiting partition counts, both for staging.
+- **Recommendation for the Phase 1 gate review: do not pass the gate yet. Approve a shadow pilot instead.**
+  - **What is ready:** the platform's functional scope is complete, with every Phase 1 requirement covered by tests. It meets NFR-01 and NFR-02 locally with wide margins, and its security, retention, runbooks and deployment code are ready.
+  - **Why not pass:** none of the three exit criteria can be measured yet, and the one real drawing set we have shows head-type matching is not ready for live tenders.
+  - **Proposed conditions:**
+    1. The sponsor decides D2 and accepts ADR-008. Then `terraform apply` for staging, the restore drill and the game day are re-run there, and production is deployed.
+    2. D3's golden set is collected (10 to 20 tenders) and `make exit-report` is re-run.
+    3. A head-type matching step is run against the 6405 sample and the golden set before the pilot.
+    4. The shadow pilot runs on 3 live tenders, with legends confirmed first.
+  - **Then:** re-review the gate on that evidence.
+
+## P1-12 · Design Development and Folder Intake · 2026-10-01
+
+- **Summary:** two things a real design-intent tender (MOH, TTSH) needed and the platform could not do. This step was added after the exit report; its requirements (§6.17) are proposed, not approved (ADR-011).
+  - **Design development.** A tender drawn as design intent shows mains and leaves the heads and range pipes to the contractor, so the takeoff counted no heads. The platform now reads each plan sheet's design criteria from its notes, waits for a senior estimator or design manager to confirm one, then proposes heads and range pipes by a versioned rule. The proposal is stored as detections and pipe runs marked `designed`, reviewed on the workbench, and taken off as rule-derived items of their own, marked "proposed layout, not drawn".
+  - **Folder intake.** A whole folder is sent from the Documents page, in batches, with each file's path kept. Every document has an origin (tender, working, reference), proposed from its path and set by the person sending it. Only a confirmed tender document is read.
+- **Key modules / files:**
+  - `backend/src/firebid/design/` (pure): `rooms.py` (spaces from the base plan's linework: walls, footprint, rooms, zones, crossed shafts, structural grid removal), `layout.py` (head grid, omissions, head rules, range pipes and feeds), `basis.py` (criteria and design intent from notes; the rule record).
+  - `backend/config/design_rules.yaml` (seed of the `sprinkler_layout` rule) and `backend/config/intake.yaml` (origin rules). Every value is "to be confirmed".
+  - `backend/src/firebid/services/design.py`, `api/design.py`, jobs `design.basis` and `design.layout`; `db/models/design.py` (`sheet_design`); migration `0030`.
+  - `backend/src/firebid/qto/generate.py`: `_designed_heads`, `_designed_pipe`; `qto/model.py`: `DESIGNED`, `Run.origin`.
+  - `backend/src/firebid/ingest/origin.py`; `services/ingestion.py` (`source_path`, origin, `set_origin`); `api/documents.py` (`paths`, `origins`, `POST .../origins`, `POST .../origin`); migration `0031`.
+  - `frontend/src/pages/DesignPage.tsx`, `FolderUpload.tsx`; `frontend/nginx.conf` (upload body limit).
+  - `backend/src/firebid/evals/synthetic_design.py`: a synthetic design-intent sheet.
+  - New permission `design_basis.confirm` (senior estimator, design manager).
+- **How to run and demo:**
+  1. `make up`; the `migrate` service applies migrations `0030` and `0031`.
+  2. Open a bid, **Tender documents**, **Or send a whole folder**. Pick the tender folder, check each folder's origin, send.
+  3. Confirm the symbols and verify the plan views' scales as usual.
+  4. Open **Design development**, **Read the design basis**, select the sheets, pick the criterion, **Confirm and propose a layout** (as `senior.estimator@firebid.test`).
+  5. Open the **Workbench**: the proposed heads and pipes are in the review queue. The QTO items end "[proposed layout, not drawn]".
+- **Requirement IDs covered:** `make req-coverage PHASE=P1` reports **68 of 68**. New: FR-DSN-01 to 04 (`tests/design/`, `tests/qto/test_designed.py`, `tests/db/test_design.py`, `Design.test.tsx`), FR-DOC-09 and 10 (`tests/ingest/test_origin.py`, `tests/db/test_folder_intake.py`, `FolderUpload.test.tsx`).
+- **"Done when":**
+
+  | Criterion | Status |
+  |---|---|
+  | A synthetic sheet goes from DXF to a proposed layout | **Done** (`tests/design/test_design_sheet.py`). |
+  | No layout before a person confirms; named and audited; role refused | **Written, not run:** these are database tests (below). The Design page's side is tested. |
+  | What was drawn is counted exactly as before; proposed items carry the rule | **Done** (`tests/qto/test_designed.py`). |
+  | A marked-up copy is not read, in a folder or inside an archive | **Written, not run** (database tests). The origin rules and the page are tested. |
+  | A folder's files keep their paths; every file accounted for | **Written, not run** (database tests). The page's batching and report are tested. |
+  | MOH L10 head count against the estimators' | **Done** (below). |
+  | `req-coverage PHASE=P1` covers the new IDs | **Done:** 68 of 68. |
+- **Deviations and decisions:**
+  - **ADR-011** (proposed): design development is a deterministic estimating aid, never a design; document origin at intake. It adds requirements that the approved specification does not have, so it needs the sponsor.
+  - **The step was built without the plan-and-approve pause** its prompt asks for: the product owner asked for both features to be implemented directly. The prompt was written afterwards, to match what was built.
+  - **Folder upload goes through the API in batches, not presigned URLs.** The existing presigned route cannot work from a browser: `presigned_url` signs a *download* of the key, and against the object store's internal host name (`seaweedfs:8333`). It is left as it was; fixing it needs a public endpoint, a PUT signature and CORS, and a stack to test on.
+  - **RAR archives are refused with a reason**, not opened: a decoder would have to be added to the sandbox image.
+  - **Proposed range pipe is a `pipe_run` with `origin = 'designed'`** and class `branch`; the QTO item's classification is `range`.
+  - The requirement count asserted in `tests/test_req_coverage.py` went from 104 to 112.
+- **Manual checks and results:**
+  - **MOH sheet A03-10-01 (10th storey, sheet 1), run through the pure modules from its extracted geometry** (the stack was down):
+
+    | Measure | Platform | SJ M&E's own layout |
+    |---|---|---|
+    | Criterion read from the notes | 4 m × 3 m, 12 m² a head, K 5.6 (80) | the same |
+    | Floor found | 3,220 m² in 153 spaces; 3 omitted (2 stairs, 1 shaft) | – |
+    | Heads on the sheet | **517** | **496** drawn (346 in the sheet's own scope) |
+    | Range pipe and feeds | 983 m | 480 m in scope, about 690 m pro rata |
+    | Time | 8 s to find spaces, 1 s to lay out | – |
+
+    The head count is 4% over. The pipe is about 40% over: each row is fed separately, in a straight line to the nearest drawn pipe, where a designer would run a range across several rows.
+  - Earlier in the step the count was 733: areas outside the building were being read as floor, and every room was set out on the open-floor grid. Both are fixed and tested.
+  - **Tests on 2026-10-01:** backend without `tests/db`: 1,064 passed, 8 skipped. Frontend: 71 passed. ruff, mypy strict (388 files), tsc and oxlint are clean. Migrations form one chain to `0031`.
+  - **Not run:** every database test, including the 23 new ones in `tests/db/test_design.py` and `tests/db/test_folder_intake.py`, the two new migrations against PostgreSQL, and `frontend/nginx.conf`. Docker Desktop's engine returned HTTP 500 all day and would not restart cleanly.
+- **Known gaps and follow-ups:**
+  - **Done on 2026-10-02** (see the next entry): the database tests ran and passed after one fix to a test.
+  - **Match lines (FR-DSN-06).** Each sheet is laid out whole. On L10 sheet 1, about 150 of the 496 heads belong to the next sheet. Until scope is drawn per sheet, the shared area is counted on both unless duplicate detection catches it. `PUT .../design/sheets/{id}/scope` stores a scope polygon; there is no screen to draw one.
+  - **One real sheet.** The space finding and the rule defaults were tuned on a single MOH sheet. They need the other 147, and another consultant's drawings, before the figures are trusted.
+  - **The design rules are unconfirmed defaults**, taken from SJ M&E's response as it read SS CP 52. A senior estimator must confirm the grid, the omissions and the range-pipe table.
+  - **Range pipe is over-estimated** (above). No tees or elbows are derived on proposed pipe.
+  - **The workbench does not colour proposed marks differently** from detected ones; the item's description says so.
+  - **No export of the layout** (FR-DSN-05).
+  - **A document already read as tender input cannot be re-marked** as working or reference; the API refuses and says to supersede its revisions instead.
+  - **The company's working drawings are kept but not used.** Comparing a proposal with the team's own marked-up layout would be a good accuracy measure.
+
+## Performance · Backend, measured on a real 121-sheet tender (after P1-12) · 2026-10-02
+
+- **Summary:** the stack was brought back up, the 121-sheet tender (82 MB PDF, 153,043 symbol instances) was run through it twice, and the time was followed to its causes. Detection and takeoff are much faster where nothing changed; two defects that only show at this size were found and fixed.
+  - **Detection only does what changed.** Each sheet stores a fingerprint of everything its detection is made from (`sheet_geometry.detection_fingerprint`, migration `0032`). Confirming one symbol detects the sheets that draw it; the others keep their rows, and so their links to verified items. A person can still have every sheet detected (`POST .../detections/run`).
+  - **Detection asks once a run, not once a symbol:** legend rows, object types, the pipe profile and the calibration maps are read once (`Lookups`), and each mapping once however many symbols share it.
+  - **Repeated triggers are one job.** A mapping decision queues `detection.run` once while one is waiting, and takeoff likewise (`enqueue_once`).
+  - **Symbol clustering in arrays.** `drawings.symbols._touching` was a Python loop and 74% of the symbol-shapes stage; it is done in arrays now, and the clustering is found once a sheet and shared by legend reading and symbol reading.
+  - **Duplicate finding by neighbours.** `qto.dedup.find` compared every pair of a level's detections and of its runs; it looks each up among its neighbours.
+  - **A proposal no longer matches the bid again.** `symbol.propose` ended by matching every instance of the bid again: 153,043 instances, 61 times. A proposal changes one row's mapping, so the instances matched to that row are updated in one statement (`link_instances`). Naming an unlisted symbol matches again only what no legend row claimed.
+  - **A page file per sheet.** A PDF is cut once into one PDF a sheet (`services/pages.py`); a sheet's job and a close-up tile's render fetch only that, and fall back to the whole document where there is none.
+  - **Heartbeat beside the jobs.** It was a job on the worker's only slot, so any job longer than three minutes turned `/health` red. It is a thread of the worker process now (`jobs/heartbeat.py`).
+- **Defects found by the measurement, and fixed:**
+  - **Riser items shared keys.** A riser's item was keyed by level, sheet and grid reference. On a sheet with no grid every riser on the sheet had one key, so each recompute created the items anew and superseded almost none: 34,320 riser rows with 44 keys after five recomputes, 55,120 live items in all. Each riser has its own key now, by where it is on the sheet, and by its order there when two are drawn at one point. Keys that were already their own are unchanged. A recompute retires extra live items stored under one key, keeping the one a person decided, else the newest: an affected bid is put right by its next recompute.
+  - **`enqueue_once` aborted the caller's transaction when it refused a duplicate.** The savepoint it relied on was not in force, so whatever the caller had done was rolled back at commit, silently. Only `parse.finish` used it and the refusal was never tested. The savepoint is taken on the driver's connection now, and the refusal is tested.
+  - **The evidence check asked the database once an item** and rewrote every record at every recompute. It reads the project and the verifiers once, and writes a record only when it changed.
+- **Key modules / files:** `services/detection.py` (`Lookups`, `fingerprint`), `services/pages.py`, `jobs/heartbeat.py`, `jobs/enqueue.py`, `drawings/symbols.py` (`_touching`, `candidates`), `qto/dedup.py`, `qto/generate.py` (`_risers`), `services/qto.py` (`recompute`, `completeness`), `services/symbols.py` (`link_instances`, `match_instances`), migration `0032`.
+- **Measured** (local stack: one sandbox container, 2 CPU, two sheets at a time; other test runs were going at times, so single figures may be off by tens of per cent):
+
+  | Operation | Before | After |
+  |---|---|---|
+  | Detect the whole bid | 225 to 274 s | 157.5 s |
+  | Detect again, nothing changed | as a full run | 4.2 s |
+  | Takeoff recompute, nothing changed | 116.7 s, 56,738 statements | 10.0 s, 21 statements |
+  | `symbol.propose`, 61 jobs | 721 s | 5 s |
+  | Symbol shapes, 121 sheets | 1,067 s | 683 s |
+  | Symbol shapes, the heaviest sheet | 10.8 s | 3.1 s |
+  | `/health` during a long job | 503 | 200 |
+
+  - **Parsing 121 sheets took 26 min 56 s**, which projects 300 sheets at about 78 minutes: over NFR-01's 60, on this small pool. A second run took 11 min 35 s, but its tiles and geometry came from the cache, so it is not a like-for-like figure.
+  - **Where a sheet's time goes** (first run, summed over 121 sheets): symbol shapes 34%, tiles 24%, geometry 20%, title block reading 11%, views 6%, recording symbols 3%, fetching 1%, waiting for the bid lock 0%.
+  - The recompute figure "before" includes the riser defect: 55,120 live items where there should have been 6,888.
+  - The tender's 6,885 "risers" come from a legend row the benchmark script confirmed without a person: a stress case, not a typical bid.
+- **Tests:** the reference implementations of the clustering and of the all-pairs duplicate search are kept in the tests, and the new code must give the same result on generated cases (`tests/drawings/test_touching.py`, `tests/qto/test_dedup_pairs.py`). A cut page must give the geometry, text and pixels it gave in the document (`tests/drawings/test_pages.py`). Database tests cover the fingerprint, the forced run, one read per mapping, one job for many decisions, the refusal path of `enqueue_once`, the heartbeat, and a recompute that writes nothing when nothing changed.
+- **Deviations and decisions:**
+  - **The heartbeat now says the worker is alive, not that jobs are moving.** Whether jobs move is read from the queue depths it logs each beat, as the monitoring alert already does.
+  - **Recompute is not scoped to changed levels.** Schematic duplicate groups span levels, and an unchanged recompute is 10 s. It waits for a bid that shows the need.
+  - **Docker on the host:** Docker Desktop would not start because its data disk (`docker_data.vhdx`) was attached to Windows as a raw disk. Detaching it (elevated) fixed it. The Dev Container was recreated for the repository's present folder; its `postCreateCommand` fails on git's "unsafe repository" check until `safe.directory` is set, which `postStartCommand` does only afterwards.
+- **Known gaps and follow-ups:**
+  - `parse.finish` is one serial job of 189 to 237 s: it matches every instance again and detects every sheet. With the fingerprint, detection can become a job a sheet.
+  - Symbol signatures are what is left of the symbol-shapes stage; title block reading and views have a few very slow sheets (about 30 s). None of the three is profiled.
+  - More sandbox processes: sheets do not wait on each other, so throughput should follow the CPUs.
+  - Tiles and geometry were not measured on a cold cache after the page-per-sheet change.
+  - Two riser detections at one point, 214 times on this tender: probably one riser read twice.
+  - `scripts/pipeline_benchmark.py` stops on a dropped connection and writes no result; both runs were totalled from the logs.
+  - The existing presigned upload route still cannot work from a browser (see P1-12).

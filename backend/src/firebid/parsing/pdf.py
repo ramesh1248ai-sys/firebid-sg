@@ -172,6 +172,35 @@ def inspect_pdf(payload: bytes) -> list[dict[str, Any]]:
         document.close()
 
 
+def split_pages(payload: bytes, indexes: list[int]) -> dict[int, bytes]:
+    """Each asked-for page as a PDF of its own. Runs in the sandbox.
+
+    A page is copied whole, with the fonts and images it uses, so it reads and renders as
+    it does in the document it came from.
+    """
+    import io
+
+    import pypdfium2 as pdfium
+
+    document = _open(payload)
+    try:
+        pages: dict[int, bytes] = {}
+        for index in indexes:
+            if not 0 <= index < len(document):
+                raise PdfUnreadable(f"this PDF has no page {index + 1}")
+            single = pdfium.PdfDocument.new()
+            try:
+                single.import_pages(document, [index])
+                buffer = io.BytesIO()
+                single.save(buffer)
+                pages[index] = buffer.getvalue()
+            finally:
+                single.close()
+        return pages
+    finally:
+        document.close()
+
+
 def render_page(payload: bytes, index: int, width_px: int, height_px: int) -> dict[str, Any]:
     """Render one page to raw RGB pixels at the size asked for.
 

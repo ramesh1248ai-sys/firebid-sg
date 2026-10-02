@@ -7,6 +7,9 @@
   platform proposed, what a person made of it, why, and which detector and calibration
   produced the proposal. Derived labels only, never document text or images (requirements
   §11.4).
+* `activity_minute`: a minute in which a person was working in the workbench on a bid
+  (P1-11): time on task for the QTO effort KPI. Minutes, not keystrokes; kept only as long
+  as the retention policy says.
 """
 
 from __future__ import annotations
@@ -14,7 +17,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text, Uuid
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -74,3 +77,25 @@ class CorrectionEvent(UuidPk, BidScoped, Timestamped, Base):
     data_policy: Mapped[str] = mapped_column(
         String(40), nullable=False, default="derived-labels-only"
     )
+
+
+ACTIVITY_AREAS = ("review", "manual", "duplicates", "symbols")
+
+
+class ActivityMinute(UuidPk, BidScoped, Base):
+    """One minute a person spent working on a bid's takeoff in the workbench."""
+
+    __tablename__ = "activity_minute"
+    __table_args__ = (
+        UniqueConstraint("bid_id", "user_id", "minute", "area", name="uq_activity_minute"),
+        CheckConstraint(f"area IN {ACTIVITY_AREAS}", name="area_known"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        ForeignKey("app_user.id", ondelete="CASCADE"),
+        nullable=False,
+        info=personal("time on task, for the QTO effort measure"),
+    )
+    minute: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    area: Mapped[str] = mapped_column(String(16), nullable=False, default="review")

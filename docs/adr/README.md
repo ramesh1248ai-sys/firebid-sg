@@ -13,5 +13,8 @@ A record stays **Proposed** until the Tech Lead (and, where marked, the Executiv
 | [ADR-005](ADR-005-drawing-viewer.md) | Drawing viewer | Proposed |
 | [ADR-006](ADR-006-background-jobs.md) | Background jobs | Proposed |
 | [ADR-007](ADR-007-agent-execution-and-orchestration.md) | Agent execution and orchestration | Proposed |
+| [ADR-008](ADR-008-hosting-on-google-cloud.md) | Hosting on Google Cloud in Singapore | Proposed (needs decision D2) |
+| [ADR-010](ADR-010-staged-per-sheet-parse-pipeline.md) | A staged, per-sheet parse pipeline | Proposed |
+| [ADR-011](ADR-011-design-development-as-an-estimating-aid.md) | Design development as an estimating aid, and document origin at intake | Proposed (adds requirements: needs the sponsor) |
 
-Planned: ADR-008 hosting (step P1-11), ADR-009 Phase 4 orchestration engine (step P3-03).
+Planned: ADR-009 Phase 4 orchestration engine (step P3-03).

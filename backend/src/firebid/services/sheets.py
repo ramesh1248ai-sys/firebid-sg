@@ -39,6 +39,7 @@ from firebid.imaging.pyramid import (
     content_hash,
 )
 from firebid.sandbox.runner import SandboxFailure, run_sandboxed
+from firebid.services.pages import page_index, store_pages
 from firebid.storage.object_store import ObjectExists, ObjectStore
 
 log = structlog.get_logger("firebid.sheets")
@@ -69,11 +70,16 @@ def existing_sheet(session: Session, document_id: uuid.UUID, index: int) -> Shee
     ).scalar_one_or_none()
 
 
-def process_document(session: Session, store: ObjectStore, document: Document) -> ProcessOutcome:
+def process_document(
+    session: Session, store: ObjectStore, document: Document, *, staged: bool = False
+) -> ProcessOutcome:
     """Take one stored document to `done`, or to `rejected` with a reason.
 
     Only a document that has been scanned clean is processed: this is the point the
     store-scan-parse order (guardrail 9) is enforced for the parsing half.
+
+    `staged` (the parse pipeline, ADR-010) only registers the sheets: each sheet's own job
+    renders it (`render_sheet`), and the document stays `processing` until they are done.
     """
     outcome = ProcessOutcome()
 
@@ -102,10 +108,16 @@ def process_document(session: Session, store: ObjectStore, document: Document) -
         return outcome
 
     for page in pages:
-        sheet, written = _make_sheet(session, store, document, payload, page)
+        sheet, written = _make_sheet(session, store, document, payload, page, render=not staged)
         outcome.sheets.append(sheet)
         outcome.tiles_written += written
 
+    if staged:
+        # Each sheet is read in its own job: give each its own page to fetch.
+        store_pages(store, document, payload, len(pages))
+        session.flush()
+        log.info("document_sheets_registered", document_id=str(document.id), sheets=len(pages))
+        return outcome
     document.state = "done"
     document.rejected_reason = None
     session.flush()
@@ -138,6 +150,8 @@ def _make_sheet(
     document: Document,
     payload: bytes,
     page: dict[str, Any],
+    *,
+    render: bool = True,
 ) -> tuple[Sheet, int]:
     index = int(page["index"])
     width_mm = float(page["width_mm"])
@@ -171,8 +185,18 @@ def _make_sheet(
     ).model_dump(mode="json")
     session.flush()
 
+    if not render:
+        return sheet, 0
     written = _render_low_levels(store, document, payload, sheet, pyramid, sheet_hash)
     return sheet, written
+
+
+def render_sheet(store: ObjectStore, document: Document, payload: bytes, sheet: Sheet) -> int:
+    """The levels the viewer needs first, for one registered sheet (its own parse job)."""
+    if not sheet.content_hash or not sheet.base_width_px or not sheet.base_height_px:
+        raise ValueError("a sheet is rendered after it is registered")
+    pyramid = Pyramid(width_px=sheet.base_width_px, height_px=sheet.base_height_px)
+    return _render_low_levels(store, document, payload, sheet, pyramid, sheet.content_hash)
 
 
 def _render_low_levels(
@@ -202,7 +226,7 @@ def _render_low_levels(
         _render_and_cut,
         document.kind,
         payload,
-        sheet.index_in_document,
+        page_index(sheet, payload),
         render_width,
         render_height,
         pyramid.width_px,
@@ -290,7 +314,7 @@ def render_tile(
             _render_level_tiles,
             document_kind,
             document_payload,
-            sheet.index_in_document,
+            page_index(sheet, document_payload),
             sheet.base_width_px,
             sheet.base_height_px,
             level,

@@ -253,6 +253,7 @@ def clusters(
     within: tuple[float, float, float, float] | None = None,
     excluding: list[tuple[float, float, float, float]] | None = None,
     signed: bool = True,
+    found: list[Cluster] | None = None,
 ) -> list[Cluster]:
     """Every candidate symbol on the sheet, each with its signature.
 
@@ -261,7 +262,31 @@ def clusters(
     `within` keeps only clusters centred in that box; `excluding` drops those centred in any
     of these (a legend is not a place where objects are installed). `signed=False` leaves the
     signatures off, which are nearly all the cost, for a caller that needs only where the
-    shapes are.
+    shapes are. `found` is the sheet's `candidates`, when the caller already has them: a
+    sheet's legends and its installed symbols are read from the same shapes.
+    """
+    if found is None:
+        found = candidates(table)
+    kept = []
+    for cluster in found:
+        cx, cy = cluster.centre
+        if within is not None and not _inside(cx, cy, within):
+            continue
+        if excluding and any(_inside(cx, cy, box) for box in excluding):
+            continue
+        if not signed:
+            kept.append(cluster)
+            continue
+        signature = signature_of(table, cluster)
+        if signature is not None:
+            kept.append(_with(cluster, signature))
+    return kept
+
+
+def candidates(table: pa.Table) -> list[Cluster]:
+    """Where every candidate symbol on the sheet is, unsigned and unfiltered.
+
+    Depends only on the sheet's geometry, so it is found once and shared.
     """
     columns = table.select(
         [
@@ -321,21 +346,7 @@ def clusters(
         box = _box_of(columns, group)
         if _symbol_sized(box):
             found.append(Cluster(rows=tuple(group), box=box))
-
-    kept = []
-    for cluster in found:
-        cx, cy = cluster.centre
-        if within is not None and not _inside(cx, cy, within):
-            continue
-        if excluding and any(_inside(cx, cy, box) for box in excluding):
-            continue
-        if not signed:
-            kept.append(cluster)
-            continue
-        signature = signature_of(table, cluster)
-        if signature is not None:
-            kept.append(_with(cluster, signature))
-    return kept
+    return found
 
 
 def _with(cluster: Cluster, signature: Signature) -> Cluster:
@@ -370,37 +381,89 @@ def _symbol_sized(box: tuple[float, float, float, float]) -> bool:
     return SYMBOL_MIN_MM <= diagonal <= SYMBOL_MAX_MM * math.sqrt(2)
 
 
+# Candidate pairs examined at a time: bounds memory on a sheet dense with small strokes.
+PAIR_CHUNK = 2_000_000
+
+
 def _touching(columns: dict[str, list[Any]], rows: list[int]) -> list[list[int]]:
-    """Groups of primitives whose boxes touch, by union-find over a sort-and-sweep.
+    """Groups of primitives whose boxes touch (within `TOUCH_MM`), each in the rows' order.
 
     Only primitives drawn alike (same layer and colour) join: a symbol is drawn in one pen,
     so the pipe running into a valve's body stays pipe rather than becoming part of it.
+
+    In arrays, because a busy plan has tens of thousands of small strokes and this is most
+    of reading its symbols (P1-12 benchmark: a third of a sheet's time, as a Python loop).
+    Within each pen the boxes are sorted by their left edge; a box can only touch those
+    whose left edge is no further right than its own right edge, which a binary search
+    finds; the pairs that also meet in y are then joined into groups.
     """
-    parent = {row: row for row in rows}
+    count = len(rows)
+    if count == 0:
+        return []
+    index = np.asarray(rows, dtype=np.int64)
+    minx, miny, maxx, maxy = (
+        np.asarray([columns[name][row] for row in rows], dtype=np.float64)
+        for name in ("minx", "miny", "maxx", "maxy")
+    )
+    pens: dict[tuple[Any, Any], int] = {}
+    pen = np.fromiter(
+        (
+            pens.setdefault((columns["layer"][row], columns["color"][row]), len(pens))
+            for row in rows
+        ),
+        dtype=np.int64,
+        count=count,
+    )
+    # By pen, then by left edge: a pen's boxes are one run, in the order the sweep needs.
+    order = np.lexsort((minx, pen))
+    pen_s, minx_s, maxx_s = pen[order], minx[order], maxx[order]
+    miny_s, maxy_s = miny[order], maxy[order]
+    starts = np.flatnonzero(np.r_[True, pen_s[1:] != pen_s[:-1]])
+    ends = np.r_[starts[1:], count]
+    # For each box, the boxes after it in its pen whose left edge its right edge reaches.
+    reach = np.empty(count, dtype=np.int64)
+    for start, end in zip(starts.tolist(), ends.tolist(), strict=True):
+        reach[start:end] = start + np.searchsorted(
+            minx_s[start:end], maxx_s[start:end] + TOUCH_MM, side="right"
+        )
+    first = np.arange(count, dtype=np.int64) + 1
+    width = np.maximum(reach - first, 0)
 
-    def root(row: int) -> int:
-        while parent[row] != row:
-            parent[row] = parent[parent[row]]
-            row = parent[row]
-        return row
+    label = np.arange(count, dtype=np.int64)
+    edges_a: list[np.ndarray] = []
+    edges_b: list[np.ndarray] = []
+    total = np.cumsum(width)
+    low = 0
+    while low < count:
+        base = int(total[low - 1]) if low else 0
+        high = int(np.searchsorted(total, base + PAIR_CHUNK, side="right"))
+        high = max(high, low + 1)
+        widths = width[low:high]
+        a = np.repeat(np.arange(low, high, dtype=np.int64), widths)
+        offsets = np.arange(a.size, dtype=np.int64) - np.repeat(np.cumsum(widths) - widths, widths)
+        b = np.repeat(first[low:high], widths) + offsets
+        meet = (miny_s[a] <= maxy_s[b] + TOUCH_MM) & (maxy_s[a] >= miny_s[b] - TOUCH_MM)
+        edges_a.append(a[meet])
+        edges_b.append(b[meet])
+        low = high
+    a, b = np.concatenate(edges_a), np.concatenate(edges_b)
+    # Connected groups: every box takes the lowest label it can reach, until none changes.
+    while a.size:
+        lowest = np.minimum(label[a], label[b])
+        updated = label.copy()
+        np.minimum.at(updated, a, lowest)
+        np.minimum.at(updated, b, lowest)
+        updated = updated[updated]
+        if np.array_equal(updated, label):
+            break
+        label = updated
 
-    ordered = sorted(rows, key=lambda row: columns["minx"][row])
-    active: list[int] = []
-    for row in ordered:
-        left = columns["minx"][row] - TOUCH_MM
-        active = [other for other in active if columns["maxx"][other] >= left]
-        for other in active:
-            if (
-                columns["layer"][other] == columns["layer"][row]
-                and columns["color"][other] == columns["color"][row]
-                and columns["miny"][other] <= columns["maxy"][row] + TOUCH_MM
-                and columns["maxy"][other] >= columns["miny"][row] - TOUCH_MM
-            ):
-                parent[root(other)] = root(row)
-        active.append(row)
+    # Back in the rows' own order: groups by their first row, members as the rows came.
+    of_row = np.empty(count, dtype=np.int64)
+    of_row[order] = label
     groups: dict[int, list[int]] = {}
-    for row in rows:
-        groups.setdefault(root(row), []).append(row)
+    for row, group in zip(index.tolist(), of_row.tolist(), strict=True):
+        groups.setdefault(group, []).append(row)
     return list(groups.values())
 
 
@@ -414,37 +477,107 @@ class Match:
     how: str  # block_hash | block | shape
 
 
-def best_match(signature: Signature, candidates: list[Signature]) -> Match | None:
+WIDTH = (len(D2_BINS) - 1) + (len(RADIAL_BINS) - 1) + (len(TURN_BINS) - 1)
+_PART_STARTS = np.array([0, len(D2_BINS) - 1, len(D2_BINS) + len(RADIAL_BINS) - 2])
+
+
+class Candidates:
+    """Signatures to match against, their descriptors stacked once.
+
+    A sheet has thousands of instances to match against the same legend rows or mappings:
+    comparing one against all of them as arrays, not pair by pair, is what keeps symbol
+    reading to seconds a sheet (P1-11). Grows by `append`, for grouping unknown symbols.
+    """
+
+    def __init__(self, signatures: list[Signature] | tuple[Signature, ...] = ()) -> None:
+        self.signatures: list[Signature] = []
+        self._rows = np.zeros((max(len(signatures), 16), WIDTH))
+        self._tolerances = np.zeros(self._rows.shape[0])
+        self._hashes: dict[str, int] = {}
+        # Candidates with no descriptor never match by shape; ones of another width (an
+        # older signature version) are compared one by one, and are always far.
+        self._odd: list[int] = []
+        for signature in signatures:
+            self.append(signature)
+
+    def __len__(self) -> int:
+        return len(self.signatures)
+
+    def __getitem__(self, index: int) -> Signature:
+        return self.signatures[index]
+
+    def append(self, signature: Signature) -> None:
+        index = len(self.signatures)
+        self.signatures.append(signature)
+        if signature.block_hash and signature.block_hash not in self._hashes:
+            self._hashes[signature.block_hash] = index
+        if index == self._rows.shape[0]:
+            self._rows = np.vstack([self._rows, np.zeros_like(self._rows)])
+            self._tolerances = np.concatenate([self._tolerances, np.zeros_like(self._tolerances)])
+        self._tolerances[index] = signature.tolerance
+        if len(signature.descriptor) == WIDTH:
+            self._rows[index] = signature.descriptor
+        else:
+            self._rows[index] = np.nan
+            if signature.descriptor:
+                self._odd.append(index)
+
+    def by_hash(self, block_hash: str) -> int | None:
+        return self._hashes.get(block_hash)
+
+    def gaps(self, signature: Signature) -> tuple[np.ndarray, np.ndarray]:
+        """Each candidate's `distance` from `signature` (NaN: no descriptor), and the
+        tolerance each pair is held to."""
+        count = len(self.signatures)
+        tolerances = np.minimum(self._tolerances[:count], signature.tolerance)
+        rows = self._rows[:count]
+        if len(signature.descriptor) == WIDTH:
+            halves = 0.5 * np.abs(rows - np.asarray(signature.descriptor))
+            found = np.add.reduceat(halves, _PART_STARTS, axis=1).mean(axis=1)
+        else:
+            found = np.where(np.isnan(rows[:, 0]), np.nan, 1.0)
+        for index in self._odd:
+            found[index] = distance(signature.descriptor, self.signatures[index].descriptor)
+        return found, tolerances
+
+
+def _as_candidates(candidates: Candidates | list[Signature]) -> Candidates:
+    return candidates if isinstance(candidates, Candidates) else Candidates(candidates)
+
+
+def best_match(signature: Signature, candidates: Candidates | list[Signature]) -> Match | None:
     """The candidate this signature is, if any: same block geometry first, then same shape.
 
     A block name alone is not enough: consultants reuse names. A name with a different hash
-    falls through to the shape comparison like any PDF symbol.
+    falls through to the shape comparison like any PDF symbol. Pass `Candidates` when
+    matching many signatures against the same list.
     """
+    stacked = _as_candidates(candidates)
+    if len(stacked) == 0:
+        return None
     if signature.block_hash:
-        for index, candidate in enumerate(candidates):
-            if candidate.block_hash == signature.block_hash:
-                return Match(index, 0.0, "block_hash")
-    best: Match | None = None
-    for index, candidate in enumerate(candidates):
-        if not candidate.descriptor:
-            continue
-        gap = distance(signature.descriptor, candidate.descriptor)
-        if gap <= min(signature.tolerance, candidate.tolerance) and (
-            best is None or gap < best.distance
-        ):
-            best = Match(index, gap, "shape")
-    return best
+        index = stacked.by_hash(signature.block_hash)
+        if index is not None:
+            return Match(index, 0.0, "block_hash")
+    gaps, tolerances = stacked.gaps(signature)
+    within = np.flatnonzero(gaps <= tolerances)
+    if within.size == 0:
+        return None
+    index = int(within[np.argmin(gaps[within])])
+    return Match(index, float(gaps[index]), "shape")
 
 
-def near_match(signature: Signature, candidates: list[Signature], factor: float) -> Match | None:
+def near_match(
+    signature: Signature, candidates: Candidates | list[Signature], factor: float
+) -> Match | None:
     """The closest candidate a shape is *nearly* like: outside its tolerance, within
     `factor` times it. What vision assist may be asked about; never a match by itself."""
-    best: Match | None = None
-    for index, candidate in enumerate(candidates):
-        if not candidate.descriptor:
-            continue
-        tolerance = min(signature.tolerance, candidate.tolerance)
-        gap = distance(signature.descriptor, candidate.descriptor)
-        if tolerance < gap <= factor * tolerance and (best is None or gap < best.distance):
-            best = Match(index, gap, "near")
-    return best
+    stacked = _as_candidates(candidates)
+    if len(stacked) == 0:
+        return None
+    gaps, tolerances = stacked.gaps(signature)
+    near = np.flatnonzero((gaps > tolerances) & (gaps <= factor * tolerances))
+    if near.size == 0:
+        return None
+    index = int(near[np.argmin(gaps[near])])
+    return Match(index, float(gaps[index]), "near")

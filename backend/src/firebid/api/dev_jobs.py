@@ -53,20 +53,18 @@ def queue_example_job(body: ExampleJobRequest) -> JobQueued:
 @router.get("", response_model=list[JobRecord])
 def job_history(limit: int = 20) -> list[JobRecord]:
     with session_scope() as session:
-        rows = session.execute(
-            text(_HISTORY_SQL + " ORDER BY j.id DESC LIMIT :limit"), {"limit": min(limit, 100)}
-        ).mappings()
+        # Constant SQL with a bound parameter, in a router mounted only in dev and test.
+        query = text(_HISTORY_SQL + " ORDER BY j.id DESC LIMIT :limit")  # nosemgrep
+        rows = session.execute(query, {"limit": min(limit, 100)}).mappings()
         return [JobRecord.model_validate(dict(row)) for row in rows]
 
 
 @router.get("/{job_id}", response_model=JobRecord)
 def job_detail(job_id: int) -> JobRecord:
     with session_scope() as session:
-        row = (
-            session.execute(text(_HISTORY_SQL + " WHERE j.id = :job_id"), {"job_id": job_id})
-            .mappings()
-            .one_or_none()
-        )
+        # Constant SQL with a bound parameter, in a router mounted only in dev and test.
+        query = text(_HISTORY_SQL + " WHERE j.id = :job_id")  # nosemgrep
+        row = session.execute(query, {"job_id": job_id}).mappings().one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="job not found")
     return JobRecord.model_validate(dict(row))

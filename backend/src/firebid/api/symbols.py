@@ -273,11 +273,21 @@ def confirm_mapping(
 
 
 def _detect_again(session: DbSession, context: CurrentBid, principal: Principal) -> None:
-    """What a symbol is decides whether it is detected: detect the bid's sheets again."""
-    from firebid.jobs.enqueue import enqueue
+    """What a symbol is decides whether it is detected: detect the bid's sheets again.
+
+    One waiting job serves every decision made before it starts: a person confirming a
+    legend row by row queues one detection, not one for each row.
+    """
+    from firebid.jobs.enqueue import enqueue_once
     from firebid.jobs.tasks import run_detection
 
-    enqueue(session, run_detection, bid_id=str(context.bid.id), user_id=str(principal.user_id))
+    enqueue_once(
+        session,
+        run_detection,
+        f"detection.run:{context.bid.id}",
+        bid_id=str(context.bid.id),
+        user_id=str(principal.user_id),
+    )
 
 
 class NameUnlistedRequest(BaseModel):

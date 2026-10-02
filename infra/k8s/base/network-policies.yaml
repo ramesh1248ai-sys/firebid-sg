@@ -1,0 +1,117 @@
+# Default deny, then only what each pool needs (guardrail 9, ADR-008). Dataplane V2 enforces
+# these; the FQDN policy needs GKE's FQDN network policy feature.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: firebid
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# DNS for everyone.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dns
+  namespace: firebid
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to: [{namespaceSelector: {}, podSelector: {matchLabels: {k8s-app: kube-dns}}}]
+      ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
+---
+# The web app is reached from the load balancer and reaches the API.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web
+  namespace: firebid
+spec:
+  podSelector: {matchLabels: {tier: web}}
+  policyTypes: [Ingress, Egress]
+  ingress: [{ports: [{port: 8080}]}]
+  egress: [{to: [{podSelector: {matchLabels: {tier: api}}}], ports: [{port: 8000}]}]
+---
+# The API and workers: the database pooler, the scanner, and the internet through Cloud NAT
+# (LLM providers, the IdP, Cloud Storage).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-and-workers
+  namespace: firebid
+spec:
+  podSelector:
+    matchExpressions: [{key: tier, operator: In, values: [api, worker]}]
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{podSelector: {matchLabels: {tier: web}}}]
+      ports: [{port: 8000}]
+    - ports: [{port: 8000}]  # the load balancer's health checks
+  egress:
+    - to: [{podSelector: {matchLabels: {tier: database}}}]
+      ports: [{port: 6432}]
+    # The service role's sweeps reach Cloud SQL directly (infra/k8s/sync-secrets.sh).
+    - to: [{ipBlock: {cidr: 10.0.0.0/8}}]
+      ports: [{port: 5432}]
+    - to: [{podSelector: {matchLabels: {tier: scanner}}}]
+      ports: [{port: 3310}]
+    - to: [{ipBlock: {cidr: 0.0.0.0/0, except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]}}]
+      ports: [{port: 443}]
+---
+# The parser sandbox: the database pooler and Cloud Storage, and nothing else. No route to the
+# internet, the providers or the scanner.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sandbox
+  namespace: firebid
+spec:
+  podSelector: {matchLabels: {tier: sandbox}}
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to: [{podSelector: {matchLabels: {tier: database}}}]
+      ports: [{port: 6432}]
+---
+apiVersion: networking.gke.io/v1alpha1
+kind: FQDNNetworkPolicy
+metadata:
+  name: sandbox-storage
+  namespace: firebid
+spec:
+  podSelector: {matchLabels: {tier: sandbox}}
+  egress:
+    - matches: [{name: storage.googleapis.com}]
+      ports: [{port: 443, protocol: TCP}]
+---
+# The pooler reaches Cloud SQL's private IP; the scanner fetches signatures.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: database
+  namespace: firebid
+spec:
+  podSelector: {matchLabels: {tier: database}}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{podSelector: {matchExpressions: [{key: tier, operator: In, values: [api, worker, sandbox]}]}}]
+      ports: [{port: 6432}]
+  egress:
+    - to: [{ipBlock: {cidr: 10.0.0.0/8}}]
+      ports: [{port: 5432}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: scanner
+  namespace: firebid
+spec:
+  podSelector: {matchLabels: {tier: scanner}}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{podSelector: {matchExpressions: [{key: tier, operator: In, values: [api, worker]}]}}]
+      ports: [{port: 3310}]
+  egress:
+    - to: [{ipBlock: {cidr: 0.0.0.0/0, except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]}}]
+      ports: [{port: 443}]

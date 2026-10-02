@@ -10,7 +10,7 @@
 rules:
   - {match: '\bPENDENT\b', type: sprinkler_pendent}
   - {match: '\bUPRIGHT\b', type: sprinkler_upright}
-  - {match: '\bSIDE\s*WALL\b', type: sprinkler_sidewall}
+  - {match: '\bSIDE[\s-]*WALL\b', type: sprinkler_sidewall}
   - {match: '\bCONCEALED\b.*\bSPRINKLER|\bSPRINKLER\b.*\bCONCEALED\b', type: sprinkler_concealed}
   - {match: '\bGATE\s+VALVE\b|\bOS\s*&\s*Y\b', type: gate_valve}
   - {match: '\bBUTTERFLY\s+VALVE\b', type: butterfly_valve}

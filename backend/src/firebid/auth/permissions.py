@@ -29,6 +29,8 @@ class Action(StrEnum):
     MEASUREMENT_RULES_CHANGE = "measurement_rules.change"
     OBJECT_LIBRARY_CHANGE = "object_library.change"  # the canonical object types (FR-ADM-02)
     SYMBOL_MAPPING_CONFIRM = "symbol_mapping.confirm"  # what a consultant's symbol is
+    # Which design criterion a design-intent sheet is laid out to (P1-12).
+    DESIGN_BASIS_CONFIRM = "design_basis.confirm"
     QTO_EDIT = "qto.edit"  # manual items, duplicate decisions, rule inputs, recompute
     BOQ_EDIT = "boq.edit"  # build the BOQ, map client lines, mark lines, conventions
     BOQ_TEMPLATE_CHANGE = "boq_template.change"  # the company BOQ templates (FR-ADM-03)
@@ -69,6 +71,9 @@ _MATRIX: dict[Action, frozenset[str]] = {
     Action.SYMBOL_MAPPING_CONFIRM: frozenset(
         {Role.ESTIMATOR, Role.SENIOR_ESTIMATOR, Role.BID_MANAGER}
     ),
+    # An estimating aid, confirmed by the people who own the takeoff rules or the design
+    # (ADR-011). It is not a design approval: that stays the Qualified Person's.
+    Action.DESIGN_BASIS_CONFIRM: frozenset({Role.SENIOR_ESTIMATOR, Role.DESIGN_MANAGER}),
     # The QTO item state machine's verifiers.
     Action.QTO_EDIT: frozenset({Role.ESTIMATOR, Role.SENIOR_ESTIMATOR}),
     # Stage S3 is the estimators' work; the senior estimator owns the templates, as the

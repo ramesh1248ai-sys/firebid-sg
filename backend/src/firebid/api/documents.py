@@ -10,12 +10,17 @@ Two ways in, because a 300-sheet set and a single addendum are different problem
 
 The response always accounts for every file: what was stored, what was a duplicate, what was
 refused and why. A silent omission is the failure this endpoint exists to prevent.
+
+A whole folder is sent as files with their paths in it (FR-DOC-09), in as many requests as
+it takes. Each file has an origin (FR-DOC-10): the person sending it says which of its
+folders are the client's tender documents, the company's own working documents, or
+reference; `POST .../origins` proposes that from the paths. Only tender documents are read.
 """
 
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
@@ -26,12 +31,15 @@ from firebid.api.deps import BidContext, CurrentBid, DbSession, require
 from firebid.auth.permissions import Action
 from firebid.auth.provisioning import Principal
 from firebid.db.models.documents import Document
+from firebid.ingest.origin import Origin, propose
 from firebid.ingest.scanning import get_scanner
 from firebid.services.ingestion import (
     Ingestor,
     IngestOutcome,
     checksum,
     existing_document,
+    readable,
+    set_origin,
     storage_key,
 )
 from firebid.storage.object_store import get_object_store
@@ -53,6 +61,10 @@ class DocumentOut(BaseModel):
     byte_size: int
     state: str
     rejected_reason: str | None = None
+    source_path: str | None = None
+    origin: str = "tender"
+    origin_status: str = "confirmed"
+    origin_reason: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -70,6 +82,8 @@ class UploadReport(BaseModel):
     rejected: list[RefusedOut] = []
     quarantined: list[RefusedOut] = []
     awaiting_scan: list[RefusedOut] = []
+    # Not documents (an office lock file, a thumbnail cache): reported, never stored.
+    ignored: list[RefusedOut] = []
     accounted_for: int = 0
 
 
@@ -96,6 +110,7 @@ def _report(outcome: IngestOutcome) -> UploadReport:
             RefusedOut(filename=n, reason=f"malware found: {s}") for n, s in outcome.quarantined
         ],
         awaiting_scan=[RefusedOut(filename=n, reason=r) for n, r in outcome.held],
+        ignored=[RefusedOut(filename=n, reason=r) for n, r in outcome.ignored],
         accounted_for=outcome.accounted_for,
     )
 
@@ -116,6 +131,9 @@ def _queue_parsing(session: Session, report: UploadReport, user_id: uuid.UUID) -
     from firebid.jobs.tasks import parse_document
 
     for document in report.stored:
+        # Only a tender document whose origin is confirmed is read (FR-DOC-10).
+        if document.origin != "tender" or document.origin_status != "confirmed":
+            continue
         if document.kind in PARSEABLE_KINDS:
             enqueue(session, parse_document, document_id=str(document.id), user_id=str(user_id))
 
@@ -126,6 +144,7 @@ def _merge(into: UploadReport, addition: UploadReport) -> None:
     into.rejected += addition.rejected
     into.quarantined += addition.quarantined
     into.awaiting_scan += addition.awaiting_scan
+    into.ignored += addition.ignored
     into.accounted_for += addition.accounted_for
 
 
@@ -138,6 +157,7 @@ def _ingestor(
         get_scanner(),
         bid_id=context.bid.id,
         created_by_id=context.principal.user_id,
+        created_by=context.principal.display_name,
         tender_package_id=_package_of(session, context, addendum_id),
     )
 
@@ -163,16 +183,33 @@ def upload(
     _: Annotated[Principal, require(Action.DOCUMENT_UPLOAD)],
     files: Annotated[list[UploadFile], File()],
     addendum_id: Annotated[uuid.UUID | None, Form()] = None,
+    paths: Annotated[list[str] | None, Form()] = None,
+    origins: Annotated[list[str] | None, Form()] = None,
 ) -> UploadReport:
     """Upload one or more files, or one archive holding a whole set.
 
     With `addendum_id`, the files are that addendum's: every revision read from them is
     linked to it, and its date orders them against what they replace.
+
+    For a folder, `paths` gives each file's path in it and `origins` what the person said
+    each is, one per file and in the files' order. A file with no origin given has one
+    proposed from its path; anything proposed as other than a tender document is kept
+    unread until a person confirms it.
     """
+    for name, given in (("paths", paths), ("origins", origins)):
+        if given is not None and len(given) != len(files):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                f"'{name}' must have one entry for each file, in the same order",
+            )
+    try:
+        said = [Origin(value) if value else None for value in origins or []]
+    except ValueError as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(error)) from error
     ingestor = _ingestor(session, context, addendum_id)
     report = UploadReport()
 
-    for upload_file in files:
+    for index, upload_file in enumerate(files):
         payload = upload_file.file.read()
         if len(payload) > MAX_DIRECT_UPLOAD_BYTES:
             raise HTTPException(
@@ -180,10 +217,87 @@ def upload(
                 f"'{upload_file.filename}' is larger than "
                 f"{MAX_DIRECT_UPLOAD_BYTES // (1024 * 1024)} MB; use the presigned upload route",
             )
-        _merge(report, _report(ingestor.ingest(upload_file.filename or "unnamed", payload)))
+        outcome = ingestor.ingest(
+            upload_file.filename or "unnamed",
+            payload,
+            source_path=paths[index] if paths else None,
+            origin=said[index] if said else None,
+        )
+        _merge(report, _report(outcome))
 
     _queue_parsing(session, report, context.principal.user_id)
     return report
+
+
+class OriginProposal(BaseModel):
+    path: str
+    origin: Literal["tender", "working", "reference", "ignored"]
+    reason: str
+
+
+@router.post("/origins", response_model=list[OriginProposal])
+def propose_origins(
+    context: CurrentBid,
+    _: Annotated[Principal, require(Action.DOCUMENT_UPLOAD)],
+    body: Annotated[list[Annotated[str, Field(max_length=1024)]], Field(max_length=20_000)],
+) -> list[OriginProposal]:
+    """Whose document each path looks like, before anything is sent (FR-DOC-10).
+
+    A proposal only: the person sending the folder confirms or changes it, and what they
+    say is what each file is stored with.
+    """
+    answers = []
+    for path in body:
+        proposal = propose(path)
+        answers.append(
+            OriginProposal(path=path, origin=str(proposal.origin), reason=proposal.reason)
+        )
+    return answers
+
+
+class OriginChange(BaseModel):
+    document_ids: Annotated[list[uuid.UUID], Field(min_length=1, max_length=5000)]
+    origin: Literal["tender", "working", "reference"]
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class OriginChanged(BaseModel):
+    changed: list[uuid.UUID]
+    refused: dict[uuid.UUID, str]
+
+
+@router.post("/origin", response_model=OriginChanged)
+def change_origin(
+    body: OriginChange,
+    context: CurrentBid,
+    session: DbSession,
+    principal: Annotated[Principal, require(Action.DOCUMENT_REVIEW)],
+) -> OriginChanged:
+    """Say whose documents these are. One that becomes a tender document is queued to be read."""
+    from firebid.jobs.enqueue import enqueue
+    from firebid.jobs.tasks import parse_document
+
+    outcome = OriginChanged(changed=[], refused={})
+    for document_id in body.document_ids:
+        document = session.get(Document, document_id)
+        if document is None or document.bid_id != context.bid.id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "document not found")
+        try:
+            read_it = set_origin(
+                session, document, Origin(body.origin), principal.actor(), body.reason
+            )
+        except ValueError as refusal:
+            outcome.refused[document_id] = str(refusal)
+            continue
+        outcome.changed.append(document_id)
+        if read_it and readable(document) and document.kind in PARSEABLE_KINDS:
+            enqueue(
+                session,
+                parse_document,
+                document_id=str(document.id),
+                user_id=str(principal.user_id),
+            )
+    return outcome
 
 
 @router.post("/uploads", response_model=list[PresignOut])

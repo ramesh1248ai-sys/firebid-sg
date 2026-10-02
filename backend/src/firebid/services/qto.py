@@ -69,6 +69,8 @@ EXTRACTION = {
     "topology": ExtractionMethod.RULE,
     "rule": ExtractionMethod.RULE,
     "manual": ExtractionMethod.MANUAL,
+    # Proposed by the design rules for a design-intent sheet (P1-12): not on the drawing.
+    "designed": ExtractionMethod.RULE,
 }
 # Items no longer in play: every other state is a live item of the bid's takeoff.
 GONE = (str(QtoItemState.SUPERSEDED),)
@@ -314,14 +316,13 @@ class SheetInfo:
 def current_sheets(session: Session, bid_id: uuid.UUID) -> dict[uuid.UUID, SheetInfo]:
     """Sheets whose revision is Current: the only ones that feed takeoff (guardrail 6)."""
     out: dict[uuid.UUID, SheetInfo] = {}
-    for revision in session.execute(
-        select(SheetRevision).where(
-            SheetRevision.bid_id == bid_id, SheetRevision.state == "current"
-        )
-    ).scalars():
-        sheet = session.get(Sheet, revision.sheet_id)
-        if sheet is not None:
-            out[sheet.id] = SheetInfo(sheet, revision)
+    # One query for the revisions with their sheets, not one a sheet.
+    for revision, sheet in session.execute(
+        select(SheetRevision, Sheet)
+        .join(Sheet, Sheet.id == SheetRevision.sheet_id)
+        .where(SheetRevision.bid_id == bid_id, SheetRevision.state == "current")
+    ):
+        out[sheet.id] = SheetInfo(sheet, revision)
     for view in session.execute(
         select(SheetView).where(SheetView.bid_id == bid_id, SheetView.sheet_id.in_(list(out)))
     ).scalars():
@@ -401,6 +402,8 @@ def inputs(
                 confidence=float(run.confidence),
                 labels=tuple(str(label.get("text", "")) for label in run.labels or []),
                 scale=view.denominator if view and view.scale_status in MEASURABLE else None,
+                origin=run.origin,
+                evidence=dict(run.features or {}) if run.origin == "designed" else {},
             )
         )
     return detections, runs
@@ -489,11 +492,18 @@ def recompute(session: Session, bid_id: uuid.UUID, actor: Actor = SYSTEM_ACTOR) 
     version = _rule_set_version(rule_set_)
     methods = _sheet_methods(detections)
     outcome = Outcome(groups=len(stored))
-    existing: dict[str, QtoItem] = {
-        item.item_key: item
-        for item in live_items(session, bid_id)
-        if item.item_key and not item.is_manual
-    }
+    existing: dict[str, QtoItem] = {}
+    for item in sorted(live_items(session, bid_id), key=_kept_first):
+        if not item.item_key or item.is_manual:
+            continue
+        if item.item_key in existing:
+            # Two live items under one key: an earlier recompute created one without
+            # retiring the other (items whose keys were not their own). The one a person
+            # has decided, else the newest, is kept; the others are retired here.
+            _supersede(session, item, "stored twice under one key by an earlier recompute")
+            outcome.superseded += 1
+            continue
+        existing[item.item_key] = item
     for draft in drafts:
         old = existing.pop(draft.key, None)
         digest = draft.inputs_hash()
@@ -517,9 +527,11 @@ def recompute(session: Session, bid_id: uuid.UUID, actor: Actor = SYSTEM_ACTOR) 
         _supersede(session, gone, "no longer found when takeoff was recomputed")
         outcome.superseded += 1
     session.flush()
-    _link_groups(session, bid_id, stored)
+    # The takeoff as it now stands, read once for what follows.
+    items = live_items(session, bid_id)
+    _link_groups(session, bid_id, stored, items)
     outcome.unresolved_groups = sum(1 for g in stored.values() if g.status == "unresolved")
-    outcome.incomplete = completeness(session, bid_id)
+    outcome.incomplete = completeness(session, bid_id, items=items)
     log.info(
         "qto_recomputed",
         bid_id=str(bid_id),
@@ -530,6 +542,14 @@ def recompute(session: Session, bid_id: uuid.UUID, actor: Actor = SYSTEM_ACTOR) 
         incomplete=len(outcome.incomplete),
     )
     return outcome
+
+
+DECIDED = (str(QtoItemState.VERIFIED), str(QtoItemState.REJECTED))
+
+
+def _kept_first(item: QtoItem) -> tuple[int, float]:
+    """Among items stored under one key: one a person decided first, then the newest."""
+    return (0 if item.state in DECIDED else 1, -item.created_at.timestamp())
 
 
 def _sheet_methods(detections: list[Detection]) -> dict[str, str]:
@@ -543,11 +563,21 @@ def _sheet_methods(detections: list[Detection]) -> dict[str, str]:
 
 
 def queue_recompute(session: Session, bid_id: uuid.UUID, user_id: uuid.UUID | None) -> None:
-    """Queue `qto.recompute` in the caller's transaction."""
-    from firebid.jobs.enqueue import enqueue
+    """Queue `qto.recompute` in the caller's transaction.
+
+    One waiting job serves every change made before it starts: a recompute reads the bid as
+    it is when it runs, so a second one queued behind it would do the same work again.
+    """
+    from firebid.jobs.enqueue import enqueue_once
     from firebid.jobs.tasks import recompute_qto
 
-    enqueue(session, recompute_qto, bid_id=str(bid_id), user_id=str(user_id) if user_id else "")
+    enqueue_once(
+        session,
+        recompute_qto,
+        f"qto.recompute:{bid_id}",
+        bid_id=str(bid_id),
+        user_id=str(user_id) if user_id else "",
+    )
 
 
 def _supersede(session: Session, item: QtoItem, reason: str) -> None:
@@ -688,7 +718,12 @@ def decide_group(
     return group
 
 
-def _link_groups(session: Session, bid_id: uuid.UUID, groups: dict[str, DuplicateGroup]) -> None:
+def _link_groups(
+    session: Session,
+    bid_id: uuid.UUID,
+    groups: dict[str, DuplicateGroup],
+    items: list[QtoItem] | None = None,
+) -> None:
     """Each live item points at an unresolved group any of its members is in."""
     member_group: dict[str, uuid.UUID] = {}
     for group in groups.values():
@@ -696,9 +731,11 @@ def _link_groups(session: Session, bid_id: uuid.UUID, groups: dict[str, Duplicat
             continue
         for member in group.members:
             member_group.setdefault(str(member["id"]), group.id)
-    for item in live_items(session, bid_id):
+    for item in items if items is not None else live_items(session, bid_id):
         ids = [str(m.get("id")) for m in (item.derivation or {}).get("members", [])]  # type: ignore[attr-defined]
-        item.duplicate_group_id = next((member_group[i] for i in ids if i in member_group), None)
+        group_id = next((member_group[i] for i in ids if i in member_group), None)
+        if item.duplicate_group_id != group_id:  # untouched rows are not written again
+            item.duplicate_group_id = group_id
     session.flush()
 
 
@@ -751,8 +788,19 @@ def _extraction(derivation: dict[str, Any], manual: bool) -> ExtractionMethod:
     return EXTRACTION.get(method, ExtractionMethod.PDF_VECTOR)
 
 
-def evidence_for(session: Session, bid: Bid, item: QtoItem) -> EvidenceRecord:
-    """The item's Appendix B record, from the item and how it was derived."""
+def evidence_for(
+    session: Session,
+    bid: Bid,
+    item: QtoItem,
+    *,
+    project_name: str | None = None,
+    verifiers: dict[uuid.UUID, str] | None = None,
+) -> EvidenceRecord:
+    """The item's Appendix B record, from the item and how it was derived.
+
+    `project_name` and `verifiers` are for a caller with many items, which reads them once
+    for all of them; without them they are read here.
+    """
     derivation: dict[str, Any] = dict(item.derivation or {})
     sources = derivation.get("sources") or []
     first = sources[0] if sources else {}
@@ -778,8 +826,14 @@ def evidence_for(session: Session, bid: Bid, item: QtoItem) -> EvidenceRecord:
         if members
         else None
     )
-    verifier = session.get(AppUser, item.verified_by_id) if item.verified_by_id else None
-    project = session.get(Project, bid.project_id)
+    if verifiers is not None:
+        verified_by = verifiers.get(item.verified_by_id) if item.verified_by_id else None
+    else:
+        verifier = session.get(AppUser, item.verified_by_id) if item.verified_by_id else None
+        verified_by = verifier.display_name if verifier else None
+    if project_name is None:
+        project = session.get(Project, bid.project_id)
+        project_name = project.name if project else ""
     allowance = (
         f"; allowance {item.allowance_percent}% shown separately, "
         f"{rules.adjusted(item.net_quantity, item.allowance_percent)} {item.unit} with it"
@@ -789,7 +843,7 @@ def evidence_for(session: Session, bid: Bid, item: QtoItem) -> EvidenceRecord:
     return EvidenceRecord(
         qto_human_id=item.human_id,
         bid_human_id=bid.human_id,
-        project_name=project.name if project else "",
+        project_name=project_name,
         item_description=item.description,
         classification=item.classification or "",
         attributes={
@@ -815,7 +869,7 @@ def evidence_for(session: Session, bid: Bid, item: QtoItem) -> EvidenceRecord:
         evidence_links=links,
         confidence=max(0.0, min(1.0, item.confidence if item.confidence is not None else 0.0)),
         verification_status=item.state,
-        verified_by=verifier.display_name if verifier else None,
+        verified_by=verified_by,
         verified_at=item.verified_at,
         run_metadata=RunMetadata(rule_set_version=derivation.get("rule_set_version")),
     )
@@ -827,8 +881,11 @@ def completeness(
     *,
     write: bool = True,
     only: Iterable[uuid.UUID] | None = None,
+    items: list[QtoItem] | None = None,
 ) -> list[dict[str, Any]]:
     """Check every live item's evidence record; list the items missing a mandatory field.
+
+    `items` is the bid's live items when the caller has just read them.
 
     With `write`, the records are stored too: for every item, or `only` the items an action
     touched. Checking alone writes nothing, so G1's status can be asked for as often as a
@@ -846,9 +903,25 @@ def completeness(
         if write
         else {}
     )
+    if items is None:
+        items = live_items(session, bid_id)
+    # Read once for every item, not once an item: a real tender has thousands.
+    project = session.get(Project, bid.project_id)
+    project_name = project.name if project else ""
+    verifier_ids = {item.verified_by_id for item in items if item.verified_by_id}
+    verifiers = (
+        {
+            row.id: row.display_name
+            for row in session.execute(
+                select(AppUser).where(AppUser.id.in_(verifier_ids))
+            ).scalars()
+        }
+        if verifier_ids
+        else {}
+    )
     offending = []
-    for item in live_items(session, bid_id):
-        record = evidence_for(session, bid, item)
+    for item in items:
+        record = evidence_for(session, bid, item, project_name=project_name, verifiers=verifiers)
         missing = record.missing_mandatory_fields()
         if missing and item.state != str(QtoItemState.REJECTED):
             # A rejected item is decided and out of the takeoff: it does not hold G1 up.
@@ -866,8 +939,11 @@ def completeness(
                 )
             )
         else:
-            row.record = record.model_dump(mode="json")
-            row.missing_fields = missing
+            dumped = record.model_dump(mode="json")
+            if row.record != dumped:  # an unchanged record is not written again
+                row.record = dumped
+            if row.missing_fields != missing:
+                row.missing_fields = missing
     if write:
         session.flush()
     return offending
@@ -1243,6 +1319,8 @@ class Blockers:
 # recomputes first, in its own transaction.
 _UPSTREAM = (
     "parse.document",
+    "parse.sheet",
+    "parse.finish",
     "detection.run",
     "detection.vision",
     "spec.read",

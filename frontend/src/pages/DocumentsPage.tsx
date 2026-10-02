@@ -6,6 +6,7 @@ import { api, apiErrorMessage } from "@/api/client";
 import { AuthorisedImage } from "@/components/AuthorisedImage";
 import { Button } from "@/components/ui/button";
 import { accessToken } from "@/auth/oidc";
+import { FolderUpload } from "@/pages/FolderUpload";
 
 /**
  * The tender set: send files, watch them land, and see what was refused.
@@ -19,6 +20,7 @@ type Progress = {
   total: number;
   counts: Record<string, number>;
   sheets: number;
+  sheets_parsed?: number;
   finished: boolean;
   failures: {
     id: string;
@@ -281,7 +283,7 @@ export function DocumentsPage() {
         </h1>
         <p className="text-sm text-muted-foreground">
           Drawings, specifications and schedules. A whole set can be sent as one
-          zip.
+          zip, or as the folder it sits in.
         </p>
       </div>
 
@@ -316,6 +318,8 @@ export function DocumentsPage() {
         )}
       </form>
 
+      <FolderUpload bidId={bidId} />
+
       {progress.isPending && (
         <p role="status" className="text-sm text-muted-foreground">
           Loading the tender set…
@@ -333,7 +337,9 @@ export function DocumentsPage() {
             <p role="status" className="text-sm text-muted-foreground">
               {progress.data.finished
                 ? `${progress.data.sheets} sheet${progress.data.sheets === 1 ? "" : "s"} ready to open.`
-                : "Reading the set…"}
+                : progress.data.sheets > 0
+                  ? `Reading the set: ${progress.data.sheets_parsed ?? 0} of ${progress.data.sheets} sheets read…`
+                  : "Reading the set…"}
             </p>
           )}
 

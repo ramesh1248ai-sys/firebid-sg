@@ -387,12 +387,12 @@ def placed_from_legend(
     if region is not None:
         excluded.append((region.x0, region.y0, region.x1, region.y1))
     rows = [row for legend in found for row in legend.rows if row.symbol.signature]
-    references = [row.symbol.signature for row in rows]
+    references = symbols.Candidates([row.symbol.signature for row in rows])  # type: ignore[misc]
     placed = []
     for cluster in symbols.clusters(table, excluding=excluded):
         if cluster.signature is None:
             continue
-        match = symbols.best_match(cluster.signature, references)  # type: ignore[arg-type]
+        match = symbols.best_match(cluster.signature, references)
         if match is None:
             continue
         row = rows[match.index]

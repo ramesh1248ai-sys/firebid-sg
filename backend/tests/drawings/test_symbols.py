@@ -296,3 +296,51 @@ def test_descriptors_are_normalised_histograms() -> None:
         np.cumsum([len(symbols.D2_BINS) - 1, len(symbols.RADIAL_BINS) - 1]),
     )
     assert [round(float(part.sum()), 6) for part in parts] == [1.0, 1.0, 1.0]
+
+
+@settings(max_examples=40, deadline=None)
+@given(st.integers(min_value=0, max_value=10_000))
+def test_matching_against_stacked_candidates_is_matching_pair_by_pair(seed: int) -> None:
+    """P1-11 compares a symbol with every candidate at once: the same answer as `distance`,
+    one pair at a time, including candidates with no descriptor or an older width."""
+    rng = np.random.default_rng(seed)
+
+    def descriptor(width: int = symbols.WIDTH) -> tuple[float, ...]:
+        return tuple(float(v) for v in rng.dirichlet(np.ones(width)) * 3)
+
+    candidates = [
+        symbols.Signature(descriptor(), 1.0, tolerance=float(rng.uniform(0.05, 0.9)))
+        for _ in range(12)
+    ]
+    candidates[3] = symbols.Signature((), 1.0)
+    candidates[7] = symbols.Signature(descriptor(symbols.WIDTH - 2), 1.0, tolerance=1.0)
+    probe = symbols.Signature(descriptor(), 1.0, tolerance=float(rng.uniform(0.05, 0.9)))
+
+    pairwise = [
+        (symbols.distance(probe.descriptor, c.descriptor), min(probe.tolerance, c.tolerance))
+        for c in candidates
+    ]
+    within = [
+        (gap, i)
+        for i, (gap, tolerance) in enumerate(pairwise)
+        if candidates[i].descriptor and gap <= tolerance
+    ]
+    found = symbols.best_match(probe, symbols.Candidates(candidates))
+
+    if not within:
+        assert found is None
+    else:
+        gap, index = min(within)
+        assert found is not None and found.index == index
+        assert found.distance == pytest.approx(gap)
+    assert symbols.best_match(probe, candidates) == found
+
+
+def test_a_block_hash_matches_before_any_shape() -> None:
+    shapes = symbols.Candidates()
+    shapes.append(symbols.Signature(_bow_tie(0, 1, 0, 0), 1.0, block_hash="abc"))
+    shapes.append(symbols.Signature(_bow_tie(0, 1, 0, 0), 1.0, block_hash="xyz"))
+
+    found = symbols.best_match(symbols.Signature(_arrow_bar(), 1.0, block_hash="xyz"), shapes)
+
+    assert found == symbols.Match(1, 0.0, "block_hash")

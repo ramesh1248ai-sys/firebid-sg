@@ -60,6 +60,8 @@ class Progress(BaseModel):
     total: int
     counts: dict[str, int]
     sheets: int
+    # Sheets whose own parse job has finished (ADR-010): "84 of 121 sheets read".
+    sheets_parsed: int = 0
     finished: bool
     failures: list[FailedDocument] = []
 
@@ -83,11 +85,9 @@ def read_progress(session: Session, bid_id: uuid.UUID) -> Progress:
         counts[str(state)] = int(count)
 
     total = sum(counts.values())
-    sheets = int(
-        session.execute(
-            select(func.count()).select_from(Sheet).where(Sheet.bid_id == bid_id)
-        ).scalar_one()
-    )
+    sheets, sheets_parsed = session.execute(
+        select(func.count(), func.count(Sheet.parsed_at)).where(Sheet.bid_id == bid_id)
+    ).one()
 
     failures = [
         FailedDocument(
@@ -113,7 +113,8 @@ def read_progress(session: Session, bid_id: uuid.UUID) -> Progress:
     return Progress(
         total=total,
         counts=counts,
-        sheets=sheets,
+        sheets=int(sheets),
+        sheets_parsed=int(sheets_parsed),
         # `awaiting_scan` is deliberately not "in flight": a scanner outage can hold a file
         # for hours, and the page should say so rather than spin.
         finished=total > 0 and in_flight == 0,

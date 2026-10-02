@@ -54,6 +54,50 @@ jobs:
           name: req-coverage
           path: reports/req-coverage.md
 
+  security:
+    # NFR-06: every push is scanned; a high or critical finding fails the build.
+    name: Security scans
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # gitleaks reads the whole history
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.25"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Python dependencies (pip-audit)
+        run: |
+          uv export --project backend --format requirements-txt --no-hashes --no-emit-project \
+            --frozen > "$RUNNER_TEMP/requirements.txt"
+          uvx pip-audit --strict --progress-spinner off -r "$RUNNER_TEMP/requirements.txt"
+      - name: npm dependencies (npm audit)
+        run: |
+          npm ci --prefix frontend --no-audit --no-fund
+          npm audit --prefix frontend --audit-level=high
+      - name: Python code (Bandit)
+        run: uvx bandit -r backend/src -q --severity-level high --confidence-level medium
+      - name: Code (Semgrep)
+        run: >-
+          docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep semgrep scan --metrics off
+          --config p/python --config p/typescript --config p/react --severity ERROR --error
+          --exclude frontend/src/api/schema.d.ts backend/src frontend/src
+      - name: Secrets in the history (gitleaks)
+        run: >-
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect --source /repo
+          --redact --no-banner
+      - name: Configuration and infrastructure as code (Trivy)
+        run: >-
+          docker run --rm -v "$PWD:/repo" aquasec/trivy:latest fs --quiet --exit-code 1
+          --severity HIGH,CRITICAL --scanners misconfig,secret --skip-dirs /repo/frontend/node_modules --skip-dirs /repo/backend/.venv --skip-files /repo/infra/keycloak/Dockerfile --skip-files /repo/infra/seaweedfs/Dockerfile /repo
+
   stack:
     name: Stack, integration and end-to-end tests
     runs-on: ubuntu-24.04
@@ -78,6 +122,14 @@ jobs:
           npx --prefix frontend playwright install --with-deps chromium
       - name: Start the stack
         run: make up
+      - name: Scan the images we build (Trivy)
+        # High and critical vulnerabilities with a fix available fail the build (NFR-06).
+        run: |
+          for image in firebid-backend firebid-frontend firebid-sandbox; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest \
+              image --quiet --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed \
+              --scanners vuln "$image"
+          done
       - run: make test-integration
       - run: make e2e
       - name: Collect stack logs

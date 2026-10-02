@@ -203,6 +203,8 @@ services:
     environment:
       <<: *backend-env
       FIREBID_WORKER_NAME: sandbox
+      # Two sheet jobs at once (ADR-010), within the 2 CPU and 4 GiB below.
+      FIREBID_WORKER_CONCURRENCY: "2"
     networks:
       - sandbox
     user: "10001:10001"

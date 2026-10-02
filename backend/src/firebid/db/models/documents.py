@@ -30,6 +30,7 @@ from firebid.ingest.classification import DocType
 REVISION_STATES = tuple(str(state) for state in SheetRevisionState)
 DOC_TYPES = tuple(str(doc_type) for doc_type in DocType)
 DOCUMENT_STATES = ("received", "awaiting_scan", "quarantined", "processing", "done", "rejected")
+ORIGINS = ("tender", "working", "reference")
 
 
 class Document(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
@@ -40,6 +41,8 @@ class Document(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
         UniqueConstraint("bid_id", "sha256", name="uq_document_bid_sha256"),
         CheckConstraint(f"state IN {DOCUMENT_STATES}", name="state_known"),
         CheckConstraint(f"doc_type IS NULL OR doc_type IN {DOC_TYPES}", name="doc_type_known"),
+        CheckConstraint(f"origin IN {ORIGINS}", name="origin_known"),
+        CheckConstraint("origin_status IN ('proposed', 'confirmed')", name="origin_status_known"),
     )
 
     tender_package_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -69,6 +72,23 @@ class Document(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     doc_type_confidence: Mapped[float | None] = mapped_column(Float)
     # Who or what proposed it, why, and the digest it was decided from.
     classification: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    # Folder intake (FR-DOC-09, 10): where the file sat in the folder it came from, and
+    # whose document it is. Only a tender document whose origin is confirmed is read; a
+    # `proposed` origin waits for a person.
+    source_path: Mapped[str | None] = mapped_column(
+        String(1024), info=personal("a folder or file name can contain a person's name")
+    )
+    origin: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="tender", server_default="tender", index=True
+    )
+    origin_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="confirmed", server_default="confirmed"
+    )
+    origin_reason: Mapped[str | None] = mapped_column(Text)
+    origin_by: Mapped[str | None] = mapped_column(
+        String(200), info=personal("the name of the person who confirmed the origin")
+    )
+    origin_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Sheet(UuidPk, BidScoped, Timestamped, Base):
@@ -101,6 +121,11 @@ class Sheet(UuidPk, BidScoped, Timestamped, Base):
     max_level: Mapped[int | None] = mapped_column(Integer)
     renderer_version: Mapped[str | None] = mapped_column(String(16))
     thumbnail_key: Mapped[str | None] = mapped_column(String(512))
+
+    # Its own parse job's outcome (ADR-010): when it finished, and why it failed if it did.
+    # A failed sheet is still finished, so one bad sheet never holds up its document.
+    parsed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    parse_error: Mapped[str | None] = mapped_column(Text)
 
 
 class SheetRevision(UuidPk, BidScoped, Timestamped, CreatedBy, Base):

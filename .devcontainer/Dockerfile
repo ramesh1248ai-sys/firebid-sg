@@ -16,3 +16,10 @@ RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 
 # uv, pinned (Renovate keeps it current)
 COPY --from=ghcr.io/astral-sh/uv:0.11.25 /uv /uvx /usr/local/bin/
+
+# The image runs as the person developing, not as root. The Dev Container feature
+# `common-utils` is told the same name in devcontainer.json: it finds this user and gives it
+# sudo, and `remoteUser` there is who every command runs as.
+RUN groupadd --gid 1000 vscode \
+ && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash vscode
+USER vscode

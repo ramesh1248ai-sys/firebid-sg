@@ -96,6 +96,12 @@ export function BidDetailPage() {
         Specification
       </Link>{" "}
       <Link
+        to={`/bids/${bidId}/design`}
+        className="inline-block rounded-md border px-3 py-2 text-sm hover:bg-accent"
+      >
+        Design development
+      </Link>{" "}
+      <Link
         to={`/bids/${bidId}/workbench`}
         className="inline-block rounded-md border px-3 py-2 text-sm hover:bg-accent"
       >
