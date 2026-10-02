@@ -282,9 +282,10 @@ def find(
             continue
         spaces.append(_space(len(spaces), "zone", mask, mask, (top, left), region, scale, area))
 
+    base_lines = _wall_lines(seg, base)
     for space in spaces:
         space.labels = [text for (tx, ty, text) in texts if space.contains(tx, ty)]
-        space.angle_deg = _wall_direction(seg, base, space.box)
+        space.angle_deg = _wall_direction(base_lines, space.box)
     return Found(
         spaces,
         chosen,
@@ -587,7 +588,22 @@ def _boxes(labels: np.ndarray, count: int) -> np.ndarray:
     return boxes
 
 
-def _wall_direction(seg: geometry.Segments, wanted: np.ndarray, box: Box) -> float:
+WallLines = tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+
+
+def _wall_lines(seg: geometry.Segments, wanted: np.ndarray) -> WallLines:
+    """The base plan's lines as `_wall_direction` reads them: each one's midpoint, the degree
+    its direction falls in modulo a right angle, and its length. Worked out once a sheet:
+    done again for every space it was half of finding a floor's rooms.
+    """
+    x0, y0, x1, y1 = seg.x0[wanted], seg.y0[wanted], seg.x1[wanted], seg.y1[wanted]
+    dx, dy = x1 - x0, y1 - y0
+    angles = np.degrees(np.arctan2(dy, dx)) % 90.0
+    degree = np.round(angles).astype(np.int64) % 90
+    return (x0 + x1) / 2, (y0 + y1) / 2, degree, np.hypot(dx, dy)
+
+
+def _wall_direction(walls: WallLines, box: Box) -> float:
     """The direction a space's walls run in, in degrees within (-45, 45] (sheet frame).
 
     The head grid is set out square to the walls, so a wing built at an angle gets a grid at
@@ -596,19 +612,16 @@ def _wall_direction(seg: geometry.Segments, wanted: np.ndarray, box: Box) -> flo
     sheet's own axes it is the sheet's.
     """
     margin = 2.0
-    mx, my = (seg.x0 + seg.x1) / 2, (seg.y0 + seg.y1) / 2
+    mx, my, degree, lengths = walls
     near = (
-        wanted
-        & (mx >= box[0] - margin)
+        (mx >= box[0] - margin)
         & (mx <= box[2] + margin)
         & (my >= box[1] - margin)
         & (my <= box[3] + margin)
     )
     if not near.any():
         return 0.0
-    dx, dy = seg.x1[near] - seg.x0[near], seg.y1[near] - seg.y0[near]
-    angles = np.degrees(np.arctan2(dy, dx)) % 90.0
-    totals = np.bincount(np.round(angles).astype(np.int64) % 90, np.hypot(dx, dy), 90)
+    totals = np.bincount(degree[near], lengths[near], 90)
     # A wall's pieces fall in neighbouring degrees: count each degree with its neighbours.
     smoothed = totals + np.roll(totals, 1) + np.roll(totals, -1)
     peak = int(np.argmax(smoothed))

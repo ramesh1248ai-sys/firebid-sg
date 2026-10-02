@@ -407,7 +407,7 @@ def detect_again(
     It was one job that detected every sheet in turn, on one process: 157 s on a real
     tender. The sheets are detected side by side now, in the parser pool.
     """
-    from firebid.jobs.enqueue import enqueue
+    from firebid.jobs.enqueue import enqueue_once
     from firebid.jobs.tasks import detect_sheet_job
     from firebid.services import detection
     from firebid.services.qto import queue_recompute
@@ -443,17 +443,22 @@ def detect_again(
             .values(detected_at=func.now())
             .execution_options(synchronize_session=False)
         )
+    # One waiting job a sheet: a second decision made before the first one's jobs have run
+    # finds them waiting, and they read the mappings as they are when they run.
+    queued = 0
     for sheet in sheets:
-        enqueue(
+        job = enqueue_once(
             session,
             detect_sheet_job,
+            f"detection.sheet:{sheet.id}:{'forced' if force else 'changed'}",
             sheet_id=str(sheet.id),
             user_id=str(user_id) if user_id else "",
             force=force,
         )
+        queued += job is not None
     if not sheets:
         queue_recompute(session, bid_id, user_id)
-    log.info("detection_queued", bid_id=str(bid_id), sheets=len(sheets), force=force)
+    log.info("detection_queued", bid_id=str(bid_id), sheets=len(sheets), queued=queued, force=force)
     return {"sheets": len(sheets)}
 
 

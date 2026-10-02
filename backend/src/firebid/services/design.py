@@ -284,8 +284,7 @@ def confirm(
             after={"state": row.state, "criterion": row.criterion},
         )
         outcome.confirmed.append(row)
-    if outcome.confirmed:
-        queue_layout(session, bid_id, actor.id)
+    queue_layout(session, bid_id, actor.id, [row.sheet_id for row in outcome.confirmed])
     return outcome
 
 
@@ -343,15 +342,30 @@ def set_scope(
         after={"scope": row.scope},
     )
     if row.state == "confirmed":
-        queue_layout(session, row.bid_id, actor.id)
+        queue_layout(session, row.bid_id, actor.id, [row.sheet_id])
 
 
-def queue_layout(session: Session, bid_id: uuid.UUID, user_id: uuid.UUID | None) -> None:
-    """Queue `design.layout` in the caller's transaction."""
-    from firebid.jobs.enqueue import enqueue
+def queue_layout(
+    session: Session, bid_id: uuid.UUID, user_id: uuid.UUID | None, sheet_ids: list[uuid.UUID]
+) -> None:
+    """Queue `design.layout` for each of these sheets, in the caller's transaction.
+
+    A job a sheet, and one waiting job a sheet: confirming one sheet's basis lays out that
+    sheet, not every confirmed sheet of the bid again, and a second change to it made before
+    the first job has run finds that job waiting.
+    """
+    from firebid.jobs.enqueue import enqueue_once
     from firebid.jobs.tasks import lay_out_design
 
-    enqueue(session, lay_out_design, bid_id=str(bid_id), user_id=str(user_id) if user_id else "")
+    for sheet_id in sheet_ids:
+        enqueue_once(
+            session,
+            lay_out_design,
+            f"design.layout:{sheet_id}",
+            bid_id=str(bid_id),
+            user_id=str(user_id) if user_id else "",
+            sheet_id=str(sheet_id),
+        )
 
 
 # --- Laying out -------------------------------------------------------------------------------
@@ -634,12 +648,16 @@ class Outcome:
     blocked: int = 0
 
 
-def lay_out_bid(session: Session, store: ObjectStore, bid_id: uuid.UUID) -> Outcome:
-    """Lay out every sheet whose basis is confirmed, then take the bid off again."""
+def lay_out_bid(
+    session: Session, store: ObjectStore, bid_id: uuid.UUID, only: uuid.UUID | None = None
+) -> Outcome:
+    """Lay out every sheet whose basis is confirmed; with `only`, that sheet alone."""
     outcome = Outcome()
     current = qto_service.current_sheets(session, bid_id)
     for row in designs(session, bid_id).values():
         if row.state != "confirmed" or row.sheet_id not in current:
+            continue
+        if only is not None and row.sheet_id != only:
             continue
         plan = lay_out(session, store, row)
         outcome.sheets += 1

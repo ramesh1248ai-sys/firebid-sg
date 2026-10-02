@@ -240,6 +240,31 @@ def _project(
     return (a[0] + t * dx, a[1] + t * dy), t
 
 
+def _may_meet(
+    points: np.ndarray, a: tuple[float, float], b: tuple[float, float], within: Any
+) -> list[int]:
+    """Which of `points` could lie within `within` of the inside of a-b, in their order.
+
+    A sieve, not the test: it lets through a little more than qualifies (a millionth of a
+    millimetre, and of the line's length), so that the test proper, on the few it leaves,
+    decides exactly what it always did.
+    """
+    if not len(points):
+        return []
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    size = dx * dx + dy * dy
+    if size == 0:
+        return []
+    raw = ((points[:, 0] - a[0]) * dx + (points[:, 1] - a[1]) * dy) / size
+    t = np.clip(raw, 0.0, 1.0)
+    away = np.hypot(a[0] + t * dx - points[:, 0], a[1] + t * dy - points[:, 1])
+    slack = 1e-6
+    found: list[int] = np.flatnonzero(
+        (raw > -slack) & (raw < 1.0 + slack) & (away <= within + slack)
+    ).tolist()
+    return found
+
+
 def _node(
     pieces: list[tuple[tuple[float, float], tuple[float, float], int]],
     placed: list[Placed],
@@ -259,28 +284,46 @@ def _node(
         node_xy[node], node_kind[node], node_symbol[node] = (symbol.cx, symbol.cy), kind, index
         symbol_nodes[index] = node
 
+    # The symbols' boxes, grown by the snap, in the order of `symbol_nodes`: the first one a
+    # point is inside is its symbol.
+    nodes_in_order = list(symbol_nodes.values())
+    boxes = np.asarray([placed[index].box for index in symbol_nodes], dtype=float).reshape(-1, 4)
+    low_x, low_y = boxes[:, 0] - snap_mm, boxes[:, 1] - snap_mm
+    high_x, high_y = boxes[:, 2] + snap_mm, boxes[:, 3] + snap_mm
+
     def symbol_at(point: tuple[float, float]) -> int | None:
-        for index, node in symbol_nodes.items():
-            box = placed[index].box
-            if (
-                box[0] - snap_mm <= point[0] <= box[2] + snap_mm
-                and box[1] - snap_mm <= point[1] <= box[3] + snap_mm
-            ):
-                return node
-        return None
+        if not nodes_in_order:
+            return None
+        inside = (
+            (low_x <= point[0]) & (point[0] <= high_x) & (low_y <= point[1]) & (point[1] <= high_y)
+        )
+        first = int(np.argmax(inside))
+        return nodes_in_order[first] if inside[first] else None
 
     # 1. Split each piece where a symbol sits on it (a sprinkler on its branch), and where
     # another piece's endpoint meets its interior (a tee).
+    #
+    # Every piece against every symbol and every endpoint, which on a sheet of 5,000 pieces
+    # is 57 million pairs: so the pairs that cannot meet are ruled out a piece at a time on
+    # arrays, with room to spare, and only the few left are decided, exactly as before.
     endpoints = [p for a, b, _ in pieces for p in (a, b)]
+    ends = np.asarray(endpoints, dtype=float).reshape(-1, 2)
+    symbols_in_order = list(symbol_nodes.items())
+    centres = np.asarray(
+        [(placed[index].cx, placed[index].cy) for index in symbol_nodes], dtype=float
+    ).reshape(-1, 2)
+    half_radii = np.asarray([placed[index].radius * 0.5 for index in symbol_nodes], dtype=float)
     split: list[tuple[tuple[float, float], tuple[float, float], int]] = []
     for a, b, row in pieces:
         cuts: list[tuple[float, tuple[float, float], int | None]] = []
-        for index, node in symbol_nodes.items():
+        for at in _may_meet(centres, a, b, half_radii):
+            index, node = symbols_in_order[at]
             symbol = placed[index]
             foot, t = _project((symbol.cx, symbol.cy), a, b)
             if 0.0 < t < 1.0 and math.dist(foot, (symbol.cx, symbol.cy)) <= symbol.radius * 0.5:
                 cuts.append((t, foot, node))  # on the line, where the symbol sits on it
-        for point in endpoints:
+        for at in _may_meet(ends, a, b, snap_mm):
+            point = endpoints[at]
             foot, t = _project(point, a, b)
             if (
                 0.0 < t < 1.0
@@ -298,17 +341,28 @@ def _node(
             split.append((previous, b, row))
 
     # 2. Endpoints: into a symbol's node, or clustered into a joint.
-    joints: list[tuple[float, float, int]] = []
+    # Joints by the square of the sheet they are in, a snap across: a point within a snap
+    # of a joint is in its square or one beside it. The earliest such joint is the point's,
+    # as it was when every joint was tried in turn.
+    joints: dict[tuple[int, int], list[tuple[float, float, int]]] = {}
+    square = snap_mm if snap_mm > 0 else 1.0
 
     def node_for(point: tuple[float, float]) -> int:
         at_symbol = symbol_at(point)
         if at_symbol is not None:
             return at_symbol
-        for x, y, node in joints:
-            if math.dist((x, y), point) <= snap_mm:
-                return node
+        column, line = math.floor(point[0] / square), math.floor(point[1] / square)
+        near = [
+            node
+            for i in (column - 1, column, column + 1)
+            for j in (line - 1, line, line + 1)
+            for x, y, node in joints.get((i, j), ())
+            if math.dist((x, y), point) <= snap_mm
+        ]
+        if near:
+            return min(near)  # nodes are numbered as they are made
         node = next(counter)
-        joints.append((point[0], point[1], node))
+        joints.setdefault((column, line), []).append((point[0], point[1], node))
         node_xy[node], node_kind[node] = point, "joint"
         return node
 

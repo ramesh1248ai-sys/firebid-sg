@@ -620,10 +620,13 @@ def read_design_basis(context: JobContext, bid_id: str, user_id: str) -> int:
 
 
 @app.task(name="design.layout", queue="default", pass_context=True)
-def lay_out_design(context: JobContext, bid_id: str, user_id: str) -> dict[str, int]:
-    """Lay out every sheet whose design basis a person confirmed, then take off again (P1-12).
+def lay_out_design(
+    context: JobContext, bid_id: str, user_id: str, sheet_id: str = ""
+) -> dict[str, int]:
+    """Lay out the sheet whose design basis a person confirmed, then take off again (P1-12).
 
-    Idempotent: the same sheet, criterion and rules give the same proposal.
+    Without a sheet, every confirmed sheet of the bid. Idempotent: the same sheet, criterion
+    and rules give the same proposal.
     """
     import uuid as uuid_module
 
@@ -634,7 +637,8 @@ def lay_out_design(context: JobContext, bid_id: str, user_id: str) -> dict[str, 
 
     acting = uuid_module.UUID(user_id) if user_id else None
     with acting_as(acting), session_scope() as session:
-        outcome = lay_out_bid(session, get_object_store(), uuid_module.UUID(bid_id))
+        only = uuid_module.UUID(sheet_id) if sheet_id else None
+        outcome = lay_out_bid(session, get_object_store(), uuid_module.UUID(bid_id), only)
         # Takeoff follows what was proposed, in the same transaction.
         queue_recompute(session, uuid_module.UUID(bid_id), acting)
         return {"sheets": outcome.sheets, "heads": outcome.heads, "blocked": outcome.blocked}

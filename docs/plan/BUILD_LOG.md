@@ -1448,3 +1448,44 @@ Entry template:
   - Two decisions close together queue the same sheets twice.
   - One sheet took 61 s to detect. Not profiled.
   - A job on the `default` queue whose worker stopped stays `doing`: seen again here after each rebuild.
+
+## Performance · Views, pipe network, symbol sampling, design layout · 2026-10-02
+
+- **Summary:** the slowest real sheets of each stage were profiled, and the loops found were replaced. Each replacement gives the result the code it replaced gave, checked against that code kept in the tests as the reference, and on real sheets.
+  - **Views** (`drawings/scale._paired_figures`): every line of the sheet was tried against every dimension figure, once a view. Only the lines whose midpoint is within reach of the figure are looked at now, found in a list sorted once.
+  - **Pipe network** (`drawings/pipe_network._node`): every piece was tried against every endpoint and every symbol, and every endpoint against every joint so far: 57 million pairs on one sheet. The pairs that cannot meet are ruled out on arrays, a piece at a time; joints are found by the square of the sheet they are in.
+  - **Symbol signatures** (`drawings/symbols.Sampler`): the sheet's table was sliced twice for every symbol. The sheet's line work is exploded once and a symbol's is picked out of it. The descriptor works each pair of sample points out once, not twice.
+  - **Design layout** (`design.layout`): confirming one sheet's basis laid out every confirmed sheet of the bid again. It is a job a sheet now, and one waiting job a sheet. Finding a floor's rooms read every base line again for every space (`design/rooms._wall_lines`).
+  - **Detection after a decision**: `detect_again` queues one waiting job a sheet, so two decisions close together no longer queue the same sheets twice.
+- **Key modules / files:** `drawings/scale.py`, `drawings/pipe_network.py` (`_may_meet`), `drawings/symbols.py` (`Sampler`, `_evenly`, `_pairs`), `drawings/geometry.py` (`Segments.closing_from`), `design/rooms.py`, `services/design.py` (`queue_layout`, `lay_out_bid(only=)`), `jobs/tasks.py` (`design.layout` takes `sheet_id`), `services/parse_pipeline.py` (`detect_again`).
+- **Measured**, a function at a time on real sheets of the 121-sheet tender:
+
+  | Measure | Before | After |
+  |---|---|---|
+  | Views, worst sheet (116,710 primitives) | 66 s | 6.7 s |
+  | Pipe network, 5,000 real pieces and 400 symbols | 24.9 s | 1.1 s |
+  | Symbol shapes, densest sheet (165,795 primitives, 2,312 symbols) | 15.6 s | 4.4 s |
+  | Symbol shapes, a sheet of 5,326 small symbols | 9.3 s | about 7 s |
+  | Finding rooms, one real floor (153 spaces) | 6.0 s | 3.8 s |
+
+  and the whole tender on the local stack (two jobs at once, tiles and geometry from the cache):
+
+  | Measure | Before | After |
+  |---|---|---|
+  | Document read and detected | 13 min 36 s | 12 min 0 s (300 sheets projected at 30 min) |
+  | Views, all sheets | 155 s | 59 s |
+  | Symbol shapes, all sheets | 667 s | 607 s |
+  | Slowest `detection.sheet` after the legend is confirmed | 61 s | 16 s |
+  | Sheets queued by the second of two decision jobs | 84 of 84 again | 17 of 84 |
+
+  The takeoff is unchanged: 6,888 items.
+- **Measured and left alone:**
+  - **Title block reading** (317 s): the reading itself is 0.1 s a sheet. The rest is the sandbox starting a fresh interpreter for each call (0.7 s a call in the Dev Container, more on two shared CPUs) and OCR on the three sheets with no readable title block (about 30 s each).
+  - **Symbol shapes** is still the largest stage. What is left is the descriptor, about a millisecond a symbol, a symbol at a time; doing a sheet's symbols in one array is the next step and has to give the same signatures to the last bit.
+  - **Row-by-row inserts** in detection: the database was 0.7 s of an 89 s detection. Not worth changing.
+  - **Region labelling** in `design/rooms.py`: not in the first fourteen functions of the profile. The cost was the wall direction, above.
+- **Tests:** `tests/drawings/test_sampling.py` (the sampler against slicing the table; the figures found against every line and every figure), `tests/drawings/test_pipe_nodes.py` (the network against the loop it replaced), `tests/db/test_detection_pipeline.py::TestAfterAMappingDecision::test_two_decisions_close_together_queue_a_sheet_once`, `tests/db/test_design.py` (the job names its sheet; a second change finds it waiting).
+- **Known gaps and follow-ups:**
+  - Needs a decision: one sandboxed process a sheet rather than one a call (security review); more parser jobs at once (the pool has 2 CPUs and 4 GiB); whether a page with a full text layer and no title block is worth OCR.
+  - Not started: pagination on the takeoff and review endpoints, uploads read whole into memory, database pool sizing, the progress stream's polling, database tests in parallel.
+  - Tiles and geometry on a cold cache are still unmeasured: every run here had them cached.

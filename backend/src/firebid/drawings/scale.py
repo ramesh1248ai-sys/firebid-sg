@@ -205,6 +205,12 @@ def _paired_figures(table: pa.Table, extent: tuple[float, float, float, float]) 
     mid_x, mid_y = (lines.x0 + lines.x1) / 2, (lines.y0 + lines.y1) / 2
     lengths = lines.lengths
     angles = np.degrees(np.arctan2(lines.y1 - lines.y0, lines.x1 - lines.x0)) % 180
+    cos, sin = np.abs(np.cos(np.radians(angles))), np.abs(np.sin(np.radians(angles)))
+    # A line qualifies only if its midpoint is within three text heights of the figure, so
+    # only those are looked at: found by their midpoint's x, which is sorted once. Every
+    # line against every figure was most of reading a busy sheet's views (45 s of 47).
+    by_x = np.argsort(mid_x, kind="stable")
+    sorted_x = mid_x[by_x]
     found = []
     for span in texts(table):
         match = FIGURE.match(span["text"] or "")
@@ -216,16 +222,22 @@ def _paired_figures(table: pa.Table, extent: tuple[float, float, float, float]) 
         height = max(float(span["height"] or 0), span["maxy"] - span["miny"], 0.5)
         width = span["maxx"] - span["minx"]
         rotation = float(span["rotation"] or 0) % 180
-        along = np.abs(np.cos(np.radians(angles))) * np.abs(mid_x - cx) + np.abs(
-            np.sin(np.radians(angles))
-        ) * np.abs(mid_y - cy)
-        across = np.hypot(mid_x - cx, mid_y - cy)
-        parallel = np.minimum(np.abs(angles - rotation), 180 - np.abs(angles - rotation)) < 3
+        reach = 3 * height
+        low = np.searchsorted(sorted_x, cx - reach, side="left")
+        high = np.searchsorted(sorted_x, cx + reach, side="right")
+        # In the lines' own order, so the nearest of equals is the one it always was.
+        near = np.sort(by_x[low:high])
+        if near.size == 0:
+            continue
+        along = cos[near] * np.abs(mid_x[near] - cx) + sin[near] * np.abs(mid_y[near] - cy)
+        across = np.hypot(mid_x[near] - cx, mid_y[near] - cy)
+        turned = np.abs(angles[near] - rotation)
+        parallel = np.minimum(turned, 180 - turned) < 3
         candidates = np.flatnonzero(
-            parallel & (lengths > width) & (across < 3 * height) & (along < 0.25 * lengths)
+            parallel & (lengths[near] > width) & (across < reach) & (along < 0.25 * lengths[near])
         )
         if candidates.size:
-            best = candidates[np.argmin(across[candidates])]
+            best = near[candidates[np.argmin(across[candidates])]]
             found.append(Evidence(float(match.group(1)), float(lengths[best]), "figure", (cx, cy)))
     return found
 
