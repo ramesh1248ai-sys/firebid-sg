@@ -166,8 +166,8 @@ def parse_sheet(context: JobContext, sheet_id: str, user_id: str) -> dict[str, A
 
 @app.task(name="parse.finish", queue=PARSE_QUEUE, pass_context=True)
 def parse_finish(context: JobContext, document_id: str, user_id: str) -> dict[str, int]:
-    """What needs a drawing's every sheet: match, detect, queue the takeoff, classify, and mark
-    it `done` (ADR-010). In the sandbox pool, because classifying opens the file.
+    """What needs a drawing's every sheet read: match its symbols, classify it, and queue each
+    sheet to be detected (ADR-010). In the sandbox pool, because classifying opens the file.
 
     A finish that fails leaves the document `rejected` with the reason, never `processing`
     for good.
@@ -196,6 +196,63 @@ def parse_finish(context: JobContext, document_id: str, user_id: str) -> dict[st
                 document.state = "rejected"
                 document.rejected_reason = reason
         return {"sheets": 0}
+
+
+@app.task(name="detection.sheet", queue=PARSE_QUEUE, pass_context=True)
+def detect_sheet_job(context: JobContext, sheet_id: str, user_id: str) -> dict[str, Any]:
+    """One sheet's detections, after its document's sheets are all read (ADR-010).
+
+    In the parser pool, though it opens no tender file (it reads stored geometry): that is
+    where a document's sheets run side by side, and where a job whose worker stopped is
+    queued again. A sheet whose detection fails is still finished, with the reason, in a
+    transaction of its own: one bad sheet never holds up the rest of its document.
+    """
+    import uuid as uuid_module
+
+    from firebid.db.identity import acting_as
+    from firebid.db.models.documents import Sheet
+    from firebid.services import parse_pipeline
+    from firebid.storage.object_store import get_object_store
+
+    user = uuid_module.UUID(user_id)
+    sheet_key = uuid_module.UUID(sheet_id)
+    try:
+        with acting_as(user), session_scope() as session:
+            sheet = session.get(Sheet, sheet_key)
+            if sheet is None:
+                log.info("detection_skipped_missing_sheet", sheet_id=sheet_id)
+                return {"skipped": True}
+            result = parse_pipeline.detect_sheet(session, get_object_store(), sheet, user)
+            return {
+                "skipped": result.skipped,
+                "last": result.last,
+                "unchanged": result.unchanged,
+                "objects": result.objects,
+                "runs": result.runs,
+            }
+    except Exception as failure:
+        reason = f"{type(failure).__name__}: {failure}"
+        with acting_as(user), session_scope() as session:
+            last = parse_pipeline.mark_detection_failed(session, sheet_key, user, reason)
+        return {"failed": reason[:300], "last": last}
+
+
+@app.task(name="parse.complete", queue=PARSE_QUEUE, pass_context=True)
+def parse_complete(context: JobContext, document_id: str, user_id: str) -> dict[str, int]:
+    """A drawing whose sheets are all read and detected: queue the takeoff, mark it `done`."""
+    import uuid as uuid_module
+
+    from firebid.db.identity import acting_as
+    from firebid.db.models.documents import Document
+    from firebid.services import parse_pipeline
+
+    user = uuid_module.UUID(user_id)
+    with acting_as(user), session_scope() as session:
+        document = session.get(Document, uuid_module.UUID(document_id))
+        if document is None:
+            log.info("parse_skipped_missing_document", document_id=document_id)
+            return {"failed_detections": 0}
+        return parse_pipeline.complete(session, document, user)
 
 
 @app.periodic(cron="*/5 * * * *", periodic_id="retry_stalled_parse")

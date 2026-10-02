@@ -43,7 +43,9 @@ KEYCLOAK = "http://localhost:8081/realms/firebid/protocol/openid-connect/token"
 TARGET_300_SHEETS_S = 3600
 TARGET_50_SHEET_QTO_S = 4 * 3600
 IN_FLIGHT = ("received", "processing")
-LASTED = re.compile(r"Job (parse\.\w+)\[\d+\]\((.*)\) ended with status: (\w+), lasted ([\d.]+) s")
+LASTED = re.compile(
+    r"Job (parse\.\w+|detection\.sheet)\[\d+\]\((.*)\) ended with status: (\w+), lasted ([\d.]+) s"
+)
 
 
 class DevLogin(httpx.Auth):
