@@ -15,7 +15,8 @@ jobs:
   checks:
     name: Lint, types, unit tests, API client, coverage
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # The suite takes about 20 minutes here: at a limit of 20 a few more tests cancelled it.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
