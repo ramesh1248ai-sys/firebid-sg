@@ -1398,3 +1398,27 @@ Entry template:
   - Two riser detections at one point, 214 times on this tender: probably one riser read twice.
   - `scripts/pipeline_benchmark.py` stops on a dropped connection and writes no result; both runs were totalled from the logs.
   - The existing presigned upload route still cannot work from a browser (see P1-12).
+
+## Performance · Detection as a job a sheet (ADR-010, amended) · 2026-10-02
+
+- **Summary:** `parse.finish` detected every sheet of a document in turn, in one transaction under the bid's lock. Detection is now one `detection.sheet` job a sheet, run side by side in the parser pool; the last one queues `parse.complete`, which queues the takeoff and marks the document `done`.
+- **Key modules / files:** `services/parse_pipeline.py` (`finish`, `detect_sheet`, `mark_detection_failed`, `complete`), `jobs/tasks.py` (`detection.sheet`, `parse.complete`), migration `0033` (`sheet.detected_at`, `sheet.detection_error`), `tests/db/jobs.py` (the test job runner follows the new jobs).
+- **Decisions recorded the same day:** the product owner accepted ADR-008, ADR-010 (with this amendment) and ADR-011, and approved requirements §6.17. ADR-008 settles the hosting half of D2; the provider data terms (ADR-004) are open. §6.17 is not yet in the `.docx` the requirements file is generated from.
+- **Measured** on the 121-sheet tender (local stack, one sandbox container, 2 CPU, two jobs at once; tiles and geometry came from the cache, as in the run it is compared with):
+
+  | Measure | Before | After |
+  |---|---|---|
+  | `parse.finish` | 189 to 237 s | 82 s |
+  | Detecting 121 sheets | inside `parse.finish` | 121 jobs, 83 s of work, about 42 s on two slots |
+  | Last sheet read to document `done` | about 4 min 30 s (first run) | 2 min 5 s |
+  | Whole document `done` | not timed on a cached run | 15 min 23 s (`ingest-real-121.json`: 922.7 s) |
+  | Projected for 300 sheets | — | 38 min, with tiles and geometry cached |
+
+  - The 82 s left in `parse.finish` is matching the bid's 153,043 symbol instances again, and classifying the document.
+  - Detection is light in this run (0.7 s a sheet): the benchmark confirms the legend after the document is read, so few symbols are detected at this point. A sheet with confirmed symbols takes longer, and gains more from running side by side.
+  - The benchmark script ran to the end this time and wrote its result files.
+- **Tests:** `tests/db/test_parse_pipeline.py::TestDetectionASheet` (the document is not done until its last sheet is detected; a sheet whose detection fails is finished with why; a job delivered twice does nothing; the takeoff is queued once).
+- **Known gaps and follow-ups:**
+  - `detection.run`, after a mapping decision, is still one job for the whole bid (157 s forced). It can queue the same `detection.sheet` jobs.
+  - `parse.finish` still matches every instance of the bid again for each document.
+  - 300 sheets are now 603 jobs.

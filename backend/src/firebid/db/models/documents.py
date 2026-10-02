@@ -126,6 +126,11 @@ class Sheet(UuidPk, BidScoped, Timestamped, Base):
     # A failed sheet is still finished, so one bad sheet never holds up its document.
     parsed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     parse_error: Mapped[str | None] = mapped_column(Text)
+    # When the sheet's own detection job finished (after its document's sheets were all
+    # read), and why it failed if it did. A failed sheet is finished too, so its document
+    # can finish.
+    detected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    detection_error: Mapped[str | None] = mapped_column(Text)
 
 
 class SheetRevision(UuidPk, BidScoped, Timestamped, CreatedBy, Base):

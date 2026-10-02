@@ -1,6 +1,6 @@
 # ADR-010: A staged, per-sheet parse pipeline
 
-- **Status:** Proposed; built and measured in P1-11 (29 Sep 2026)
+- **Status:** Accepted by the product owner on 2 Oct 2026, with the amendment of that date below (detection is a job a sheet). Built and measured in P1-11 (29 Sep 2026).
 - **Date:** 2026-09-29
 - **Deciders:** Tech Lead
 - **Requirements:** NFR-01 (300 sheets ingested and classified within 1 hour), NFR-02 (scale); guardrail 9 (parsers run only in the sandbox pool)
@@ -72,3 +72,21 @@ parse.document   check the scan, list the pages, register the sheets; queue one 
 - **Each sheet job fetches the tender file** from object storage and hands it to its sandboxed calls. For large PDFs this is the next cost to remove: split the PDF into one file per page once, in `parse.document` (proposal B of the P1-11 analysis).
 - **Detection stays in `parse.finish`,** serially, because it needs every sheet's symbols matched first. After P1-11 it takes about a second a sheet. If it grows, it can fan out the same way.
 - **Tests** that ran `parse.document` and expected everything read must now run the queued sheet and finish jobs too. The tests use a helper that runs a document's jobs to completion, as a worker would.
+
+## Amendment (2 Oct 2026): detection is a job a sheet
+
+The last consequence above said detection could fan out if it grew. On a real tender of 121 sheets `parse.finish` took 189 to 237 s, nearly all of it detecting the sheets in turn, in one transaction under the bid's lock. It is fanned out now, the same way the reading was:
+
+```
+parse.finish     match the bid's symbols, classify the document; queue one detection.sheet each
+  └─► detection.sheet × N   one sheet's detections, with no lock
+  │        bid lock, commit:  "sheet detected", and, for the last sheet, queue parse.complete
+  └─► parse.complete     queue the takeoff; document `done`
+```
+
+- **`done` keeps its meaning:** read, classified and detected. The document is `processing` until `parse.complete` has run.
+- **`sheet.detected_at` and `sheet.detection_error`** are to detection what `parsed_at` and `parse_error` are to reading. A sheet whose detection fails is finished too, with the reason, so its document can finish.
+- **In the parser pool,** though detection opens no tender file: that is where a document's sheets run side by side, and its jobs are the ones queued again when a worker stops.
+- **A sheet whose inputs are unchanged is not detected again** (its fingerprint, migration `0032`), so `parse.finish` delivered twice costs a fingerprint a sheet.
+- **Two more jobs a document, and one more a sheet:** 300 sheets are now 603 jobs.
+- `detection.run`, after a mapping decision, is still one job for the whole bid. It can fan out to the same `detection.sheet` jobs when that is wanted.

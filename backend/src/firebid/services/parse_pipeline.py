@@ -1,6 +1,6 @@
 """The staged parse pipeline: a drawing set read sheet by sheet, in parallel (ADR-010).
 
-Three kinds of job, each committing its own work, all in the sandbox pool:
+Five kinds of job, each committing its own work, all in the sandbox pool:
 
 * `start` (`parse.document`): check the scan, list the pages, register the sheets, and
   queue one `parse.sheet` for each sheet not yet parsed.
@@ -10,11 +10,21 @@ Three kinds of job, each committing its own work, all in the sandbox pool:
   read, is stored under the bid's lock and committed at once. Its views and symbols are its
   own rows and need no lock, except a legend sheet's legend rows. "Parsed" is marked under
   the lock, and the sheet that finds itself the last one queues `finish`.
-* `finish` (`parse.finish`): what needs every sheet: match the bid's symbols, detect, queue
-  the takeoff, classify the document, and mark it `done`.
+* `finish` (`parse.finish`): what needs every sheet read: match the bid's symbols, classify
+  the document, and queue one `detection.sheet` for each of its sheets.
+* `detect_sheet` (`detection.sheet`): one sheet's detections. Sheets are detected side by
+  side, and a sheet whose inputs are what they were is left as it is (its fingerprint).
+  "Detected" is marked under the bid's lock, and the sheet that finds itself the last one
+  queues `complete`.
+* `complete` (`parse.complete`): queue the takeoff and mark the document `done`.
 
-Every step is idempotent, because delivery is at-least-once: a parsed sheet is skipped, and
-`finish` can run twice and change nothing the second time.
+Detection was one step of `finish`, for every sheet in turn, in one transaction under the
+bid's lock: 189 to 237 s on a real tender of 121 sheets, on one process, with nothing to
+show until it ended. As a job a sheet it runs on as many processes as the pool has.
+
+Every step is idempotent, because delivery is at-least-once: a parsed sheet is skipped, a
+detected sheet is skipped, and `finish` and `complete` can run twice and change nothing
+that matters the second time.
 """
 
 from __future__ import annotations
@@ -248,11 +258,12 @@ def queue_finish(session: Session, document_id: uuid.UUID, user_id: uuid.UUID) -
 def finish(
     session: Session, store: ObjectStore, document: Document, user_id: uuid.UUID
 ) -> dict[str, int]:
-    """Everything that needs the whole set: symbols matched across the bid, detections, the
-    takeoff queued, the document classified and `done`. Idempotent."""
+    """What needs every sheet read: symbols matched across the bid, the document classified,
+    and each sheet queued to be detected. The document stays `processing` until the last of
+    them is. Idempotent."""
+    from firebid.jobs.enqueue import enqueue
+    from firebid.jobs.tasks import detect_sheet_job
     from firebid.services.classification import classify_in_sandbox
-    from firebid.services.detection import detect_all as detect_sheets
-    from firebid.services.qto import queue_recompute
     from firebid.services.symbols import consultant_of, match_instances
 
     sheets = list(
@@ -262,18 +273,126 @@ def finish(
     )
     lock_bid(session, document.bid_id)
     match_instances(session, document.bid_id, consultant_of(session, document.bid_id))
-    detected = detect_sheets(session, store, sheets)
-    queue_recompute(session, document.bid_id, user_id)
     classify_in_sandbox(session, document, store.get(document.storage_key))
-    document.state = "done"
-    document.rejected_reason = None
+    for sheet in sheets:
+        sheet.detected_at = None
+        sheet.detection_error = None
     session.flush()
+    for sheet in sheets:
+        enqueue(session, detect_sheet_job, sheet_id=str(sheet.id), user_id=str(user_id))
+    if not sheets:
+        queue_complete(session, document.id, user_id)
     failed = sum(1 for sheet in sheets if sheet.parse_error)
     log.info(
         "parse_finished",
         document_id=str(document.id),
         sheets=len(sheets),
         failed_sheets=failed,
-        detected=len(detected),
+        queued_for_detection=len(sheets),
     )
     return {"sheets": len(sheets), "failed_sheets": failed}
+
+
+# --- detection.sheet -------------------------------------------------------------------------
+
+
+@dataclass
+class SheetDetected:
+    sheet_id: uuid.UUID
+    skipped: bool = False
+    last: bool = False
+    unchanged: bool = False
+    objects: int = 0
+    runs: int = 0
+
+
+def detect_sheet(
+    session: Session, store: ObjectStore, sheet: Sheet, user_id: uuid.UUID
+) -> SheetDetected:
+    """One sheet's detections, then "detected". Skips a sheet already detected.
+
+    A sheet with no geometry (its reading failed) has nothing to detect and is finished at
+    once. The work is done without the bid's lock: a sheet's detections are its own rows.
+    """
+    from firebid.services import detection
+
+    result = SheetDetected(sheet.id)
+    if sheet.detected_at is not None:
+        result.skipped = True
+        return result
+    record = session.execute(
+        select(SheetGeometry).where(SheetGeometry.sheet_id == sheet.id)
+    ).scalar_one_or_none()
+    if record is not None:
+        outcome = detection.detect_sheet(session, store, record)
+        result.unchanged = outcome.unchanged
+        result.objects, result.runs = outcome.objects, outcome.runs
+
+    lock_bid(session, sheet.bid_id)
+    sheet.detected_at = datetime.now(UTC)
+    sheet.detection_error = None
+    session.flush()
+    result.last = _queue_complete_if_last(session, sheet.document_id, user_id)
+    return result
+
+
+def mark_detection_failed(
+    session: Session, sheet_id: uuid.UUID, user_id: uuid.UUID, reason: str
+) -> bool:
+    """A sheet whose detection failed is finished too, with why, so its document can finish.
+    Returns whether it was the last."""
+    sheet = session.get(Sheet, sheet_id)
+    if sheet is None or sheet.detected_at is not None:
+        return False
+    lock_bid(session, sheet.bid_id)
+    sheet.detected_at = datetime.now(UTC)
+    sheet.detection_error = reason[:2000]
+    session.flush()
+    log.warning("sheet_detection_failed", sheet_id=str(sheet_id), reason=reason[:300])
+    return _queue_complete_if_last(session, sheet.document_id, user_id)
+
+
+def _queue_complete_if_last(session: Session, document_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    """Under the bid's lock, so exactly one sheet sees none left."""
+    left = session.execute(
+        select(func.count())
+        .select_from(Sheet)
+        .where(Sheet.document_id == document_id, Sheet.detected_at.is_(None))
+    ).scalar_one()
+    if left:
+        return False
+    queue_complete(session, document_id, user_id)
+    return True
+
+
+def queue_complete(session: Session, document_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    from firebid.jobs.enqueue import enqueue_once
+    from firebid.jobs.tasks import parse_complete
+
+    enqueue_once(
+        session,
+        parse_complete,
+        f"parse.complete:{document_id}",
+        document_id=str(document_id),
+        user_id=str(user_id),
+    )
+
+
+# --- parse.complete --------------------------------------------------------------------------
+
+
+def complete(session: Session, document: Document, user_id: uuid.UUID) -> dict[str, int]:
+    """Every sheet is read and detected: queue the takeoff and mark the document `done`."""
+    from firebid.services.qto import queue_recompute
+
+    queue_recompute(session, document.bid_id, user_id)
+    document.state = "done"
+    document.rejected_reason = None
+    session.flush()
+    failed = session.execute(
+        select(func.count())
+        .select_from(Sheet)
+        .where(Sheet.document_id == document.id, Sheet.detection_error.is_not(None))
+    ).scalar_one()
+    log.info("parse_completed", document_id=str(document.id), failed_detections=int(failed))
+    return {"failed_detections": int(failed)}

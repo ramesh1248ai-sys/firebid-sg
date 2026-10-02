@@ -126,8 +126,18 @@ class TestFanOut:
         assert tasks.count("parse.sheet") == SHEETS
         assert tasks.count("parse.finish") == 1, "exactly one sheet finds itself the last"
         assert [job["result"]["last"] for job in result["jobs"][:SHEETS]].count(True) == 1
+        # Then each sheet is detected in a job of its own, and the last completes the document.
+        assert tasks.count("detection.sheet") == SHEETS
+        assert tasks.count("parse.complete") == 1
+        assert tasks.index("parse.finish") < tasks.index("detection.sheet")
+        assert tasks[-1] == "parse.complete"
+        detected = [job["result"] for job in result["jobs"] if job["task"] == "detection.sheet"]
+        assert [d["last"] for d in detected].count(True) == 1
         sheets = sheets_of(session, document)
         assert all(sheet.parsed_at is not None and sheet.parse_error is None for sheet in sheets)
+        assert all(
+            sheet.detected_at is not None and sheet.detection_error is None for sheet in sheets
+        )
         for sheet in sheets:
             assert session.execute(
                 select(SheetRevision).where(SheetRevision.sheet_id == sheet.id)
@@ -159,7 +169,15 @@ class TestIdempotency:
 
         again = run_parse(session, document.id, user.id)
 
-        assert [job["task"] for job in again["jobs"]] == ["parse.finish"]
+        # Nothing is read again; every sheet's detection finds nothing changed.
+        assert [job["task"] for job in again["jobs"]] == [
+            "parse.finish",
+            *["detection.sheet"] * SHEETS,
+            "parse.complete",
+        ]
+        assert all(
+            job["result"]["unchanged"] for job in again["jobs"] if job["task"] == "detection.sheet"
+        )
         assert session.get(Document, document.id).state == "done"  # type: ignore[union-attr]
         assert (
             session.execute(
@@ -223,6 +241,126 @@ class TestFailure:
         assert failed.parse_error and "page tree is damaged" in failed.parse_error
         assert all(sheet.parse_error is None for sheet in sheets if sheet.id != broken)
         assert session.get(Document, document.id).state == "done"  # type: ignore[union-attr]
+
+
+class TestDetectionASheet:
+    """Detection is a job a sheet, after the document's sheets are all read (ADR-010)."""
+
+    def test_the_document_is_not_done_until_its_last_sheet_is_detected(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        three_sheet_pdf: bytes,
+        as_application_role: None,
+    ) -> None:
+        from firebid.jobs.tasks import detect_sheet_job, parse_finish
+
+        document = upload(session, bid, store, three_sheet_pdf)
+        context = cast(JobContext, None)
+        parse_document(context, document_id=str(document.id), user_id=str(user.id))
+        session.expire_all()
+        sheets = sheets_of(session, document)
+        for sheet in sheets:
+            parse_sheet(context, sheet_id=str(sheet.id), user_id=str(user.id))
+
+        parse_finish(context, document_id=str(document.id), user_id=str(user.id))
+
+        session.expire_all()
+        mine = {str(sheet.id) for sheet in sheets}
+        assert {job["sheet_id"] for job in queued(session, "detection.sheet")} >= mine
+        assert session.get(Document, document.id).state == "processing"  # type: ignore[union-attr]
+        assert not read_progress(session, bid.id).finished
+        assert not queued(session, "parse.complete")
+
+        last = [
+            detect_sheet_job(context, sheet_id=str(sheet.id), user_id=str(user.id))["last"]
+            for sheet in sheets
+        ]
+
+        assert last == [False, False, True]
+        complete = [
+            job
+            for job in queued(session, "parse.complete")
+            if job["document_id"] == str(document.id)
+        ]
+        assert len(complete) == 1
+        # Still not done: that is the complete job's to say, with the takeoff it queues.
+        assert session.get(Document, document.id).state == "processing"  # type: ignore[union-attr]
+
+    def test_a_sheet_whose_detection_fails_is_finished_with_why_and_the_rest_carry_on(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        three_sheet_pdf: bytes,
+        as_application_role: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        document = upload(session, bid, store, three_sheet_pdf)
+        parse_document(cast(JobContext, None), document_id=str(document.id), user_id=str(user.id))
+        session.expire_all()
+        broken = sheets_of(session, document)[1].id
+        real = parse_pipeline.detect_sheet
+
+        def failing(session: Session, store: Any, sheet: Sheet, user_id: uuid.UUID) -> Any:
+            if sheet.id == broken:
+                raise RuntimeError("the pipe network could not be traced")
+            return real(session, store, sheet, user_id)
+
+        monkeypatch.setattr(parse_pipeline, "detect_sheet", failing)
+        run_parse(session, document.id, user.id)
+
+        sheets = sheets_of(session, document)
+        failed = next(sheet for sheet in sheets if sheet.id == broken)
+        assert failed.detected_at is not None
+        assert failed.detection_error and "could not be traced" in failed.detection_error
+        assert all(sheet.detection_error is None for sheet in sheets if sheet.id != broken)
+        assert session.get(Document, document.id).state == "done"  # type: ignore[union-attr]
+
+    def test_a_detection_job_delivered_twice_does_nothing_the_second_time(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        three_sheet_pdf: bytes,
+        as_application_role: None,
+    ) -> None:
+        from firebid.jobs.tasks import detect_sheet_job
+
+        document = upload(session, bid, store, three_sheet_pdf)
+        run_parse(session, document.id, user.id)
+        sheet = sheets_of(session, document)[0]
+
+        repeat = detect_sheet_job(
+            cast(JobContext, None), sheet_id=str(sheet.id), user_id=str(user.id)
+        )
+
+        assert repeat["skipped"] is True
+        assert not [
+            job
+            for job in queued(session, "parse.complete")
+            if job["document_id"] == str(document.id)
+        ], "a skipped sheet is not the last one again"
+
+    def test_the_takeoff_is_queued_once_when_the_document_completes(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        three_sheet_pdf: bytes,
+        as_application_role: None,
+    ) -> None:
+        document = upload(session, bid, store, three_sheet_pdf)
+
+        run_parse(session, document.id, user.id)
+
+        takeoff = [job for job in queued(session, "qto.recompute") if job["bid_id"] == str(bid.id)]
+        assert len(takeoff) == 1
 
 
 def test_a_parse_job_whose_worker_stopped_is_queued_again(session: Session) -> None:

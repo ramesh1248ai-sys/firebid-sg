@@ -1321,6 +1321,8 @@ _UPSTREAM = (
     "parse.document",
     "parse.sheet",
     "parse.finish",
+    "parse.complete",
+    "detection.sheet",
     "detection.run",
     "detection.vision",
     "spec.read",
