@@ -638,7 +638,7 @@ export interface paths {
         put?: never;
         /**
          * Run Detection Again
-         * @description Queue detection of every sheet again, as confirming a mapping does.
+         * @description Queue detection of every sheet again, whether or not anything changed: a person asked.
          */
         post: operations["run_detection_again_bids__bid_id__detections_run_post"];
         delete?: never;
