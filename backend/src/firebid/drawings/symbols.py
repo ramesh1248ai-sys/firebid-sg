@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from functools import lru_cache
 from itertools import pairwise
 from typing import Any
 
@@ -116,6 +117,9 @@ class Cluster:
 # --- The descriptor -------------------------------------------------------------------------
 
 
+SAMPLED_KINDS = (Kind.LINE, Kind.POLYLINE, Kind.ARC, Kind.HATCH)
+
+
 def sample(table: pa.Table, rows: tuple[int, ...] | list[int]) -> tuple[np.ndarray, np.ndarray]:
     """Points evenly spaced along the line work of `rows`, and the line's direction at each.
 
@@ -123,7 +127,7 @@ def sample(table: pa.Table, rows: tuple[int, ...] | list[int]) -> tuple[np.ndarr
     segments is weighted exactly like a CAD circle of the same length.
     """
     picked = table.take(list(rows))
-    lines = segments(picked, kinds=(Kind.LINE, Kind.POLYLINE, Kind.ARC, Kind.HATCH))
+    lines = segments(picked, kinds=SAMPLED_KINDS)
     starts = [np.column_stack([lines.x0, lines.y0])]
     ends = [np.column_stack([lines.x1, lines.y1])]
     for row in picked.select(["kind", "cx", "cy", "radius"]).to_pylist():
@@ -133,7 +137,56 @@ def sample(table: pa.Table, rows: tuple[int, ...] | list[int]) -> tuple[np.ndarr
             ys = row["cy"] + row["radius"] * np.sin(angle)
             starts.append(np.column_stack([xs[:-1], ys[:-1]]))
             ends.append(np.column_stack([xs[1:], ys[1:]]))
-    first, last = np.vstack(starts), np.vstack(ends)
+    return _evenly(np.vstack(starts), np.vstack(ends))
+
+
+class Sampler:
+    """`sample` for many symbols of one sheet: the same points, without slicing the sheet's
+    table for each. The sheet's line work is exploded once; a symbol's is then picked out of
+    it. Slicing a busy sheet's table twice a symbol was most of signing its symbols (9 s of
+    16 on a real sheet of 2,300 symbols).
+    """
+
+    def __init__(self, table: pa.Table) -> None:
+        lines = segments(table, kinds=SAMPLED_KINDS)
+        cut = lines.closing_from if lines.closing_from >= 0 else len(lines)
+        self._first = np.column_stack([lines.x0, lines.y0])
+        self._last = np.column_stack([lines.x1, lines.y1])
+        # A primitive's own segments are a run of the first part; its closing segment, if
+        # it has one, is one of the second. Both parts are in primitive order.
+        self._owner, self._closer, self._cut = lines.row[:cut], lines.row[cut:], cut
+        self._cut_last = max(int(self._closer.size) - 1, 0)
+        kinds = np.asarray(table.column("kind").to_pylist(), dtype=object)
+        self._circle = kinds == str(Kind.CIRCLE)
+        self._cx, self._cy, self._radius = (
+            np.asarray(table.column(name).to_pylist(), dtype=object)
+            for name in ("cx", "cy", "radius")
+        )
+
+    def sample(self, rows: tuple[int, ...] | list[int]) -> tuple[np.ndarray, np.ndarray]:
+        wanted = np.asarray(rows, dtype=np.int64)
+        low = np.searchsorted(self._owner, wanted, side="left")
+        counts = np.searchsorted(self._owner, wanted, side="right") - low
+        # Each row's run of segments, one after another: low, low + 1, ... for each row.
+        before = np.cumsum(counts) - counts
+        own = np.repeat(low - before, counts) + np.arange(int(counts.sum()))
+        if self._closer.size:
+            at = np.minimum(np.searchsorted(self._closer, wanted, side="left"), self._cut_last)
+            closing = self._cut + at[self._closer[at] == wanted]
+            own = np.concatenate([own, closing])
+        starts, ends = [self._first[own]], [self._last[own]]
+        for row in wanted[self._circle[wanted]].tolist():
+            if self._radius[row]:
+                angle = np.linspace(0, 2 * math.pi, CIRCLE_SIDES + 1)
+                xs = self._cx[row] + self._radius[row] * np.cos(angle)
+                ys = self._cy[row] + self._radius[row] * np.sin(angle)
+                starts.append(np.column_stack([xs[:-1], ys[:-1]]))
+                ends.append(np.column_stack([xs[1:], ys[1:]]))
+        return _evenly(np.vstack(starts), np.vstack(ends))
+
+
+def _evenly(first: np.ndarray, last: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Points evenly spaced along the segments from `first` to `last`, taken as one path."""
     lengths = np.hypot(*(last - first).T)
     keep = lengths > 0
     first, last, lengths = first[keep], last[keep], lengths[keep]
@@ -146,6 +199,13 @@ def sample(table: pa.Table, rows: tuple[int, ...] | list[int]) -> tuple[np.ndarr
     t = (at - cumulative[piece]) / lengths[piece]
     direction = (last - first)[piece] / lengths[piece][:, None]
     return first[piece] + direction * (t * lengths[piece])[:, None], direction
+
+
+@lru_cache(maxsize=8)
+def _pairs(count: int) -> tuple[np.ndarray, np.ndarray]:
+    """Every pair of `count` points, first before second, in the order of the upper triangle."""
+    first, second = np.triu_indices(count, 1)
+    return first, second
 
 
 def describe(points: np.ndarray, directions: np.ndarray) -> tuple[tuple[float, ...], float] | None:
@@ -163,8 +223,11 @@ def describe(points: np.ndarray, directions: np.ndarray) -> tuple[tuple[float, .
     rms = float(np.sqrt(np.mean(radii**2)))
     if rms <= 1e-9:
         return None
-    difference = centred[:, None, :] - centred[None, :, :]
-    pairwise = np.hypot(difference[..., 0], difference[..., 1])[np.triu_indices(len(points), 1)]
+    # Each pair once: the distances a full square of differences gave, without the half of
+    # it (and the diagonal) that was worked out and thrown away.
+    first, second = _pairs(len(points))
+    difference = centred[first] - centred[second]
+    pairwise = np.hypot(difference[:, 0], difference[:, 1])
     d2, _ = np.histogram(pairwise / rms, bins=D2_BINS)
     radial, _ = np.histogram(radii / rms, bins=RADIAL_BINS)
     outward = centred / np.maximum(radii, 1e-9)[:, None]
@@ -233,8 +296,13 @@ def orientation(instance: Signature, reference: Signature, margin: float = 0.08)
     return float(best * 360 / ANGLE_BINS)
 
 
-def signature_of(table: pa.Table, cluster: Cluster) -> Signature | None:
-    points, directions = sample(table, cluster.rows)
+def signature_of(
+    table: pa.Table, cluster: Cluster, sampler: Sampler | None = None
+) -> Signature | None:
+    """A symbol's signature. With a `sampler` of the sheet, for signing many of its symbols."""
+    points, directions = (
+        sampler.sample(cluster.rows) if sampler is not None else sample(table, cluster.rows)
+    )
     described = describe(points, directions)
     if described is None:
         return None
@@ -267,6 +335,7 @@ def clusters(
     """
     if found is None:
         found = candidates(table)
+    sampler: Sampler | None = None
     kept = []
     for cluster in found:
         cx, cy = cluster.centre
@@ -277,7 +346,9 @@ def clusters(
         if not signed:
             kept.append(cluster)
             continue
-        signature = signature_of(table, cluster)
+        if sampler is None:
+            sampler = Sampler(table)
+        signature = signature_of(table, cluster, sampler)
         if signature is not None:
             kept.append(_with(cluster, signature))
     return kept

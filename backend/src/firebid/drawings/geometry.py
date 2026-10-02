@@ -326,6 +326,9 @@ class Segments:
     y1: np.ndarray
     layer: np.ndarray
     row: np.ndarray  # which primitive each segment came from
+    # The segments are in primitive order up to here; from here on are the ones that close
+    # a closed polyline (its last point to its first), again in primitive order.
+    closing_from: int = -1
 
     @property
     def lengths(self) -> np.ndarray:
@@ -369,6 +372,7 @@ def segments(
 
     # A closed polyline also joins its last point to its first.
     closing = np.flatnonzero(closed & (counts_per_row > 2))
+    closing_from = int(seg_x0.size)
     if closing.size:
         first = point_offsets[closing]
         last = point_offsets[closing + 1] - 1
@@ -378,7 +382,9 @@ def segments(
         seg_y1 = np.concatenate([seg_y1, ys[first]])
         seg_owner = np.concatenate([seg_owner, closing])
 
-    return Segments(seg_x0, seg_y0, seg_x1, seg_y1, layers[seg_owner], rows[seg_owner])
+    return Segments(
+        seg_x0, seg_y0, seg_x1, seg_y1, layers[seg_owner], rows[seg_owner], closing_from
+    )
 
 
 def texts(table: pa.Table) -> list[dict[str, Any]]:

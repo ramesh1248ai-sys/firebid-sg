@@ -447,6 +447,20 @@ class TestAfterAMappingDecision:
         assert self.jobs(session, "detection.sheet") == []
         assert len(self.jobs(session, "qto.recompute")) == 1
 
+    def test_two_decisions_close_together_queue_a_sheet_once(
+        self, session: Session, bid: Bid, store: MemoryObjectStore, user: Any
+    ) -> None:
+        from firebid.services import parse_pipeline
+
+        self.detected(session, bid, store)
+
+        first = parse_pipeline.detect_again(session, bid.id, user.id, force=True)
+        session.commit()
+        second = parse_pipeline.detect_again(session, bid.id, user.id, force=True)
+
+        assert first == second and first["sheets"] >= 1
+        assert len(self.jobs(session, "detection.sheet")) == first["sheets"]
+
     def test_a_changed_mapping_queues_its_sheet_and_the_takeoff_follows_its_detection(
         self, session: Session, bid: Bid, store: MemoryObjectStore, user: Any
     ) -> None:

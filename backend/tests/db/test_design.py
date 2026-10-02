@@ -111,10 +111,14 @@ class TestDesignBasis:
             select(AuditEvent).where(AuditEvent.action == "design basis: confirm")
         ).scalar_one()
         assert event.entity_id == str(row.id)
-        queued = session.execute(
-            text("SELECT count(*) FROM procrastinate_jobs WHERE task_name = 'design.layout'")
-        ).scalar_one()
-        assert queued == 1
+        queued = "SELECT args FROM procrastinate_jobs WHERE task_name = 'design.layout'"
+        (job,) = session.execute(text(queued)).scalars()
+        assert job["sheet_id"] == str(row.sheet_id), "the sheet confirmed, not the whole bid"
+
+        # A second change before that job has run finds it waiting.
+        design.set_scope(session, row, None, SENIOR)
+        session.commit()
+        assert len(session.execute(text(queued)).all()) == 1
 
     def test_a_sheet_whose_scale_is_not_verified_is_blocked_and_says_why(
         self, session: Session, bid: Bid, store: MemoryObjectStore
