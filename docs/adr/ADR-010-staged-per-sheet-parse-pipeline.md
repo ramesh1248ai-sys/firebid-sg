@@ -60,7 +60,7 @@ parse.document   check the scan, list the pages, register the sheets; queue one 
 
   On six real sheets, all the locked work together took 0.2 s, and no sheet waited for the lock (P1-11 benchmark).
 - **The last sheet queues the finish, exactly once in effect.** Sheets count "left to parse" under the bid lock, so exactly one sees zero. A duplicate finish is harmless: it is idempotent and queue-locked.
-- **Lost jobs are retried.** A periodic `system.retry_stalled_parse` job re-queues `parse` jobs whose worker has stopped sending heartbeats. Because every parse job is idempotent, a retry is always safe.
+- **Lost jobs are retried.** A periodic `system.retry_stalled_jobs` job (first `system.retry_stalled_parse`, for the `parse` queue only) re-queues jobs on any queue whose worker has stopped sending heartbeats, and fails a job found stalled on its fifth run. Because every parse job is idempotent, a retry is always safe.
 
 ## Consequences
 

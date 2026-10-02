@@ -15,7 +15,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from firebid.drawings import scale
+from firebid.drawings import scale, symbols
 from firebid.drawings.geometry import Builder, Method, segments, texts
 from firebid.drawings.scale import FIGURE, Evidence, in_box
 from firebid.drawings.symbols import Sampler, sample
@@ -154,3 +154,49 @@ class TestFiguresOnTheirLines:
         builder.text("4000", (18, 10.5, 22, 12.5), 1, height=2.0)
         (found,) = scale._paired_figures(builder.table(), (0.0, 0.0, 200.0, 200.0))
         assert (found.value, found.paper_mm) == (4000.0, 40.0)
+
+
+def reference_describe(
+    points: np.ndarray, directions: np.ndarray
+) -> tuple[tuple[float, ...], float] | None:
+    """`symbols.describe` as it was: a full square of differences, counted by `np.histogram`."""
+    if len(points) < 8:
+        return None
+    centred = points - points.mean(axis=0)
+    radii = np.hypot(centred[:, 0], centred[:, 1])
+    rms = float(np.sqrt(np.mean(radii**2)))
+    if rms <= 1e-9:
+        return None
+    difference = centred[:, None, :] - centred[None, :, :]
+    pairwise = np.hypot(difference[..., 0], difference[..., 1])[np.triu_indices(len(points), 1)]
+    d2, _ = np.histogram(pairwise / rms, bins=symbols.D2_BINS)
+    radial, _ = np.histogram(radii / rms, bins=symbols.RADIAL_BINS)
+    outward = centred / np.maximum(radii, 1e-9)[:, None]
+    along = np.abs((outward * directions).sum(axis=1))
+    turn, _ = np.histogram(along[radii > 1e-6 * rms], bins=symbols.TURN_BINS)
+    descriptor = np.concatenate([part / max(part.sum(), 1) for part in (d2, radial, turn)])
+    return tuple(float(value) for value in descriptor), rms
+
+
+on_or_near_an_edge = st.sampled_from([0.0, 0.2, 0.4, 3.0, 3.2, 3.2000000000000006, 3.4, -0.1])
+measured = st.one_of(on_or_near_an_edge, st.floats(min_value=-1, max_value=5, allow_nan=False))
+
+
+class TestTheDescriptor:
+    @given(st.lists(measured, max_size=60))
+    @settings(max_examples=300, deadline=None)
+    def test_values_are_counted_as_a_histogram_counts_them(self, values: list[float]) -> None:
+        array = np.asarray(values, dtype=float)
+        wanted, _ = np.histogram(array, bins=symbols.D2_BINS)
+        assert np.array_equal(symbols._counted(array, symbols.D2_BINS), wanted)
+
+    @given(st.lists(primitive, min_size=1, max_size=12))
+    @settings(max_examples=150, deadline=None)
+    def test_a_symbol_s_descriptor_is_the_one_the_full_square_gave(
+        self, primitives: list[tuple[str, Any]]
+    ) -> None:
+        table = table_of(primitives)
+        if table.num_rows == 0:
+            return
+        points, directions = sample(table, list(range(table.num_rows)))
+        assert symbols.describe(points, directions) == reference_describe(points, directions)

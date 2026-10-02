@@ -25,7 +25,7 @@ from firebid.db.models.documents import Document, Sheet, SheetRevision
 from firebid.db.models.drawings import SheetGeometry
 from firebid.evals.synthetic import general_arrangement, write_pdf
 from firebid.ingest.scanning import AlwaysCleanScanner
-from firebid.jobs.tasks import parse_document, parse_sheet, retry_stalled_parse
+from firebid.jobs.tasks import parse_document, parse_sheet, retry_stalled_jobs
 from firebid.services import parse_pipeline
 from firebid.services.ingestion import Ingestor
 from firebid.storage import object_store
@@ -365,22 +365,77 @@ class TestDetectionASheet:
         assert len(takeoff) == 1
 
 
-def test_a_parse_job_whose_worker_stopped_is_queued_again(session: Session) -> None:
-    """A worker that dies mid-job leaves it `doing` for ever; the sweep puts it back."""
+@pytest.mark.parametrize(
+    ("queue", "task"), [("parse", "parse.sheet"), ("default", "symbol.propose")]
+)
+def test_a_job_whose_worker_stopped_is_queued_again(
+    session: Session, queue: str, task: str
+) -> None:
+    """A worker that dies mid-job leaves it `doing` for ever; the sweep puts it back,
+    whichever queue it was on."""
     job_id = session.execute(
         text(
             "INSERT INTO procrastinate_jobs (queue_name, task_name, args, status) "
-            "VALUES ('parse', 'parse.sheet', '{}', 'doing') RETURNING id"
-        )
+            "VALUES (:queue, :task, '{}', 'doing') RETURNING id"
+        ),
+        {"queue": queue, "task": task},
     ).scalar_one()
     session.commit()
 
-    retried = retry_stalled_parse(0)
+    retried = retry_stalled_jobs(0)
+
+    session.expire_all()
+    status, attempts = session.execute(
+        text("SELECT status, attempts FROM procrastinate_jobs WHERE id = :id"), {"id": job_id}
+    ).one()
+    assert retried >= 1 and (status, attempts) == ("todo", 1)
+    session.execute(text("DELETE FROM procrastinate_jobs WHERE id = :id"), {"id": job_id})
+    session.commit()
+
+
+def test_a_job_that_keeps_stalling_is_failed_not_queued_for_ever(session: Session) -> None:
+    from firebid.jobs.tasks import STALLED_ATTEMPTS
+
+    job_id = session.execute(
+        text(
+            "INSERT INTO procrastinate_jobs (queue_name, task_name, args, status, attempts) "
+            "VALUES ('default', 'qto.recompute', '{}', 'doing', :attempts) RETURNING id"
+        ),
+        {"attempts": STALLED_ATTEMPTS - 1},
+    ).scalar_one()
+    session.commit()
+
+    retry_stalled_jobs(0)
 
     session.expire_all()
     status = session.execute(
         text("SELECT status FROM procrastinate_jobs WHERE id = :id"), {"id": job_id}
     ).scalar_one()
-    assert retried >= 1 and status == "todo"
+    assert status == "failed"
     session.execute(text("DELETE FROM procrastinate_jobs WHERE id = :id"), {"id": job_id})
+    session.commit()
+
+
+def test_a_job_whose_worker_is_alive_is_left_running(session: Session) -> None:
+    worker_id = session.execute(
+        text("INSERT INTO procrastinate_workers (last_heartbeat) VALUES (now()) RETURNING id")
+    ).scalar_one()
+    job_id = session.execute(
+        text(
+            "INSERT INTO procrastinate_jobs (queue_name, task_name, args, status, worker_id) "
+            "VALUES ('default', 'qto.recompute', '{}', 'doing', :worker) RETURNING id"
+        ),
+        {"worker": worker_id},
+    ).scalar_one()
+    session.commit()
+
+    retry_stalled_jobs(0)
+
+    session.expire_all()
+    status = session.execute(
+        text("SELECT status FROM procrastinate_jobs WHERE id = :id"), {"id": job_id}
+    ).scalar_one()
+    assert status == "doing"
+    session.execute(text("DELETE FROM procrastinate_jobs WHERE id = :id"), {"id": job_id})
+    session.execute(text("DELETE FROM procrastinate_workers WHERE id = :id"), {"id": worker_id})
     session.commit()

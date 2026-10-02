@@ -1489,3 +1489,23 @@ Entry template:
   - Needs a decision: one sandboxed process a sheet rather than one a call (security review); more parser jobs at once (the pool has 2 CPUs and 4 GiB); whether a page with a full text layer and no title block is worth OCR.
   - Not started: pagination on the takeoff and review endpoints, uploads read whole into memory, database pool sizing, the progress stream's polling, database tests in parallel.
   - Tiles and geometry on a cold cache are still unmeasured: every run here had them cached.
+
+## Performance · The symbol descriptor; stalled jobs on every queue · 2026-10-03
+
+- **Summary:**
+  - **Symbol descriptor** (`drawings/symbols.describe`): the pair distances are taken a coordinate at a time, and counted into their bins without sorting them first (`_counted`). The descriptors are the same to the last bit.
+  - **Stalled jobs**: `system.retry_stalled_parse` looked at the `parse` queue only, so a job on the ordinary worker whose worker stopped stayed `doing` for ever (a legend row that never got its proposal; a `detection.run` left after each rebuild). It is `system.retry_stalled_jobs` now and looks at every queue: every job is idempotent (ADR-006). A job found stalled on its fifth run is failed, not queued again, and logged as `stalled_job_abandoned`; a job queued again is logged as `stalled_job_retried`. Seen working on the local stack: a job planted as `doing` with no worker was queued again by the next sweep and ran.
+- **Tried and dropped:** describing a sheet's symbols together, in stacked arrays. It gave the same descriptors and was slower (9.2 s against 6.7 s on a sheet of 5,326 symbols): the cost is the arithmetic, 19,900 pair distances a symbol, not the call a symbol, and a batch of them no longer fits the processor's cache.
+- **Key modules / files:** `drawings/symbols.py` (`describe`, `_counted`), `jobs/tasks.py` (`retry_stalled_jobs`, `STALLED_ATTEMPTS`; the old task name is kept as an alias for jobs already queued).
+- **Measured** on real sheets of the 121-sheet tender, symbol shapes for the whole sheet:
+
+  | Sheet | Start of 2 Oct | After the sampler | Now |
+  |---|---|---|---|
+  | 5,326 small symbols (14,346 primitives) | 9.3 s | about 7 s | 4.3 s |
+  | 2,312 symbols (165,795 primitives) | 15.6 s | 4.4 s | 3.5 s |
+
+  One symbol's descriptor: 0.85 ms to about 0.5 ms. Not measured again on the whole tender on the stack.
+- **Tests:** `tests/drawings/test_sampling.py::TestTheDescriptor` (counted as `np.histogram` counts, on and beside the bin edges; the descriptor against the full square of differences), `tests/db/test_parse_pipeline.py` (a stalled job is queued again on either queue; one that keeps stalling is failed; one whose worker is alive is left).
+- **Known gaps and follow-ups:**
+  - No alert yet on a job that runs for over an hour with its worker alive.
+  - Symbol shapes is still the largest parse stage; what is left is arithmetic that the signature's definition asks for (200 sample points, every pair).
