@@ -131,10 +131,18 @@ def psql(query: str) -> list[list[str]]:
 
 
 def bid_jobs(bid: str) -> dict[str, int]:
-    """The bid's own queued jobs, as "task status" to count (the job queue has no API)."""
+    """The bid's own queued jobs, as "task status" to count (the job queue has no API).
+
+    A job names its bid, or one of the bid's documents or sheets: detection after a mapping
+    decision is a job a sheet, and the takeoff follows the last of them.
+    """
+    key = uuid.UUID(bid)
     rows = psql(
         "select task_name || ' ' || status, count(*) from procrastinate_jobs "  # noqa: S608 - a parsed UUID
-        f"where args->>'bid_id' = '{uuid.UUID(bid)}' group by 1"
+        f"where args->>'bid_id' = '{key}' "
+        f"or args->>'document_id' in (select id::text from document where bid_id = '{key}') "
+        f"or args->>'sheet_id' in (select id::text from sheet where bid_id = '{key}') "
+        "group by 1"
     )
     return {key: int(count) for key, count in rows}
 

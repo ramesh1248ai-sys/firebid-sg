@@ -305,10 +305,12 @@ class TestDetectionASheet:
         broken = sheets_of(session, document)[1].id
         real = parse_pipeline.detect_sheet
 
-        def failing(session: Session, store: Any, sheet: Sheet, user_id: uuid.UUID) -> Any:
+        def failing(
+            session: Session, store: Any, sheet: Sheet, user_id: uuid.UUID, **options: Any
+        ) -> Any:
             if sheet.id == broken:
                 raise RuntimeError("the pipe network could not be traced")
-            return real(session, store, sheet, user_id)
+            return real(session, store, sheet, user_id, **options)
 
         monkeypatch.setattr(parse_pipeline, "detect_sheet", failing)
         run_parse(session, document.id, user.id)

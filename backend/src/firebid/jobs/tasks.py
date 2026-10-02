@@ -199,8 +199,11 @@ def parse_finish(context: JobContext, document_id: str, user_id: str) -> dict[st
 
 
 @app.task(name="detection.sheet", queue=PARSE_QUEUE, pass_context=True)
-def detect_sheet_job(context: JobContext, sheet_id: str, user_id: str) -> dict[str, Any]:
-    """One sheet's detections, after its document's sheets are all read (ADR-010).
+def detect_sheet_job(
+    context: JobContext, sheet_id: str, user_id: str, force: bool = False
+) -> dict[str, Any]:
+    """One sheet's detections: after its document's sheets are all read, or after a mapping
+    decision that reaches it (ADR-010). `force` detects it whether or not anything changed.
 
     In the parser pool, though it opens no tender file (it reads stored geometry): that is
     where a document's sheets run side by side, and where a job whose worker stopped is
@@ -214,7 +217,7 @@ def detect_sheet_job(context: JobContext, sheet_id: str, user_id: str) -> dict[s
     from firebid.services import parse_pipeline
     from firebid.storage.object_store import get_object_store
 
-    user = uuid_module.UUID(user_id)
+    user = uuid_module.UUID(user_id) if user_id else None
     sheet_key = uuid_module.UUID(sheet_id)
     try:
         with acting_as(user), session_scope() as session:
@@ -222,7 +225,9 @@ def detect_sheet_job(context: JobContext, sheet_id: str, user_id: str) -> dict[s
             if sheet is None:
                 log.info("detection_skipped_missing_sheet", sheet_id=sheet_id)
                 return {"skipped": True}
-            result = parse_pipeline.detect_sheet(session, get_object_store(), sheet, user)
+            result = parse_pipeline.detect_sheet(
+                session, get_object_store(), sheet, user, force=force
+            )
             return {
                 "skipped": result.skipped,
                 "last": result.last,
@@ -246,7 +251,7 @@ def parse_complete(context: JobContext, document_id: str, user_id: str) -> dict[
     from firebid.db.models.documents import Document
     from firebid.services import parse_pipeline
 
-    user = uuid_module.UUID(user_id)
+    user = uuid_module.UUID(user_id) if user_id else None
     with acting_as(user), session_scope() as session:
         document = session.get(Document, uuid_module.UUID(document_id))
         if document is None:
@@ -313,25 +318,23 @@ def classify_document_with_model(context: JobContext, document_id: str, user_id:
 
 @app.task(name="detection.run", queue="default", pass_context=True)
 def run_detection(context: JobContext, bid_id: str, user_id: str, force: bool = False) -> int:
-    """Detect a bid's sheets again, after a symbol mapping was confirmed or changed.
+    """After a symbol mapping was confirmed or changed: queue the sheets it reaches to be
+    detected again, each in a job of its own (`detection.sheet`).
 
-    On the ordinary worker: it reads stored geometry, never the tender file. Only the sheets
-    the change reaches are detected: a sheet whose inputs are what they were keeps its
-    detections. `force` detects every sheet regardless, for a person who asks for it.
+    On the ordinary worker, and quick: it finds the sheets by fingerprint and opens no
+    geometry. `force` queues every sheet regardless, for a person who asks for it. The
+    takeoff follows when the sheets' documents complete (P1-07). Returns how many sheets
+    it queued.
     """
     import uuid as uuid_module
 
     from firebid.db.identity import acting_as
-    from firebid.services.detection import detect_bid
-    from firebid.services.qto import queue_recompute
-    from firebid.storage.object_store import get_object_store
+    from firebid.services import parse_pipeline
 
     acting = uuid_module.UUID(user_id) if user_id else None
     with acting_as(acting), session_scope() as session:
-        outcomes = detect_bid(session, get_object_store(), uuid_module.UUID(bid_id), force=force)
-        # Takeoff follows what was detected (P1-07), in the same transaction.
-        queue_recompute(session, uuid_module.UUID(bid_id), acting)
-        return sum(outcome.objects + outcome.runs for outcome in outcomes)
+        queued = parse_pipeline.detect_again(session, uuid_module.UUID(bid_id), acting, force=force)
+        return queued["sheets"]
 
 
 @app.task(name="qto.recompute", queue="default", pass_context=True)

@@ -35,7 +35,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session
 
 from firebid.db.models.documents import Document, Sheet
@@ -307,26 +307,36 @@ class SheetDetected:
 
 
 def detect_sheet(
-    session: Session, store: ObjectStore, sheet: Sheet, user_id: uuid.UUID
+    session: Session,
+    store: ObjectStore,
+    sheet: Sheet,
+    user_id: uuid.UUID | None,
+    *,
+    force: bool = False,
 ) -> SheetDetected:
-    """One sheet's detections, then "detected". Skips a sheet already detected.
+    """One sheet's detections, then "detected".
 
     A sheet with no geometry (its reading failed) has nothing to detect and is finished at
     once. The work is done without the bid's lock: a sheet's detections are its own rows.
+
+    A sheet already marked detected is looked at all the same: a job queued for an earlier
+    decision may have marked it while a later decision was being made. Its fingerprint says
+    whether anything is left to do; when nothing is, the job is skipped and finishes nothing.
     """
     from firebid.services import detection
 
     result = SheetDetected(sheet.id)
-    if sheet.detected_at is not None:
-        result.skipped = True
-        return result
+    already = sheet.detected_at is not None
     record = session.execute(
         select(SheetGeometry).where(SheetGeometry.sheet_id == sheet.id)
     ).scalar_one_or_none()
     if record is not None:
-        outcome = detection.detect_sheet(session, store, record)
+        outcome = detection.detect_sheet(session, store, record, force=force and not already)
         result.unchanged = outcome.unchanged
         result.objects, result.runs = outcome.objects, outcome.runs
+    if already and (record is None or result.unchanged):
+        result.skipped = True
+        return result
 
     lock_bid(session, sheet.bid_id)
     sheet.detected_at = datetime.now(UTC)
@@ -337,7 +347,7 @@ def detect_sheet(
 
 
 def mark_detection_failed(
-    session: Session, sheet_id: uuid.UUID, user_id: uuid.UUID, reason: str
+    session: Session, sheet_id: uuid.UUID, user_id: uuid.UUID | None, reason: str
 ) -> bool:
     """A sheet whose detection failed is finished too, with why, so its document can finish.
     Returns whether it was the last."""
@@ -352,7 +362,9 @@ def mark_detection_failed(
     return _queue_complete_if_last(session, sheet.document_id, user_id)
 
 
-def _queue_complete_if_last(session: Session, document_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+def _queue_complete_if_last(
+    session: Session, document_id: uuid.UUID, user_id: uuid.UUID | None
+) -> bool:
     """Under the bid's lock, so exactly one sheet sees none left."""
     left = session.execute(
         select(func.count())
@@ -365,7 +377,7 @@ def _queue_complete_if_last(session: Session, document_id: uuid.UUID, user_id: u
     return True
 
 
-def queue_complete(session: Session, document_id: uuid.UUID, user_id: uuid.UUID) -> None:
+def queue_complete(session: Session, document_id: uuid.UUID, user_id: uuid.UUID | None) -> None:
     from firebid.jobs.enqueue import enqueue_once
     from firebid.jobs.tasks import parse_complete
 
@@ -374,20 +386,92 @@ def queue_complete(session: Session, document_id: uuid.UUID, user_id: uuid.UUID)
         parse_complete,
         f"parse.complete:{document_id}",
         document_id=str(document_id),
-        user_id=str(user_id),
+        user_id=str(user_id) if user_id else "",
     )
+
+
+# --- detection.run ---------------------------------------------------------------------------
+
+
+def detect_again(
+    session: Session, bid_id: uuid.UUID, user_id: uuid.UUID | None, *, force: bool = False
+) -> dict[str, int]:
+    """After a mapping decision: queue a `detection.sheet` for each sheet it reaches.
+
+    Which sheets those are is found by fingerprint, so a decision about one symbol queues
+    the sheets that draw it and no others; `force` queues every sheet (a person asked).
+    Each sheet's document completes again when its sheets are detected, which queues the
+    takeoff. With nothing to detect the takeoff is queued here: a decision can change what
+    an item is without changing what is detected.
+
+    It was one job that detected every sheet in turn, on one process: 157 s on a real
+    tender. The sheets are detected side by side now, in the parser pool.
+    """
+    from firebid.jobs.enqueue import enqueue
+    from firebid.jobs.tasks import detect_sheet_job
+    from firebid.services import detection
+    from firebid.services.qto import queue_recompute
+
+    lock_bid(session, bid_id)
+    if force:
+        records = list(
+            session.execute(select(SheetGeometry).where(SheetGeometry.bid_id == bid_id)).scalars()
+        )
+    else:
+        records = detection.out_of_date(session, bid_id)
+    sheets = list(
+        session.execute(
+            select(Sheet).where(Sheet.id.in_([record.sheet_id for record in records]))
+        ).scalars()
+    )
+    for sheet in sheets:
+        sheet.detected_at = None
+        sheet.detection_error = None
+    session.flush()
+    if sheets:
+        # A finished document's other sheets are detected already, whether or not they say
+        # so (a document read before detection was a job a sheet never marked them): only
+        # the sheets queued here stand between it and completing again.
+        session.execute(
+            update(Sheet)
+            .where(
+                Sheet.document_id.in_({sheet.document_id for sheet in sheets}),
+                Sheet.id.not_in([sheet.id for sheet in sheets]),
+                Sheet.detected_at.is_(None),
+                Sheet.document_id.in_(select(Document.id).where(Document.state == "done")),
+            )
+            .values(detected_at=func.now())
+            .execution_options(synchronize_session=False)
+        )
+    for sheet in sheets:
+        enqueue(
+            session,
+            detect_sheet_job,
+            sheet_id=str(sheet.id),
+            user_id=str(user_id) if user_id else "",
+            force=force,
+        )
+    if not sheets:
+        queue_recompute(session, bid_id, user_id)
+    log.info("detection_queued", bid_id=str(bid_id), sheets=len(sheets), force=force)
+    return {"sheets": len(sheets)}
 
 
 # --- parse.complete --------------------------------------------------------------------------
 
 
-def complete(session: Session, document: Document, user_id: uuid.UUID) -> dict[str, int]:
-    """Every sheet is read and detected: queue the takeoff and mark the document `done`."""
+def complete(session: Session, document: Document, user_id: uuid.UUID | None) -> dict[str, int]:
+    """Every sheet is read and detected: queue the takeoff and mark the document `done`.
+
+    Also reached when a document's sheets are detected again after a mapping decision: a
+    document that was refused stays refused.
+    """
     from firebid.services.qto import queue_recompute
 
     queue_recompute(session, document.bid_id, user_id)
-    document.state = "done"
-    document.rejected_reason = None
+    if document.state in ("processing", "done"):
+        document.state = "done"
+        document.rejected_reason = None
     session.flush()
     failed = session.execute(
         select(func.count())

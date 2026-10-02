@@ -398,3 +398,137 @@ class TestOneJobForManyDecisions:
             text("SELECT count(*) FROM procrastinate_jobs WHERE task_name = 'qto.recompute'")
         ).scalar_one()
         assert waiting == 1
+
+
+@pytest.mark.req("NFR-01")
+class TestAfterAMappingDecision:
+    """`detection.run` queues a job for each sheet a decision reaches, and no others."""
+
+    @staticmethod
+    def jobs(session: Session, task: str) -> list[dict[str, Any]]:
+        session.commit()
+        return [
+            dict(row)
+            for row in session.execute(
+                text(
+                    "SELECT args FROM procrastinate_jobs "
+                    "WHERE task_name = :task AND status = 'todo' ORDER BY id"
+                ),
+                {"task": task},
+            ).scalars()
+        ]
+
+    @pytest.fixture(autouse=True)
+    def jobs_use_the_test_store(
+        self, store: MemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The jobs fetch from wherever `get_object_store` says: here, the test's store."""
+        from firebid.storage import object_store
+
+        monkeypatch.setattr(object_store, "get_object_store", lambda: store)
+
+    def detected(self, session: Session, bid: Bid, store: MemoryObjectStore) -> None:
+        installation(session, bid, store)
+        confirm_legend(session, bid, store)
+        detect_bid(session, store, bid.id)
+        session.execute(text("DELETE FROM procrastinate_jobs"))
+        session.commit()
+
+    def test_with_nothing_changed_no_sheet_is_queued_and_the_takeoff_is(
+        self, session: Session, bid: Bid, store: MemoryObjectStore, user: Any
+    ) -> None:
+        from firebid.services import parse_pipeline
+
+        self.detected(session, bid, store)
+
+        queued = parse_pipeline.detect_again(session, bid.id, user.id)
+
+        assert queued == {"sheets": 0}
+        assert self.jobs(session, "detection.sheet") == []
+        assert len(self.jobs(session, "qto.recompute")) == 1
+
+    def test_a_changed_mapping_queues_its_sheet_and_the_takeoff_follows_its_detection(
+        self, session: Session, bid: Bid, store: MemoryObjectStore, user: Any
+    ) -> None:
+        from typing import cast
+
+        from procrastinate import JobContext
+
+        from firebid.db.models.documents import Document
+        from firebid.jobs.tasks import detect_sheet_job, parse_complete
+        from firebid.services import parse_pipeline
+
+        self.detected(session, bid, store)
+        entry = next(
+            e
+            for e in session.execute(
+                select(LegendEntry).where(LegendEntry.bid_id == bid.id)
+            ).scalars()
+            if DESCRIBED[e.description] == "sprinkler_pendent"
+        )
+        assert entry.mapping_lineage_id is not None
+        symbol_service.reject(session, entry.mapping_lineage_id, PERSON, note="not ours")
+
+        queued = parse_pipeline.detect_again(session, bid.id, user.id)
+
+        assert queued == {"sheets": 1}
+        (job,) = self.jobs(session, "detection.sheet")
+        assert self.jobs(session, "qto.recompute") == [], "not until the sheet is detected"
+        context = cast(JobContext, None)
+        result = detect_sheet_job(context, **job)
+        assert "failed" not in result, result
+        assert result["last"] is True and result["unchanged"] is False
+        session.expire_all()
+        assert not any(o.object_type == "sprinkler_pendent" for o in stored(session, bid)[0])
+        (complete,) = self.jobs(session, "parse.complete")
+        parse_complete(context, **complete)
+        assert len(self.jobs(session, "qto.recompute")) == 1
+        document = session.execute(select(Document).where(Document.bid_id == bid.id)).scalar_one()
+        assert document.state == "done"
+
+    def test_a_person_can_have_every_sheet_queued(
+        self, session: Session, bid: Bid, store: MemoryObjectStore, user: Any
+    ) -> None:
+        from typing import cast
+
+        from procrastinate import JobContext
+
+        from firebid.jobs.tasks import detect_sheet_job, run_detection
+
+        self.detected(session, bid, store)
+        before = {o.id for o in stored(session, bid)[0]}
+
+        count = run_detection(
+            cast(JobContext, None), bid_id=str(bid.id), user_id=str(user.id), force=True
+        )
+
+        assert count == 1
+        (job,) = self.jobs(session, "detection.sheet")
+        assert job["force"] is True
+        detect_sheet_job(cast(JobContext, None), **job)
+        session.expire_all()
+        assert {o.id for o in stored(session, bid)[0]}.isdisjoint(before)
+
+    def test_a_job_for_a_sheet_detected_meanwhile_does_nothing(
+        self, session: Session, bid: Bid, store: MemoryObjectStore, user: Any
+    ) -> None:
+        from typing import cast
+
+        from procrastinate import JobContext
+
+        from firebid.db.models.documents import Sheet
+        from firebid.jobs.tasks import detect_sheet_job
+
+        self.detected(session, bid, store)
+        sheet = session.execute(select(Sheet).where(Sheet.bid_id == bid.id)).scalar_one()
+        session.execute(
+            text("UPDATE sheet SET detected_at = now() WHERE id = :id"), {"id": sheet.id}
+        )
+        session.commit()
+
+        result = detect_sheet_job(
+            cast(JobContext, None), sheet_id=str(sheet.id), user_id=str(user.id)
+        )
+
+        assert result["skipped"] is True
+        assert self.jobs(session, "parse.complete") == []
