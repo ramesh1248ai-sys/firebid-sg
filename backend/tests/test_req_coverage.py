@@ -104,7 +104,7 @@ def test_real_repository_lists_all_ids_and_the_example_tag(
     out = capsys.readouterr().out
     fr = {line.split(" | ")[0][2:] for line in out.splitlines() if line.startswith("| FR-")}
     nfr = {line.split(" | ")[0][2:] for line in out.splitlines() if line.startswith("| NFR-")}
-    assert len(fr) == 112  # 104 approved, and the 8 proposed in §6.17 (ADR-011)
+    assert len(fr) == 112  # 104 from v2.2, and the 8 of §6.17 (ADR-011)
     assert len(nfr) == 15
     nfr14 = next(line for line in out.splitlines() if line.startswith("| NFR-14 |"))
     assert "test_system_endpoints.py::test_every_response_carries_a_request_id" in nfr14

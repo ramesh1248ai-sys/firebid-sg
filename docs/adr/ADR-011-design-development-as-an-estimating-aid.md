@@ -1,9 +1,9 @@
 # ADR-011: Design development as an estimating aid, and document origin at intake
 
-- **Status:** Proposed; built in P1-12 (1 Oct 2026)
+- **Status:** Accepted by the product owner on 2 Oct 2026, with the requirements it adds (§6.17). Built in P1-12 (1 Oct 2026).
 - **Date:** 2026-10-01
 - **Deciders:** Tech Lead, Design Manager; Executive Sponsor for the scope change (it adds requirements that are not in the approved specification)
-- **Requirements:** FR-DSN-01 to 06 and FR-DOC-09, 10 (proposed, requirements §6.17); guardrails 1, 2, 3 and 6; requirements §1.3 and §2.1 (the platform is not a design or approval system)
+- **Requirements:** FR-DSN-01 to 06 and FR-DOC-09, 10 (requirements §6.17, approved 2 Oct 2026); guardrails 1, 2, 3 and 6; requirements §1.3 and §2.1 (the platform is not a design or approval system)
 
 ## Context
 
@@ -43,7 +43,7 @@ The same tender's folder shows a second problem. It mixes the client's tender se
   - The seeded design rules follow one tender response as SJ M&E read SS CP 52. They must be confirmed by a senior estimator before the quantities are relied on, and the Design page says so until they are.
   - Sheets that share a floor across match lines are each laid out whole. Until FR-DSN-06 is built, heads in the shared part are counted on both sheets unless the existing duplicate detection catches them. On the MOH L10 sheet this is about 30% of the heads.
 - **Follow-up:**
-  - Carry §6.17 into the approved `.docx`, or strike it, at the next requirements review.
+  - §6.17 was approved on 2 Oct 2026. Carry it into the `.docx`, which the requirements `.md` is generated from, so the next regeneration keeps it.
   - FR-DSN-05 (export) and FR-DSN-06 (match-line scope) in Phase 2.
   - Fittings on proposed range pipe (tees and elbows at each head) are not derived yet.
   - A RAR archive is refused with a reason. Opening one needs a decoder added to the sandbox image.

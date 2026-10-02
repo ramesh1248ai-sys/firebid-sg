@@ -31,11 +31,11 @@ gaps:
       staging.
   - gap: "Not deployed in a Singapore region"
     cause: >-
-      ADR-004 is proposed and D2 is open; ADR-008 (hosting on Google Cloud, asia-southeast1)
-      is proposed. No cloud account exists.
+      ADR-008 (hosting on Google Cloud, asia-southeast1) was accepted on 2 Oct 2026. ADR-004 is
+      proposed: the provider data terms, the other half of D2, are open. No cloud account exists.
     action: >-
-      Sponsor decision D2 and ADR-008; create the project; `terraform apply` for staging, then
-      run the restore drill and game day there; then production.
+      Create the project; `terraform apply` for staging, then run the restore drill and game
+      day there; then production. Decide the provider data terms (ADR-004).
   - gap: "No target AI cost per tender"
     cause: "Phase 0 did not set one (NFR-15). `config/kpi.yaml` holds a placeholder."
     action: "Sponsor sets the target; the cost report compares against it."

@@ -2,7 +2,7 @@
 
 **Builds on:** P1-01 (ingestion), P1-03 (geometry, views, verified scale), P1-05 (detections and pipe runs), P1-07 (QTO engine and measurement rules), P1-08 (workbench). **Needs:** a design-intent tender set to check against. The MOH (TTSH) set and SJ M&E's response to it were used; a synthetic sheet covers the tests.
 
-This step was added after the Phase 1 exit report, from a real tender the pipeline could not take off. Its requirements (§6.17) are proposed and not yet in the approved specification: see ADR-011.
+This step was added after the Phase 1 exit report, from a real tender the pipeline could not take off. Its requirements (§6.17) were approved on 2 Oct 2026: see ADR-011.
 
 Begin by replying with a plan that maps each item under **Done when** to the work that satisfies it. Wait for approval before changing files.
 

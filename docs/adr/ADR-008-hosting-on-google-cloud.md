@@ -1,6 +1,6 @@
 # ADR-008: Hosting on Google Cloud in Singapore
 
-- **Status:** Proposed; the product owner chose Google Cloud (29 Sep 2026). Hosting approval (decision D2) and ADR-004's provider data terms are still open. Nothing is deployed.
+- **Status:** Accepted by the product owner on 2 Oct 2026. This settles the hosting half of decision D2: Google Cloud, Singapore region. The other half, each LLM provider's data terms (ADR-004), is still open. Nothing is deployed.
 - **Date:** 2026-09-29
 - **Deciders:** Sponsor (D2), Tech Lead, IT/Security
 - **Requirements:** NFR-03 (availability, maintenance window), NFR-04 (RPO 24 h, RTO 8 h, immutable snapshots), NFR-05 (data residency), NFR-06 (security), NFR-02 (scale); guardrails 8 and 9
