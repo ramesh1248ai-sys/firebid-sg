@@ -507,3 +507,95 @@ def test_a_failing_model_leaves_the_row_with_a_person_not_waiting_for_ever(
     run = session.execute(select(AgentRun).where(AgentRun.agent == "symbol_mapper")).scalar_one()
     assert (run.state, run.error_type) == ("escalated", "TypeError")
     assert session.execute(select(HumanTask)).scalars().first() is not None
+
+
+@pytest.mark.req("NFR-01")
+class TestMatchingATender:
+    """Matching every instance of a bid, as each document's finish does: 150,000 instances
+    on a real tender. It reads plain columns, works each shape out once, and writes only
+    what changed."""
+
+    @staticmethod
+    def state(session: Session, bid: Bid) -> dict[int, tuple[Any, ...]]:
+        return {
+            row[0]: tuple(row[1:])
+            for row in session.execute(
+                text(
+                    "SELECT id, legend_entry_id, mapping_lineage_id, symbol_key, match_distance "
+                    "FROM symbol_instance WHERE bid_id = :bid"
+                ),
+                {"bid": bid.id},
+            )
+        }
+
+    def test_matching_again_writes_nothing(
+        self, session: Session, bid: Bid, store: MemoryObjectStore
+    ) -> None:
+        from sqlalchemy import event
+
+        from_consultant(session, bid, "Alpha Consultants")
+        tender(session, bid, store, fixtures.ALPHA)
+        consultant = service.consultant_of(session, bid.id)
+        service.match_instances(session, bid.id, consultant)
+        session.commit()
+        before = self.state(session, bid)
+        statements: list[str] = []
+
+        def record(_conn: Any, _cursor: Any, statement: str, *_rest: Any) -> None:
+            statements.append(statement)
+
+        engine = session.get_bind()
+        event.listen(engine, "before_cursor_execute", record)
+        try:
+            service.match_instances(session, bid.id, consultant)
+            session.flush()
+        finally:
+            event.remove(engine, "before_cursor_execute", record)
+
+        assert not [s for s in statements if s.lstrip().upper().startswith("UPDATE")]
+        assert sum("FROM symbol_instance" in s for s in statements) == 1
+        assert self.state(session, bid) == before
+
+    def test_matching_from_nothing_gives_what_was_matched_and_the_same_every_time(
+        self, session: Session, bid: Bid, store: MemoryObjectStore
+    ) -> None:
+        from_consultant(session, bid, "Alpha Consultants")
+        tender(session, bid, store, fixtures.ALPHA)
+        consultant = service.consultant_of(session, bid.id)
+        service.match_instances(session, bid.id, consultant)
+        session.commit()
+        before = self.state(session, bid)
+        assert {v[0] for v in before.values()} - {None}, "the legend claims some symbols"
+
+        for _ in range(2):
+            session.execute(
+                text(
+                    "UPDATE symbol_instance SET legend_entry_id = NULL, mapping_lineage_id = NULL,"
+                    " match_distance = NULL, symbol_key = 'unset' WHERE bid_id = :bid"
+                ),
+                {"bid": bid.id},
+            )
+            service.match_instances(session, bid.id, consultant)
+            session.commit()
+            assert self.state(session, bid) == before
+
+    def test_copies_of_one_unexplained_shape_are_raised_as_one(
+        self, session: Session, bid: Bid, store: MemoryObjectStore
+    ) -> None:
+        from_consultant(session, bid, "Alpha Consultants")
+        tender(session, bid, store, fixtures.ALPHA)
+        service.match_instances(session, bid.id, service.consultant_of(session, bid.id))
+        session.commit()
+
+        keys_of_shape: dict[str, set[str]] = {}
+        for shape, key in session.execute(
+            text(
+                "SELECT signature::text, symbol_key FROM symbol_instance "
+                "WHERE bid_id = :bid AND legend_entry_id IS NULL AND mapping_lineage_id IS NULL"
+            ),
+            {"bid": bid.id},
+        ):
+            keys_of_shape.setdefault(shape, set()).add(key)
+
+        assert keys_of_shape, "the plan draws symbols no legend explains"
+        assert all(len(keys) == 1 for keys in keys_of_shape.values())

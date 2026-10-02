@@ -1422,3 +1422,29 @@ Entry template:
   - `detection.run`, after a mapping decision, is still one job for the whole bid (157 s forced). It can queue the same `detection.sheet` jobs.
   - `parse.finish` still matches every instance of the bid again for each document.
   - 300 sheets are now 603 jobs.
+
+## Performance · Symbol matching, and detection after a mapping decision · 2026-10-02
+
+- **Summary:** the two largest costs left at the end of reading a tender.
+  - **Symbol matching** (`services.symbols.match_instances`, run by `parse.finish`) read every instance of the bid as a whole row and matched each in turn. It now reads plain columns, works each distinct shape out once, and writes only what changed, an answer at a time.
+  - **`detection.run`**, queued by every mapping decision, detected every sheet of the bid in turn in one job. It now finds the sheets the decision reaches, by fingerprint, and queues a `detection.sheet` job for each (`parse_pipeline.detect_again`). The takeoff follows when those sheets' documents complete.
+- **A change in behaviour, for unexplained symbols only.** Matching each instance in turn let a later copy of a shape join a group that did not exist when the first copy was read, so one shape could be raised under two keys; and instances were read in whatever order the database gave them, so the groups differed between runs. Now a shape is in one group and instances are read in ID order. On the real tender 274 of 153,043 instances are grouped differently (131 shapes had been split); every match to a legend row or a mapping is the same.
+- **Key modules / files:** `services/symbols.py` (`match_instances`), `services/detection.py` (`out_of_date`, `_inputs`), `services/parse_pipeline.py` (`detect_again`; `detect_sheet` looks at a sheet already marked; `complete` leaves a refused document refused), `jobs/tasks.py` (`detection.run`, `detection.sheet` with `force`), `scripts/pipeline_benchmark.py` (waits for a bid's sheet and document jobs too).
+- **Measured** on the 121-sheet tender (153,043 instances, 21,824 distinct shapes; local stack, two jobs at once):
+
+  | Measure | Before | After |
+  |---|---|---|
+  | `match_instances`, nothing to write | 46 s | 9 s |
+  | `match_instances`, from nothing matched | 63 s | 21 s |
+  | `parse.finish` | 82 s (189 to 237 s before detection left it) | 25 s |
+  | `detection.run` | 157 s, one job, every sheet | 3 to 4 s, then one job for each of the 84 sheets the decisions reached |
+  | Legend confirmed (12 rows) to takeoff ready | about 40 min of queued whole-bid detections on the first measurement | 2 min 30 s |
+
+  - After the legend was confirmed: 168 `detection.sheet` jobs, 196 s of work, 97 s on two slots; the longest sheet took 61 s. Then the first takeoff, 49 s for 6,888 items.
+  - The twelve confirmations made two `detection.run` jobs, and both queued the same 84 sheets: the second job of each pair found its sheet done. Wasted jobs, not wasted detection.
+  - Whole document read and detected: 13 min 36 s, tiles and geometry from the cache; 300 sheets projected at 34 minutes on that basis.
+- **Tests:** `tests/db/test_symbol_mapping.py::TestMatchingATender` (matching again writes nothing; from nothing it gives the same every time; copies of one unexplained shape are raised as one), `tests/db/test_detection_pipeline.py::TestAfterAMappingDecision` (nothing changed queues no sheet; a changed mapping queues its sheet and the takeoff follows; forcing queues every sheet; a job for a sheet detected meanwhile does nothing).
+- **Known gaps and follow-ups:**
+  - Two decisions close together queue the same sheets twice.
+  - One sheet took 61 s to detect. Not profiled.
+  - A job on the `default` queue whose worker stopped stays `doing`: seen again here after each rebuild.

@@ -368,13 +368,7 @@ def detect_sheet(
     if sheet is None:
         raise ValueError("no such sheet")
     lookups = lookups or lookups_for(session, sheet.bid_id)
-    excluded = [
-        (e.row_box[0], e.row_box[1], e.row_box[2], e.row_box[3])
-        for e in lookups.entries.values()
-        if e.sheet_id == sheet.id
-    ]
-    views = _views(session, sheet.id)
-    digest = fingerprint(session, record, list(excluded), views, lookups)
+    excluded, views, digest = _inputs(session, record, lookups)
     if not force and record.detection_fingerprint == digest:
         return _unchanged(session, sheet)
 
@@ -406,6 +400,34 @@ def detect_sheet(
         pipe=found.pipe_key,
     )
     return SheetOutcome(sheet.id, len(found.objects), len(found.runs), skipped)
+
+
+def _inputs(
+    session: Session, record: SheetGeometry, lookups: Lookups
+) -> tuple[list[tuple[float, float, float, float]], list[ViewInfo], str]:
+    """A sheet's legend boxes and views, and the fingerprint of all its detection reads."""
+    excluded = [
+        (e.row_box[0], e.row_box[1], e.row_box[2], e.row_box[3])
+        for e in lookups.entries.values()
+        if e.sheet_id == record.sheet_id
+    ]
+    views = _views(session, record.sheet_id)
+    return excluded, views, fingerprint(session, record, list(excluded), views, lookups)
+
+
+def out_of_date(session: Session, bid_id: uuid.UUID) -> list[SheetGeometry]:
+    """The bid's sheets whose detections were made from other inputs than they have now.
+
+    What a mapping decision reaches: found by fingerprint, without opening any geometry.
+    """
+    lookups = lookups_for(session, bid_id)
+    return [
+        record
+        for record in session.execute(
+            select(SheetGeometry).where(SheetGeometry.bid_id == bid_id)
+        ).scalars()
+        if record.detection_fingerprint != _inputs(session, record, lookups)[2]
+    ]
 
 
 def _unchanged(session: Session, sheet: Sheet) -> SheetOutcome:

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import json
 import re
 import uuid
 from collections import defaultdict
@@ -34,7 +35,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import Text, cast, delete, func, select, update
 from sqlalchemy.orm import Session
 
 from firebid.db.audit import record_event
@@ -657,7 +658,48 @@ def match_instances(
     )
     mapping_signatures = symbols.Candidates([Signature.from_json(m.signature) for m in mappings])
     unknown: tuple[symbols.Candidates, list[str]] = (symbols.Candidates(), [])
-    wanted = select(SymbolInstance).where(SymbolInstance.bid_id == bid_id)
+
+    def matched(signature: Signature) -> Matched:
+        """What a symbol of this shape is matched to: a legend row, else a mapping, else
+        the group of unexplained symbols it belongs to."""
+        found = symbols.best_match(signature, entry_signatures) if entries else None
+        if found is not None:
+            entry = entries[found.index]
+            return (
+                entry.id,
+                entry.mapping_lineage_id,
+                f"legend:{entry.id}",
+                round(found.distance, 4),
+            )
+        found = symbols.best_match(signature, mapping_signatures) if mappings else None
+        if found is not None:
+            mapping = mappings[found.index]
+            return (
+                None,
+                mapping.lineage_id,
+                f"lineage:{mapping.lineage_id}",
+                round(found.distance, 4),
+            )
+        return (None, None, _unknown_key(signature, unknown), None)
+
+    # A tender draws a few thousand shapes many times each. Each instance is read as its
+    # ID, its shape as text and what it is matched to now: not as a whole row, which on a
+    # real tender of 150,000 instances was most of the time. Each distinct shape is worked
+    # out once, in ID order, and instances that share a shape share the answer.
+    #
+    # For a legend row or a mapping that is the answer matching each in turn gives: it
+    # depends only on the shape. For an unexplained symbol it is deliberately not always:
+    # in turn, a later copy of a shape could join a group that did not exist when the first
+    # copy was read, so one shape was raised under two keys (131 shapes on that tender).
+    # Now a shape is in one group, and the same instances give the same groups every time.
+    wanted = select(
+        SymbolInstance.id,
+        cast(SymbolInstance.signature, Text),
+        SymbolInstance.legend_entry_id,
+        SymbolInstance.mapping_lineage_id,
+        SymbolInstance.symbol_key,
+        SymbolInstance.match_distance,
+    ).where(SymbolInstance.bid_id == bid_id)
     if beyond_legends_only:
         wanted = wanted.where(SymbolInstance.legend_entry_id.is_(None))
         # What matching again would do for the rest: each takes its row's mapping as it
@@ -672,29 +714,39 @@ def match_instances(
             .values(mapping_lineage_id=LegendEntry.mapping_lineage_id)
             .execution_options(synchronize_session=False)
         )
-    for instance in session.execute(wanted).scalars():
-        signature = Signature.from_json(instance.signature)
-        found = symbols.best_match(signature, entry_signatures) if entries else None
-        if found is not None:
-            entry = entries[found.index]
-            instance.legend_entry_id = entry.id
-            instance.mapping_lineage_id = entry.mapping_lineage_id
-            instance.symbol_key = f"legend:{entry.id}"
-            instance.match_distance = round(found.distance, 4)
-            continue
-        found = symbols.best_match(signature, mapping_signatures) if mappings else None
-        if found is not None:
-            mapping = mappings[found.index]
-            instance.legend_entry_id = None
-            instance.mapping_lineage_id = mapping.lineage_id
-            instance.symbol_key = f"lineage:{mapping.lineage_id}"
-            instance.match_distance = round(found.distance, 4)
-            continue
-        instance.legend_entry_id = None
-        instance.mapping_lineage_id = None
-        instance.match_distance = None
-        instance.symbol_key = _unknown_key(signature, unknown)
-    session.flush()
+    by_shape: dict[str, Matched] = {}
+    changed: dict[Matched, list[int]] = {}
+    for identity, shape, entry_id, lineage, key, distance in session.execute(
+        wanted.order_by(SymbolInstance.id)
+    ):
+        now = by_shape.get(shape)
+        if now is None:
+            now = by_shape[shape] = matched(Signature.from_json(json.loads(shape)))
+        if now != (entry_id, lineage, key, distance):
+            changed.setdefault(now, []).append(identity)
+    # Only what changed is written, an answer at a time: every instance now matched to one
+    # row, or to one mapping at one distance, in one statement.
+    for (entry_id, lineage, key, distance), identities in changed.items():
+        for chunk in range(0, len(identities), WRITE_CHUNK):
+            session.execute(
+                update(SymbolInstance)
+                .where(SymbolInstance.id.in_(identities[chunk : chunk + WRITE_CHUNK]))
+                .values(
+                    legend_entry_id=entry_id,
+                    mapping_lineage_id=lineage,
+                    symbol_key=key,
+                    match_distance=distance,
+                )
+                .execution_options(synchronize_session=False)
+            )
+    # Instances already loaded in this session are read again when next used.
+    session.expire_all()
+
+
+# What an instance is matched to: its legend row, its mapping's lineage, its key, how near.
+Matched = tuple[uuid.UUID | None, uuid.UUID | None, str, float | None]
+# Instances written in one statement.
+WRITE_CHUNK = 20_000
 
 
 def link_instances(session: Session, entry: LegendEntry) -> int:
