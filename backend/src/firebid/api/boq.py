@@ -536,6 +536,7 @@ class G2Out(BaseModel):
     g1_approved: bool
     boq_built: bool
     untraced_lines: list[dict[str, Any]]
+    unsourced_lines: list[dict[str, Any]] = []
 
 
 class ApproveIn(BaseModel):
@@ -558,6 +559,7 @@ def g2_status(context: CurrentBid, session: DbSession) -> G2Out:
         g1_approved=found.g1_approved,
         boq_built=found.boq_built,
         untraced_lines=found.untraced_lines,
+        unsourced_lines=found.unsourced_lines,
     )
 
 

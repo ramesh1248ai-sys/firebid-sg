@@ -1708,3 +1708,66 @@ Entry template:
   - **Issues are recomputed on request,** not when a drawing or the takeoff changes.
   - **A specification revised by an addendum** leaves its superseded revision's obligations out of the lists; a clause-level comparison of the two revisions is not built.
   - **The clarifications register is P2-06;** until then the candidates are a list.
+
+## P2-04 · Supplier Quotations and Cost Build-Up · 2026-10-03
+
+- **Summary:** supplier quotations are captured with the line of the file behind every field, priced in SGD with every step shown, and the bid's cost is built up component by component. The platform never makes a price.
+  - **Capture (FR-CST-02):** a PDF, an .xlsx workbook or an .eml email with its attachments is stored, scanned, then read in the sandbox. Rules propose the supplier, quotation number and date, validity, currency, delivery terms, exclusions and each line (description, brand, model, unit, unit price, MOQ, lead time), each with the line of the file it was read from. A person corrects what is wrong, links each line to a BOQ line or a rate-library item key, and a senior estimator confirms.
+  - **A confirmed line is a rate-library entry** whose source is the quotation. The bill is priced from it exactly as from any other entry, so P1-10's provenance, validity warnings and database checks apply unchanged (FR-CST-03). A line linked to a BOQ line prices that line on confirmation.
+  - **Flags (FR-CST-03):** expired; valid for less than the tender's validity; has exclusions; states no validity.
+  - **Landed cost (FR-CST-04):** price × the latest recorded FX rate, plus a buffer, plus freight, insurance and import charges according to the Incoterm. Each step is a stored line with its basis. FX rates are recorded with source and date and never changed. Buffer and import percentages are in `config/pricing.yaml`.
+  - **GST (FR-CST-05):** prices are held exclusive. The rate is configuration with an effective date, applied at the bid's pricing date, and shown apart from the total.
+  - **Build-up (FR-CST-06):** seventeen components, each a line with its basis and source. Materials, fittings, valves, equipment and wastage come from the priced bill. The other twelve are entered by an estimator as a lump sum or a percentage of a named base, under their name; one nobody has entered shows "not set" and adds nothing.
+  - **History (FR-CST-07):** each priced line is compared with past purchase order and project prices for its item key and unit, and flagged beyond a configured tolerance (15%), with low, median, high and the latest price shown.
+  - **ERP (FR-CST-08):** `pricing.erp.ErpAdapter` (item master, purchase orders, historical costs). The file adapter loads an export workbook, all or nothing. History is for comparison and prices nothing.
+  - **No generated prices (FR-CST-09):** an amount with no rate entry is an estimator's allowance and carries their name. G2 fails on a priced line with neither.
+  - **UI:** the BOQ page gains **Supplier quotations** (list with flags, and a check view with each field beside its line of the file) and **Cost build-up** (components, totals, GST, pricing date, prices unlike their history).
+- **Key modules / files:**
+  - Pure: `pricing/quotation.py` (rules, flags), `pricing/landed.py` (FX, import lines, GST), `pricing/buildup.py`, `pricing/history.py`, `pricing/erp.py`; sandbox reader `parsing/quotation.py`.
+  - `services/quotations.py` (`capture`, `correct`, `link_line`, `read_with_model`, `confirm`, `reject`, `flags_of`); `services/costing.py` (`record_fx`, `set_priced_on`, `enter`, `clear`, `build_up`, `comparisons`, `load_erp`, `import_erp_file`); `services/boq.py` (`set_allowance`, `unsourced_lines`, the G2 check).
+  - `api/costing.py`: `/bids/{id}/quotations…`, `/bids/{id}/cost/build-up`, `/cost/priced-on`, `/cost/history`, `/cost/allowances/{line}`, `/costing/fx-rates`, `/costing/erp/import`.
+  - Model path: `agents/quotation_reader.QuotationReader`, route `quotation_extract` (data class **commercial**), prompt `v1`.
+  - Migration `0036`: `quotation`, `quotation_line`, `cost_buildup_line`, `bid_price_basis` (under RLS); `fx_rate`, `erp_item`, `price_history` (organisation-level); `rate.quotation_line_id`, `rate.landed`; `boq_line.allowance_by`.
+  - `config/pricing.yaml`: `fx.buffer_percent`, `import_costs`, `gst.rates`, `history.outlier_tolerance_percent`.
+  - Frontend: `pages/Costing.tsx`, mounted in `pages/BoqPage.tsx`.
+  - Fixture: `evals/synthetic_quotes.py` (three quotations with expected answers, an ERP export).
+- **How to run and demo:**
+  1. `make up`. Take a bid to a built and priced BOQ.
+  2. As a senior estimator: `POST /costing/fx-rates` with `{"currency": "USD", "rate": "1.35", "source": "MAS", "as_of": "…"}`.
+  3. On the **BOQ** page, **Add a quotation**. **Check** shows each field beside the line of the file it came from. Choose the BOQ line each quotation line prices.
+  4. As a senior estimator, **Confirm the quotation**: the landed cost and its steps appear on each line, and the BOQ line is priced from it.
+  5. **Cost build-up**: **Enter…** a figure for labour or margin; set **Priced on**; see GST apart from the total.
+  6. `POST /costing/erp/import` with the ERP export, then see **Prices unlike their history**.
+- **Requirement IDs covered (test names):**
+  - FR-CST-02: `tests/pricing/test_costing.py::TestQuotationCapture`; `tests/db/test_costing.py::TestCapture` (each fixture read with every field and confirmed; a failed scan is not opened; `.msg` refused; a correction audited; a model answer kept only where its line bears it out); `TestApi`; `Costing.test.tsx`.
+  - FR-CST-03: `tests/pricing/test_costing.py::TestValidityFlags`; `tests/db/test_costing.py::TestFlags` (expired, shorter than the tender, exclusions; a line priced from a quotation references its line); `Costing.test.tsx`.
+  - FR-CST-04: `tests/pricing/test_costing.py::TestLandedCost`; `tests/db/test_costing.py::TestLandedCost` (USD 100.00 FOB at 1.35 lands at SGD 146.65, step by step; no rate, no confirmation).
+  - FR-CST-05: `tests/pricing/test_costing.py::TestGst`; `tests/db/test_costing.py::TestGst` (a rate from 2027 leaves a bid priced in 2026 unchanged).
+  - FR-CST-06: `tests/pricing/test_costing.py::TestBuildUp`; `tests/db/test_costing.py::TestBuildUp`; `Costing.test.tsx`.
+  - FR-CST-07: `tests/pricing/test_costing.py::TestHistory`; `tests/db/test_costing.py::TestHistory`; `Costing.test.tsx`.
+  - FR-CST-08: `tests/pricing/test_costing.py::TestErpFileImport`; `tests/db/test_costing.py::TestErp` (loads once, a bad row loads nothing, a non-file adapter).
+  - FR-CST-09: `tests/db/test_costing.py::TestNoGeneratedPrices` (G2 fails, then passes once the line is unpriced or the allowance named; the name survives a rebuild; the database refuses an entered cost with no name); `Costing.test.tsx`.
+- **Deviations and decisions:**
+  - **No plan-and-approve pause,** as the owner prefers.
+  - **Rules first, the model for the rest.** The prompt says "extraction via structured outputs". The rules read all three fixtures completely, so no model call is made for them. The model is asked by a person (`…/read-with-model`) for fields the rules missed. An answer is kept only if the line it cites contains the value; a unit price must be a figure written on that line.
+  - **`.msg` is not read.** No parser for Outlook's format is installed. The refusal says to save the email as `.eml`.
+  - **The landed cost is the rate.** A quotation line's rate-library entry holds the SGD unit cost after FX, buffer and import lines, with the breakdown beside it, so the bill's rate is the cost the company bears.
+  - **The FX rate used is the latest recorded on or before the day of confirmation.** A foreign quotation cannot be confirmed with none recorded.
+  - **Confirming is the senior estimator's** (`supplier_price.select`); uploading, correcting and linking are the estimator's.
+  - **An allowance's name is checked at G2, not by a database constraint,** because allowances entered before this step have none. They hold up G2 until an estimator re-enters them.
+  - **A failed scan leaves no quotation record.** The bytes are stored (store, scan, then parse) and the refusal is logged.
+  - **Labour is an entered lump sum** until P2-05, as the prompt says.
+- **Manual checks and results:**
+  - Not run through the browser on the local stack. The views are covered by component tests and the API by database tests.
+- **Defects found and fixed during the step:**
+  - "firm" was read as the currency symbol RM, and "US$" as "S$". A code is now read first, and a symbol only before a figure.
+  - An email's own `Date:` header was taken as the quotation's date.
+  - A list of exclusions ran on into the lines after a blank line.
+- **Known gaps and follow-ups:**
+  - **Only synthetic quotations have been read.** Real ones need sample files from the business track; scanned PDFs are not read at all (no OCR here).
+  - **The cost build-up template, the FX policy, the import percentages and the outlier tolerance are placeholders** to be confirmed by the business.
+  - **The ERP API adapter waits for decision D4.** The file format is this step's own.
+  - **GST rates are read from configuration at start-up,** so a change needs a restart.
+  - **Import percentages cannot yet be overridden per quotation through the API** (the calculation supports it).
+  - **The build-up's direct lines group the bill by its headings;** a bill with other headings puts everything under materials.
+  - **Quantity breaks, discounts and a quotation's own totals are not read.** MOQ is kept as text and not checked against the bill's quantity.

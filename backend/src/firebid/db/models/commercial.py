@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import (
     CheckConstraint,
@@ -24,7 +25,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from firebid.db.base import Base
-from firebid.db.mixins import BidScoped, CreatedBy, Timestamped, UuidPk
+from firebid.db.mixins import BidScoped, CreatedBy, Timestamped, UuidPk, personal
 from firebid.db.types import MoneyType
 from firebid.domain.values import Money
 
@@ -107,6 +108,12 @@ class BoqLine(UuidPk, BidScoped, Timestamped, Base):
         Uuid, ForeignKey("app_user.id", ondelete="SET NULL")
     )
     priced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # P2-04: an amount with no rate entry behind it is an estimator's allowance, and says
+    # whose (FR-CST-09). G2 does not pass over one that does not.
+    allowance_by: Mapped[str | None] = mapped_column(
+        String(200), info=personal("the estimator whose allowance the amount is")
+    )
+    allowance_by_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
 
 
 class BoqLineSource(Base):
@@ -265,3 +272,7 @@ class Rate(UuidPk, Timestamped, CreatedBy, Base):
     # newer version replaced this one. Entries are never changed: a new rate is a new version.
     key_parts: Mapped[dict[str, str]] = mapped_column(JSONB, default=dict, nullable=False)
     retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # P2-04: the confirmed quotation line an entry was made from, and how its price was
+    # brought to SGD (the FX rate, its source and date, the buffer and each import line).
+    quotation_line_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
+    landed: Mapped[dict[str, Any] | None] = mapped_column(JSONB)

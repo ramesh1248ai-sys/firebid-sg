@@ -7,6 +7,7 @@ import type { components } from "@/api/schema";
 import { accessToken } from "@/auth/oidc";
 import { Button } from "@/components/ui/button";
 import { BoqPricing } from "@/pages/BoqPricing";
+import { CostBuildUp, Quotations } from "@/pages/Costing";
 
 /**
  * The bid's bills of quantities (P1-09).
@@ -223,6 +224,10 @@ export function BoqPage() {
 
       {boq && <BoqPricing bidId={bidId} onError={fail} />}
 
+      {boq && <Quotations bidId={bidId} lines={boq.lines} onError={fail} />}
+
+      {boq && <CostBuildUp bidId={bidId} onError={fail} />}
+
       {boq && <Lines bidId={bidId} boq={boq} onError={fail} />}
 
       {data.conventions.data && (
@@ -243,6 +248,8 @@ function G2Status({ g2 }: { g2: G2 | undefined }) {
     !g2.boq_built && "no BOQ is built",
     g2.untraced_lines.length > 0 &&
       `${g2.untraced_lines.length} line(s) with no QTO trace, not marked provisional or lump sum`,
+    (g2.unsourced_lines ?? []).length > 0 &&
+      `${(g2.unsourced_lines ?? []).length} priced line(s) with no source: neither a rate entry nor a named estimator's allowance`,
   ].filter(Boolean);
   return (
     <p

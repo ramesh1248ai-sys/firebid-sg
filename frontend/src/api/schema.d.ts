@@ -510,6 +510,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/cost/allowances/{line_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Allowance
+         * @description An estimator's allowance on a provisional or lump sum line, under their name; with no
+         *     amount, the line is left unpriced.
+         */
+        put: operations["set_allowance_bids__bid_id__cost_allowances__line_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/cost/build-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Build Up
+         * @description Every cost component as its own line, with its basis and source, and the totals:
+         *     exclusive of GST, the GST, and with it.
+         */
+        get: operations["get_build_up_bids__bid_id__cost_build_up_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/cost/build-up/{component}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Enter Component
+         * @description An estimator's figure for a component, under their name.
+         */
+        put: operations["enter_component_bids__bid_id__cost_build_up__component__put"];
+        post?: never;
+        /** Clear Component */
+        delete: operations["clear_component_bids__bid_id__cost_build_up__component__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/cost/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Price History
+         * @description Each priced line beside past purchase order and project prices for its item key,
+         *     flagged when it is beyond the tolerance.
+         */
+        get: operations["price_history_bids__bid_id__cost_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/cost/priced-on": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Priced On
+         * @description The day the bid is priced, which fixes its GST rate.
+         */
+        put: operations["set_priced_on_bids__bid_id__cost_priced_on_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/design": {
         parameters: {
             query?: never;
@@ -1366,6 +1470,148 @@ export interface paths {
         get: operations["workbench_sheets_bids__bid_id__qto_sheets_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/quotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Quotations
+         * @description The bid's quotations, each with its flags: expired, shorter than the tender's
+         *     validity, or with exclusions.
+         */
+        get: operations["list_quotations_bids__bid_id__quotations_get"];
+        put?: never;
+        /**
+         * Upload Quotation
+         * @description A supplier's quotation: a PDF, a workbook or an .eml email with its attachments. It
+         *     is scanned, then read in the sandbox, and what was read waits for a person.
+         */
+        post: operations["upload_quotation_bids__bid_id__quotations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/quotations/{quotation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Quotation
+         * @description A quotation as read, each field beside the line of the file it was read from.
+         */
+        get: operations["get_quotation_bids__bid_id__quotations__quotation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/quotations/{quotation_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Quotation
+         * @description Confirm the quotation as read: its linked lines become rate-library entries at their
+         *     landed cost in SGD.
+         */
+        post: operations["confirm_quotation_bids__bid_id__quotations__quotation_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/quotations/{quotation_id}/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Correct Quotation */
+        post: operations["correct_quotation_bids__bid_id__quotations__quotation_id__fields_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/quotations/{quotation_id}/lines/{line_id}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link Quotation Line
+         * @description Say which rate-library item key or BOQ line a quotation line prices.
+         */
+        post: operations["link_quotation_line_bids__bid_id__quotations__quotation_id__lines__line_id__link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/quotations/{quotation_id}/read-with-model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read With Model
+         * @description Ask the model for what the rules could not read. Its answers are proposals, kept only
+         *     where the line of the file they cite bears them out.
+         */
+        post: operations["read_with_model_bids__bid_id__quotations__quotation_id__read_with_model_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/quotations/{quotation_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Quotation */
+        post: operations["reject_quotation_bids__bid_id__quotations__quotation_id__reject_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2551,6 +2797,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/costing/erp/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Erp
+         * @description The ERP's export workbook (item master, purchase orders, historical costs), all or
+         *     nothing. What it loads is history to compare prices with: it prices nothing.
+         */
+        post: operations["import_erp_costing_erp_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/costing/fx-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fx Rates
+         * @description The recorded FX rates, newest first for each currency, with the configured buffer and
+         *     import lines a foreign price takes on its way to SGD.
+         */
+        get: operations["fx_rates_costing_fx_rates_get"];
+        put?: never;
+        /** Record Fx Rate */
+        post: operations["record_fx_rate_costing_fx_rates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/coverage-policies": {
         parameters: {
             query?: never;
@@ -3004,6 +3293,23 @@ export interface components {
             /** State */
             state: string;
         };
+        /** AllowanceIn */
+        AllowanceIn: {
+            /** Amount */
+            amount?: number | string | null;
+        };
+        /** AllowanceOut */
+        AllowanceOut: {
+            /** Allowance By */
+            allowance_by: string | null;
+            /** Amount */
+            amount: string | null;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+        };
         /** AnalysisOut */
         AnalysisOut: {
             /** Issues New */
@@ -3303,6 +3609,11 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /** Body_import_erp_costing_erp_import_post */
+        Body_import_erp_costing_erp_import_post: {
+            /** File */
+            file: string;
+        };
         /** Body_import_rates_rates_import_post */
         Body_import_rates_rates_import_post: {
             /** File */
@@ -3318,6 +3629,11 @@ export interface components {
             origins?: string[] | null;
             /** Paths */
             paths?: string[] | null;
+        };
+        /** Body_upload_quotation_bids__bid_id__quotations_post */
+        Body_upload_quotation_bids__bid_id__quotations_post: {
+            /** File */
+            file: string;
         };
         /** BoqOut */
         BoqOut: {
@@ -3353,6 +3669,64 @@ export interface components {
         BuildIn: {
             /** Template Key */
             template_key?: string | null;
+        };
+        /** BuildUpLineOut */
+        BuildUpLineOut: {
+            /** Amount */
+            amount: string | null;
+            /** Bases */
+            bases: string[];
+            /** Basis */
+            basis: string;
+            /** Component */
+            component: string;
+            /** Detail */
+            detail: string;
+            /** Entered */
+            entered: boolean;
+            /** Label */
+            label: string;
+            /** Source */
+            source: string;
+        };
+        /** BuildUpOut */
+        BuildUpOut: {
+            /** Base Labels */
+            base_labels: {
+                [key: string]: string;
+            };
+            /** Cost */
+            cost: string;
+            /** Cost With Contingency */
+            cost_with_contingency: string;
+            /** Direct */
+            direct: string;
+            /** Gst */
+            gst: string;
+            /**
+             * Gst Effective From
+             * Format: date
+             */
+            gst_effective_from: string;
+            /** Gst Percent */
+            gst_percent: string;
+            /** Lines */
+            lines: components["schemas"]["BuildUpLineOut"][];
+            /** Not Set */
+            not_set: string[];
+            /**
+             * Priced On
+             * Format: date
+             */
+            priced_on: string;
+            /** Priced On Set */
+            priced_on_set: boolean;
+            /** Total */
+            total: string;
+            /** Total With Gst */
+            total_with_gst: string;
+            /** Unpriced Lines */
+            unpriced_lines: number;
         };
         /** CalibrateRequest */
         CalibrateRequest: {
@@ -3557,6 +3931,42 @@ export interface components {
                     [key: string]: unknown;
                 };
             };
+        };
+        /** ComparisonOut */
+        ComparisonOut: {
+            /** Description */
+            description: string;
+            /** Deviation Percent */
+            deviation_percent: string | null;
+            /** High */
+            high: string | null;
+            /** History */
+            history: number;
+            /** Item Key */
+            item_key: string;
+            /** Item No */
+            item_no: string | null;
+            /** Latest */
+            latest: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** Low */
+            low: string | null;
+            /** Median */
+            median: string | null;
+            /** Outlier */
+            outlier: boolean;
+            /** Price */
+            price: string;
+            /** Tolerance Percent */
+            tolerance_percent: string;
+            /** Unit */
+            unit: string;
         };
         /** CompleteRequest */
         CompleteRequest: {
@@ -4016,6 +4426,36 @@ export interface components {
              */
             title: string;
         };
+        /** EnteredIn */
+        EnteredIn: {
+            /** Amount */
+            amount?: number | string | null;
+            /** Base */
+            base?: string | null;
+            /** Basis */
+            basis: string;
+            /** Note */
+            note?: string | null;
+            /** Percent */
+            percent?: number | string | null;
+        };
+        /** ErpImportOut */
+        ErpImportOut: {
+            /** Historical Costs */
+            historical_costs: number;
+            /** Imported */
+            imported: boolean;
+            /** Items */
+            items: number;
+            /** Problems */
+            problems: {
+                [key: string]: unknown;
+            }[];
+            /** Purchase Orders */
+            purchase_orders: number;
+            /** Unchanged */
+            unchanged: number;
+        };
         /** FailedDocument */
         FailedDocument: {
             /** Filename */
@@ -4030,6 +4470,83 @@ export interface components {
             /** State */
             state: string;
         };
+        /** FieldsIn */
+        FieldsIn: {
+            /** Currency */
+            currency?: string | null;
+            /** Delivery Terms */
+            delivery_terms?: string | null;
+            /** Exclusions */
+            exclusions?: string[] | null;
+            /** Incoterm */
+            incoterm?: string | null;
+            /** Lead Time */
+            lead_time?: string | null;
+            /** Quote Date */
+            quote_date?: string | null;
+            /** Quote Number */
+            quote_number?: string | null;
+            /** Supplier */
+            supplier?: string | null;
+            /** Valid Until */
+            valid_until?: string | null;
+        };
+        /** FlagOut */
+        FlagOut: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+        };
+        /** FxRateIn */
+        FxRateIn: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Currency */
+            currency: string;
+            /** Rate */
+            rate: number | string;
+            /** Source */
+            source: string;
+        };
+        /** FxRateOut */
+        FxRateOut: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Rate */
+            rate: string;
+            /** Source */
+            source: string;
+        };
+        /** FxTableOut */
+        FxTableOut: {
+            /** Buffer Percent */
+            buffer_percent: string;
+            /** Import Lines */
+            import_lines: {
+                [key: string]: unknown;
+            }[];
+            /** Rates */
+            rates: components["schemas"]["FxRateOut"][];
+        };
         /** G2Out */
         G2Out: {
             /** Boq Built */
@@ -4038,6 +4555,13 @@ export interface components {
             clear: boolean;
             /** G1 Approved */
             g1_approved: boolean;
+            /**
+             * Unsourced Lines
+             * @default []
+             */
+            unsourced_lines: {
+                [key: string]: unknown;
+            }[];
             /** Untraced Lines */
             untraced_lines: {
                 [key: string]: unknown;
@@ -4343,6 +4867,17 @@ export interface components {
             unit_rate: string | null;
             /** Warnings */
             warnings: components["schemas"]["WarningOut"][];
+        };
+        /** LinkIn */
+        LinkIn: {
+            /** Boq Line Id */
+            boq_line_id?: string | null;
+            /** Item Key */
+            item_key?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /** Unit Price */
+            unit_price?: number | string | null;
         };
         /** Liveness */
         Liveness: {
@@ -4917,6 +5452,14 @@ export interface components {
             /** Sha256 */
             sha256: string;
         };
+        /** PricedOnIn */
+        PricedOnIn: {
+            /**
+             * Priced On
+             * Format: date
+             */
+            priced_on: string;
+        };
         /** PricingOut */
         PricingOut: {
             /** Lines */
@@ -4995,6 +5538,158 @@ export interface components {
             sheet_ids: string[];
             /** System */
             system: string;
+        };
+        /** QuotationDetailOut */
+        QuotationDetailOut: {
+            /** Currency */
+            currency: string | null;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /** Delivery Terms */
+            delivery_terms: string | null;
+            /** Exclusions */
+            exclusions: string[];
+            /** Fields */
+            fields: {
+                [key: string]: unknown;
+            };
+            /** Filename */
+            filename: string;
+            /** Flags */
+            flags: components["schemas"]["FlagOut"][];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Incoterm */
+            incoterm: string | null;
+            /** Kind */
+            kind: string;
+            /** Lead Time */
+            lead_time: string | null;
+            /** Lines */
+            lines: components["schemas"]["QuotationLineOut"][];
+            /** Method */
+            method: string;
+            /** Missing */
+            missing: string[];
+            /** Model */
+            model: {
+                [key: string]: unknown;
+            } | null;
+            /** Note */
+            note: string | null;
+            /** Quote Date */
+            quote_date: string | null;
+            /** Quote Number */
+            quote_number: string | null;
+            /** Source Lines */
+            source_lines: {
+                [key: string]: unknown;
+            }[];
+            /** State */
+            state: string;
+            /** Supplier */
+            supplier: string | null;
+            /** Valid Until */
+            valid_until: string | null;
+        };
+        /** QuotationLineOut */
+        QuotationLineOut: {
+            /** Boq Line Id */
+            boq_line_id: string | null;
+            /** Brand */
+            brand: string | null;
+            /** Description */
+            description: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Item Key */
+            item_key: string | null;
+            /** Item Label */
+            item_label: string | null;
+            /** Landed */
+            landed: {
+                [key: string]: unknown;
+            } | null;
+            /** Lead Time */
+            lead_time: string | null;
+            /** Model */
+            model: string | null;
+            /** Moq */
+            moq: string | null;
+            /** Ordinal */
+            ordinal: number;
+            /** Rate Id */
+            rate_id: string | null;
+            /** Source */
+            source: {
+                [key: string]: unknown;
+            };
+            /** Unit */
+            unit: string | null;
+            /** Unit Price */
+            unit_price: string;
+        };
+        /** QuotationOut */
+        QuotationOut: {
+            /** Currency */
+            currency: string | null;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /** Delivery Terms */
+            delivery_terms: string | null;
+            /** Exclusions */
+            exclusions: string[];
+            /** Fields */
+            fields: {
+                [key: string]: unknown;
+            };
+            /** Filename */
+            filename: string;
+            /** Flags */
+            flags: components["schemas"]["FlagOut"][];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Incoterm */
+            incoterm: string | null;
+            /** Kind */
+            kind: string;
+            /** Lead Time */
+            lead_time: string | null;
+            /** Lines */
+            lines: components["schemas"]["QuotationLineOut"][];
+            /** Method */
+            method: string;
+            /** Missing */
+            missing: string[];
+            /** Model */
+            model: {
+                [key: string]: unknown;
+            } | null;
+            /** Note */
+            note: string | null;
+            /** Quote Date */
+            quote_date: string | null;
+            /** Quote Number */
+            quote_number: string | null;
+            /** State */
+            state: string;
+            /** Supplier */
+            supplier: string | null;
+            /** Valid Until */
+            valid_until: string | null;
         };
         /** RateOut */
         RateOut: {
@@ -5107,15 +5802,6 @@ export interface components {
             unidentified: number;
             /** Unsure Types */
             unsure_types: number;
-        };
-        /** RejectIn */
-        RejectIn: {
-            /** Item Ids */
-            item_ids: string[];
-            /** Note */
-            note?: string | null;
-            /** Reason Code */
-            reason_code: string;
         };
         /** RejectRequest */
         RejectRequest: {
@@ -5816,6 +6502,11 @@ export interface components {
             /** Width Mm */
             width_mm: number | null;
         };
+        /** RejectIn */
+        firebid__api__costing__RejectIn: {
+            /** Note */
+            note: string;
+        };
         /** ConfirmRequest */
         firebid__api__design__ConfirmRequest: {
             entered?: components["schemas"]["EnteredCriterion"] | null;
@@ -5838,6 +6529,15 @@ export interface components {
         firebid__api__registers__WithdrawRequest: {
             /** Reason */
             reason: string;
+        };
+        /** RejectIn */
+        firebid__api__review__RejectIn: {
+            /** Item Ids */
+            item_ids: string[];
+            /** Note */
+            note?: string | null;
+            /** Reason Code */
+            reason_code: string;
         };
         /** DecisionIn */
         firebid__api__spec_analysis__DecisionIn: {
@@ -6817,6 +7517,207 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_allowance_bids__bid_id__cost_allowances__line_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                line_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllowanceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllowanceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_build_up_bids__bid_id__cost_build_up_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildUpOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enter_component_bids__bid_id__cost_build_up__component__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                component: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnteredIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildUpOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_component_bids__bid_id__cost_build_up__component__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                component: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildUpOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    price_history_bids__bid_id__cost_history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComparisonOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_priced_on_bids__bid_id__cost_priced_on_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricedOnIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildUpOut"];
                 };
             };
             /** @description Validation Error */
@@ -8453,6 +9354,277 @@ export interface operations {
             };
         };
     };
+    list_quotations_bids__bid_id__quotations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_quotation_bids__bid_id__quotations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_quotation_bids__bid_id__quotations_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_quotation_bids__bid_id__quotations__quotation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quotation_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_quotation_bids__bid_id__quotations__quotation_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quotation_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    correct_quotation_bids__bid_id__quotations__quotation_id__fields_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quotation_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FieldsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    link_quotation_line_bids__bid_id__quotations__quotation_id__lines__line_id__link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quotation_id: string;
+                line_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_with_model_bids__bid_id__quotations__quotation_id__read_with_model_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quotation_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_quotation_bids__bid_id__quotations__quotation_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                quotation_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["firebid__api__costing__RejectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuotationDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     confirm_bids__bid_id__registers_confirm_post: {
         parameters: {
             query?: never;
@@ -8963,7 +10135,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RejectIn"];
+                "application/json": components["schemas"]["firebid__api__review__RejectIn"];
             };
         };
         responses: {
@@ -10574,6 +11746,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TemplateOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_erp_costing_erp_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_erp_costing_erp_import_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErpImportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fx_rates_costing_fx_rates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FxTableOut"];
+                };
+            };
+        };
+    };
+    record_fx_rate_costing_fx_rates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FxRateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FxTableOut"];
                 };
             };
             /** @description Validation Error */
