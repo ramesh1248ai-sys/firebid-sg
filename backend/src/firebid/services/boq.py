@@ -1219,7 +1219,13 @@ def g2_blockers(session: Session, bid_id: uuid.UUID) -> G2Blockers:
     g1 = session.execute(
         select(func.count())
         .select_from(Approval)
-        .where(Approval.bid_id == bid_id, Approval.gate == "G1", Approval.decision == "approved")
+        .where(
+            Approval.bid_id == bid_id,
+            Approval.gate == "G1",
+            Approval.decision == "approved",
+            # An approval a later change reopened no longer counts (P2-02).
+            Approval.reopened_at.is_(None),
+        )
     ).scalar_one()
     return G2Blockers(
         g1_approved=g1 > 0,

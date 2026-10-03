@@ -17,12 +17,16 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `audit_event` | `actor_label` | VARCHAR(200) | no | the actor's display name at the time, kept so history stays readable |
 | `bid_budget` | `owner_email` | VARCHAR(320) | yes | who to tell when the bid's AI budget runs down |
 | `bid_parameter` | `source` | TEXT | no | may name the estimator who entered it |
+| `coverage_policy` | `note` | TEXT | yes | may name the estimator whose judgement set the policy |
 | `document` | `filename` | VARCHAR(512) | no | a consultant's file name can contain a person's name |
 | `document` | `source_path` | VARCHAR(1024) | yes | a folder or file name can contain a person's name |
 | `document` | `origin_by` | VARCHAR(200) | yes | the name of the person who confirmed the origin |
 | `duplicate_group` | `decided_by` | VARCHAR(200) | yes | the name of the person who decided |
 | `measurement_rule` | `source_note` | TEXT | yes | may name the estimator whose judgement set the rule |
 | `review_action` | `actor_label` | VARCHAR(200) | no | who took the action |
+| `review_sample` | `drawn_by` | VARCHAR(200) | no | who drew the sample |
+| `review_sample` | `decided_by` | VARCHAR(200) | yes | who accepted the category on the sample |
+| `shared_takeoff` | `published_by` | VARCHAR(200) | no | who published the takeoff to the project |
 | `sheet_design` | `confirmed_by` | VARCHAR(200) | yes | the name of the person who confirmed the design basis |
 
-15 columns hold personal data.
+19 columns hold personal data.

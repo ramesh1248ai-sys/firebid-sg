@@ -48,6 +48,11 @@ class Approval(UuidPk, BidScoped, Timestamped, Base):
     decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     comment: Mapped[str | None] = mapped_column(Text)
     snapshot_hash: Mapped[str | None] = mapped_column(String(64))
+    # P2-02: a later change to what was approved reopened the gate. A reopened approval no
+    # longer counts as passed; the items that reopened it are what a person looks at again.
+    reopened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reopened_reason: Mapped[str | None] = mapped_column(Text)
+    reopened_items: Mapped[list[str] | None] = mapped_column(JSONB)
 
 
 class HumanTask(UuidPk, Timestamped, Base):

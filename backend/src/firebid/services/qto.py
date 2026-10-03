@@ -523,6 +523,13 @@ class Outcome:
     groups: int = 0
     unresolved_groups: int = 0
     incomplete: list[dict[str, Any]] = field(default_factory=list)
+    # The items G1 was reopened for, when this recompute changed what it had approved.
+    reopened: list[str] = field(default_factory=list)
+
+
+def is_adopted(item: QtoItem) -> bool:
+    """Whether the item was adopted from the project's shared takeoff (FR-BID-04)."""
+    return bool(dict(item.derivation or {}).get("shared"))
 
 
 def live_items(session: Session, bid_id: uuid.UUID) -> list[QtoItem]:
@@ -569,7 +576,9 @@ def recompute(session: Session, bid_id: uuid.UUID, actor: Actor = SYSTEM_ACTOR) 
     outcome = Outcome(groups=len(stored))
     existing: dict[str, QtoItem] = {}
     for item in sorted(live_items(session, bid_id), key=_kept_first):
-        if not item.item_key or item.is_manual:
+        if not item.item_key or item.is_manual or is_adopted(item):
+            # A person's own item, or one adopted from the project's shared takeoff
+            # (FR-BID-04): neither comes from this bid's drawings, so neither is recomputed.
             continue
         if item.item_key in existing:
             # Two live items under one key: an earlier recompute created one without
@@ -607,6 +616,11 @@ def recompute(session: Session, bid_id: uuid.UUID, actor: Actor = SYSTEM_ACTOR) 
     _link_groups(session, bid_id, stored, items)
     outcome.unresolved_groups = sum(1 for g in stored.values() if g.status == "unresolved")
     outcome.incomplete = completeness(session, bid_id, items=items)
+    if outcome.created or outcome.superseded:
+        # What G1 approved has changed: the gate is reopened for those items (FR-QTO-12).
+        from firebid.services import delta
+
+        outcome.reopened = delta.reopen_if_changed(session, bid_id, items)
     log.info(
         "qto_recomputed",
         bid_id=str(bid_id),
@@ -891,6 +905,14 @@ def evidence_for(
         else:
             x, y = mark.get("x"), mark.get("y")
         links.append(f"/bids/{bid.id}/sheets/{sheet_id}?x={x}&y={y}")
+    shared = derivation.get("shared")
+    if isinstance(shared, dict):
+        # Adopted from the project's shared takeoff (FR-BID-04): the drawings are the
+        # publishing bid's, so the evidence is the published item, by its own reference.
+        links = [
+            f"/bids/{bid.id}/shared-takeoff#{shared.get('source_bid')}-"
+            f"{shared.get('source_human_id')}-v{shared.get('version')}"
+        ]
     members = derivation.get("members") or []
     kinds = sorted({str(m.get("kind")) for m in members})
     geometry_reference = (
@@ -1498,6 +1520,10 @@ def approve_g1(
     )
     session.add(approval)
     session.flush()
+    # The baseline a later revision or addendum is compared with (FR-QTO-12).
+    from firebid.services import delta
+
+    delta.take_snapshot(session, bid.id, "G1 approved", approval_id=approval.id)
     record_event(
         session,
         context=AuditContext(organisation_id=bid.organisation_id, bid_id=bid.id),

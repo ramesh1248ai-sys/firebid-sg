@@ -5,6 +5,8 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { useAuth } from "@/auth/session";
 import { useActivityHeartbeat } from "@/workbench/activity";
 import { DrawingViewer, type Tool } from "@/workbench/DrawingViewer";
+import { changeMarks, useDelta, useRevisionDiff } from "@/workbench/changes";
+import { ChangesPanel } from "@/workbench/ChangesPanel";
 import { DuplicatesPanel } from "@/workbench/DuplicatesPanel";
 import { GatePanel, SetupPanel, type Tab } from "@/workbench/GatePanel";
 import {
@@ -18,7 +20,13 @@ import { ItemPanel, ReasonForm } from "@/workbench/ItemPanel";
 import { LayerPanel } from "@/workbench/LayerPanel";
 import { type ManualDraft, useObjectTypes } from "@/workbench/manual";
 import { ManualTools } from "@/workbench/ManualTools";
-import { type Layers, type Mark, NO_LAYERS_HIDDEN, pickInto } from "@/workbench/marks";
+import {
+  type Layers,
+  type Mark,
+  MarkIndex,
+  NO_LAYERS_HIDDEN,
+  pickInto,
+} from "@/workbench/marks";
 import { QueuePanel } from "@/workbench/QueuePanel";
 import {
   type EditInput,
@@ -52,6 +60,13 @@ export function WorkbenchPage() {
   const sheet = sheets.data?.find((s) => s.sheet_id === sheetId) ?? null;
   const tiles = useTileSource(bidId, sheetId);
   const overlay = useOverlay(bidId, sheetId);
+  const revisionDiff = useRevisionDiff(bidId, sheetId);
+  const delta = useDelta(bidId);
+  // On the Changes tab the drawing shows what the revision changed, not the takeoff.
+  const changesIndex = useMemo(
+    () => new MarkIndex(changeMarks(revisionDiff.data?.changes ?? [])),
+    [revisionDiff.data],
+  );
   const [layers, setLayers] = useState<Layers>(NO_LAYERS_HIDDEN);
   const [lassoed, setLassoed] = useState<Set<string>>(new Set());
   const [focus, setFocus] = useState<{ box: number[]; key: number } | null>(null);
@@ -363,8 +378,8 @@ export function WorkbenchPage() {
             <DrawingViewer
               source={tiles.data}
               widthMm={sheet.width_mm}
-              index={overlay.index}
-              layers={layers}
+              index={tab === "changes" ? changesIndex : overlay.index}
+              layers={tab === "changes" ? NO_LAYERS_HIDDEN : layers}
               selected={highlighted}
               focus={focus}
               tool={tool}
@@ -389,6 +404,7 @@ export function WorkbenchPage() {
                 ["duplicates", `Duplicates (${(duplicates.data ?? []).filter((g) => g.status === "unresolved").length})`],
                 ["setup", "Symbols & scale"],
                 ["g1", "Coverage & G1"],
+                ["changes", `Changes (${revisionDiff.data?.changes?.length ?? 0})`],
               ] as [Tab, string][]
             ).map(([key, label]) => (
               <button
@@ -542,6 +558,23 @@ export function WorkbenchPage() {
                 onCancelCalibration={() => {
                   setCalibrating(null);
                   setTool("select");
+                }}
+              />
+            </div>
+          )}
+          {tab === "changes" && (
+            <div className="min-h-0 flex-1 overflow-auto rounded-lg border p-2">
+              <ChangesPanel
+                diff={revisionDiff.data}
+                delta={delta.data}
+                loading={revisionDiff.isPending && Boolean(sheetId)}
+                onFocus={(box) => setFocus({ box, key: Date.now() })}
+                onOpenItem={(humanId) => {
+                  const row = rows.find((r) => r.item.human_id === humanId);
+                  if (row) {
+                    setTab("queue");
+                    openItem(row.item.id, row);
+                  }
                 }}
               />
             </div>

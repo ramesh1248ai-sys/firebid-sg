@@ -35,6 +35,11 @@ reason_codes:
   drawing_ambiguous: The drawing does not say; an assumption was made
   other: Other (explain in the note)
 
-# G1 (FR-REV-04): the share of items that must be verified. Phase 1: all of them.
+# G1 (FR-REV-04): the share of items that must be verified: all of them.
+#
+# Sampling mode (FR-REV-05, P2-02) does not lower this. A category a Senior Estimator has put
+# under sampling (the coverage policies, set in the platform and audited, not here) is
+# verified by reviewing a random sample and then accepting the category on it, which is a
+# named action that verifies the rest. Every item is still verified at G1.
 coverage_policy:
   items_percent: 100

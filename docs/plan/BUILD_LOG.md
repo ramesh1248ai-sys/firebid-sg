@@ -1597,3 +1597,57 @@ Entry template:
   - **Pipe runs are still not identified from legend line styles** (the Phase 1 gap list named P2-01 for it; it was outside this step's prompt).
   - **Pump room pipework takes the rising main's system** when the riser symbol is on it, so its pipe is described as wet rising main.
   - **The workbench and BOQ pages were not changed.** Equipment and support items appear in the existing lists; the BOQ template seed has groups for them, which existing organisations' templates do not gain.
+
+## P2-02 · Revision Deltas, Multi-Bid Projects and Sampling Mode · 2026-10-03
+
+- **Summary:**
+  - **Revision comparison (FR-DOC-08):** two revisions of a drawing are aligned (by the grid lines both label alike, then by their frames, then by the offset most like symbols agree on) and compared. Each fire protection element is unchanged, changed (with what it was and is), added or removed, and every change is located on the newer sheet. The workbench has a **Changes** tab that lists them and draws them over the drawing.
+  - **Delta QTO (FR-QTO-12):** the takeoff as it stood is recorded when G1 is approved and when an addendum is registered. The delta report is the takeoff now against such a baseline: per item (added, removed, changed with its value before, verification kept) and per BOQ line. When a recompute changes what G1 approved, that approval is reopened for the items that changed, and only those need verifying before G1 is approved again.
+  - **Addendum propagation:** `affected_items` now also returns the QTO items, BOQ lines and flagged client BOQ lines (clarification candidates) an addendum changed.
+  - **Multi-bid projects (FR-BID-04, ADR-012):** a bid publishes its verified takeoff to its project; the project's other bids adopt it. An edit in an adopting bid changes that bid only. Client BOQs, bills, prices and documents stay bid-scoped.
+  - **Sampling mode (FR-REV-05):** a Senior Estimator puts an item category under a sampling policy (tolerable error rate, confidence, errors accepted). A random sample is drawn and recorded with its seed. More errors than accepted sends the category back to full review on that bid; otherwise the Senior Estimator accepts the category on the sample.
+- **Key modules / files:**
+  - Pure: `drawings/revision_diff.py` (`align`, `diff`), `qto/delta.py` (`report`), `qto/sampling.py` (`plan`, `draw`, `evaluate`).
+  - Services: `services/revision_compare.py`, `services/delta.py` (snapshots, report, `reopen_if_changed`, `gate_status`, the three addendum providers), `services/sampling.py`, `services/shared_takeoff.py`.
+  - `services/qto.py`: recompute skips adopted items and reopens G1; approving G1 takes a snapshot; an adopted item's evidence link. `services/addenda.py`: registering an addendum takes a snapshot. `services/boq.py`, `services/bids.py`: a reopened approval does not count as passed.
+  - API: `api/changes.py` (`/sheets/{id}/revisions`, `/revision-diff`, `/qto/baselines`, `/qto/delta`, `/coverage-policies`, `/review/sampling…`, `/shared-takeoff…`). New permission `coverage_policy.change` (Senior Estimator).
+  - Migration `0034`: `takeoff_snapshot`, `review_sample` (bid-scoped, RLS), `coverage_policy` (organisation), `shared_takeoff` (project-level, with the new helper `firebid_can_see_project`), and `approval.reopened_at`, `reopened_reason`, `reopened_items`.
+  - Frontend: `workbench/changes.ts`, `workbench/ChangesPanel.tsx`, the Changes tab in `pages/WorkbenchPage.tsx`, three mark colours.
+  - Fixture: `evals/synthetic_revision.py` (the general arrangement at R01 and R02, with seeded changes).
+  - `docs/adr/ADR-012-one-takeoff-for-a-projects-bids.md`.
+- **How to run and demo:**
+  1. `make up`. Take off and verify a bid, build its BOQ and approve G1 as in P1-08 and P1-09.
+  2. Register an addendum and upload a revised drawing into it. Open **Workbench**, the new sheet, **Changes**: the change list, the changes over the drawing, the delta against "before Addendum N", and "G1 is reopened".
+  3. Verify the changed items and approve G1 again.
+  4. `POST /coverage-policies/sprinkler` as the Senior Estimator with `{"mode": "sampling", "note": "<the accuracy evidence>"}`; then `POST /bids/{id}/review/sampling/sprinkler/draw`, review the sample, and `…/accept`.
+  5. `POST /bids/{id}/shared-takeoff/publish`; on a second bid of the same project, `POST /bids/{id}/shared-takeoff/adopt`.
+- **Requirement IDs covered (test names):**
+  - FR-DOC-08: `tests/drawings/test_revision_diff.py` (the seeded revision reported exactly; a moved plan aligned by its grid; frames when there is no grid; a fit when neither helps; changes, moves, resized and extended runs); `tests/db/test_revisions_and_delta.py::TestRevisionComparison` (through the pipeline, the database and the API); `workbench/ChangesPanel.test.tsx`.
+  - FR-QTO-12: `tests/qto/test_delta.py`; `tests/db/test_revisions_and_delta.py::TestDeltaTakeoff` (unchanged verified items keep Verified at version 1; changed items are Proposed with the superseded version behind them; only the new revision is read; the report matches the seeded changes, per item and per BOQ line; G1 reopened for the changed items only, and approved again once they are verified) and `::TestWhatTheAddendumChanged`; `workbench/ChangesPanel.test.tsx`.
+  - FR-BID-04: `tests/db/test_shared_takeoff.py` (the shared baseline visible to both bids; a bid-specific edit leaves the other bid and the published takeoff alone; a later version updates what was not edited and keeps what was; under row-level security each team sees its own client BOQ, bill, prices and documents and none of the other's; the API refuses the other bid; a member of both sees both).
+  - FR-REV-05: `tests/qto/test_sampling.py` (the plan against the hypergeometric distribution, with a Hypothesis property; the draw; the verdict); `tests/db/test_sampling_mode.py` (policy versions and audit; Senior Estimator only; a recorded, reproducible sample; a clean sample accepted; an error over the threshold escalates and G1 coverage stays short).
+- **Deviations and decisions:**
+  - **No plan-and-approve pause,** as the owner prefers.
+  - **The sampling plan is computed, not looked up.** The sample is the smallest that catches a lot at the tolerable error rate with the stated confidence, exactly, by the hypergeometric distribution. ISO 2859-1 tables were not reproduced from memory. For 40 items at 5% and 95% the sample is 25; for 500, 54.
+  - **A lot is a category's QTO items on one bid,** and an item is a group (16 pendent heads are one item). Lots are small, so small categories are reviewed in full. That is what the arithmetic says; sampling pays on large tenders.
+  - **G1 still needs every item verified.** Accepting a category on its sample is a named action by the Senior Estimator that verifies the rest of the lot, each item recording the sample. The BOQ takes verified items only, so leaving the unsampled ones unverified would have dropped them from the bill.
+  - **Sampling needs a note:** the accuracy evidence the policy rests on. No category is under sampling by default, and there is no Phase 1 golden-set evidence yet to justify one.
+  - **Multi-bid sharing is publish and adopt, not read-through** (ADR-012, status Proposed). No security policy on a bid-scoped table was widened.
+  - **Reopening is recorded on the approval** (`reopened_at`, the reason, the items), not as a new decision: `approval.approver_id` must be a person, and no person reopens it.
+  - **"Re-process affected sheets only" needed no new code.** A new revision is a new sheet, read once; other sheets' detections are found unchanged by fingerprint; a recompute leaves alone items whose inputs are what they were. The tests assert it.
+  - **Elements are matched across revisions by place and attributes.** A symbol that moved is a removal and an addition.
+- **Manual checks and results:**
+  - Not run on the local stack through the browser. The Changes tab is covered by component tests and the API by database tests.
+- **Defects found and fixed during the step:**
+  - The clarification-candidate provider looked for the changed item's newest version in the bill, which holds the version the bill was built from. It now matches any version.
+  - A formatter the frontend does not use was run by mistake and rewrote two files; they were restored and the edits re-applied.
+- **Known gaps and follow-ups:**
+  - **A person's "not there" does not carry to the new revision.** A rejected detection is remembered per sheet, and a revision is a new sheet.
+  - **Unchanged means the same place on the sheet.** If a consultant re-plots a drawing at another position, every item on it is proposed again. The revision comparison aligns the two; the takeoff's own matching does not use that alignment yet.
+  - **Only G1 is reopened.** G2 to G4 arrive in P2-08 and must hook into the same mechanism. A bid's stage is not moved back.
+  - **No screens for sampling or the shared takeoff.** Both have APIs; the workbench shows neither yet.
+  - **The coverage report does not show the per-category breakdown** in the workbench (`GET /review/sampling` returns it).
+  - **A bid with drawings of its own cannot adopt** the project's takeoff.
+  - **Clarification candidates are flagged client BOQ lines** until P2-06 builds the clarifications register.
+  - **PDF revisions are not measured:** the fixtures are DXF.
+  - **ADR-012 is Proposed** and waits for the product owner.

@@ -156,7 +156,11 @@ def dashboard(
         gates = list(
             session.execute(
                 select(Approval.gate)
-                .where(Approval.bid_id == bid.id, Approval.decision == "approved")
+                .where(
+                    Approval.bid_id == bid.id,
+                    Approval.decision == "approved",
+                    Approval.reopened_at.is_(None),
+                )
                 .order_by(Approval.gate)
             )
             .scalars()

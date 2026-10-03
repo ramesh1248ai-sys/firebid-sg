@@ -6,9 +6,10 @@ read from them is linked to the addendum. That link does three jobs: the registe
 addendum brought each revision; the addendum's date orders revisions whose labels cannot be
 ordered; and `affected_items` can answer "what did Addendum 2 change?".
 
-`affected_items` answers for sheets and documents now. Takeoff (P1-07) and the BOQ (P1-09)
-extend it by registering a provider, so the answer grows with the platform instead of each
-step writing its own version of the question.
+`affected_items` answers for sheets and documents here. Takeoff, the BOQ and the
+clarification candidates extend it by registering providers (`services.delta`, P2-02), so
+the answer grows with the platform instead of each step writing its own version of the
+question.
 """
 
 from __future__ import annotations
@@ -70,6 +71,12 @@ def register_addendum(
     )
     session.add(addendum)
     session.flush()
+    # The takeoff as it stands before the addendum's sheets arrive: what its delta report
+    # is made against (FR-QTO-12). Nothing to keep when nothing has been taken off yet.
+    from firebid.services import delta, qto
+
+    if qto.live_items(session, bid_id):
+        delta.take_snapshot(session, bid_id, f"before Addendum {number}", addendum_id=addendum.id)
     log.info("addendum_registered", bid_id=str(bid_id), number=number)
     return addendum
 
@@ -111,6 +118,8 @@ def provides_affected_items(provider: Provider) -> Provider:
 
 
 def affected_items(session: Session, addendum: Addendum) -> list[AffectedItem]:
+    from firebid.services import delta  # noqa: F401  (registers its providers)
+
     items: list[AffectedItem] = []
     for provider in PROVIDERS:
         items.extend(provider(session, addendum))
