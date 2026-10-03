@@ -406,11 +406,13 @@ def _inputs(
     session: Session, record: SheetGeometry, lookups: Lookups
 ) -> tuple[list[tuple[float, float, float, float]], list[ViewInfo], str]:
     """A sheet's legend boxes and views, and the fingerprint of all its detection reads."""
-    excluded = [
+    # Sorted: the legend rows are read in whatever order the database returns them, and the
+    # same boxes in another order must be the same fingerprint.
+    excluded = sorted(
         (e.row_box[0], e.row_box[1], e.row_box[2], e.row_box[3])
         for e in lookups.entries.values()
         if e.sheet_id == record.sheet_id
-    ]
+    )
     views = _views(session, record.sheet_id)
     return excluded, views, fingerprint(session, record, list(excluded), views, lookups)
 
