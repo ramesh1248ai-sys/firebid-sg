@@ -71,8 +71,8 @@ async def _refuse(send: Send, status: int, detail: str) -> None:
 class BodySizeLimitMiddleware:
     """Refuses a body larger than the limit, by its declared length and as it arrives.
 
-    Uploads have their own, larger limit: they are streamed to object storage, not held in
-    memory, so the general limit would be wrong for them.
+    Uploads have their own, larger limit. They are received to disk and then read into
+    memory a file at a time, so that limit is also the most one request can hold.
     """
 
     def __init__(self, app: ASGIApp, max_bytes: int, upload_max_bytes: int) -> None:

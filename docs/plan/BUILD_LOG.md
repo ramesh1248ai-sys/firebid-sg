@@ -1509,3 +1509,12 @@ Entry template:
 - **Known gaps and follow-ups:**
   - No alert yet on a job that runs for over an hour with its worker alive.
   - Symbol shapes is still the largest parse stage; what is left is arithmetic that the signature's definition asks for (200 sample points, every pair).
+## Performance · What an upload holds in memory · 2026-10-03
+
+- **Summary:** two places where an upload held far more than one file.
+  - **An archive** was expanded whole before any of it was stored (`list(expand(...))`): a 200 MB archive may hold 4 GiB. It is read through once to check it, keeping nothing, and then taken a file at a time. An archive that breaks a limit part of the way in is still refused whole, with nothing stored.
+  - **A file over the direct-upload limit** was read into memory to find out its size, after the files sent before it had been stored. Sizes are checked first, from the files as received, and the upload is refused before anything is read or stored.
+- **Key modules / files:** `services/ingestion.py` (`_ingest_archive`), `api/documents.py` (`_size_of`, `upload`), `api/security.py` (a comment that said uploads were streamed to storage; they are not).
+- **Not done: a file is still read whole.** One file at a time is held in memory: up to 200 MB on the direct route, and any size at all on the presigned route (`/uploads/complete` fetches the object to check its digest and scan it). Streaming it means a file-like path through detection, the scanner, the store and archive expansion, and the parsers downstream still take whole files. Recorded as a follow-up, not attempted here.
+- **Cost:** an archive is decompressed twice.
+- **Tests:** `tests/db/test_document_ingestion.py` (an archive is taken a file at a time; one refused part of the way in stores none of it), `tests/db/test_document_api.py` (a file over the limit is refused before any file is stored).

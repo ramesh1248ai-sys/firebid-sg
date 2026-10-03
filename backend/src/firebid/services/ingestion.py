@@ -163,19 +163,22 @@ class Ingestor:
         origin: Origin | None,
     ) -> None:
         """A whole set in one upload. A refused archive refuses as one thing, not silently."""
+        # Read through once before anything is kept: an archive that breaks a limit part
+        # of the way in is refused whole. Then a file at a time, so that what is held is one
+        # file and not the whole set expanded (a 200 MB archive may hold 4 GiB).
         try:
-            entries = list(expand(payload))
+            count = sum(1 for _ in expand(payload))
         except ArchiveRefused as refusal:
             outcome.rejected.append((filename, str(refusal)))
             log.warning("archive_refused", filename=filename, reason=str(refusal))
             return
 
-        if not entries:
+        if not count:
             outcome.rejected.append((filename, "the archive holds no files"))
             return
 
         inside = path or filename
-        for entry in entries:
+        for entry in expand(payload):
             # A file inside an archive nobody has looked into: what the sender said holds
             # only if they said it is not tender input. Otherwise each entry's own path
             # decides, so a marked-up copy inside a tender zip still waits for a person.

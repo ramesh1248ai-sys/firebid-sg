@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import zipfile
+from collections.abc import Iterator
 
 import pytest
 from sqlalchemy import select
@@ -115,6 +116,59 @@ def test_an_infected_file_inside_an_archive_is_caught_and_its_neighbours_are_not
     assert [name for name, _ in outcome.quarantined] == ["nasty.pdf"]
     assert sorted(document.filename for document in outcome.stored) == ["A-01.pdf", "A-02.pdf"]
     assert outcome.accounted_for == 3
+
+
+@pytest.mark.req("FR-DOC-09")
+def test_an_archive_is_taken_a_file_at_a_time_not_expanded_whole(
+    session: Session, bid: Bid, store: MemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A tender set expands to many times its archive: only one of its files is held."""
+    import gc
+    import weakref
+
+    from firebid.ingest import archives
+    from firebid.services import ingestion
+
+    held: list[int] = []
+    seen: list[weakref.ref[archives.ArchiveEntry]] = []
+
+    def watched(payload: bytes, depth: int = 0) -> Iterator[archives.ArchiveEntry]:
+        for entry in archives.expand(payload, depth):
+            gc.collect()
+            held.append(sum(1 for earlier in seen if earlier() is not None))
+            seen.append(weakref.ref(entry))
+            yield entry
+
+    monkeypatch.setattr(ingestion, "expand", watched)
+    files = {f"A-{n:02d}.pdf": PDF + str(n).encode() for n in range(12)}
+
+    outcome = ingestor(session, bid, store, AlwaysCleanScanner()).ingest("set.zip", zip_of(files))
+
+    assert len(outcome.stored) == 12
+    assert max(held) <= 1, "earlier entries were still held when a later one was read"
+
+
+@pytest.mark.req("FR-DOC-01")
+def test_an_archive_refused_part_of_the_way_in_stores_none_of_it(
+    session: Session, bid: Bid, store: MemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A header that lies is only found on reading: by then nothing may have been kept."""
+    from firebid.ingest import archives
+    from firebid.services import ingestion
+
+    def lying(payload: bytes, depth: int = 0) -> Iterator[archives.ArchiveEntry]:
+        yield archives.ArchiveEntry("A-01.pdf", PDF, 0)
+        raise archives.ArchiveRefused("'A-02.pdf' is larger than its header claims")
+
+    monkeypatch.setattr(ingestion, "expand", lying)
+
+    archive = zip_of({"A-01.pdf": PDF, "A-02.pdf": PDF + b"two"})
+
+    outcome = ingestor(session, bid, store, AlwaysCleanScanner()).ingest("set.zip", archive)
+
+    assert outcome.stored == [] and store.objects == {}
+    assert outcome.rejected == [("set.zip", "'A-02.pdf' is larger than its header claims")]
+    assert session.execute(select(Document)).first() is None
 
 
 @pytest.mark.req("NFR-06")

@@ -449,3 +449,31 @@ def test_a_role_without_the_upload_permission_is_refused(
     assert response.status_code == 403
     # Reading the bid's documents is still fine.
     assert client.get(f"/bids/{bid.id}/documents").status_code == 200
+
+
+@pytest.mark.req("FR-DOC-01")
+def test_a_file_over_the_limit_is_refused_before_any_file_is_stored(
+    sign_in: SignIn,
+    estimator_principal: Principal,
+    bid: Bid,
+    store: MemoryObjectStore,
+    scanner: Scanner,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Its size is known as it arrives: it is not read to find out, and the file sent
+    before it is not kept from an upload that is refused."""
+    monkeypatch.setattr(documents_api, "MAX_DIRECT_UPLOAD_BYTES", 256)
+    client = sign_in(estimator_principal)
+
+    response = client.post(
+        f"/bids/{bid.id}/documents",
+        files=[
+            ("files", ("A-01.pdf", PDF, "application/pdf")),
+            ("files", ("huge.pdf", PDF + b"x" * 512, "application/pdf")),
+        ],
+    )
+
+    assert response.status_code == 413
+    assert "huge.pdf" in response.json()["detail"]
+    assert store.objects == {}
+    assert client.get(f"/bids/{bid.id}/documents").json() == []
