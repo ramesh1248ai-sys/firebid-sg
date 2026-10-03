@@ -1,0 +1,42 @@
+# The interfaces the scope matrix looks for in a specification (FR-SPEC-04, P2-03).
+#
+# "TO BE CONFIRMED": this is a starting list. The Design Manager reviews it (business
+# track): which interfaces the company wants on every matrix, and the words consultants
+# use for each.
+#
+# `match` is a regular expression over a sentence of a clause, case-insensitive. `systems`
+# limits a row to those systems; without it the row appears for every system the
+# specification has. The status of a row (included, by others, excluded, unclear) is read
+# from the sentence that matches, never from this file.
+
+status: to be confirmed
+
+interfaces:
+  - key: power_supply
+    label: Power supply to fire pumps and control panels
+    match: '\b(power|electrical)\s+suppl(y|ies)\b|\bincoming\s+(power|supply)\b|\bisolators?\b'
+  - key: water_supply
+    label: Water supply connection
+    match: '\b(water\s+supply|incoming\s+water|PUB\s+(main|connection)|town\s+main|water\s+connection)\b'
+  - key: builders_works
+    label: Builder's works and openings
+    match: '\b(builder.?s\s+works?|openings?|sleeves?|plinths?|core\s+(drilling|holes?)|trenches?)\b'
+  - key: ceiling_access
+    label: Ceiling access panels
+    match: '\b(access\s+panels?|ceiling\s+access|access\s+hatch(es)?)\b'
+  - key: painting
+    label: Painting of pipework
+    match: '\bpaint(ed|ing)?\b'
+  - key: fire_alarm_interface
+    label: Electrical interface to the fire alarm system
+    match: '\bfire\s+alarm\b'
+  - key: fire_stopping
+    label: Fire stopping of penetrations
+    match: '\bfire[-\s]?stop(ping|ped)?\b|\bfire\s+seal(ing|ant)?\b'
+  - key: drainage
+    label: Drainage for test and drain points
+    match: '\bdrain(age)?\s+(points?|connections?|pipework)\b|\btundish(es)?\b'
+  - key: excavation
+    label: Excavation and backfilling for buried mains
+    match: '\b(excavat\w+|backfill\w*|trenching)\b'
+    systems: [hydrant]

@@ -26,7 +26,11 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `review_action` | `actor_label` | VARCHAR(200) | no | who took the action |
 | `review_sample` | `drawn_by` | VARCHAR(200) | no | who drew the sample |
 | `review_sample` | `decided_by` | VARCHAR(200) | yes | who accepted the category on the sample |
+| `scope_row` | `edited_by` | VARCHAR(200) | yes | who changed the row's status |
+| `scope_row` | `confirmed_by` | VARCHAR(200) | yes | who confirmed the matrix |
 | `shared_takeoff` | `published_by` | VARCHAR(200) | no | who published the takeoff to the project |
 | `sheet_design` | `confirmed_by` | VARCHAR(200) | yes | the name of the person who confirmed the design basis |
+| `spec_issue` | `decided_by` | VARCHAR(200) | yes | who dismissed the issue |
+| `spec_obligation` | `decided_by` | VARCHAR(200) | yes | who confirmed or rejected the obligation |
 
-19 columns hold personal data.
+23 columns hold personal data.

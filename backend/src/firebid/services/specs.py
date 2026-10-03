@@ -122,6 +122,10 @@ def read_specification(
     found = rules.extract(clauses, placed)
     _store_all(session, revision, clauses, found, {"rule_version": rules.RULES_VERSION})
     _queue_model(session, revision, clauses, placed, found, user_id)
+    # What the specification obliges beyond what is installed (FR-SPEC-02, P2-03).
+    from firebid.services import spec_analysis
+
+    spec_analysis.read_obligations(session, revision)
     log.info(
         "specification_read",
         revision_id=str(revision.id),

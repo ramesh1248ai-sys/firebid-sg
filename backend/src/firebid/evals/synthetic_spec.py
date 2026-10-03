@@ -103,6 +103,133 @@ def with_supports(seismic: bool = False) -> tuple[tuple[str, str, str], ...]:
     return (*CLAUSES[:at], *extra, *CLAUSES[at:])
 
 
+# The rest of a specification (P2-03): what the contractor must do beyond install, and what
+# is and is not in the contract. Placed after section 5, under headings the section rules
+# read as fire protection.
+OBLIGATION_CLAUSES: tuple[tuple[str, str, str], ...] = (
+    (
+        "2.4",
+        "Valves",
+        "Gate valves and non-return valves shall be provided as shown on the drawings.",
+    ),
+    ("6", "FIRE PROTECTION SERVICES - TESTING, COMMISSIONING AND HANDOVER", ""),
+    (
+        "6.1",
+        "Testing",
+        "All pipework shall be hydrostatically tested at 14 bar for 2 hours. Pipework shall "
+        "be flushed before the sprinklers are fitted.",
+    ),
+    (
+        "6.2",
+        "Painting and identification",
+        "All exposed pipework shall be painted with two coats of signal red finish. Pipework "
+        "shall be identified with colour bands at every floor.",
+    ),
+    (
+        "6.3",
+        "Commissioning",
+        "The installation shall be commissioned in the presence of the Engineer.",
+    ),
+    (
+        "6.4",
+        "Warranty and maintenance",
+        "The Contractor shall warrant the installation for 12 months from practical "
+        "completion. The defects liability period shall be 12 months. The Contractor shall "
+        "carry out maintenance at monthly intervals for 12 months.",
+    ),
+    (
+        "6.5",
+        "Spares and training",
+        "The Contractor shall hand over spare sprinklers amounting to 2 sets of each type. "
+        "The Contractor shall provide training to the Employer's staff for 2 days.",
+    ),
+    (
+        "6.6",
+        "Submittals",
+        "The Contractor shall submit shop drawings and hydraulic calculations within 4 weeks "
+        "of award.",
+    ),
+    (
+        "6.7",
+        "Authority",
+        "The Contractor shall attend all SCDF inspections and assist the Qualified Person in "
+        "obtaining the Fire Safety Certificate.",
+    ),
+    ("6.8", "Makes", "Only makes on the Employer's AVL shall be used."),
+    ("7", "FIRE PROTECTION SERVICES - SCOPE AND INTERFACES", ""),
+    (
+        "7.1",
+        "",
+        "Power supply to the fire pump control panels shall be provided by the electrical "
+        "contractor.",
+    ),
+    ("7.2", "", "The Contractor shall provide the water supply connection from the PUB main."),
+    ("7.3", "", "Builder's works, openings and plinths are excluded from this contract."),
+    ("7.4", "", "Ceiling access panels are shown on the architect's drawings."),
+    (
+        "7.5",
+        "",
+        "Cabling between flow switches and the fire alarm panel shall be by the fire alarm "
+        "contractor.",
+    ),
+    ("7.6", "", "A flow test header shall be provided in the pump room."),
+    ("7.7", "", "The Contractor shall provide fire stopping to pipe penetrations where required."),
+    ("7.8", "", "Pressure gauges shall be of the make scheduled or equal."),
+)
+
+
+def extended() -> tuple[tuple[str, str, str], ...]:
+    """The specification with its obligations and interfaces: clause 2.4 in section 2, the
+    two new sections at the end."""
+    at = next(i for i, clause in enumerate(CLAUSES) if clause[0] == "3")
+    return (*CLAUSES[:at], OBLIGATION_CLAUSES[0], *CLAUSES[at:], *OBLIGATION_CLAUSES[1:])
+
+
+# Every obligation of the extended specification: (category, clause, quantities).
+EXPECTED_OBLIGATIONS: tuple[tuple[str, str, dict[str, object]], ...] = (
+    ("testing", "6.1", {"pressure": 14, "pressure_unit": "bar", "duration_hours": 2}),
+    ("flushing", "6.1", {}),
+    ("painting", "6.2", {"coats": 2}),
+    ("identification", "6.2", {}),
+    ("commissioning", "6.3", {}),
+    ("warranty", "6.4", {"period_months": 12}),
+    ("defects_liability", "6.4", {"period_months": 12}),
+    ("maintenance", "6.4", {"period_months": 12}),
+    ("spares", "6.5", {"count": 2, "count_of": "sets"}),
+    ("training", "6.5", {"period_days": 2}),
+    ("submittals", "6.6", {"period_weeks": 4}),
+    ("authority", "6.7", {}),
+    ("approved_makes", "6.8", {}),
+)
+
+# What the drawings say against it (`synthetic_qto.car_park_plan`), and every issue seeded
+# between the two: (rule, the clause it cites, what it is about).
+CAR_PARK_NOTES = (
+    "ALL SPRINKLER PIPEWORK TO BE BLACK STEEL",
+    "PIPES DN65 AND ABOVE: WELDED JOINTS",
+)
+SEEDED_ISSUES: tuple[tuple[str, str | None, str], ...] = (
+    ("conflict:pipe_material", "2.1.3", "pipe_material"),  # the P1-06 contradiction
+    ("conflict:joining_method", "2.1.2", "joining_method"),
+    ("missing_from_drawings", "7.6", "test_header"),
+    ("missing_from_specification", None, "sprinkler_upright"),
+    ("ambiguous_clause", "7.7", "where required"),
+    ("ambiguous_clause", "7.8", "or equal"),
+)
+
+# The interface rows of the scope matrix, the same for every system: (key, status, clause).
+EXPECTED_INTERFACES: tuple[tuple[str, str, str | None], ...] = (
+    ("power_supply", "by_others", "7.1"),
+    ("water_supply", "included", "7.2"),
+    ("builders_works", "excluded", "7.3"),
+    ("ceiling_access", "unclear", "7.4"),
+    ("painting", "included", "6.2"),
+    ("fire_alarm_interface", "by_others", "7.5"),
+    ("fire_stopping", "included", "7.7"),
+    ("drainage", "unclear", None),
+)
+
+
 @dataclass(frozen=True)
 class Expected:
     system: str
@@ -185,7 +312,9 @@ def specification_docx(
     return buffer.getvalue()
 
 
-def specification_pdf(revision: str = "Rev B") -> bytes:
+def specification_pdf(
+    revision: str = "Rev B", clauses: tuple[tuple[str, str, str], ...] = CLAUSES
+) -> bytes:
     """The same specification as a PDF, laid out with larger bold headings."""
     import matplotlib
 
@@ -197,7 +326,7 @@ def specification_pdf(revision: str = "Rev B") -> bytes:
         ("PARTICULAR SPECIFICATION FOR FIRE PROTECTION SERVICES", 14, True),
         (f"Revision {revision}", 10, False),
     ]
-    for number, heading, body in CLAUSES:
+    for number, heading, body in clauses:
         if heading:
             lines.append((f"{number} {heading}", 12 if "." not in number else 11, True))
         if body:
