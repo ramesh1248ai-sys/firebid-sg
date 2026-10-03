@@ -19,11 +19,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from firebid.db.models.core import Bid
-from firebid.db.models.drawings import SheetView
+from firebid.db.models.drawings import SheetGeometry, SheetView
 from firebid.db.models.symbols import LegendEntry
 from firebid.db.models.takeoff import DetectedObject, PipeRun
 from firebid.domain.actors import Actor
 from firebid.evals.synthetic_network import DESCRIBED, NETWORK, network_plan
+from firebid.services import detection
 from firebid.services import symbols as symbol_service
 from firebid.services.detection import detect_bid
 from firebid.storage.object_store import MemoryObjectStore
@@ -278,6 +279,26 @@ class TestOnlyWhatChanged:
         after = {o.id for o in stored(session, bid)[0]} | {r.id for r in stored(session, bid)[1]}
         assert after == before
         assert (second[0].objects, second[0].runs) == (first[0].objects, first[0].runs)
+
+    def test_the_order_the_database_returns_legend_rows_in_changes_nothing(
+        self, session: Session, bid: Bid, store: MemoryObjectStore
+    ) -> None:
+        installation(session, bid, store)
+        confirm_legend(session, bid, store)
+        detect_bid(session, store, bid.id)
+        session.commit()
+        record = session.execute(
+            select(SheetGeometry).where(SheetGeometry.bid_id == bid.id)
+        ).scalar_one()
+        lookups = detection.lookups_for(session, bid.id)
+        assert len(lookups.entries) > 1
+        # An unordered read may return the same rows the other way round.
+        lookups.entries = dict(reversed(list(lookups.entries.items())))
+
+        boxes, _, digest = detection._inputs(session, record, lookups)
+
+        assert boxes == sorted(boxes)
+        assert digest == record.detection_fingerprint
 
     def test_a_person_can_have_every_sheet_detected_anyway(
         self, session: Session, bid: Bid, store: MemoryObjectStore
