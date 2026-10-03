@@ -26,5 +26,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    // A file's first test loads the whole app, and every file runs at once: on a busy
+    // machine that alone has taken more than the default five seconds.
+    testTimeout: 20_000,
   },
 });

@@ -3,53 +3,70 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* shadcn/ui neutral theme tokens */
+/*
+ * FireBid theme tokens: shadcn/ui's names, with the platform's own palette.
+ *
+ * A cool grey canvas with white surfaces on it, a deep navy for the header and for primary
+ * actions, and fire-protection red kept for the brand mark and for what is wrong. Estimators
+ * read tables all day: text is near-black on white, and colour is saved for state.
+ */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --radius: 0.5rem;
+  --background: oklch(0.977 0.004 250);
+  --foreground: oklch(0.21 0.028 262);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --card-foreground: oklch(0.21 0.028 262);
+  --primary: oklch(0.34 0.1 262);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --secondary: oklch(0.955 0.008 250);
+  --secondary-foreground: oklch(0.27 0.04 262);
+  --muted: oklch(0.962 0.006 250);
+  --muted-foreground: oklch(0.49 0.022 258);
+  --accent: oklch(0.95 0.014 255);
+  --accent-foreground: oklch(0.27 0.06 262);
+  --destructive: oklch(0.55 0.21 27);
+  --border: oklch(0.905 0.01 252);
+  --input: oklch(0.86 0.014 252);
+  --ring: oklch(0.6 0.13 262);
+  /* The header and what sits on it. */
+  --header: oklch(0.25 0.065 262);
+  --header-foreground: oklch(0.97 0.005 250);
+  --header-muted: oklch(0.78 0.03 258);
+  /* Links in running text and tables. */
+  --link: oklch(0.45 0.15 262);
   /* FireBid accent: fire-protection red, used sparingly */
-  --brand: oklch(0.5 0.19 27);
+  --brand: oklch(0.6 0.21 27);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --brand: oklch(0.65 0.19 27);
+  --background: oklch(0.17 0.02 262);
+  --foreground: oklch(0.97 0.005 250);
+  --card: oklch(0.215 0.025 262);
+  --card-foreground: oklch(0.97 0.005 250);
+  --primary: oklch(0.72 0.12 262);
+  --primary-foreground: oklch(0.18 0.03 262);
+  --secondary: oklch(0.28 0.03 262);
+  --secondary-foreground: oklch(0.97 0.005 250);
+  --muted: oklch(0.26 0.025 262);
+  --muted-foreground: oklch(0.72 0.02 258);
+  --accent: oklch(0.3 0.04 262);
+  --accent-foreground: oklch(0.97 0.005 250);
+  --destructive: oklch(0.7 0.19 22);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 18%);
+  --ring: oklch(0.65 0.12 262);
+  --header: oklch(0.2 0.04 262);
+  --header-foreground: oklch(0.97 0.005 250);
+  --header-muted: oklch(0.75 0.03 258);
+  --link: oklch(0.78 0.11 262);
+  --brand: oklch(0.68 0.19 27);
 }
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -66,7 +83,14 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-header: var(--header);
+  --color-header-foreground: var(--header-foreground);
+  --color-header-muted: var(--header-muted);
+  --color-link: var(--link);
   --color-brand: var(--brand);
+  --font-sans:
+    "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue",
+    Arial, sans-serif;
 }
 
 @layer base {
@@ -74,6 +98,143 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background font-sans text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.011em;
+  }
+
+  /*
+   * The pages are mostly tables and forms written with plain elements. They are given the
+   * platform's look here, once, so every page has it; a utility class on an element still
+   * wins over these.
+   */
+  main a:not([data-slot]) {
+    color: var(--link);
+    text-underline-offset: 3px;
+  }
+  main a:not([data-slot]):hover {
+    text-decoration-line: underline;
+  }
+
+  main table {
+    font-variant-numeric: tabular-nums;
+  }
+  main thead th {
+    background: var(--muted);
+    color: var(--muted-foreground);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  main th:first-child,
+  main td:first-child {
+    padding-left: 0.75rem;
+  }
+  main th:last-child,
+  main td:last-child {
+    padding-right: 0.75rem;
+  }
+  main tbody tr {
+    transition: background-color 120ms;
+  }
+  main tbody tr:hover {
+    background: color-mix(in oklch, var(--accent) 55%, transparent);
+  }
+  main tfoot td {
+    background: color-mix(in oklch, var(--muted) 60%, transparent);
+  }
+  main caption {
+    color: var(--foreground);
+  }
+
+  main input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"]),
+  main select,
+  main textarea {
+    border: 1px solid var(--input);
+    border-radius: var(--radius-md);
+    background: var(--card);
+    padding: 0.3rem 0.55rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    max-width: 100%;
+    transition:
+      border-color 120ms,
+      box-shadow 120ms;
+  }
+  main input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"]):focus-visible,
+  main select:focus-visible,
+  main textarea:focus-visible {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 25%, transparent);
+  }
+  main input::placeholder,
+  main textarea::placeholder {
+    color: color-mix(in oklch, var(--muted-foreground) 75%, transparent);
+  }
+  main input:disabled,
+  main select:disabled,
+  main textarea:disabled {
+    background: var(--muted);
+    cursor: not-allowed;
+  }
+  main input[type="checkbox"],
+  main input[type="radio"] {
+    accent-color: var(--primary);
+  }
+  main input[type="file"] {
+    font-size: 0.8125rem;
+    color: var(--muted-foreground);
+  }
+  main input[type="file"]::file-selector-button {
+    margin-right: 0.75rem;
+    border: 1px solid var(--input);
+    border-radius: var(--radius-md);
+    background: var(--card);
+    color: var(--foreground);
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 120ms;
+  }
+  main input[type="file"]::file-selector-button:hover {
+    background: var(--accent);
+  }
+  main label {
+    color: var(--foreground);
+  }
+  main summary {
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+  main summary:hover {
+    color: var(--link);
+  }
+  main pre {
+    border: 1px solid var(--border);
+  }
+  main mark {
+    background: oklch(0.93 0.12 95);
+    border-radius: 2px;
+    padding: 0 2px;
+  }
+  main [role="status"]:where(p),
+  main [role="alert"]:where(p) {
+    line-height: 1.5;
+  }
+}
+
+@layer components {
+  /* A white surface on the canvas: a page's content, or one block of it. */
+  .fb-card {
+    @apply rounded-xl border bg-card text-card-foreground shadow-sm;
   }
 }

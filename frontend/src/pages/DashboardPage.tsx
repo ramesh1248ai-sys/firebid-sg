@@ -1,10 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
+import { CalendarClock, FolderOpen, ListTodo, Plus, TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { api } from "@/api/client";
 import type { components } from "@/api/schema";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDeadline, urgency } from "@/lib/format";
+import { formatDeadline, stateTone, urgency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type BidSummary = components["schemas"]["BidSummaryOut"];
@@ -20,19 +23,49 @@ function useBids() {
   });
 }
 
+function Stat({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: number;
+  tone?: "warn" | "bad";
+}) {
+  return (
+    <div className="fb-card flex items-center gap-4 p-4">
+      <span
+        className={cn(
+          "grid size-10 place-items-center rounded-lg bg-accent text-accent-foreground",
+          tone === "warn" && value > 0 && "bg-amber-50 text-amber-700",
+          tone === "bad" && value > 0 && "bg-red-50 text-red-700",
+        )}
+      >
+        {icon}
+      </span>
+      <div>
+        <div className="text-2xl leading-tight font-semibold tabular-nums">{value}</div>
+        <div className="text-xs text-muted-foreground">{label}</div>
+      </div>
+    </div>
+  );
+}
+
 function BidRow({ bid }: { bid: BidSummary }) {
   return (
     <tr className="border-b last:border-0">
       <td className="py-3 pr-4 align-top">
-        <Link to={`/bids/${bid.id}`} className="font-medium hover:underline">
+        <Link to={`/bids/${bid.id}`} className="font-semibold">
           {bid.human_id}
         </Link>
-        <div className="text-muted-foreground">{bid.client_name}</div>
+        <div className="text-foreground">{bid.client_name}</div>
         <div className="text-xs text-muted-foreground">{bid.tender_reference}</div>
       </td>
       <td className="py-3 pr-4 align-top">
-        <div>{bid.state.replaceAll("_", " ")}</div>
-        <div className="text-xs text-muted-foreground">Stage {bid.stage}</div>
+        <Badge tone={stateTone(bid.state)}>{bid.state.replaceAll("_", " ")}</Badge>
+        <div className="mt-1 text-xs text-muted-foreground">Stage {bid.stage}</div>
       </td>
       <td className={cn("py-3 pr-4 align-top", urgency(bid.days_to_submission))}>
         {formatDeadline(bid.submission_deadline, bid.days_to_submission)}
@@ -43,7 +76,7 @@ function BidRow({ bid }: { bid: BidSummary }) {
       <td className="py-3 pr-4 align-top">
         {bid.open_tasks} open
         {bid.overdue_tasks > 0 && (
-          <span className="text-destructive"> · {bid.overdue_tasks} overdue</span>
+          <span className="font-medium text-destructive"> · {bid.overdue_tasks} overdue</span>
         )}
       </td>
       <td className="py-3 align-top">
@@ -61,10 +94,14 @@ function BidRow({ bid }: { bid: BidSummary }) {
 
 export function DashboardPage() {
   const bids = useBids();
+  const rows = bids.data ?? [];
+  const dueSoon = rows.filter(
+    (bid) => bid.days_to_submission !== null && bid.days_to_submission <= 7,
+  ).length;
 
   return (
     <section className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Your bids</h1>
           <p className="text-sm text-muted-foreground">
@@ -72,7 +109,10 @@ export function DashboardPage() {
           </p>
         </div>
         <Button asChild>
-          <Link to="/bids/new">New bid</Link>
+          <Link to="/bids/new">
+            <Plus aria-hidden />
+            New bid
+          </Link>
         </Button>
       </div>
 
@@ -87,41 +127,68 @@ export function DashboardPage() {
         </p>
       )}
       {bids.isSuccess &&
-        (bids.data.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            You are not on any bids yet. Register one to get started.
-          </p>
+        (rows.length === 0 ? (
+          <div className="fb-card grid place-items-center gap-2 px-6 py-16 text-center">
+            <FolderOpen className="size-8 text-muted-foreground" aria-hidden />
+            <p className="text-sm text-muted-foreground">
+              You are not on any bids yet. Register one to get started.
+            </p>
+          </div>
         ) : (
-          <table className="w-full text-left text-sm">
-            <caption className="sr-only">Bids you are working on</caption>
-            <thead className="border-b text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Bid
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  State
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Submission
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Clarifications close
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Tasks
-                </th>
-                <th scope="col" className="py-2 font-medium">
-                  Details
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {bids.data.map((bid) => (
-                <BidRow key={bid.id} bid={bid} />
-              ))}
-            </tbody>
-          </table>
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Stat icon={<FolderOpen className="size-5" aria-hidden />} label="Active bids" value={rows.length} />
+              <Stat
+                icon={<CalendarClock className="size-5" aria-hidden />}
+                label="Due within 7 days"
+                value={dueSoon}
+                tone="warn"
+              />
+              <Stat
+                icon={<ListTodo className="size-5" aria-hidden />}
+                label="Tasks to do"
+                value={rows.reduce((sum, bid) => sum + bid.open_tasks, 0)}
+              />
+              <Stat
+                icon={<TriangleAlert className="size-5" aria-hidden />}
+                label="Tasks past due"
+                value={rows.reduce((sum, bid) => sum + bid.overdue_tasks, 0)}
+                tone="bad"
+              />
+            </div>
+            <div className="fb-card overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <caption className="sr-only">Bids you are working on</caption>
+                <thead>
+                  <tr>
+                    <th scope="col" className="py-2.5 pr-4">
+                      Bid
+                    </th>
+                    <th scope="col" className="py-2.5 pr-4">
+                      State
+                    </th>
+                    <th scope="col" className="py-2.5 pr-4">
+                      Submission
+                    </th>
+                    <th scope="col" className="py-2.5 pr-4">
+                      Clarifications close
+                    </th>
+                    <th scope="col" className="py-2.5 pr-4">
+                      Tasks
+                    </th>
+                    <th scope="col" className="py-2.5">
+                      Details
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((bid) => (
+                    <BidRow key={bid.id} bid={bid} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ))}
     </section>
   );

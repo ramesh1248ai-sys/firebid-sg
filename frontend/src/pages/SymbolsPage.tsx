@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 
 import { api, apiErrorMessage } from "@/api/client";
 import type { components } from "@/api/schema";
@@ -140,10 +140,6 @@ export function SymbolsPage() {
           </table>
         )}
       </div>
-
-      <Link to={`/bids/${bidId}`} className="inline-block text-sm underline">
-        Back to the bid
-      </Link>
     </section>
   );
 }
