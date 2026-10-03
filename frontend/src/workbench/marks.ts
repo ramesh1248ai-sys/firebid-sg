@@ -19,7 +19,11 @@ export type Status =
   | "superseded"
   | "baselined"
   | "duplicate"
-  | "not_taken_off";
+  | "not_taken_off"
+  // A revision comparison's marks (P2-02): what the newer revision did to the older.
+  | "added"
+  | "removed"
+  | "changed";
 
 export type Band = "high" | "medium" | "low";
 
@@ -53,6 +57,9 @@ export const STATUS_COLOURS: Record<string, string> = {
   superseded: "#9ca3af",
   duplicate: "#9ca3af",
   not_taken_off: "#9ca3af",
+  added: "#0d9488",
+  removed: "#dc2626",
+  changed: "#d97706",
 };
 
 /** Confidence as line weight and fill: the less sure, the louder. */

@@ -188,6 +188,24 @@
         "title": "AddendumOut",
         "type": "object"
       },
+      "AdoptIn": {
+        "properties": {
+          "shared_takeoff_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared Takeoff Id"
+          }
+        },
+        "title": "AdoptIn",
+        "type": "object"
+      },
       "AffectedItemOut": {
         "properties": {
           "detail": {
@@ -462,6 +480,49 @@
           "next_cursor"
         ],
         "title": "AuditPage",
+        "type": "object"
+      },
+      "BaselineOut": {
+        "properties": {
+          "addendum_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Addendum Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "title": "Items",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "taken_at": {
+            "format": "date-time",
+            "title": "Taken At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reason",
+          "taken_at",
+          "addendum_id",
+          "items"
+        ],
+        "title": "BaselineOut",
         "type": "object"
       },
       "BidCreate": {
@@ -1301,6 +1362,100 @@
           "problems"
         ],
         "title": "ChainStatus",
+        "type": "object"
+      },
+      "ChangeOut": {
+        "properties": {
+          "after": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "change": {
+            "title": "Change",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "new_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Id"
+          },
+          "object_type": {
+            "title": "Object Type",
+            "type": "string"
+          },
+          "old_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Id"
+          },
+          "points": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "x": {
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "change",
+          "kind",
+          "object_type",
+          "x",
+          "y",
+          "old_id",
+          "new_id",
+          "before",
+          "after",
+          "points"
+        ],
+        "title": "ChangeOut",
         "type": "object"
       },
       "CheckResult": {
@@ -2379,6 +2534,50 @@
           }
         },
         "title": "DecisionRequest",
+        "type": "object"
+      },
+      "DeltaOut": {
+        "properties": {
+          "baseline": {
+            "$ref": "#/components/schemas/BaselineOut"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "gate": {
+            "additionalProperties": true,
+            "title": "Gate",
+            "type": "object"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "baseline",
+          "counts",
+          "items",
+          "lines",
+          "gate"
+        ],
+        "title": "DeltaOut",
         "type": "object"
       },
       "DerivedByOut": {
@@ -5894,6 +6093,109 @@
         "title": "PipeRunOut",
         "type": "object"
       },
+      "PolicyIn": {
+        "properties": {
+          "accept_errors": {
+            "default": 0,
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Accept Errors",
+            "type": "integer"
+          },
+          "confidence_percent": {
+            "default": 95.0,
+            "exclusiveMaximum": 100.0,
+            "minimum": 50.0,
+            "title": "Confidence Percent",
+            "type": "number"
+          },
+          "mode": {
+            "pattern": "^(full|sampling)$",
+            "title": "Mode",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "tolerable_error_percent": {
+            "default": 5.0,
+            "exclusiveMaximum": 100.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Tolerable Error Percent",
+            "type": "number"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "PolicyIn",
+        "type": "object"
+      },
+      "PolicyOut": {
+        "properties": {
+          "accept_errors": {
+            "title": "Accept Errors",
+            "type": "integer"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "confidence_percent": {
+            "title": "Confidence Percent",
+            "type": "number"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "set_at": {
+            "format": "date-time",
+            "title": "Set At",
+            "type": "string"
+          },
+          "tolerable_error_percent": {
+            "title": "Tolerable Error Percent",
+            "type": "number"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "category",
+          "version",
+          "mode",
+          "tolerable_error_percent",
+          "confidence_percent",
+          "accept_errors",
+          "note",
+          "set_at"
+        ],
+        "title": "PolicyOut",
+        "type": "object"
+      },
       "PresignOut": {
         "properties": {
           "already_uploaded": {
@@ -6125,6 +6427,24 @@
           "no_training"
         ],
         "title": "ProviderOut",
+        "type": "object"
+      },
+      "PublishIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "title": "PublishIn",
         "type": "object"
       },
       "QueueRowOut": {
@@ -6649,6 +6969,101 @@
           "reason"
         ],
         "title": "ResolveRequest",
+        "type": "object"
+      },
+      "RevisionDiffOut": {
+        "properties": {
+          "alignment": {
+            "additionalProperties": true,
+            "title": "Alignment",
+            "type": "object"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeOut"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "new": {
+            "additionalProperties": true,
+            "title": "New",
+            "type": "object"
+          },
+          "old": {
+            "additionalProperties": true,
+            "title": "Old",
+            "type": "object"
+          }
+        },
+        "required": [
+          "old",
+          "new",
+          "alignment",
+          "counts",
+          "changes"
+        ],
+        "title": "RevisionDiffOut",
+        "type": "object"
+      },
+      "RevisionOut": {
+        "properties": {
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "revision_date": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision Date"
+          },
+          "sheet_id": {
+            "format": "uuid",
+            "title": "Sheet Id",
+            "type": "string"
+          },
+          "sheet_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheet Number"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sheet_id",
+          "sheet_number",
+          "revision",
+          "state",
+          "revision_date"
+        ],
+        "title": "RevisionOut",
         "type": "object"
       },
       "Role": {
@@ -12217,6 +12632,134 @@
         ]
       }
     },
+    "/bids/{bid_id}/qto/baselines": {
+      "get": {
+        "operationId": "baselines_bids__bid_id__qto_baselines_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BaselineOut"
+                  },
+                  "title": "Response Baselines Bids  Bid Id  Qto Baselines Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Baselines",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
+    "/bids/{bid_id}/qto/delta": {
+      "get": {
+        "description": "The takeoff now against a baseline (the latest unless one is named): what was added,\nremoved and changed with its value before, per item and per BOQ line; and where G1\nstands, with the items it was reopened for.",
+        "operationId": "delta_report_bids__bid_id__qto_delta_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "baseline",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Baseline"
+            }
+          },
+          {
+            "in": "query",
+            "name": "changed_only",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Changed Only",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeltaOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delta Report",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
     "/bids/{bid_id}/qto/duplicates": {
       "get": {
         "description": "Unresolved first: each group lists every member with where it is drawn.",
@@ -14223,6 +14766,351 @@
         ]
       }
     },
+    "/bids/{bid_id}/review/sampling": {
+      "get": {
+        "description": "Each category on the bid: its policy, how its items came to be verified, its sample.",
+        "operationId": "sampling_summary_bids__bid_id__review_sampling_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Sampling Summary Bids  Bid Id  Review Sampling Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sampling Summary",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review/sampling/{category}/accept": {
+      "post": {
+        "description": "Accept the category on its sample: the Senior Estimator's named action verifies the\nlot's remaining items. Refused while the sample is unfinished, or once it escalated.",
+        "operationId": "accept_on_sample_bids__bid_id__review_sampling__category__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category",
+            "required": true,
+            "schema": {
+              "title": "Category",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Accept On Sample Bids  Bid Id  Review Sampling  Category  Accept Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Accept On Sample",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review/sampling/{category}/draw": {
+      "post": {
+        "operationId": "draw_sample_bids__bid_id__review_sampling__category__draw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category",
+            "required": true,
+            "schema": {
+              "title": "Category",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Draw Sample Bids  Bid Id  Review Sampling  Category  Draw Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Draw Sample",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
+    "/bids/{bid_id}/shared-takeoff": {
+      "get": {
+        "operationId": "shared_status_bids__bid_id__shared_takeoff_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Shared Status Bids  Bid Id  Shared Takeoff Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Shared Status",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
+    "/bids/{bid_id}/shared-takeoff/adopt": {
+      "post": {
+        "description": "Adopt the project's published takeoff into this bid, verified by this named action.",
+        "operationId": "adopt_bids__bid_id__shared_takeoff_adopt_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdoptIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Adopt Bids  Bid Id  Shared Takeoff Adopt Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Adopt",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
+    "/bids/{bid_id}/shared-takeoff/publish": {
+      "post": {
+        "description": "Publish this bid's verified takeoff to its project, for its other bids to adopt.",
+        "operationId": "publish_bids__bid_id__shared_takeoff_publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Publish Bids  Bid Id  Shared Takeoff Publish Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
     "/bids/{bid_id}/sheet-revisions/{revision_id}/confirm": {
       "post": {
         "description": "Say what a sheet is: its number and revision, confirmed or corrected.",
@@ -14634,6 +15522,145 @@
         "summary": "Locate Point",
         "tags": [
           "views"
+        ]
+      }
+    },
+    "/bids/{bid_id}/sheets/{sheet_id}/revision-diff": {
+      "get": {
+        "description": "What this sheet changed from another revision: `against`, or the one it superseded.\n\nEvery change is located on this sheet, so the workbench draws it over the drawing.",
+        "operationId": "revision_diff_bids__bid_id__sheets__sheet_id__revision_diff_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "against",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Against"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionDiffOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revision Diff",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
+    "/bids/{bid_id}/sheets/{sheet_id}/revisions": {
+      "get": {
+        "description": "Every revision of the drawing this sheet is one of, newest first.",
+        "operationId": "revisions_bids__bid_id__sheets__sheet_id__revisions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RevisionOut"
+                  },
+                  "title": "Response Revisions Bids  Bid Id  Sheets  Sheet Id  Revisions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revisions",
+        "tags": [
+          "changes"
         ]
       }
     },
@@ -16051,6 +17078,95 @@
         "summary": "Template History",
         "tags": [
           "boq"
+        ]
+      }
+    },
+    "/coverage-policies": {
+      "get": {
+        "description": "The policies in force. A category not listed is in full review.",
+        "operationId": "list_policies_coverage_policies_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PolicyOut"
+                  },
+                  "title": "Response List Policies Coverage Policies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Policies",
+        "tags": [
+          "changes"
+        ]
+      }
+    },
+    "/coverage-policies/{category}": {
+      "post": {
+        "description": "A new version of the category's coverage policy, audited.",
+        "operationId": "set_policy_coverage_policies__category__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "category",
+            "required": true,
+            "schema": {
+              "title": "Category",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Policy",
+        "tags": [
+          "changes"
         ]
       }
     },

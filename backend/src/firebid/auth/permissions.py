@@ -27,6 +27,7 @@ class Action(StrEnum):
     GATE_G3_APPROVE = "gate.G3.approve"  # commercial approval
     GATE_G4_APPROVE = "gate.G4.approve"  # submission
     MEASUREMENT_RULES_CHANGE = "measurement_rules.change"
+    COVERAGE_POLICY_CHANGE = "coverage_policy.change"  # full review or sampling (FR-REV-05)
     OBJECT_LIBRARY_CHANGE = "object_library.change"  # the canonical object types (FR-ADM-02)
     SYMBOL_MAPPING_CONFIRM = "symbol_mapping.confirm"  # what a consultant's symbol is
     # Which design criterion a design-intent sheet is laid out to (P1-12).
@@ -66,6 +67,7 @@ _MATRIX: dict[Action, frozenset[str]] = {
     Action.GATE_G3_APPROVE: frozenset({Role.COMMERCIAL_DIRECTOR}),
     Action.GATE_G4_APPROVE: frozenset({Role.COMMERCIAL_DIRECTOR}),
     Action.MEASUREMENT_RULES_CHANGE: frozenset({Role.SENIOR_ESTIMATOR}),
+    Action.COVERAGE_POLICY_CHANGE: frozenset({Role.SENIOR_ESTIMATOR}),
     Action.OBJECT_LIBRARY_CHANGE: frozenset({Role.SENIOR_ESTIMATOR, Role.SYSTEM_ADMIN}),
     # The people who confirm a drawing's other readings confirm its symbols too.
     Action.SYMBOL_MAPPING_CONFIRM: frozenset(

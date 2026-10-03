@@ -64,6 +64,56 @@ def read(
     return detections, runs
 
 
+def revision_of(sheet: Sheet, described: dict[str, str] | None = None) -> dict[str, Any]:
+    """One sheet as revision comparison takes it (P2-02): its elements, the grid lines of
+    its largest gridded view, and its frame. The platform builds the same from stored
+    detections, views and the sheet's page (`services.revision_compare`)."""
+    from firebid.drawings import revision_diff
+
+    result = geometry_of(sheet)
+    table = geometry.from_parquet(result["parquet"])
+    page = (result["page"][0], result["page"][1], result["page"][2], result["page"][3])
+    views = views_of(table, page, sheet.sheet_scale, result.get("views"))
+    placed, excluded = placed_from_legend(table, page, type_of_factory(described))
+    found = detect(table, placed, views, excluded=excluded)
+    elements = [
+        revision_diff.Element(
+            f"d{index}", item.kind, item.object_type, item.x, item.y, _compared(item.attributes)
+        )
+        for index, item in enumerate(found.objects)
+        if item.kind != "drop"
+    ]
+    elements.extend(
+        revision_diff.Element(
+            f"r{run.run_id}",
+            "run",
+            f"pipe_{run.run_class}",
+            (run.points[0][0] + run.points[-1][0]) / 2,
+            (run.points[0][1] + run.points[-1][1]) / 2,
+            {"dn": run.dn},
+            tuple((p[0], p[1]) for p in run.points),
+            run.length_mm,
+        )
+        for run in found.runs
+    )
+    gridded = [view for view in views if view.grid is not None]
+    grid = max(
+        gridded,
+        key=lambda v: (v.extent[2] - v.extent[0]) * (v.extent[3] - v.extent[1]),
+        default=None,
+    )
+    return {
+        "elements": elements,
+        "grid": revision_diff.grid_lines(grid.grid.as_json()) if grid and grid.grid else None,
+        "frame": page,
+    }
+
+
+def _compared(attributes: dict[str, Any]) -> dict[str, Any]:
+    """A detection's attributes that say what it is, not how it was drawn or derived."""
+    return {k: v for k, v in attributes.items() if k not in ("run_class", "vertical_not_drawn")}
+
+
 def words(sheets: list[Sheet]) -> tuple[list[ScheduleRow], list[rules.Parameter]]:
     """What the sheets say in words that takeoff uses (P2-01): equipment schedule rows, and
     floor-to-floor heights from a level schedule. The platform reads the same from stored

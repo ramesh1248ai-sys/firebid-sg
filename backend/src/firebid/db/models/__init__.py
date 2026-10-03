@@ -13,6 +13,12 @@ from firebid.db.models.audit import (
     AuditRetention,
     IdCounter,
 )
+from firebid.db.models.baseline import (
+    CoveragePolicy,
+    ReviewSample,
+    SharedTakeoff,
+    TakeoffSnapshot,
+)
 from firebid.db.models.commercial import (
     Boq,
     BoqLine,
@@ -88,6 +94,7 @@ __all__ = [
     "ClientBoqMapping",
     "ConsultantProfile",
     "CorrectionEvent",
+    "CoveragePolicy",
     "DeadlineAlert",
     "DetectedObject",
     "Document",
@@ -112,6 +119,8 @@ __all__ = [
     "Rate",
     "RegisterConfirmation",
     "ReviewAction",
+    "ReviewSample",
+    "SharedTakeoff",
     "Sheet",
     "SheetDesign",
     "SheetGeometry",
@@ -123,6 +132,7 @@ __all__ = [
     "SymbolMapping",
     "SystemHeartbeat",
     "SystemJobResult",
+    "TakeoffSnapshot",
     "TenderPackage",
     "TitleBlockLayout",
     "TransmittalEntry",

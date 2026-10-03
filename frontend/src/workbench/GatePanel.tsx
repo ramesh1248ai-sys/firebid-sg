@@ -10,7 +10,7 @@ import type { Approval, Blockers, Coverage } from "./review";
  * blocker is listed with a link to where it is resolved.
  */
 
-export type Tab = "queue" | "duplicates" | "setup" | "g1";
+export type Tab = "queue" | "duplicates" | "setup" | "g1" | "changes";
 
 export function GatePanel({
   coverage,
