@@ -39,6 +39,7 @@ DEFAULT_TOLERANCE = 0.01
 TOLERANCES: dict[str, float] = {
     "sprinkler_count_accuracy": 0.01,
     "pipe_length_error": 0.01,
+    "equipment_count_accuracy": 0.01,
     "missed_item_rate": 0.01,
     "false_detection_rate": 0.01,
     "duplicate_detection_rate": 0.02,

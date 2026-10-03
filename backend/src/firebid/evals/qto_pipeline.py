@@ -18,7 +18,8 @@ from firebid.drawings.legends import detect as detect_legends
 from firebid.drawings.symbols import Candidates, best_match, clusters
 from firebid.evals import synthetic
 from firebid.evals.detection_calibration import type_of_factory
-from firebid.qto.model import Detection, Placement, Run, level_of
+from firebid.qto import rules
+from firebid.qto.model import Detection, Placement, Run, ScheduleRow, level_of
 
 
 @dataclass
@@ -32,9 +33,15 @@ def _level_of(number: str, view_level: str | None) -> str | None:
     return level_of(number, view_level)
 
 
-def read(sheets: list[Sheet]) -> tuple[list[Detection], list[Run]]:
-    """Every sheet's detections and runs, as the QTO engine takes them."""
-    type_of = type_of_factory()
+def read(
+    sheets: list[Sheet], described: dict[str, str] | None = None
+) -> tuple[list[Detection], list[Run]]:
+    """Every sheet's detections and runs, as the QTO engine takes them.
+
+    `described` is the fixture's legend, each description with the object type a person
+    would confirm it as; the synthetic network's when not given.
+    """
+    type_of = type_of_factory(described)
     tables = []
     references: list[Any] = []  # the tender's legend rows, wherever they are drawn
     for sheet in sheets:
@@ -55,6 +62,32 @@ def read(sheets: list[Sheet]) -> tuple[list[Detection], list[Run]]:
         found = detect(table, placed, views, excluded=excluded)
         collect(sheet, found, detections, runs)
     return detections, runs
+
+
+def words(sheets: list[Sheet]) -> tuple[list[ScheduleRow], list[rules.Parameter]]:
+    """What the sheets say in words that takeoff uses (P2-01): equipment schedule rows, and
+    floor-to-floor heights from a level schedule. The platform reads the same from stored
+    text (`services.qto`)."""
+    from firebid.drawings import equipment
+
+    schedules: list[ScheduleRow] = []
+    parameters: list[rules.Parameter] = []
+    for sheet in sheets:
+        spans = geometry.texts(geometry.from_parquet(geometry_of(sheet)["parquet"]))
+        schedules.extend(
+            ScheduleRow(
+                tag=row.tag,
+                values=dict(row.values),
+                quote=row.quote,
+                sheet_id=sheet.number,
+                sheet_number=sheet.number,
+                revision="R01",
+                heading=row.heading,
+            )
+            for row in equipment.schedules(spans)
+        )
+        parameters.extend(rules.level_parameters(sheet.number, equipment.level_marks(spans)))
+    return schedules, parameters
 
 
 def geometry_of(sheet: Sheet) -> dict[str, Any]:
@@ -111,7 +144,7 @@ def collect(
             document_id=sheet.number,
             view_id=str(view.id) if view else None,
             view_kind=_view_kind(found, view),
-            level=_level_of(sheet.number, view.level if view else None),
+            level=_level_of(sheet.number, item.level),
             zone=None,
         )
         detections.append(
@@ -158,6 +191,7 @@ def collect(
                 confidence=run.raw_confidence,
                 labels=tuple(label.text for label in run.labels),
                 scale=view.denominator if view else None,
+                system=run.system,
             )
         )
 

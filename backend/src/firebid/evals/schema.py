@@ -30,7 +30,8 @@ class InputClass(StrEnum):
 
 
 class ObjectType(StrEnum):
-    """The canonical fire-protection objects Phase 1 counts (requirements §6.4)."""
+    """The canonical fire-protection objects counted (requirements §6.4): Phase 1's, and
+    the Phase 2 equipment (FR-VIS-04, FR-QTO-06)."""
 
     SPRINKLER_PENDENT = "sprinkler_pendent"
     SPRINKLER_UPRIGHT = "sprinkler_upright"
@@ -46,6 +47,16 @@ class ObjectType(StrEnum):
     CHECK_VALVE = "check_valve"
     ALARM_VALVE = "alarm_valve"
     SPRINKLER_CONTROL_VALVE = "sprinkler_control_valve"
+    HYDRANT = "hydrant"
+    FIRE_PUMP = "fire_pump"
+    JOCKEY_PUMP = "jockey_pump"
+    PUMP_CONTROLLER = "pump_controller"
+    FIRE_WATER_TANK = "fire_water_tank"
+    TEST_HEADER = "test_header"
+    DRY_PIPE_VALVE_SET = "dry_pipe_valve_set"
+    PRE_ACTION_VALVE_SET = "pre_action_valve_set"
+    DELUGE_VALVE_SET = "deluge_valve_set"
+    AIR_COMPRESSOR = "air_compressor"
 
 
 class RevisionStatus(StrEnum):

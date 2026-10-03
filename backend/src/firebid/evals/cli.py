@@ -10,6 +10,7 @@
     firebid-eval compare-models --route <r> --models a,b  evidence for changing a model
     firebid-eval calibrate --suite p1_detection          fit detection confidence (FR-VIS-09)
     firebid-eval run       --suite p1_boq                client BOQ mapping accuracy (FR-BOQ-02)
+    firebid-eval run       --suite p2_systems            Phase 2 equipment and pipe (FR-VIS-04)
     firebid-eval shadow    --bid <id> --workbook x.xlsx  manual takeoff beside the AI's (§13.3)
     firebid-eval exit      --out ../docs/reports/phase1-exit.md   the Phase 1 exit report
     firebid-eval corrections --out corrections.jsonl     people's corrections (FR-REV-06)
@@ -34,6 +35,9 @@ DOC_METRICS = ("drawing_number_accuracy", "revision_accuracy", "sheet_classifica
 EVAL_ROOT = Path("eval")
 # Phase 1 detection: sprinklers, valves and pipe (FR-VIS-03, 09), see evals/p1_detection.
 DETECTION_SUITE = "p1_detection"
+# Phase 2 systems: pumps, tanks, hydrants, hose reels, landing valves (FR-VIS-04, FR-QTO-06),
+# see evals/p2_systems. Scored with the same pipeline as Phase 1 detection.
+SYSTEMS_SUITE = "p2_systems"
 # Client BOQ mapping (FR-BOQ-02), see evals/p1_boq: its own report, no baseline yet.
 BOQ_SUITE = "p1_boq"
 
@@ -209,6 +213,10 @@ def _metrics_for(suite: str) -> tuple[str, ...] | None:
         from firebid.evals.p1_detection import METRICS
 
         return METRICS
+    if suite == SYSTEMS_SUITE:
+        from firebid.evals import p2_systems
+
+        return p2_systems.METRICS
     return None
 
 
@@ -307,6 +315,15 @@ def _run_suite_command(arguments: argparse.Namespace) -> int:
             fixtures, seed=arguments.seed, tenders=arguments.tenders, with_duplicates=True
         )
         result = run_suite(detection.golden_set, p1_detection.DetectionPredictor(detection))
+    elif arguments.suite == SYSTEMS_SUITE:
+        # The Phase 2 systems, with the same pipeline: the golden set when one has been
+        # imported under eval/truth/p2_systems, the synthetic tender otherwise.
+        from firebid.evals import p1_detection, p2_systems
+
+        detection = p2_systems.load_golden(arguments.root) or p2_systems.generate(fixtures)
+        result = run_suite(
+            detection.golden_set, p1_detection.DetectionPredictor(detection), suite=SYSTEMS_SUITE
+        )
     else:
         golden_set = _load_golden_set(
             arguments.suite, arguments.root, arguments.seed, arguments.tenders
@@ -316,9 +333,10 @@ def _run_suite_command(arguments: argparse.Namespace) -> int:
     if arguments.command == "run":
         result_path.parent.mkdir(parents=True, exist_ok=True)
         result_path.write_text(result.to_json(), encoding="utf-8")
-        synthetic = not (arguments.suite == DETECTION_SUITE and not detection.synthetic)
+        measured = (DETECTION_SUITE, SYSTEMS_SUITE)
+        synthetic = not (arguments.suite in measured and not detection.synthetic)
         report = markdown_report(result, metrics=_metrics_for(arguments.suite), synthetic=synthetic)
-        if arguments.suite == DETECTION_SUITE:
+        if arguments.suite in measured:
             from firebid.evals.p1_detection import untyped_note
 
             report += untyped_note(detection)

@@ -6,8 +6,12 @@ runs the engine (`firebid.qto`); and stores QTO items, each with its Appendix B 
 record, and the duplicate groups it found.
 
 * **Rules** are versioned rows (FR-ADM-02), seeded from `config/measurement_rules.yaml` the
-  first time an organisation takes off. An edit retires the rule's current version and adds
-  the next; an item keeps the version it was calculated with.
+  first time an organisation takes off; a rule a later release adds to that file is seeded
+  when it is first missed. An edit retires the rule's current version and adds the next; an
+  item keeps the version it was calculated with.
+* **What sheets say in words** is read from their stored text: ceiling heights in notes,
+  the level schedule a schematic or section gives (floor-to-floor heights for the riser
+  rule), and equipment schedules (what each tagged pump or tank is).
 * **Recompute** is idempotent. Items are matched by key (what and where). The same key and
   inputs hash leave the stored item alone, verification and all. Changed inputs supersede it
   with a new proposal that keeps its human ID; an item no longer found is superseded.
@@ -51,9 +55,18 @@ from firebid.domain.actors import SYSTEM_ACTOR, Actor, AuditContext
 from firebid.domain.evidence import EvidenceRecord, Location, RunMetadata, SourceRef
 from firebid.domain.state_machines import QtoItemState
 from firebid.domain.values import CalculationMethod, ExtractionMethod, LengthMm
+from firebid.drawings import equipment
 from firebid.drawings.grids import GridSystem
 from firebid.qto import dedup, generate, rules
-from firebid.qto.model import Detection, ItemDraft, Placement, Run, SpecValue, level_of
+from firebid.qto.model import (
+    Detection,
+    ItemDraft,
+    Placement,
+    Run,
+    ScheduleRow,
+    SpecValue,
+    level_of,
+)
 from firebid.services import object_library
 from firebid.services import specs as spec_service
 from firebid.services.transitions import apply_transition
@@ -109,9 +122,13 @@ def rule_rows(session: Session, organisation_id: uuid.UUID) -> dict[str, Measure
             )
         ).scalars()
     )
-    if not rows:
+    # The seed's rules the organisation has never had: all of them the first time, and
+    # afterwards any a later release added (hangers and seismic restraint, P2-01). A rule
+    # in force is never touched, and a retired one always has a successor in force.
+    missing = [seed for seed in rules.seed_rules() if seed.key not in {row.key for row in rows}]
+    if missing:
         now = datetime.now(UTC)
-        for seed in rules.seed_rules():
+        for seed in missing:
             row = MeasurementRule(
                 organisation_id=organisation_id,
                 key=seed.key,
@@ -231,36 +248,91 @@ def set_parameter(
     return row
 
 
-def note_parameters(
-    session: Session, bid_id: uuid.UUID, sheets: dict[uuid.UUID, SheetInfo]
-) -> list[rules.Parameter]:
-    """Ceiling heights stated in notes on Current sheets, for the sheet's level."""
-    found = []
-    features = session.execute(
-        select(GeometryFeature).where(
+Texts = dict[uuid.UUID, list[dict[str, Any]]]
+
+
+def sheet_texts(session: Session, bid_id: uuid.UUID, sheets: dict[uuid.UUID, SheetInfo]) -> Texts:
+    """The text on each Current sheet, as spans with their boxes: read once a recompute,
+    as plain columns, for everything that is read from words."""
+    out: Texts = {}
+    for sheet_id, label, box in session.execute(
+        select(GeometryFeature.sheet_id, GeometryFeature.label, GeometryFeature.bbox).where(
             GeometryFeature.bid_id == bid_id,
             GeometryFeature.kind == "text",
             GeometryFeature.sheet_id.in_(list(sheets)),
         )
-    ).scalars()
-    for feature in features:
-        match = CEILING_NOTE.search(feature.label or "")
-        if match is None:
+    ):
+        if not label:
             continue
-        info = sheets[feature.sheet_id]
-        found.append(
-            rules.Parameter(
-                "ceiling_height_mm",
-                float(match.group(1)),
-                f"sheet {info.number} note '{(feature.label or '').strip()}'",
-                info.level,
-            )
+        out.setdefault(sheet_id, []).append(
+            {
+                "text": label,
+                "minx": box[0],
+                "miny": box[1],
+                "maxx": box[2],
+                "maxy": box[3],
+                "height": box[3] - box[1],
+            }
         )
-    return sorted(found, key=lambda p: (p.level or "", p.source))
+    return out
+
+
+def note_parameters(
+    session: Session,
+    bid_id: uuid.UUID,
+    sheets: dict[uuid.UUID, SheetInfo],
+    texts: Texts | None = None,
+) -> list[rules.Parameter]:
+    """What Current sheets state in words that a rule uses: ceiling heights in notes, for
+    the sheet's level, and floor-to-floor heights from a level schedule, for each level it
+    names (P2-01)."""
+    texts = sheet_texts(session, bid_id, sheets) if texts is None else texts
+    found = []
+    for sheet_id, spans in texts.items():
+        info = sheets[sheet_id]
+        for span in spans:
+            match = CEILING_NOTE.search(span["text"])
+            if match is None:
+                continue
+            found.append(
+                rules.Parameter(
+                    "ceiling_height_mm",
+                    float(match.group(1)),
+                    f"sheet {info.number} note '{span['text'].strip()}'",
+                    info.level,
+                )
+            )
+        found.extend(rules.level_parameters(info.number, equipment.level_marks(spans)))
+    return sorted(found, key=lambda p: (p.level or "", p.name, p.source))
+
+
+def schedule_rows(sheets: dict[uuid.UUID, SheetInfo], texts: Texts) -> list[ScheduleRow]:
+    """Every equipment schedule row drawn on a Current sheet, with the sheet it is on."""
+    rows: list[ScheduleRow] = []
+    for sheet_id, spans in texts.items():
+        if not any(equipment.SCHEDULE_HEADING.search(span["text"]) for span in spans):
+            continue
+        info = sheets[sheet_id]
+        rows.extend(
+            ScheduleRow(
+                tag=row.tag,
+                values=dict(row.values),
+                quote=row.quote,
+                sheet_id=str(sheet_id),
+                sheet_number=info.number,
+                revision=info.revision.revision_label or "",
+                heading=row.heading,
+            )
+            for row in equipment.schedules(spans)
+        )
+    return sorted(rows, key=lambda row: (row.sheet_number, row.tag, row.quote))
 
 
 def parameters(
-    session: Session, bid_id: uuid.UUID, sheets: dict[uuid.UUID, SheetInfo]
+    session: Session,
+    bid_id: uuid.UUID,
+    sheets: dict[uuid.UUID, SheetInfo],
+    texts: Texts | None = None,
 ) -> list[rules.Parameter]:
     """Notes first, then what estimators entered, oldest first: the last one stated wins."""
     entered = session.execute(
@@ -269,7 +341,7 @@ def parameters(
         .order_by(BidParameter.created_at, BidParameter.id)
     ).scalars()
     return [
-        *note_parameters(session, bid_id, sheets),
+        *note_parameters(session, bid_id, sheets, texts),
         *(rules.Parameter(p.name, float(p.value), p.source, p.level) for p in entered),
     ]
 
@@ -404,6 +476,7 @@ def inputs(
                 scale=view.denominator if view and view.scale_status in MEASURABLE else None,
                 origin=run.origin,
                 evidence=dict(run.features or {}) if run.origin == "designed" else {},
+                system=str(system) if (system := (run.features or {}).get("system")) else None,
             )
         )
     return detections, runs
@@ -479,15 +552,17 @@ def recompute(session: Session, bid_id: uuid.UUID, actor: Actor = SYSTEM_ACTOR) 
     excluded, lengths = dedup.exclusions(found, {key: row.status for key, row in stored.items()})
     excluded |= dedup.twins(rejected, detections)
     rule_set_ = rule_set(session, organisation_id)
+    texts = sheet_texts(session, bid_id, sheets)
     drafts = generate.generate(
         detections,
         runs,
         spec_lookup(session, bid_id),
         rule_set_,
-        parameters(session, bid_id, sheets),
+        parameters(session, bid_id, sheets, texts),
         excluded=excluded,
         excluded_length=lengths,
         carried=dedup.carried_sizes(found),
+        schedules=schedule_rows(sheets, texts),
     )
     version = _rule_set_version(rule_set_)
     methods = _sheet_methods(detections)

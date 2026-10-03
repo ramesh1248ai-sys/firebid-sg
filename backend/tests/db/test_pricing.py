@@ -371,7 +371,7 @@ class TestTotals:
         )
         assert found.priced.amount == by_hand
         assert found.grand == found.priced + found.allowances
-        assert found.unpriced == 3, "the check valve and two tees"
+        assert found.unpriced == 6, "the check valve, two tees and three sizes of hanger"
 
 
 class TestExports:

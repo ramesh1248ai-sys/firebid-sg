@@ -1,11 +1,14 @@
-"""QTO items from detections: counted, measured and rule-derived (FR-QTO-01 to 05, 10).
+"""QTO items from detections: counted, measured and rule-derived (FR-QTO-01 to 07, 10).
 
 * **Counted:** sprinklers by type and attributes; valves, devices and drawn fittings by type
-  (with the size of the pipe they sit on).
+  (with the size of the pipe they sit on); equipment (pumps, tanks, breeching inlets,
+  hydrants, hose reels, landing valves, test headers) by type and by what its schedule
+  states of it, each attribute citing the schedule row it came from.
 * **Measured:** pipe by DN, material, schedule or class, joining method and class (main or
   branch), in integer millimetres from runs on verified-scale views only.
-* **Rule-derived:** a drop at every sprinkler, a riser at every riser symbol, and the
-  fittings the drawing does not show (`qto.fittings`), each with its rule, version, inputs
+* **Rule-derived:** a drop at every sprinkler, a riser at every riser symbol, the fittings
+  the drawing does not show (`qto.fittings`), and hangers, with seismic restraint only
+  where the specification requires it (`qto.hangers`), each with its rule, version, inputs
   and their sources.
 * **Designed:** the heads and range pipes a design-intent tender leaves to the contractor,
   as the design rules proposed them (P1-12). Kept as items of their own, never added to
@@ -15,6 +18,9 @@ Each attribute is resolved in order and records which source supplied it: the dr
 detection's own attributes), then the verified specification (P1-06), then "not specified".
 For sprinklers, a specification value is taken from the clause that states that sprinkler's
 type when there is one ("pendent ... chrome", "sidewall ... white").
+
+Pipe that the drawing shows to be another system's (a hydrant main, a rising main) takes
+that system's specification attributes, and says which system it is.
 
 Items are grouped by level and zone, with the grid range their members span. Duplicates
 found by `qto.dedup` are excluded before counting, and a run's duplicated length is taken
@@ -30,8 +36,17 @@ from collections.abc import Callable
 from decimal import Decimal
 from typing import Any
 
-from firebid.qto import fittings, rules
-from firebid.qto.model import DESIGNED, Detection, ItemDraft, Run, SpecValue, key_of
+from firebid.drawings.equipment import RISING_MAINS, same_tag
+from firebid.qto import fittings, hangers, rules
+from firebid.qto.model import (
+    DESIGNED,
+    Detection,
+    ItemDraft,
+    Run,
+    ScheduleRow,
+    SpecValue,
+    key_of,
+)
 
 # system, DN -> attribute -> verified values
 SpecLookup = Callable[[str, int | None], dict[str, list[SpecValue]]]
@@ -39,7 +54,39 @@ SpecLookup = Callable[[str, int | None], dict[str, list[SpecValue]]]
 SPRINKLER_ATTRIBUTES = ("k_factor", "temperature_rating_c", "response", "finish")
 PIPE_ATTRIBUTES = ("pipe_material", "pipe_standard", "pipe_class", "joining_method")
 NOT_SPECIFIED = "not specified"
-ITEM_CLASS = {"sprinkler": "sprinkler", "valve": "valve", "device": "device", "fitting": "fitting"}
+ITEM_CLASS = {
+    "sprinkler": "sprinkler",
+    "valve": "valve",
+    "device": "device",
+    "fitting": "fitting",
+    "equipment": "equipment",
+}
+# What a detection carries that is not an attribute of the item taken off from it.
+NOT_ATTRIBUTES = ("tag", "system", "run_class", "vertical_not_drawn")
+# Equipment that has the size of the pipe it stands on. A pump or a tank does not: its
+# suction and its discharge differ, and neither is its size.
+SIZED_EQUIPMENT = ("landing_valve",)
+# A schedule's columns that describe the row, not the equipment's duty.
+NOT_STATED = ("description", "quantity")
+# The specification sections a system's pipe may be specified under.
+SPEC_SYSTEMS = {"rising_main": ("wet_riser", "dry_riser")}
+SYSTEM_WORDS = {
+    "hydrant": "hydrant system",
+    "hose_reel": "hose reel system",
+    "rising_main": "rising main",
+    "wet_riser": "wet rising main",
+    "dry_riser": "dry rising main",
+    "sprinkler": "sprinkler system",
+}
+EQUIPMENT_WORDS = {
+    "duty": "{}",
+    "driver": "{} driven",
+    "flow_l_min": "{} L/min",
+    "head_m": "{} m head",
+    "power_kw": "{} kW",
+    "capacity_m3": "{} m3",
+    "nominal_diameter_mm": "DN{}",
+}
 LABELS = {
     "sprinkler_pendent": "Sprinkler, pendent",
     "sprinkler_upright": "Sprinkler, upright",
@@ -159,8 +206,10 @@ def generate(
     excluded_length: dict[str, int] | None = None,
     carried: dict[str, tuple[int, str]] | None = None,
     system: str = "sprinkler",
+    schedules: list[ScheduleRow] | None = None,
 ) -> list[ItemDraft]:
     excluded = excluded or set()
+    schedules = schedules or []
     excluded_length = excluded_length or {}
     kept = [d for d in detections if d.id not in excluded]
     carried = carried or {}
@@ -184,6 +233,8 @@ def generate(
                 name: resolve(name, drawn, values.get(name, []), clauses)
                 for name in SPRINKLER_ATTRIBUTES
             }
+        elif detection.category == "equipment":
+            attributes = _equipment(detection, dn_at(detection, runs), schedules)
         else:
             dn = dn_at(detection, runs)
             attributes = {
@@ -214,7 +265,9 @@ def generate(
                 key=key,
                 item_type=first.object_type,
                 classification=first.category,
-                description=_describe(first.object_type, attributes),
+                description=_describe_equipment(first.object_type, attributes)
+                if first.category == "equipment"
+                else _describe(first.object_type, attributes),
                 attributes=attributes,
                 unit="no",
                 net_quantity=Decimal(len(members)),
@@ -235,13 +288,14 @@ def generate(
                     {"sheet": m.at.sheet_number, "x": round(m.x, 3), "y": round(m.y, 3)}
                     for m in members
                 ],
+                note=_tags_note(members),
             )
         )
 
     # --- Measured: pipe by size, material, class, joining and run class -----------------
     pipe_groups: dict[str, tuple[dict[str, Any], list[Run]]] = {}
     for run in measured:
-        values = spec(system, run.dn)
+        values = _spec_of(spec, run, system)
         pipe_attributes: dict[str, Any] = {
             "nominal_diameter_mm": (
                 {"value": str(run.dn), "source": _size_source(run, carried)}
@@ -250,6 +304,14 @@ def generate(
             ),
             **{name: resolve(name, {}, values.get(name, [])) for name in PIPE_ATTRIBUTES},
         }
+        own = run.system if run.system and run.system != system else None
+        if own:
+            # Another system's pipe is an item of its own. The bid's own system is left out
+            # of the key, so the items taken off before systems were told apart keep theirs.
+            pipe_attributes["system"] = {
+                "value": own,
+                "source": "drawing (what stands on the pipework)",
+            }
         pipe_signature = (
             {k: v["value"] for k, v in pipe_attributes.items()},
             run.run_class,
@@ -303,6 +365,16 @@ def generate(
             lambda dn: spec(system, dn).get("joining_method", []),
             allowance,
             excluded_length,
+        )
+    )
+    drafts.extend(
+        hangers.derive(
+            measured,
+            lambda run: _spec_of(spec, run, system),
+            rule_set,
+            allowance,
+            excluded_length,
+            system,
         )
     )
     return sorted(drafts, key=lambda d: (d.level or "", d.item_type, d.key))
@@ -389,6 +461,7 @@ def _risers(
     for riser in risers:
         each = rules.riser_length(rule, parameters, riser.at.level)
         dn = dn_at(riser, runs)
+        name = "Rising main" if riser.attributes.get("system") in RISING_MAINS else "Riser"
         where = (riser.at.level, riser.at.sheet_number, riser.grid_reference)
         place: tuple[Any, ...] = (round(riser.x, 1), round(riser.y, 1)) if shared[where] > 1 else ()
         nth = taken[(*where, *place)]
@@ -398,7 +471,7 @@ def _risers(
                 key=key_of("riser", *where, *place, *((nth,) if nth else ())),
                 item_type="pipe",
                 classification="riser",
-                description=f"Riser, DN{dn or '?'} (vertical, not drawn)",
+                description=f"{name}, DN{dn or '?'} (vertical, not drawn)",
                 attributes={
                     "nominal_diameter_mm": (
                         {"value": str(dn), "source": "drawing (main at the riser)"}
@@ -592,7 +665,77 @@ def _describe_pipe(attributes: dict[str, dict[str, Any]], run_class: str) -> str
         if attributes[name]["value"] != NOT_SPECIFIED
     ]
     size = f"DN{dn}" if dn != NOT_SPECIFIED else "size not determined"
-    return f"Pipe, {size}, {run_class}" + (f" ({', '.join(parts)})" if parts else "")
+    system = attributes.get("system", {}).get("value")
+    words = f"Pipe, {size}, {run_class}" + (f" ({', '.join(parts)})" if parts else "")
+    return f"{words}, {SYSTEM_WORDS.get(system, system)}" if system else words
+
+
+def _spec_of(spec: SpecLookup, run: Run, default: str) -> dict[str, list[SpecValue]]:
+    """The specification for a run's own system and size: the bid's system unless the
+    drawing shows another. A rising main is specified as a wet or a dry riser."""
+    system = run.system or default
+    found: dict[str, list[SpecValue]] = {}
+    for section in SPEC_SYSTEMS.get(system, (system,)):
+        for name, values in spec(section, run.dn).items():
+            found.setdefault(name, []).extend(values)
+    return found
+
+
+def _equipment(
+    detection: Detection, dn: int | None, schedules: list[ScheduleRow]
+) -> dict[str, dict[str, Any]]:
+    """An item of equipment's attributes, each with where it was stated: on the drawing
+    (the confirmed mapping, the pipe it stands on), or in its schedule row, which is cited
+    by sheet and quoted."""
+    attributes: dict[str, dict[str, Any]] = {
+        name: {"value": str(value), "source": "drawing"}
+        for name, value in sorted(detection.attributes.items())
+        if name not in NOT_ATTRIBUTES and value not in (None, "", NOT_SPECIFIED)
+    }
+    if dn and detection.object_type in SIZED_EQUIPMENT and "nominal_diameter_mm" not in attributes:
+        attributes["nominal_diameter_mm"] = {"value": str(dn), "source": "drawing"}
+    tag = detection.attributes.get("tag")
+    rows = [row for row in schedules if tag and same_tag(str(tag), row.tag)]
+    stated: dict[str, list[tuple[str, ScheduleRow]]] = {}
+    for row in rows:
+        for name, value in row.values.items():
+            if name not in NOT_STATED:
+                stated.setdefault(name, []).append((value, row))
+    for name, found in sorted(stated.items()):
+        distinct = sorted({value for value, _ in found})
+        attributes[name] = {
+            "value": ", ".join(distinct),
+            "source": "schedule",
+            "citations": [
+                {
+                    "sheet_id": row.sheet_id,
+                    "sheet_number": row.sheet_number,
+                    "revision": row.revision,
+                    "schedule": row.heading,
+                    "tag": row.tag,
+                    "quote": row.quote,
+                }
+                for _, row in found
+            ],
+        }
+        if len(distinct) > 1:
+            attributes[name]["conflict"] = f"schedules give more than one value for {tag}"
+    return attributes
+
+
+def _describe_equipment(object_type: str, attributes: dict[str, dict[str, Any]]) -> str:
+    name = LABELS.get(object_type, object_type.replace("_", " ").capitalize())
+    stated = [
+        EQUIPMENT_WORDS.get(key, key.replace("_", " ") + " {}").format(value["value"])
+        for key, value in attributes.items()
+        if value["value"] != NOT_SPECIFIED
+    ]
+    return f"{name} ({', '.join(stated)})" if stated else name
+
+
+def _tags_note(members: list[Detection]) -> str | None:
+    tags = sorted({str(m.attributes["tag"]) for m in members if m.attributes.get("tag")})
+    return f"tagged {', '.join(tags)}" if tags else None
 
 
 def _length_note(members: list[Run], excluded_length: dict[str, int]) -> str | None:

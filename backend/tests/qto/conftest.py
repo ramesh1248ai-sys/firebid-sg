@@ -7,14 +7,15 @@ threaded to DN50 and grooved above.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pytest
 
 from firebid.evals import synthetic_qto as fixture
-from firebid.evals.qto_pipeline import Sheet, read
+from firebid.evals import synthetic_systems
+from firebid.evals.qto_pipeline import Sheet, read, words
 from firebid.qto import dedup, generate, rules
-from firebid.qto.model import Detection, ItemDraft, Run, SpecValue
+from firebid.qto.model import Detection, ItemDraft, Run, ScheduleRow, SpecValue
 
 RULES = {rule.key: rule for rule in rules.seed_rules()}
 CEILING = rules.Parameter(
@@ -55,12 +56,18 @@ class Tender:
     detections: list[Detection]
     runs: list[Run]
     groups: list[dedup.Group]
+    # What the sheets say in words (P2-01): equipment schedule rows, and the parameters a
+    # level schedule gives. Empty for the sprinkler tenders, which have neither.
+    schedules: list[ScheduleRow] = field(default_factory=list)
+    stated: list[rules.Parameter] = field(default_factory=list)
 
     def items(
         self,
         parameters: list[rules.Parameter] | None = None,
         rule_set: dict[str, rules.Rule] | None = None,
         decisions: dict[str, str] | None = None,
+        spec: generate.SpecLookup = spec,
+        schedules: list[ScheduleRow] | None = None,
     ) -> list[ItemDraft]:
         excluded, lengths = dedup.exclusions(self.groups, decisions)
         return generate.generate(
@@ -68,10 +75,11 @@ class Tender:
             self.runs,
             spec,
             rule_set or RULES,
-            [CEILING] if parameters is None else parameters,
+            [CEILING, *self.stated] if parameters is None else parameters,
             excluded=excluded,
             excluded_length=lengths,
             carried=dedup.carried_sizes(self.groups),
+            schedules=self.schedules if schedules is None else schedules,
         )
 
 
@@ -104,6 +112,18 @@ def with_enlarged_and_schematic() -> Tender:
 def match_lined() -> Tender:
     (west, _), (east, _) = fixture.match_lined_pair()
     return _tender([Sheet("FP-L05-202", west), Sheet("FP-L05-203", east)])
+
+
+@pytest.fixture(scope="session")
+def systems() -> Tender:
+    """The Phase 2 tender: pump room, typical floor, site plan and riser schematic."""
+    sheets = [
+        Sheet(truth.number, document, "1:100" if truth.measured else "NTS")
+        for document, truth in synthetic_systems.tender()
+    ]
+    detections, runs = read(sheets, synthetic_systems.DESCRIBED)
+    schedules, stated = words(sheets)
+    return Tender(detections, runs, dedup.find(detections, runs), schedules, stated)
 
 
 def by_description(items: list[ItemDraft]) -> dict[str, ItemDraft]:

@@ -11,7 +11,14 @@ from collections.abc import Callable
 
 import pytest
 
-from firebid.evals.synthetic_spec import EXPECTED, specification_docx, specification_pdf
+from firebid.evals.synthetic_spec import (
+    EXPECTED,
+    EXPECTED_SEISMIC,
+    EXPECTED_SUPPORTS,
+    specification_docx,
+    specification_pdf,
+    with_supports,
+)
 from firebid.specs import attributes, citations, sections
 from firebid.specs.clauses import Clause, parse
 
@@ -119,3 +126,85 @@ class TestCitations:
         result = citations.check(clauses, "9.9.9", "grooved")
 
         assert not result.ok and "not in the specification" in result.reason
+
+
+@pytest.mark.req("FR-QTO-07")
+class TestSupports:
+    """Hanger spacing and seismic restraint, which takeoff derives supports from (P2-01)."""
+
+    def read(self, seismic: bool) -> list[tuple[object, ...]]:
+        clauses = parse(specification_docx(clauses=with_supports(seismic=seismic)), "docx")
+        found = attributes.extract(clauses, sections.systems(clauses))
+        return sorted((key(item) for item in found), key=str)
+
+    def test_hanger_spacing_is_read_by_size_range_with_its_clause(self) -> None:
+        expected = sorted((key(item) for item in (*EXPECTED, *EXPECTED_SUPPORTS)), key=str)
+
+        assert self.read(seismic=False) == expected
+
+    def test_seismic_restraint_is_read_only_from_the_specification_that_requires_it(self) -> None:
+        without = {item[1] for item in self.read(seismic=False)}
+        required = self.read(seismic=True)
+
+        assert "seismic_restraint" not in without
+        assert [item for item in required if item[1] == "seismic_restraint"] == [
+            key(item) for item in EXPECTED_SEISMIC
+        ]
+
+    def test_the_spacing_s_own_figure_is_not_taken_for_a_pipe_size(self) -> None:
+        clause = Clause(
+            "9.1",
+            "",
+            "Hangers for pipes 65 mm and above shall be fixed at intervals not exceeding 4000 mm.",
+            2,
+            {"paragraph": 1},
+        )
+
+        [found] = attributes.read(clause, "sprinkler")
+
+        assert (found.attribute, found.value) == ("hanger_spacing_mm", "4000")
+        assert (found.dn_min, found.dn_max) == (65, None)
+
+    @pytest.mark.parametrize(
+        ("sentence", "millimetres"),
+        [
+            ("Pipe supports shall be at 2.5 m centres.", "2500"),
+            ("Hangers shall be spaced not more than 3600 mm apart.", "3600"),
+            ("Brackets at maximum spacing of 3 m.", "3000"),
+        ],
+    )
+    def test_spacings_as_consultants_write_them(self, sentence: str, millimetres: str) -> None:
+        clause = Clause("9.1", "", sentence, 2, {"paragraph": 1})
+
+        [found] = attributes.read(clause, "sprinkler")
+
+        assert (found.attribute, found.value) == ("hanger_spacing_mm", millimetres)
+
+    def test_a_galvanised_hanger_is_not_galvanised_pipe(self) -> None:
+        clause = Clause(
+            "9.2", "", "Hangers shall be hot-dip galvanised steel.", 2, {"paragraph": 1}
+        )
+
+        assert attributes.read(clause, "sprinkler") == []
+
+    def test_seismic_bracing_that_is_not_required_says_so(self) -> None:
+        clause = Clause(
+            "9.3", "", "Seismic bracing is not required for this project.", 2, {"paragraph": 1}
+        )
+
+        [found] = attributes.read(clause, "sprinkler")
+
+        assert (found.attribute, found.value) == ("seismic_restraint", "not_required")
+
+    def test_every_supports_citation_holds_up(self) -> None:
+        clauses = parse(specification_docx(clauses=with_supports(seismic=True)), "docx")
+        by_number = {clause.number: clause for clause in clauses}
+        found = [
+            item
+            for item in attributes.extract(clauses, sections.systems(clauses))
+            if item.attribute in ("hanger_spacing_mm", "seismic_restraint")
+        ]
+
+        assert len(found) == 3
+        for item in found:
+            assert item.quote in by_number[item.clause].text

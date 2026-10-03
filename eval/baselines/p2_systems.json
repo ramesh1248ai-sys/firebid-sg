@@ -1,0 +1,20 @@
+{
+  "suite": "p2_systems",
+  "approver": "P2-01 build (to be confirmed by the product owner)",
+  "accepted_at": "2026-10-03T04:34:30.590096+00:00",
+  "predictor": "p1-detection",
+  "predictor_version": "detector-8244b78930bb",
+  "metrics": {
+    "sprinkler_count_accuracy": null,
+    "pipe_length_error": 0.0,
+    "equipment_count_accuracy": 1.0,
+    "missed_item_rate": 0.0,
+    "false_detection_rate": 0.0,
+    "duplicate_detection_rate": 1.0,
+    "sheet_classification_accuracy": 1.0,
+    "drawing_number_accuracy": 1.0,
+    "revision_accuracy": 1.0,
+    "boq_mapping_accuracy": null,
+    "calibration_error": 0.32118125000000003
+  }
+}

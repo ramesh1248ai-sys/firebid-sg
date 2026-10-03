@@ -96,6 +96,24 @@ SPRINKLERS = (
 )
 
 
+# The Phase 2 equipment and valve sets (FR-VIS-04, FR-QTO-06).
+EQUIPMENT = (
+    ObjectType.FIRE_PUMP,
+    ObjectType.JOCKEY_PUMP,
+    ObjectType.PUMP_CONTROLLER,
+    ObjectType.FIRE_WATER_TANK,
+    ObjectType.BREECHING_INLET,
+    ObjectType.LANDING_VALVE,
+    ObjectType.HYDRANT,
+    ObjectType.HOSE_REEL,
+    ObjectType.TEST_HEADER,
+    ObjectType.DRY_PIPE_VALVE_SET,
+    ObjectType.PRE_ACTION_VALVE_SET,
+    ObjectType.DELUGE_VALVE_SET,
+    ObjectType.AIR_COMPRESSOR,
+)
+
+
 # ---------------------------------------------------------------------------------------
 # Counting
 # ---------------------------------------------------------------------------------------
@@ -128,6 +146,33 @@ def _predicted_sprinklers(prediction: TenderPrediction, sheet_number: str) -> in
     if sheet is None:
         return 0
     return sum(sheet.count_of(kind) for kind in SPRINKLERS)
+
+
+def equipment_count_accuracy(truth: TenderTruth, prediction: TenderPrediction) -> list[MetricValue]:
+    """1 - |AI - verified| / verified, per sheet and per type of equipment (FR-VIS-04).
+
+    A type at a time, not the sheet's equipment added up: a pump room with one pump too
+    many and one tank too few has not counted its equipment correctly.
+    """
+    results: list[MetricValue] = []
+    for sheet in truth.current_sheets():
+        predicted = prediction.sheet(sheet.sheet_number)
+        for kind in EQUIPMENT:
+            verified = sheet.count_of(kind)
+            if verified == 0:
+                continue
+            guessed = predicted.count_of(kind) if predicted is not None else 0
+            results.append(
+                MetricValue(
+                    name=f"equipment_count_accuracy[{sheet.sheet_number}/{kind}]",
+                    value=max(0.0, 1.0 - abs(guessed - verified) / verified),
+                    numerator=guessed,
+                    denominator=verified,
+                )
+            )
+    if not results:
+        results.append(undefined("equipment_count_accuracy", "no equipment in this tender"))
+    return results
 
 
 def pipe_length_error(truth: TenderTruth, prediction: TenderPrediction) -> list[MetricValue]:
@@ -445,6 +490,7 @@ class TenderScore:
     input_class: str
     sprinkler_count_accuracy: Aggregate
     pipe_length_error: Aggregate
+    equipment_count_accuracy: Aggregate
     missed_item_rate: MetricValue
     false_detection_rate: MetricValue
     duplicate_detection_rate: MetricValue
@@ -460,6 +506,7 @@ class TenderScore:
         return {
             "sprinkler_count_accuracy": self.sprinkler_count_accuracy.value,
             "pipe_length_error": self.pipe_length_error.value,
+            "equipment_count_accuracy": self.equipment_count_accuracy.value,
             "missed_item_rate": self.missed_item_rate.value,
             "false_detection_rate": self.false_detection_rate.value,
             "duplicate_detection_rate": self.duplicate_detection_rate.value,
@@ -481,6 +528,9 @@ def score_tender(truth: TenderTruth, prediction: TenderPrediction) -> TenderScor
             "sprinkler_count_accuracy", sprinkler_count_accuracy(truth, prediction)
         ),
         pipe_length_error=aggregate("pipe_length_error", pipe_length_error(truth, prediction)),
+        equipment_count_accuracy=aggregate(
+            "equipment_count_accuracy", equipment_count_accuracy(truth, prediction)
+        ),
         missed_item_rate=missed_item_rate(truth, prediction),
         false_detection_rate=false_detection_rate(truth, prediction),
         duplicate_detection_rate=duplicate_detection_rate(truth, prediction),
@@ -497,6 +547,7 @@ def score_tender(truth: TenderTruth, prediction: TenderPrediction) -> TenderScor
 HIGHER_IS_BETTER = {
     "sprinkler_count_accuracy": True,
     "pipe_length_error": False,
+    "equipment_count_accuracy": True,
     "missed_item_rate": False,
     "false_detection_rate": False,
     "duplicate_detection_rate": True,

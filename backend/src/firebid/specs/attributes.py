@@ -7,6 +7,8 @@ What is read, per fire protection system:
   schedule (Heavy, Medium, Schedule 40 ...);
 * joining method (`threaded`, `grooved`, `flanged`, `welded`);
 * sprinkler type, response, K-factor, temperature rating and finish;
+* hanger spacing by pipe size (`hanger_spacing_mm`), and whether seismic restraint is
+  required (`seismic_restraint`), which takeoff derives supports from (P2-01);
 * approved makes, kept for later phases.
 
 A clause is read sentence by sentence. A sentence's size range (`up to and including DN 50`,
@@ -27,7 +29,7 @@ from dataclasses import dataclass
 from firebid.specs.clauses import Clause
 
 # Bump when rules change what they read.
-RULES_VERSION = "spec-rules-1"
+RULES_VERSION = "spec-rules-2"
 
 
 @dataclass(frozen=True)
@@ -75,6 +77,19 @@ PLACE = re.compile(
     re.I,
 )
 
+# Supports. A hanger sentence gives a spacing ("at 3.0 m centres", "at intervals not
+# exceeding 4000 mm"); a restraint sentence says whether seismic bracing is required.
+SUPPORTS = re.compile(r"\b(hangers?|supports?|brackets?)\b", re.I)
+SPACING = re.compile(
+    r"(?:\b(?:centres|centers|intervals|spacing|spaced|apart)\b[^.;]*?"
+    r"(?P<after>\d+(?:\.\d+)?)\s*(?P<after_unit>mm|m)\b)|"
+    r"(?:(?P<before>\d+(?:\.\d+)?)\s*(?P<before_unit>mm|m)\s+"
+    r"(?:centres|centers|intervals|spacing|apart|c/c)\b)",
+    re.I,
+)
+SEISMIC = re.compile(r"\b(?:seismic|sway)\s+(?:restraints?|brac(?:ing|es?))\b", re.I)
+NOT_REQUIRED = re.compile(r"\b(?:not\s+(?:be\s+)?required|no\s+seismic)\b", re.I)
+
 # Size ranges, in the words consultants use. Each gives (dn_min, dn_max).
 _UP_TO = re.compile(
     r"(?:\bup\s+to\s+and\s+including|\bup\s+to|\bnot\s+exceeding|≤|<=)\s*(?:DN\s*)?(\d{2,3})"
@@ -102,6 +117,17 @@ def size_range(sentence: str) -> tuple[int | None, int | None]:
     if above and not up_to:
         return int(above.group(1) or above.group(2)), None
     return None, None
+
+
+def spacing_mm(sentence: str) -> tuple[int, str] | None:
+    """A hanger spacing in millimetres, and the words it was written in."""
+    match = SPACING.search(sentence)
+    if match is None:
+        return None
+    figure = match.group("after") or match.group("before")
+    unit = (match.group("after_unit") or match.group("before_unit")).lower()
+    value = float(figure) * (1000 if unit == "m" else 1)
+    return (round(value), match.group(0)) if value >= 500 else None
 
 
 def read(clause: Clause, system: str) -> list[Extracted]:
@@ -138,6 +164,19 @@ def read(clause: Clause, system: str) -> list[Extracted]:
                 )
             )
 
+        if SEISMIC.search(sentence):
+            add(
+                "seismic_restraint", "not_required" if NOT_REQUIRED.search(sentence) else "required"
+            )
+            continue
+        if SUPPORTS.search(sentence):
+            # A support sentence is about supports: its sizes are pipe sizes only once the
+            # spacing's own figure is set aside, and a "galvanised hanger" is not pipe.
+            spacing = spacing_mm(sentence)
+            if spacing is not None:
+                low, high = size_range(sentence.replace(spacing[1], " "))
+                add("hanger_spacing_mm", str(spacing[0]), dn_min=low, dn_max=high)
+            continue
         for value, pattern in MATERIALS:
             if pattern.search(sentence) and not (
                 value == "galvanised_steel" and re.search(r"\btrunking\b", sentence, re.I)

@@ -13,8 +13,8 @@
 3. **Topology.** Only connected components that reach at least one installed symbol are
    kept: a stray line of the right colour is not pipe.
 4. **Runs.** Maximal chains of edges between stops. A stop is a junction of three or more,
-   an open end, or a valve, fitting or riser. Sprinklers pass a run through: a branch is
-   one run carrying its heads.
+   an open end, or a valve, fitting, riser or piece of equipment (a pump, a hydrant, a
+   landing valve). Sprinklers pass a run through: a branch is one run carrying its heads.
 
 Pure: geometry and placed symbols in, a network out, with every edge's geometry rows kept
 as its evidence.
@@ -46,6 +46,7 @@ SYMBOL_NODE_KINDS = {
     "device": "valve",
     "fitting": "fitting",
     "pipe": "riser",
+    "equipment": "equipment",
 }
 
 
@@ -115,7 +116,7 @@ class Run:
 class Network:
     graph: nx.MultiGraph[int]
     edges: dict[int, Edge]
-    node_kind: dict[int, str]  # junction | end | sprinkler | valve | fitting | riser
+    node_kind: dict[int, str]  # junction | end | sprinkler | valve | fitting | riser | equipment
     node_symbol: dict[int, int]  # node -> index into placed
     node_xy: dict[int, tuple[float, float]]
     runs: list[Run]
@@ -204,7 +205,7 @@ def _pipe_keys(
         )
         if named:
             return named, False
-    anchors = [p for p in placed if p.category in ("sprinkler", "valve", "fitting")]
+    anchors = [p for p in placed if p.category in ("sprinkler", "valve", "fitting", "equipment")]
     votes: Counter[str] = Counter()
     for i in keep:
         k = key(i)
