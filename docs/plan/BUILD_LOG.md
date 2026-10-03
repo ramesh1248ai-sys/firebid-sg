@@ -1771,3 +1771,53 @@ Entry template:
   - **Import percentages cannot yet be overridden per quotation through the API** (the calculation supports it).
   - **The build-up's direct lines group the bill by its headings;** a bill with other headings puts everything under materials.
   - **Quantity breaks, discounts and a quotation's own totals are not read.** MOQ is kept as text and not checked against the bill's quantity.
+
+## P2-05 · Labour Estimation · 2026-10-03
+
+- **Summary:** labour is estimated line by line from a sourced productivity library, visible multipliers and an hourly rate built up from rate tables. Every factor can be traced.
+  - **Productivity library (FR-LAB-01):** man-hours per unit for an item type, optionally by DN and joining method (a metre of pipe, a sprinkler by type, a valve assembly, an equipment item), with its trade. Each entry's source is the company standard, a historical project (which one) or an estimator's judgement (whose). An entry without one is refused by the importer, the service and the database. Imported from xlsx, all or nothing; versioned like the rate library.
+  - **Matching:** a BOQ line takes the most specific entry for its item key and unit. An entry with no DN is for every size; an entry for `sprinkler` is for every sprinkler type without its own. A line with no entry has no hours and says so.
+  - **Multipliers (FR-LAB-02):** a catalogue in `config/labour.yaml`: four installation height bands, difficult access, MEP congestion, basement, occupied or live building, night work, high-rise logistics. Each has a value, source and rationale. The platform proposes a height band from a level's ceiling height, basement from a level's name and high-rise from the levels served. Nothing is applied until an estimator confirms it, for the bid or for a level. A labour line shows baseline hours and each multiplier separately, with who confirmed it.
+  - **Rate build-up (FR-LAB-03):** per grade, an hour's wages, foreign worker levy, accommodation, transport, insurance (WICA, a percentage of wages), overtime premium and share of a supervisor. A trade's rate is its crew's grades by their share of hours. Tables are effective-dated configuration; a bid takes the table in force on its pricing date.
+  - **Outputs:** hours and cost per BOQ line, per system (the bill's sections) and by trade.
+  - **Cost build-up:** the labour line is now calculated from the estimate, with its basis. An estimator's own figure still stands in its place and says what the estimate came to.
+  - **UI:** the BOQ page gains **Labour**: site conditions to confirm, the line table with every factor, totals by system and trade, and each trade's rate build-up with the table's effective date.
+- **Key modules / files:**
+  - Pure: `labour/productivity.py`, `labour/importer.py`, `labour/multipliers.py`, `labour/rates.py`, `labour/estimate.py`; `pricing/buildup.py` (`Calculated`).
+  - `services/labour.py` (`import_productivity`, `set_entry`, `propose`, `decide`, `estimate`, `labour_basis`); `services/costing.build_up` passes the labour line.
+  - `api/labour.py`: `/labour/productivity` (list, add, import, history), `/labour/catalogue`, `/bids/{id}/labour`, `/bids/{id}/labour/conditions` (and `/propose`).
+  - Migration `0037`: `labour_productivity` (organisation-level), `labour_condition` (under RLS).
+  - `config/labour.yaml`: multipliers, proposal rules, rate tables. All marked "to be confirmed".
+  - Frontend: `pages/Labour.tsx`, mounted in `pages/BoqPage.tsx`.
+  - Fixture: `evals/synthetic_labour.py`.
+- **How to run and demo:**
+  1. `make up`. Take a bid to a built BOQ.
+  2. As a senior estimator: `POST /labour/productivity/import` with a productivity list (columns: type, DN, joining, description, unit, man-hours per unit, trade, source type, source reference).
+  3. Set a ceiling height for a level (takeoff parameters), then on the **BOQ** page, **Labour**: **Propose from the bid's parameters**, and **Confirm** the height band. Add night work for the whole bid with a reason.
+  4. The line table shows baseline hours, each multiplier, hours, rate and cost. Open a trade under **Labour rates** for its build-up.
+  5. **Cost build-up** shows Labour as calculated, with the hours and the rate table's date.
+- **Requirement IDs covered (test names):**
+  - FR-LAB-01: `tests/labour/test_labour.py::TestProductivityLibrary` (an unsourced entry refused; the most specific entry used; the list read; problems by row and column), `::TestHours`; `tests/db/test_labour.py::TestLibrary` (imported with sources; a changed figure is a new version; an unsourced list imports nothing; the database refuses a blank source; a judgement under the estimator's name), `::TestEstimate`, `::TestApi`; `Labour.test.tsx`.
+  - FR-LAB-02: `tests/labour/test_labour.py::TestMultipliers` (catalogue complete; one without source or rationale refused; bands; level and bid scope; proposals), `::TestHours` (72 m × 0.30 h × 1.1 × 1.1 × 1.2 = 31.36 h); `tests/db/test_labour.py::TestEstimate` (a proposal changes nothing; confirmed multipliers shown one by one; a named person and a reason), `::TestApi`; `Labour.test.tsx`.
+  - FR-LAB-03: `tests/labour/test_labour.py::TestRateBuildUp` (the hand calculation of each component; a changed levy applies from its date), `::TestInTheCostBuildUp`; `tests/db/test_labour.py::TestRates` (a bid priced the day before the change keeps the old rate; the build-up's labour line), `::TestApi`; `Labour.test.tsx`.
+- **Deviations and decisions:**
+  - **No plan-and-approve pause,** as the owner prefers.
+  - **The estimate is not stored.** It is worked out from the current bill, the library, the confirmed conditions and the rate table each time. Nothing can go stale; a G2 snapshot of it is not kept yet.
+  - **Multipliers and rate tables are configuration, not database tables.** The prompt calls the multipliers "a configurable catalogue" and the statutory values "configuration". Which multipliers apply to a bid is data, confirmed by a person.
+  - **Risk flags do not exist yet (P2-07),** so proposals come from bid parameters only. Access, congestion, occupied building and night work are added by an estimator with a reason.
+  - **One height band a line:** a level's own band stands in for the bid's.
+  - **Overtime is a premium on a share of hours** (10% of hours at 1.5 times), and supervision one supervisor to eight workers. Both are table values.
+  - **The labour line in the build-up is calculated; an entered figure overrides it** and shows the calculated amount beside the estimator's name.
+  - **Changing the library is the senior estimator's** (`labour_productivity.adjust`); confirming conditions is the estimator's.
+- **Manual checks and results:**
+  - Not run through the browser on the local stack. The view is covered by component tests and the API by database tests.
+- **Defects found and fixed during the step:**
+  - A proposal's basis read "ceiling height 5200.000 mm"; figures are now written as a person writes them.
+  - A response model named like an existing one (`ImportOut`) changed that one's generated name and broke the Rates page's types; it is now `ProductivityImportOut`.
+- **Known gaps and follow-ups:**
+  - **Every figure is a placeholder:** the multipliers, the rate tables and the synthetic productivity list. The company's standards and tables are business-track inputs.
+  - **Pipework, fittings, valves and equipment are billed for the building, not by level,** so a level's multiplier reaches only the lines billed by level (sprinkler heads in the standard template). Building-wide lines take the bid's multipliers only.
+  - **Ceiling heights read from sheet notes are not used for proposals,** only those an estimator entered as bid parameters.
+  - **Rate tables are read at start-up,** so a change needs a restart, as GST does.
+  - **Crew-days and the manpower histogram are FR-LAB-04 (P3); learning from actual hours is FR-LAB-05 (P4).**
+  - **No page for the productivity library itself:** it is listed and changed through the API.

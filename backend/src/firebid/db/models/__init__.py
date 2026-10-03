@@ -60,6 +60,7 @@ from firebid.db.models.documents import (
     TransmittalEntry,
 )
 from firebid.db.models.drawings import GeometryFeature, SheetGeometry, SheetView
+from firebid.db.models.labour import LabourCondition, LabourProductivity
 from firebid.db.models.review import ActivityMinute, CorrectionEvent, ReviewAction
 from firebid.db.models.specs import (
     ScopeRow,
@@ -123,6 +124,8 @@ __all__ = [
     "GeometryFeature",
     "HumanTask",
     "IdCounter",
+    "LabourCondition",
+    "LabourProductivity",
     "LegendEntry",
     "LlmPayload",
     "LlmRateBucket",

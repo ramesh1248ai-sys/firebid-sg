@@ -126,6 +126,17 @@ class Entered:
 
 
 @dataclass(frozen=True)
+class Calculated:
+    """A component worked out elsewhere and handed to the build-up with its basis: labour,
+    from the productivity library and the labour rate tables (P2-05)."""
+
+    component: str
+    amount: Money
+    detail: str
+    source: str
+
+
+@dataclass(frozen=True)
 class Line:
     component: str
     label: str
@@ -175,11 +186,17 @@ def build(
     entered: list[Entered],
     priced_on: date,
     gst_rates: list[landed.GstRate] | None = None,
+    calculated: list[Calculated] | None = None,
 ) -> BuildUp:
-    """The build-up of a priced bill and what estimators entered, as of a pricing date."""
+    """The build-up of a priced bill and what estimators entered, as of a pricing date.
+
+    `calculated` gives a component its amount where no estimator has entered one: an
+    estimator's own figure stands, and says what the calculation came to.
+    """
     for given in entered:
         given.check()
     stated = {item.component: item for item in entered}
+    worked = {item.component: item for item in calculated or []}
     amounts: dict[str, Money | None] = {}
     lines: list[Line] = []
 
@@ -242,6 +259,13 @@ def build(
         if key == "margin":
             bases["cost_with_contingency"] = bases["cost"] + total_of(("contingency",))
         item = stated.get(key)
+        found = worked.get(key)
+        if item is None and found is not None:
+            amounts[key] = found.amount
+            lines.append(
+                Line(key, labels[key], "calculated", found.detail, found.source, found.amount)
+            )
+            continue
         if item is None:
             amounts[key] = None
             lines.append(
@@ -251,6 +275,8 @@ def build(
         source = f"entered by {item.entered_by} on {item.entered_on.isoformat()}" + (
             f": {item.note}" if item.note else ""
         )
+        if found is not None:
+            source += f" (in place of the calculated {found.amount.amount})"
         if item.basis == "lump_sum" and item.amount is not None:
             amounts[key] = item.amount
             lines.append(Line(key, labels[key], "lump_sum", "a lump sum", source, item.amount))

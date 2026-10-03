@@ -25,6 +25,9 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `document` | `source_path` | VARCHAR(1024) | yes | a folder or file name can contain a person's name |
 | `document` | `origin_by` | VARCHAR(200) | yes | the name of the person who confirmed the origin |
 | `duplicate_group` | `decided_by` | VARCHAR(200) | yes | the name of the person who decided |
+| `labour_condition` | `proposed_by` | VARCHAR(200) | no | who proposed it: the platform or a person |
+| `labour_condition` | `decided_by` | VARCHAR(200) | yes | who confirmed or rejected the multiplier |
+| `labour_productivity` | `source_reference` | VARCHAR(200) | no | names the estimator when the source is an estimator's judgement |
 | `measurement_rule` | `source_note` | TEXT | yes | may name the estimator whose judgement set the rule |
 | `quotation` | `decided_by` | VARCHAR(200) | yes | who confirmed or rejected the quotation |
 | `review_action` | `actor_label` | VARCHAR(200) | no | who took the action |
@@ -37,4 +40,4 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `spec_issue` | `decided_by` | VARCHAR(200) | yes | who dismissed the issue |
 | `spec_obligation` | `decided_by` | VARCHAR(200) | yes | who confirmed or rejected the obligation |
 
-27 columns hold personal data.
+30 columns hold personal data.

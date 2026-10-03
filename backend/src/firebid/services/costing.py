@@ -304,7 +304,11 @@ def build_up(
         )
         for row in entered(session, bid.id)
     ]
-    return buildup.build(bill, given, day, gst_rates)
+    # Labour comes from the labour estimate (P2-05), unless an estimator entered a figure.
+    from firebid.services.labour import labour_basis
+
+    labour = labour_basis(session, bid, today)
+    return buildup.build(bill, given, day, gst_rates, [labour] if labour else None)
 
 
 # --- History ----------------------------------------------------------------------------------

@@ -1022,6 +1022,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/labour": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Labour
+         * @description Labour hours and cost for each line of the bill, per system and by trade: baseline
+         *     hours, each multiplier applied, and the rate, each with its source.
+         */
+        get: operations["get_labour_bids__bid_id__labour_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/labour/conditions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Decide Condition
+         * @description Confirm or reject a multiplier for the bid or one of its levels.
+         */
+        put: operations["decide_condition_bids__bid_id__labour_conditions_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/labour/conditions/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose Conditions
+         * @description Propose multipliers from the bid's parameters. A proposal changes no hours until an
+         *     estimator confirms it.
+         */
+        post: operations["propose_conditions_bids__bid_id__labour_conditions_propose_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/members": {
         parameters: {
             query?: never;
@@ -2940,6 +3002,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/labour/catalogue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Catalogue
+         * @description The multipliers, each with its source and rationale, and each trade's hourly rate
+         *     built up line by line from the rate table in force on the day (today by default).
+         */
+        get: operations["catalogue_labour_catalogue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/labour/productivity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Productivity
+         * @description The library's current entries, each with its source.
+         */
+        get: operations["list_productivity_labour_productivity_get"];
+        put?: never;
+        /**
+         * Set Productivity
+         * @description One entry. An estimator's judgement with no reference given is under their name.
+         */
+        post: operations["set_productivity_labour_productivity_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/labour/productivity/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Productivity
+         * @description A productivity list workbook, all or nothing: any problem imports nothing.
+         */
+        post: operations["import_productivity_labour_productivity_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/labour/productivity/{entry_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Productivity History */
+        get: operations["productivity_history_labour_productivity__entry_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/library/consultants": {
         parameters: {
             query?: never;
@@ -3332,6 +3476,25 @@ export interface components {
             /** Value */
             value: string;
         };
+        /** AppliedOut */
+        AppliedOut: {
+            /** Basis */
+            basis: string;
+            /** Confirmed By */
+            confirmed_by: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Rationale */
+            rationale: string;
+            /** Scope */
+            scope: string;
+            /** Source */
+            source: string;
+            /** Value */
+            value: string;
+        };
         /** ApprovalOut */
         ApprovalOut: {
             /**
@@ -3614,6 +3777,11 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_import_productivity_labour_productivity_import_post */
+        Body_import_productivity_labour_productivity_import_post: {
+            /** File */
+            file: string;
+        };
         /** Body_import_rates_rates_import_post */
         Body_import_rates_rates_import_post: {
             /** File */
@@ -3734,6 +3902,24 @@ export interface components {
             distance_mm: number;
             /** Points */
             points: number[][];
+        };
+        /** CatalogueOut */
+        CatalogueOut: {
+            /** Multipliers */
+            multipliers: components["schemas"]["MultiplierOut"][];
+            /**
+             * On
+             * Format: date
+             */
+            on: string;
+            /** Rate Table Effective From */
+            rate_table_effective_from: string | null;
+            /** Rate Table Source */
+            rate_table_source: string | null;
+            /** Rate Tables */
+            rate_tables: string[];
+            /** Trades */
+            trades: components["schemas"]["TradeRateOut"][];
         };
         /** ChainStatus */
         ChainStatus: {
@@ -3977,6 +4163,58 @@ export interface components {
             /** Storage Key */
             storage_key: string;
         };
+        /** ComponentOut */
+        ComponentOut: {
+            /** Basis */
+            basis: string;
+            /** Hourly */
+            hourly: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
+        /** ConditionIn */
+        ConditionIn: {
+            /** Basis */
+            basis?: string | null;
+            /** Key */
+            key: string;
+            /** Level */
+            level?: string | null;
+            /** State */
+            state: string;
+        };
+        /** ConditionOut */
+        ConditionOut: {
+            /** Basis */
+            basis: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /** Level */
+            level: string | null;
+            /** Multiplier Key */
+            multiplier_key: string;
+            /** Proposed By */
+            proposed_by: string;
+            /** Rationale */
+            rationale: string | null;
+            /** Source */
+            source: string | null;
+            /** State */
+            state: string;
+            /** Value */
+            value: string | null;
+        };
         /** ConfirmOut */
         ConfirmOut: {
             /** Confirmed */
@@ -4104,6 +4342,13 @@ export interface components {
             value_total: number;
             /** Value Verified */
             value_verified: number;
+        };
+        /** CrewOut */
+        CrewOut: {
+            /** Grade */
+            grade: string;
+            /** Percent */
+            percent: string;
         };
         /** CriterionOut */
         CriterionOut: {
@@ -4439,6 +4684,70 @@ export interface components {
             /** Percent */
             percent?: number | string | null;
         };
+        /** EntryIn */
+        EntryIn: {
+            /** Description */
+            description: string;
+            /**
+             * Dn
+             * @default
+             */
+            dn: string;
+            /** Hours Per Unit */
+            hours_per_unit: number | string;
+            /** Item Type */
+            item_type: string;
+            /**
+             * Joining
+             * @default
+             */
+            joining: string;
+            /** Source Reference */
+            source_reference?: string | null;
+            /** Source Type */
+            source_type: string;
+            /** Trade */
+            trade: string;
+            /** Unit */
+            unit: string;
+        };
+        /** EntryOut */
+        EntryOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description: string;
+            /** Dn */
+            dn: string;
+            /** Hours Per Unit */
+            hours_per_unit: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Item Type */
+            item_type: string;
+            /** Joining */
+            joining: string;
+            /** Retired At */
+            retired_at: string | null;
+            /** Source */
+            source: string;
+            /** Source Reference */
+            source_reference: string;
+            /** Source Type */
+            source_type: string;
+            /** Trade */
+            trade: string;
+            /** Unit */
+            unit: string;
+            /** Version */
+            version: number;
+        };
         /** ErpImportOut */
         ErpImportOut: {
             /** Historical Costs */
@@ -4566,6 +4875,17 @@ export interface components {
             untraced_lines: {
                 [key: string]: unknown;
             }[];
+        };
+        /** GradeRateOut */
+        GradeRateOut: {
+            /** Components */
+            components: components["schemas"]["ComponentOut"][];
+            /** Grade */
+            grade: string;
+            /** Hourly */
+            hourly: string;
+            /** Label */
+            label: string;
         };
         /** GroupOut */
         GroupOut: {
@@ -4765,6 +5085,75 @@ export interface components {
             targets: {
                 [key: string]: unknown;
             };
+        };
+        /** LabourLineOut */
+        LabourLineOut: {
+            /** Baseline Hours */
+            baseline_hours: string | null;
+            /** Cost */
+            cost: string | null;
+            /** Description */
+            description: string;
+            /** Factor */
+            factor: string;
+            /** Hourly Rate */
+            hourly_rate: string | null;
+            /** Hours */
+            hours: string | null;
+            /** Hours Per Unit */
+            hours_per_unit: string | null;
+            /** Level */
+            level: string | null;
+            /**
+             * Line Id
+             * Format: uuid
+             */
+            line_id: string;
+            /** Multipliers */
+            multipliers: components["schemas"]["AppliedOut"][];
+            /** Productivity Entry Id */
+            productivity_entry_id: string | null;
+            /** Productivity Source */
+            productivity_source: string | null;
+            /** Quantity */
+            quantity: string;
+            /** Reason */
+            reason: string;
+            /** Reference */
+            reference: string;
+            /** Section */
+            section: string;
+            /** Trade */
+            trade: string | null;
+            /** Unit */
+            unit: string;
+        };
+        /** LabourOut */
+        LabourOut: {
+            /** Baseline Hours */
+            baseline_hours: string;
+            /** By Section */
+            by_section: components["schemas"]["SubtotalOut"][];
+            /** By Trade */
+            by_trade: components["schemas"]["SubtotalOut"][];
+            catalogue: components["schemas"]["CatalogueOut"];
+            /** Conditions */
+            conditions: components["schemas"]["ConditionOut"][];
+            /** Cost */
+            cost: string;
+            /** Hours */
+            hours: string;
+            /** Levels */
+            levels: string[];
+            /** Lines */
+            lines: components["schemas"]["LabourLineOut"][];
+            /**
+             * Priced On
+             * Format: date
+             */
+            priced_on: string;
+            /** Without Hours */
+            without_hours: number;
         };
         /** LegendRowOut */
         LegendRowOut: {
@@ -5132,6 +5521,23 @@ export interface components {
             /** Provider */
             provider: string;
         };
+        /** MultiplierOut */
+        MultiplierOut: {
+            /** Key */
+            key: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Rationale */
+            rationale: string;
+            /** Source */
+            source: string;
+            /** Up To Mm */
+            up_to_mm: number | null;
+            /** Value */
+            value: string;
+        };
         /** NameUnlistedRequest */
         NameUnlistedRequest: {
             /** Note */
@@ -5476,6 +5882,23 @@ export interface components {
             message: string;
             /** Row */
             row: number;
+        };
+        /** ProductivityImportOut */
+        ProductivityImportOut: {
+            /** Created */
+            created: number;
+            /** Imported */
+            imported: boolean;
+            /** Problems */
+            problems: {
+                [key: string]: unknown;
+            }[];
+            /** Sheet */
+            sheet: string | null;
+            /** Superseded */
+            superseded: number;
+            /** Unchanged */
+            unchanged: number;
         };
         /**
          * Progress
@@ -6233,6 +6656,21 @@ export interface components {
             /** Tokens Out */
             tokens_out: number;
         };
+        /** SubtotalOut */
+        SubtotalOut: {
+            /** Baseline Hours */
+            baseline_hours: string;
+            /** Cost */
+            cost: string;
+            /** Hourly Rate */
+            hourly_rate: string | null;
+            /** Hours */
+            hours: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
         /** TaskIn */
         TaskIn: {
             /** Assignee Id */
@@ -6314,6 +6752,26 @@ export interface components {
             };
             /** Unpriced */
             unpriced: number;
+        };
+        /** TradeRateOut */
+        TradeRateOut: {
+            /** Crew */
+            crew: components["schemas"]["CrewOut"][];
+            /**
+             * Effective From
+             * Format: date
+             */
+            effective_from: string;
+            /** Grades */
+            grades: components["schemas"]["GradeRateOut"][];
+            /** Hourly */
+            hourly: string;
+            /** Label */
+            label: string;
+            /** Source */
+            source: string;
+            /** Trade */
+            trade: string;
         };
         /** TransitionIn */
         TransitionIn: {
@@ -8431,6 +8889,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BidKpisOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_labour_bids__bid_id__labour_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabourOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_condition_bids__bid_id__labour_conditions_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConditionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabourOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_conditions_bids__bid_id__labour_conditions_propose_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabourOut"];
                 };
             };
             /** @description Validation Error */
@@ -11956,6 +12511,154 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KpisOut"];
+                };
+            };
+        };
+    };
+    catalogue_labour_catalogue_get: {
+        parameters: {
+            query?: {
+                on?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogueOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_productivity_labour_productivity_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntryOut"][];
+                };
+            };
+        };
+    };
+    set_productivity_labour_productivity_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_productivity_labour_productivity_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_productivity_labour_productivity_import_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductivityImportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    productivity_history_labour_productivity__entry_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

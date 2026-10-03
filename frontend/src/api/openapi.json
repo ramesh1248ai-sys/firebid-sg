@@ -385,6 +385,55 @@
         "title": "AnswerOut",
         "type": "object"
       },
+      "AppliedOut": {
+        "properties": {
+          "basis": {
+            "title": "Basis",
+            "type": "string"
+          },
+          "confirmed_by": {
+            "title": "Confirmed By",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "value",
+          "source",
+          "rationale",
+          "scope",
+          "confirmed_by",
+          "basis"
+        ],
+        "title": "AppliedOut",
+        "type": "object"
+      },
       "ApprovalOut": {
         "properties": {
           "decided_at": {
@@ -1248,6 +1297,20 @@
         "title": "Body_import_erp_costing_erp_import_post",
         "type": "object"
       },
+      "Body_import_productivity_labour_productivity_import_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_productivity_labour_productivity_import_post",
+        "type": "object"
+      },
       "Body_import_rates_rates_import_post": {
         "properties": {
           "file": {
@@ -1612,6 +1675,70 @@
           "distance_mm"
         ],
         "title": "CalibrateRequest",
+        "type": "object"
+      },
+      "CatalogueOut": {
+        "properties": {
+          "multipliers": {
+            "items": {
+              "$ref": "#/components/schemas/MultiplierOut"
+            },
+            "title": "Multipliers",
+            "type": "array"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "rate_table_effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Table Effective From"
+          },
+          "rate_table_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Table Source"
+          },
+          "rate_tables": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Rate Tables",
+            "type": "array"
+          },
+          "trades": {
+            "items": {
+              "$ref": "#/components/schemas/TradeRateOut"
+            },
+            "title": "Trades",
+            "type": "array"
+          }
+        },
+        "required": [
+          "on",
+          "multipliers",
+          "rate_table_effective_from",
+          "rate_table_source",
+          "rate_tables",
+          "trades"
+        ],
+        "title": "CatalogueOut",
         "type": "object"
       },
       "ChainStatus": {
@@ -2372,6 +2499,193 @@
         "title": "CompleteRequest",
         "type": "object"
       },
+      "ComponentOut": {
+        "properties": {
+          "basis": {
+            "title": "Basis",
+            "type": "string"
+          },
+          "hourly": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hourly",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "hourly",
+          "basis"
+        ],
+        "title": "ComponentOut",
+        "type": "object"
+      },
+      "ConditionIn": {
+        "properties": {
+          "basis": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          },
+          "key": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "state": {
+            "pattern": "^(confirmed|rejected)$",
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "state"
+        ],
+        "title": "ConditionIn",
+        "type": "object"
+      },
+      "ConditionOut": {
+        "properties": {
+          "basis": {
+            "title": "Basis",
+            "type": "string"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "multiplier_key": {
+            "title": "Multiplier Key",
+            "type": "string"
+          },
+          "proposed_by": {
+            "title": "Proposed By",
+            "type": "string"
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "id",
+          "level",
+          "multiplier_key",
+          "label",
+          "value",
+          "source",
+          "rationale",
+          "state",
+          "basis",
+          "proposed_by",
+          "decided_by",
+          "decided_at"
+        ],
+        "title": "ConditionOut",
+        "type": "object"
+      },
       "ConfirmOut": {
         "properties": {
           "confirmed": {
@@ -2719,6 +3033,25 @@
           "met"
         ],
         "title": "CoverageOut",
+        "type": "object"
+      },
+      "CrewOut": {
+        "properties": {
+          "grade": {
+            "title": "Grade",
+            "type": "string"
+          },
+          "percent": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Percent",
+            "type": "string"
+          }
+        },
+        "required": [
+          "grade",
+          "percent"
+        ],
+        "title": "CrewOut",
         "type": "object"
       },
       "CriterionOut": {
@@ -3851,6 +4184,175 @@
         "title": "EnteredIn",
         "type": "object"
       },
+      "EntryIn": {
+        "properties": {
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "dn": {
+            "default": "",
+            "maxLength": 40,
+            "title": "Dn",
+            "type": "string"
+          },
+          "hours_per_unit": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Hours Per Unit"
+          },
+          "item_type": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Item Type",
+            "type": "string"
+          },
+          "joining": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Joining",
+            "type": "string"
+          },
+          "source_reference": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Reference"
+          },
+          "source_type": {
+            "pattern": "^(company_standard|historical_project|estimator_judgement)$",
+            "title": "Source Type",
+            "type": "string"
+          },
+          "trade": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Trade",
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_type",
+          "description",
+          "unit",
+          "hours_per_unit",
+          "trade",
+          "source_type"
+        ],
+        "title": "EntryIn",
+        "type": "object"
+      },
+      "EntryOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "dn": {
+            "title": "Dn",
+            "type": "string"
+          },
+          "hours_per_unit": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hours Per Unit",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "item_type": {
+            "title": "Item Type",
+            "type": "string"
+          },
+          "joining": {
+            "title": "Joining",
+            "type": "string"
+          },
+          "retired_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retired At"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "source_reference": {
+            "title": "Source Reference",
+            "type": "string"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "trade": {
+            "title": "Trade",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "item_type",
+          "dn",
+          "joining",
+          "description",
+          "unit",
+          "hours_per_unit",
+          "trade",
+          "source_type",
+          "source_reference",
+          "source",
+          "version",
+          "retired_at",
+          "created_at"
+        ],
+        "title": "EntryOut",
+        "type": "object"
+      },
       "ErpImportOut": {
         "properties": {
           "historical_costs": {
@@ -4217,6 +4719,38 @@
           "untraced_lines"
         ],
         "title": "G2Out",
+        "type": "object"
+      },
+      "GradeRateOut": {
+        "properties": {
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/ComponentOut"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "grade": {
+            "title": "Grade",
+            "type": "string"
+          },
+          "hourly": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hourly",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "grade",
+          "label",
+          "components",
+          "hourly"
+        ],
+        "title": "GradeRateOut",
         "type": "object"
       },
       "GroupOut": {
@@ -4898,6 +5432,260 @@
           "targets"
         ],
         "title": "KpisOut",
+        "type": "object"
+      },
+      "LabourLineOut": {
+        "properties": {
+          "baseline_hours": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Hours"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "factor": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Factor",
+            "type": "string"
+          },
+          "hourly_rate": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hourly Rate"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours"
+          },
+          "hours_per_unit": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hours Per Unit"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "line_id": {
+            "format": "uuid",
+            "title": "Line Id",
+            "type": "string"
+          },
+          "multipliers": {
+            "items": {
+              "$ref": "#/components/schemas/AppliedOut"
+            },
+            "title": "Multipliers",
+            "type": "array"
+          },
+          "productivity_entry_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Productivity Entry Id"
+          },
+          "productivity_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Productivity Source"
+          },
+          "quantity": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "section": {
+            "title": "Section",
+            "type": "string"
+          },
+          "trade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trade"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "reference",
+          "description",
+          "section",
+          "level",
+          "unit",
+          "quantity",
+          "hours_per_unit",
+          "productivity_source",
+          "productivity_entry_id",
+          "trade",
+          "baseline_hours",
+          "multipliers",
+          "factor",
+          "hours",
+          "hourly_rate",
+          "cost",
+          "reason"
+        ],
+        "title": "LabourLineOut",
+        "type": "object"
+      },
+      "LabourOut": {
+        "properties": {
+          "baseline_hours": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Baseline Hours",
+            "type": "string"
+          },
+          "by_section": {
+            "items": {
+              "$ref": "#/components/schemas/SubtotalOut"
+            },
+            "title": "By Section",
+            "type": "array"
+          },
+          "by_trade": {
+            "items": {
+              "$ref": "#/components/schemas/SubtotalOut"
+            },
+            "title": "By Trade",
+            "type": "array"
+          },
+          "catalogue": {
+            "$ref": "#/components/schemas/CatalogueOut"
+          },
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/ConditionOut"
+            },
+            "title": "Conditions",
+            "type": "array"
+          },
+          "cost": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cost",
+            "type": "string"
+          },
+          "hours": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hours",
+            "type": "string"
+          },
+          "levels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Levels",
+            "type": "array"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/LabourLineOut"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "priced_on": {
+            "format": "date",
+            "title": "Priced On",
+            "type": "string"
+          },
+          "without_hours": {
+            "title": "Without Hours",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "priced_on",
+          "lines",
+          "by_section",
+          "by_trade",
+          "baseline_hours",
+          "hours",
+          "cost",
+          "without_hours",
+          "conditions",
+          "levels",
+          "catalogue"
+        ],
+        "title": "LabourOut",
         "type": "object"
       },
       "LegendRowOut": {
@@ -6310,6 +7098,57 @@
         "title": "ModelOut",
         "type": "object"
       },
+      "MultiplierOut": {
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "up_to_mm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Up To Mm"
+          },
+          "value": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "kind",
+          "value",
+          "source",
+          "rationale",
+          "up_to_mm"
+        ],
+        "title": "MultiplierOut",
+        "type": "object"
+      },
       "NameUnlistedRequest": {
         "properties": {
           "note": {
@@ -7304,6 +8143,55 @@
           "message"
         ],
         "title": "ProblemOut",
+        "type": "object"
+      },
+      "ProductivityImportOut": {
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "integer"
+          },
+          "imported": {
+            "title": "Imported",
+            "type": "boolean"
+          },
+          "problems": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "sheet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheet"
+          },
+          "superseded": {
+            "title": "Superseded",
+            "type": "integer"
+          },
+          "unchanged": {
+            "title": "Unchanged",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "imported",
+          "sheet",
+          "created",
+          "superseded",
+          "unchanged",
+          "problems"
+        ],
+        "title": "ProductivityImportOut",
         "type": "object"
       },
       "Progress": {
@@ -9856,6 +10744,55 @@
         "title": "SpendRow",
         "type": "object"
       },
+      "SubtotalOut": {
+        "properties": {
+          "baseline_hours": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Baseline Hours",
+            "type": "string"
+          },
+          "cost": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cost",
+            "type": "string"
+          },
+          "hourly_rate": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hourly Rate"
+          },
+          "hours": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hours",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "baseline_hours",
+          "hours",
+          "cost",
+          "hourly_rate"
+        ],
+        "title": "SubtotalOut",
+        "type": "object"
+      },
       "TaskIn": {
         "properties": {
           "assignee_id": {
@@ -10116,6 +11053,57 @@
           "gst_included"
         ],
         "title": "TotalsOut",
+        "type": "object"
+      },
+      "TradeRateOut": {
+        "properties": {
+          "crew": {
+            "items": {
+              "$ref": "#/components/schemas/CrewOut"
+            },
+            "title": "Crew",
+            "type": "array"
+          },
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "grades": {
+            "items": {
+              "$ref": "#/components/schemas/GradeRateOut"
+            },
+            "title": "Grades",
+            "type": "array"
+          },
+          "hourly": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hourly",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "trade": {
+            "title": "Trade",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trade",
+          "label",
+          "crew",
+          "grades",
+          "hourly",
+          "effective_from",
+          "source"
+        ],
+        "title": "TradeRateOut",
         "type": "object"
       },
       "TransitionIn": {
@@ -14397,6 +15385,163 @@
         "summary": "For Bid",
         "tags": [
           "kpis"
+        ]
+      }
+    },
+    "/bids/{bid_id}/labour": {
+      "get": {
+        "description": "Labour hours and cost for each line of the bill, per system and by trade: baseline\nhours, each multiplier applied, and the rate, each with its source.",
+        "operationId": "get_labour_bids__bid_id__labour_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabourOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Labour",
+        "tags": [
+          "labour"
+        ]
+      }
+    },
+    "/bids/{bid_id}/labour/conditions": {
+      "put": {
+        "description": "Confirm or reject a multiplier for the bid or one of its levels.",
+        "operationId": "decide_condition_bids__bid_id__labour_conditions_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConditionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabourOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decide Condition",
+        "tags": [
+          "labour"
+        ]
+      }
+    },
+    "/bids/{bid_id}/labour/conditions/propose": {
+      "post": {
+        "description": "Propose multipliers from the bid's parameters. A proposal changes no hours until an\nestimator confirms it.",
+        "operationId": "propose_conditions_bids__bid_id__labour_conditions_propose_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabourOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Propose Conditions",
+        "tags": [
+          "labour"
         ]
       }
     },
@@ -20750,6 +21895,237 @@
         "summary": "Portfolio",
         "tags": [
           "kpis"
+        ]
+      }
+    },
+    "/labour/catalogue": {
+      "get": {
+        "description": "The multipliers, each with its source and rationale, and each trade's hourly rate\nbuilt up line by line from the rate table in force on the day (today by default).",
+        "operationId": "catalogue_labour_catalogue_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "on",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "On"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogueOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Catalogue",
+        "tags": [
+          "labour"
+        ]
+      }
+    },
+    "/labour/productivity": {
+      "get": {
+        "description": "The library's current entries, each with its source.",
+        "operationId": "list_productivity_labour_productivity_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EntryOut"
+                  },
+                  "title": "Response List Productivity Labour Productivity Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Productivity",
+        "tags": [
+          "labour"
+        ]
+      },
+      "post": {
+        "description": "One entry. An estimator's judgement with no reference given is under their name.",
+        "operationId": "set_productivity_labour_productivity_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Productivity",
+        "tags": [
+          "labour"
+        ]
+      }
+    },
+    "/labour/productivity/import": {
+      "post": {
+        "description": "A productivity list workbook, all or nothing: any problem imports nothing.",
+        "operationId": "import_productivity_labour_productivity_import_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_productivity_labour_productivity_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductivityImportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Productivity",
+        "tags": [
+          "labour"
+        ]
+      }
+    },
+    "/labour/productivity/{entry_id}/history": {
+      "get": {
+        "operationId": "productivity_history_labour_productivity__entry_id__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entry Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EntryOut"
+                  },
+                  "title": "Response Productivity History Labour Productivity  Entry Id  History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Productivity History",
+        "tags": [
+          "labour"
         ]
       }
     },

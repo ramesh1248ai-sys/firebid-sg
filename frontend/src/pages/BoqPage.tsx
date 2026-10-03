@@ -8,6 +8,7 @@ import { accessToken } from "@/auth/oidc";
 import { Button } from "@/components/ui/button";
 import { BoqPricing } from "@/pages/BoqPricing";
 import { CostBuildUp, Quotations } from "@/pages/Costing";
+import { LabourEstimate } from "@/pages/Labour";
 
 /**
  * The bid's bills of quantities (P1-09).
@@ -225,6 +226,8 @@ export function BoqPage() {
       {boq && <BoqPricing bidId={bidId} onError={fail} />}
 
       {boq && <Quotations bidId={bidId} lines={boq.lines} onError={fail} />}
+
+      {boq && <LabourEstimate bidId={bidId} onError={fail} />}
 
       {boq && <CostBuildUp bidId={bidId} onError={fail} />}
 
