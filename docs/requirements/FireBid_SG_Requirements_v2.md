@@ -401,7 +401,7 @@ Human verification is the platform's main quality control. The workbench is wher
 
 ### 6.17 Design Development and Folder Intake (FR-DSN, FR-DOC-09/10), added 2 Oct 2026
 
-<!-- Proposed on 2026-10-01 from the MOH (TTSH) design-intent tender and approved by the product owner on 2026-10-02 (ADR-011). This section is NOT yet in the .docx this file is generated from: carry it into the .docx before regenerating, or it will be lost. -->
+<!-- Proposed on 2026-10-01 from the MOH (TTSH) design-intent tender and approved by the product owner on 2026-10-02 (ADR-011). Carried into the .docx on 2026-10-03, word for word. -->
 
 A design-intent tender draws the mains and leaves the heads and range pipes to the contractor ("the contractor shall be responsible for the further development and detailed design"). A takeoff of what is drawn counts no heads, so most of the sprinkler cost is missed. These requirements let the platform propose that development as an estimating aid. A proposed layout is never a design for the Qualified Person's approval or for construction (§2.1).
 
