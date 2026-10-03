@@ -176,6 +176,15 @@ def _package_of(
     return addendum.tender_package_id
 
 
+def _size_of(upload_file: UploadFile) -> int:
+    """An uploaded file's size, without reading it."""
+    if upload_file.size is not None:
+        return upload_file.size
+    end = upload_file.file.seek(0, 2)
+    upload_file.file.seek(0)
+    return end
+
+
 @router.post("", response_model=UploadReport, status_code=status.HTTP_201_CREATED)
 def upload(
     context: CurrentBid,
@@ -206,17 +215,21 @@ def upload(
         said = [Origin(value) if value else None for value in origins or []]
     except ValueError as error:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(error)) from error
-    ingestor = _ingestor(session, context, addendum_id)
-    report = UploadReport()
-
-    for index, upload_file in enumerate(files):
-        payload = upload_file.file.read()
-        if len(payload) > MAX_DIRECT_UPLOAD_BYTES:
+    # Sizes first, from the files as they were received: a file over the limit is refused
+    # before it is read into memory, and before any of its neighbours is stored.
+    for upload_file in files:
+        if _size_of(upload_file) > MAX_DIRECT_UPLOAD_BYTES:
             raise HTTPException(
                 status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 f"'{upload_file.filename}' is larger than "
                 f"{MAX_DIRECT_UPLOAD_BYTES // (1024 * 1024)} MB; use the presigned upload route",
             )
+    ingestor = _ingestor(session, context, addendum_id)
+    report = UploadReport()
+
+    for index, upload_file in enumerate(files):
+        # One file at a time: the last one's bytes are let go before the next is read.
+        payload = upload_file.file.read()
         outcome = ingestor.ingest(
             upload_file.filename or "unnamed",
             payload,
