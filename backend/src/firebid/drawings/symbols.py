@@ -208,6 +208,18 @@ def _pairs(count: int) -> tuple[np.ndarray, np.ndarray]:
     return first, second
 
 
+def _counted(values: np.ndarray, edges: np.ndarray) -> np.ndarray:
+    """`np.histogram(values, bins=edges)`'s counts, without sorting the values first.
+
+    As it counts them: how many values are below each edge, the last edge included in the
+    last bin, and the differences between those. Sixteen passes over the values are half the
+    time of sorting 19,900 of them.
+    """
+    below = [int(np.count_nonzero(values < edge)) for edge in edges[:-1]]
+    below.append(int(np.count_nonzero(values <= edges[-1])))
+    return np.diff(np.asarray(below, dtype=np.int64))
+
+
 def describe(points: np.ndarray, directions: np.ndarray) -> tuple[tuple[float, ...], float] | None:
     """The descriptor and RMS radius of a point set; None when there is nothing to describe.
 
@@ -224,11 +236,12 @@ def describe(points: np.ndarray, directions: np.ndarray) -> tuple[tuple[float, .
     if rms <= 1e-9:
         return None
     # Each pair once: the distances a full square of differences gave, without the half of
-    # it (and the diagonal) that was worked out and thrown away.
+    # it (and the diagonal) that was worked out and thrown away. A coordinate at a time:
+    # picking 19,900 pairs out of a column is half the work of picking them out of rows.
     first, second = _pairs(len(points))
-    difference = centred[first] - centred[second]
-    pairwise = np.hypot(difference[:, 0], difference[:, 1])
-    d2, _ = np.histogram(pairwise / rms, bins=D2_BINS)
+    xs, ys = np.ascontiguousarray(centred[:, 0]), np.ascontiguousarray(centred[:, 1])
+    pairwise = np.hypot(xs.take(first) - xs.take(second), ys.take(first) - ys.take(second))
+    d2 = _counted(pairwise / rms, D2_BINS)
     radial, _ = np.histogram(radii / rms, bins=RADIAL_BINS)
     outward = centred / np.maximum(radii, 1e-9)[:, None]
     along = np.abs((outward * directions).sum(axis=1))

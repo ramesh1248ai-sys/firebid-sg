@@ -260,37 +260,58 @@ def parse_complete(context: JobContext, document_id: str, user_id: str) -> dict[
         return parse_pipeline.complete(session, document, user)
 
 
-@app.periodic(cron="*/5 * * * *", periodic_id="retry_stalled_parse")
-@app.task(
-    name="system.retry_stalled_parse", queue="default", queueing_lock="system.retry_stalled_parse"
-)
-def retry_stalled_parse(timestamp: int, heartbeat_seconds: int = 300) -> int:
-    """Queue again the parse jobs whose worker has stopped (ADR-010).
+# How many times a job may be run before one whose worker keeps stopping is given up on.
+STALLED_ATTEMPTS = 5
 
-    A worker that dies mid-job leaves its job `doing` for ever, and its document
-    `processing`. Every parse job is idempotent, so running one again is always safe.
+
+@app.periodic(cron="*/5 * * * *", periodic_id="retry_stalled_jobs")
+@app.task(
+    name="system.retry_stalled_jobs",
+    aliases=["system.retry_stalled_parse"],  # its name while it looked at the parser pool only
+    queue="default",
+    queueing_lock="system.retry_stalled_jobs",
+)
+def retry_stalled_jobs(timestamp: int, heartbeat_seconds: int = 300) -> int:
+    """Queue again the jobs whose worker has stopped, on any queue (ADR-006, ADR-010).
+
+    A worker that dies mid-job leaves its job `doing` for ever: a document `processing`, a
+    legend row without its proposal, a takeoff never made. Delivery is at-least-once and
+    every job is idempotent, so running one again is always safe. A job that has been run
+    `STALLED_ATTEMPTS` times and is found stalled again is failed instead: it is more likely
+    stopping its worker than unlucky, and the failure is there to be seen.
     """
     with service_session_scope() as session:
-        stalled = list(
-            session.execute(
-                text(
-                    "SELECT job.id FROM procrastinate_jobs job "
-                    "LEFT JOIN procrastinate_workers worker ON worker.id = job.worker_id "
-                    "WHERE job.status = 'doing' AND job.queue_name = :queue "
-                    "AND (worker.id IS NULL OR worker.last_heartbeat < "
-                    "now() - make_interval(secs => :seconds))"
-                ),
-                {"queue": PARSE_QUEUE, "seconds": heartbeat_seconds},
-            ).scalars()
+        stalled = session.execute(
+            text(
+                "SELECT job.id, job.attempts, job.task_name FROM procrastinate_jobs job "
+                "LEFT JOIN procrastinate_workers worker ON worker.id = job.worker_id "
+                "WHERE job.status = 'doing' "
+                "AND (worker.id IS NULL OR worker.last_heartbeat < "
+                "now() - make_interval(secs => :seconds)) ORDER BY job.id"
+            ),
+            {"seconds": heartbeat_seconds},
+        ).all()
+        retried, abandoned = [], []
+        for job_id, attempts, task_name in stalled:
+            if attempts + 1 >= STALLED_ATTEMPTS:
+                session.execute(
+                    text("SELECT procrastinate_finish_job_v1(:id, 'failed', false)"), {"id": job_id}
+                )
+                abandoned.append({"id": job_id, "task": task_name})
+            else:
+                session.execute(
+                    text("SELECT procrastinate_retry_job_v2(:id, now(), NULL, NULL, NULL)"),
+                    {"id": job_id},
+                )
+                retried.append({"id": job_id, "task": task_name})
+    # An event a job: the log keeps plain values and hides lists.
+    for job in retried:
+        log.warning("stalled_job_retried", job_id=job["id"], task=job["task"])
+    for job in abandoned:
+        log.error(
+            "stalled_job_abandoned", job_id=job["id"], task=job["task"], runs=STALLED_ATTEMPTS
         )
-        for job_id in stalled:
-            session.execute(
-                text("SELECT procrastinate_retry_job_v2(:id, now(), NULL, NULL, NULL)"),
-                {"id": job_id},
-            )
-    if stalled:
-        log.warning("parse_jobs_retried", jobs=stalled)
-    return len(stalled)
+    return len(retried)
 
 
 @app.task(name="document.classify", queue="default", pass_context=True)

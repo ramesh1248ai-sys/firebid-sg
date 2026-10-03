@@ -65,15 +65,12 @@ gaps:
   - gap: "A bid cannot be deleted in the app"
     cause: "No delete flow; a test bid was removed directly in the database."
     action: "An administrator delete with its own audit entry and retention rules."
-  - gap: "A job on the ordinary worker queue whose worker died stays running for ever"
+  - gap: "No alert on a job that has been running for over an hour"
     cause: >-
-      system.retry_stalled_parse re-queues only the parser pool's jobs (ADR-010). Found in the
-      P1-11 benchmarks: a symbol.propose job left `doing` with no worker after a container
-      restart, 7 hours later, so its legend row never got the model's proposal.
-    action: >-
-      Extend the stall check to the default queue: re-queue the idempotent tasks (detection,
-      takeoff, the model proposals) and fail the rest with a reason a person sees; alert on
-      any job `doing` for over an hour.
+      A job whose worker died is queued again on any queue now (system.retry_stalled_jobs),
+      and failed on its fifth run. A job whose worker is alive but which never ends is not
+      seen by that check.
+    action: "Alert on any job `doing` for over an hour (ADR-008)."
   - gap: "Two order-dependent tests"
     cause: >-
       `test_migrations_leave_application_logging_working` fails when run alone with the
