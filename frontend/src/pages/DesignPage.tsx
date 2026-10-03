@@ -130,10 +130,7 @@ export function DesignPage() {
         <p className="text-sm text-muted-foreground">
           For sheets drawn as design intent, where the heads and range pipes are the contractor's to
           develop. Confirm the design criterion for each sheet and the platform proposes a layout to
-          take off from. A proposal is an estimating aid, not a design for approval.{" "}
-          <Link to={`/bids/${bidId}`} className="underline">
-            Back to the bid
-          </Link>
+          take off from. A proposal is an estimating aid, not a design for approval.
         </p>
       </div>
       {design.data && (

@@ -380,10 +380,6 @@ export function DocumentsPage() {
           </ul>
         </div>
       )}
-
-      <Link to={`/bids/${bidId}`} className="inline-block text-sm underline">
-        Back to the bid
-      </Link>
     </section>
   );
 }

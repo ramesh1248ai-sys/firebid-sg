@@ -24,3 +24,11 @@ export function urgency(days: number | null): string {
 export function asInstant(local: string): string {
   return new Date(local).toISOString();
 }
+
+/** The tone a bid's state reads in: won and submitted are good, lost and withdrawn are not. */
+export function stateTone(state: string): "neutral" | "info" | "good" | "bad" {
+  if (/won|submitted|approved|awarded/.test(state)) return "good";
+  if (/lost|withdrawn|declined|no_bid|cancelled/.test(state)) return "bad";
+  if (/registered|draft/.test(state)) return "neutral";
+  return "info";
+}

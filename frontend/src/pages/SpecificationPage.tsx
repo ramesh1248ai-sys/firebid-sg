@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 
 import { api, apiErrorMessage } from "@/api/client";
 import type { components } from "@/api/schema";
@@ -118,10 +118,6 @@ export function SpecificationPage() {
           <ClausePanel bidId={bidId} row={open} onClose={() => setOpen(null)} />
         )}
       </div>
-
-      <Link to={`/bids/${bidId}`} className="inline-block text-sm underline">
-        Back to the bid
-      </Link>
     </section>
   );
 }
