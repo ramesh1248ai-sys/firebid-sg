@@ -15,9 +15,10 @@ jobs:
   checks:
     name: Lint, types, unit tests, API client, coverage
     runs-on: ubuntu-24.04
-    # The suite takes 13 to 20 minutes on a hosted runner, by the runner: at a limit of 20
-    # the same commit passed in one run and was cancelled in another (PRs #34 and #35).
-    timeout-minutes: 30
+    # The suite takes 15 to 30 minutes on a hosted runner, by the runner, and grows with each
+    # step: the same commit passed in one run and was cancelled in another at a limit of 20
+    # (PRs #34 and #35) and again at 30 (PR #39).
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
