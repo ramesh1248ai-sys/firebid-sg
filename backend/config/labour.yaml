@@ -1,0 +1,95 @@
+# Labour estimation (FR-LAB-01, 02, 03; P2-05).
+#
+# EVERYTHING HERE IS "TO BE CONFIRMED": the multipliers and the rate tables are placeholders
+# until the company's productivity standards and labour rate tables arrive (business track).
+# The statutory values (the foreign worker levy, WICA insurance) are configuration: when one
+# changes, add a rate table with its effective date; do not edit an old one. A bid takes the
+# table in force on the day it is priced.
+
+# Multipliers on baseline hours (FR-LAB-02). Each has a value, a source and a rationale, and
+# is applied to a bid or a level only once an estimator confirms it.
+multipliers:
+  # By installation height: the ceiling height of the level. The first band the height fits.
+  height_bands:
+    - key: height_to_3m
+      label: "Installation height up to 3.0 m"
+      up_to_mm: 3000
+      value: 1.00
+      source: "Company standard (to be confirmed)"
+      rationale: "Worked from a step ladder or a low platform: the baseline's own condition."
+    - key: height_3m_to_4_5m
+      label: "Installation height 3.0 m to 4.5 m"
+      up_to_mm: 4500
+      value: 1.10
+      source: "Company standard (to be confirmed)"
+      rationale: "Mobile scaffold: time to move and climb it."
+    - key: height_4_5m_to_6m
+      label: "Installation height 4.5 m to 6.0 m"
+      up_to_mm: 6000
+      value: 1.25
+      source: "Company standard (to be confirmed)"
+      rationale: "Scissor lift or tower scaffold: slower handling of pipe at height."
+    - key: height_over_6m
+      label: "Installation height over 6.0 m"
+      value: 1.40
+      source: "Company standard (to be confirmed)"
+      rationale: "Boom lift or full scaffold, with work-at-height permits."
+  conditions:
+    - key: access_difficult
+      label: "Difficult access"
+      value: 1.15
+      source: "Company standard (to be confirmed)"
+      rationale: "Materials carried by hand to the work face; restricted working space."
+    - key: mep_congestion
+      label: "MEP congestion"
+      value: 1.20
+      source: "Company standard (to be confirmed)"
+      rationale: "Pipework threaded between other services; more offsets and rework."
+    - key: basement
+      label: "Basement"
+      value: 1.10
+      source: "Company standard (to be confirmed)"
+      rationale: "Poor light and ventilation; long horizontal carries."
+    - key: occupied_building
+      label: "Occupied or live building"
+      value: 1.25
+      source: "Company standard (to be confirmed)"
+      rationale: "Restricted hours, protection of finishes, isolations and permits."
+    - key: night_work
+      label: "Night work"
+      value: 1.20
+      source: "Company standard (to be confirmed)"
+      rationale: "Lower output at night; set-up and clear-away every shift."
+    - key: high_rise
+      label: "High-rise logistics"
+      value: 1.10
+      source: "Company standard (to be confirmed)"
+      rationale: "Hoist waiting time and vertical travel."
+
+# What the platform proposes from a bid's parameters, for an estimator to confirm.
+proposals:
+  # A level named B1, B2, BASEMENT ...
+  basement_levels: "^(B\\d+|BASEMENT.*)$"
+  # "levels_served" at or above this proposes high-rise logistics.
+  high_rise_from_levels: 20
+
+# Labour rate tables (FR-LAB-03). Monthly figures in SGD.
+rate_tables:
+  - effective_from: 2025-01-01
+    source: "Company labour rate table 2025 (to be confirmed)"
+    productive_hours_per_month: 208
+    # The share of hours worked as overtime, and what an overtime hour is paid at.
+    overtime: {share_percent: 10, premium: 1.5}
+    # One supervisor to this many workers.
+    supervision: {ratio: 8, grade: supervisor}
+    # Work injury compensation insurance, as a percentage of wages.
+    insurance_percent: 2.0
+    grades:
+      skilled: {label: "Skilled worker", wage: 2600, levy: 500, accommodation: 450, transport: 120}
+      general: {label: "General worker", wage: 1800, levy: 700, accommodation: 450, transport: 120}
+      supervisor: {label: "Supervisor", wage: 4200, levy: 0, accommodation: 0, transport: 200}
+    # Each trade's crew, as percentages of its hours by grade.
+    trades:
+      pipefitter: {label: "Pipefitter", crew: {skilled: 50, general: 50}}
+      sprinkler_fitter: {label: "Sprinkler fitter", crew: {skilled: 60, general: 40}}
+      mechanical_fitter: {label: "Mechanical fitter", crew: {skilled: 75, general: 25}}

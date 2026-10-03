@@ -94,6 +94,7 @@ def create_app(
         detections,
         documents,
         kpis,
+        labour,
         library,
         pricing,
         progress,
@@ -128,6 +129,8 @@ def create_app(
     app.include_router(pricing.rates_router)
     app.include_router(costing.router)
     app.include_router(costing.company_router)
+    app.include_router(labour.router)
+    app.include_router(labour.company_router)
     app.include_router(kpis.router)
     app.include_router(registers.router)
     app.include_router(addenda.router)
