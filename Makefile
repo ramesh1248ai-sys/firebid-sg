@@ -10,7 +10,7 @@ API_URL := http://$(STACK_HOST):$(or $(FIREBID_API_PORT),8000)
 PHASE ?=
 IDS ?=
 
-.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client data-inventory golden-template eval eval-docs eval-gate exit-report security ingest-benchmark pipeline-benchmark req-coverage check
+.PHONY: help bootstrap up down logs ps lint typecheck test test-integration e2e api-client data-inventory golden-template eval eval-docs eval-systems eval-gate exit-report security ingest-benchmark pipeline-benchmark req-coverage check
 
 help: ## List targets
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -94,8 +94,12 @@ exit-report: ## Write the Phase 1 exit report (P1-11); INDICATIVE=<dir> adds a r
 	cd backend && uv run firebid-eval --root ../eval exit --out ../docs/reports/phase1-exit.md \
 		$(if $(INDICATIVE),--indicative-root "$(INDICATIVE)") $(if $(LIVE),--live)
 
+eval-systems: ## Measure Phase 2 equipment and pipe detection (FR-VIS-04, FR-QTO-06)
+	cd backend && uv run firebid-eval --root ../eval run --suite p2_systems --report ../eval/results/p2_systems.md
+
 eval-gate: ## Fail if any metric has regressed against the accepted baseline (FR-LRN-01)
 	cd backend && uv run firebid-eval --root ../eval compare
+	cd backend && uv run firebid-eval --root ../eval compare --suite p2_systems
 
 golden-template: ## Write the estimator workbook for golden-set collection (decision D3)
 	cd backend && uv run firebid-eval template --out ../eval/templates/golden_takeoff.xlsx

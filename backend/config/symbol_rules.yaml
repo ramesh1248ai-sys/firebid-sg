@@ -25,3 +25,17 @@ rules:
   # a vertical pipe the plan cannot show the length of.
   - {match: '\b(REDUCER|CONCENTRIC|ECCENTRIC)\b', type: fitting}
   - {match: '\bRISER\b|\bRISING\s+MAIN\b', type: pipe}
+  # Phase 2 equipment (P2-01). A pump is told from what it serves: "HYDRANT PUMP" is a pump.
+  - {match: '\bJOCKEY\s+PUMP\b', type: jockey_pump}
+  - {match: '\b(FIRE|SPRINKLER|HYDRANT|HOSE\s*REEL|WET\s+RISER|DUTY|STANDBY)\s+PUMP\b(?!\s+(CONTROL|STARTER))', type: fire_pump}
+  - {match: '\bPUMP\s+(CONTROLLER|CONTROL\s+PANEL|STARTER\s+PANEL)\b', type: pump_controller}
+  - {match: '\b(FIRE\s+)?WATER\s+(STORAGE\s+)?TANK\b|\bSPRINKLER\s+TANK\b', type: fire_water_tank}
+  - {match: '\bBREECHING\s+INLET\b', type: breeching_inlet}
+  - {match: '\bLANDING\s+VALVE\b', type: landing_valve}
+  - {match: '\bHYDRANT\b(?!\s+(PUMP|MAIN|PIPE))', type: hydrant}
+  - {match: '\bHOSE\s*REEL\b(?!\s+(PUMP|PIPE|RISER))', type: hose_reel}
+  - {match: '\bTEST\s+HEADER\b|\bFLOW\s+TEST\b', type: test_header}
+  - {match: '\bDRY[-\s]?PIPE\s+VALVE\b', type: dry_pipe_valve_set}
+  - {match: '\bPRE[-\s]?ACTION\s+VALVE\b', type: pre_action_valve_set}
+  - {match: '\bDELUGE\s+VALVE\b', type: deluge_valve_set}
+  - {match: '\bAIR\s+COMPRESSOR\b', type: air_compressor}

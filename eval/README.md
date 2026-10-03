@@ -54,3 +54,28 @@ once the numbers have been reviewed:
 ```bash
 cd backend && uv run firebid-eval --root ../eval accept --suite doc_classification --approver "Name"
 ```
+
+## Phase 2 systems: the `p2_systems` suite
+
+```bash
+make eval-systems         # writes eval/results/p2_systems.md
+make eval-gate            # also compares this suite with eval/baselines/p2_systems.json
+```
+
+Scores equipment by type (pumps, tanks, breeching inlets, landing valves, hydrants, hose
+reels, test headers, valve sets, air compressors: FR-VIS-04, FR-QTO-06) and its pipe by size,
+with the platform's own pipeline. It reads a golden set when one is filed, the same way as
+`p1_detection`: truth in `eval/truth/p2_systems/<tender>.json`, drawings in
+`eval/files/p2_systems/<tender>/`, one file per sheet named by its drawing number. With none,
+it runs on a synthetic tender of four sheets (pump room, typical floor, site plan, riser
+schematic).
+
+The estimator workbook lists the new object types. `p1_detection` reports
+`equipment_count_accuracy` too, for a golden set whose truth counts equipment.
+
+The baseline in `eval/baselines/p2_systems.json` was written by the build step and names it
+as approver. Accept it under a person's name once the product owner has looked at it:
+
+```bash
+cd backend && uv run firebid-eval --root ../eval accept --suite p2_systems --approver "Name"
+```

@@ -64,6 +64,23 @@ class Run:
     scale: float | None = None  # drawing mm per sheet mm: the view's verified scale
     origin: str = "detected"  # detected | designed (proposed by the design rules, not drawn)
     evidence: dict[str, Any] = field(default_factory=dict)
+    # hydrant | hose_reel | rising_main | wet_riser | dry_riser | sprinkler, where what
+    # stands on the run's pipework says which (P2-01); None is the bid's own system.
+    system: str | None = None
+
+
+@dataclass(frozen=True)
+class ScheduleRow:
+    """A row of an equipment schedule drawn on a Current sheet (P2-01): what it states of
+    the equipment with this tag, in the row's own words."""
+
+    tag: str
+    values: dict[str, str]
+    quote: str
+    sheet_id: str
+    sheet_number: str
+    revision: str = ""
+    heading: str = ""
 
 
 @dataclass(frozen=True)
@@ -141,7 +158,8 @@ def key_of(*parts: Any) -> str:
 DESIGNED = "designed"
 
 
-LEVEL_IN_NUMBER = re.compile(r"(?:^|[-_])(L\d{1,2}|B\d{1,2}|RF)(?=[-_]|$)")
+# A site plan's sheet is of no storey: what it shows is located on the site (P2-01).
+LEVEL_IN_NUMBER = re.compile(r"(?:^|[-_])(L\d{1,2}|B\d{1,2}|RF|SITE|EXT)(?=[-_]|$)")
 
 
 def level_of(sheet_number: str | None, *known: str | None) -> str | None:

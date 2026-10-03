@@ -96,6 +96,10 @@ class TestTakeoff:
             "Fitting, DN150 (fitting reducer)": Decimal(1),
             "Tee, DN150xDN50 (rule-derived: not drawn)": Decimal(3),
             "Tee, DN100xDN50 (rule-derived: not drawn)": Decimal(3),
+            # Hangers by rule (P2-01), at the company default spacing: no specification here.
+            "Pipe hanger, DN50 (rule-derived: not drawn)": Decimal(24),
+            "Pipe hanger, DN100 (rule-derived: not drawn)": Decimal(3),
+            "Pipe hanger, DN150 (rule-derived: not drawn)": Decimal(2),
         }
         lengths = {k: v.length.mm for k, v in found.items() if v.length is not None}
         assert lengths["Pipe, DN150, main"] == 8_050

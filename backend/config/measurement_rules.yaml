@@ -53,4 +53,30 @@ rules:
     title: Allowances by item class
     status: to be confirmed
     definition:
-      percent: {pipe: 5, fitting: 0, sprinkler: 0, valve: 0, device: 0}
+      percent: {pipe: 5, fitting: 0, sprinkler: 0, valve: 0, device: 0, equipment: 0, support: 0}
+
+  - key: hanger_spacing
+    title: Hangers and supports by pipe size
+    status: to be confirmed
+    definition:
+      # The spacing comes from the verified specification, which is cited. Only where the
+      # specification is silent does this company default apply, and the item says so:
+      # each row is the largest pipe size its spacing applies up to.
+      default_spacing_mm:
+        - {up_to_dn: 50, spacing_mm: 3000}
+        - {up_to_dn: 100, spacing_mm: 4000}
+        - {up_to_dn: 999, spacing_mm: 4500}
+      # One hanger per spacing, or part of one, of the pipe measured at a size on a level.
+      run_classes: [main, branch]
+      # Systems whose pipe is not hung. Hydrant mains are taken from site plans and are
+      # buried; take the system out of this list where hydrant pipework runs above ground.
+      exclude_systems: [hydrant]
+
+  - key: seismic_restraint
+    title: Seismic restraint, only where the specification requires it
+    status: to be confirmed
+    definition:
+      # Nothing is taken off unless a verified specification attribute requires restraint.
+      lateral_spacing_mm: 12000
+      longitudinal_spacing_mm: 24000
+      min_dn: 65

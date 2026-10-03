@@ -65,6 +65,8 @@ SUITE = "p1_detection"
 METRICS = (
     "sprinkler_count_accuracy",
     "pipe_length_error",
+    # The Phase 2 equipment, where the golden set's truth counts any (P2-01).
+    "equipment_count_accuracy",
     "missed_item_rate",
     "false_detection_rate",
     "calibration_error",
@@ -82,8 +84,8 @@ class Suite:
     untyped: dict[str, list[str]] = field(default_factory=dict)
 
 
-def load_golden(root: Path) -> Suite | None:
-    truth_dir = root / "truth" / SUITE
+def load_golden(root: Path, suite: str = SUITE) -> Suite | None:
+    truth_dir = root / "truth" / suite
     if not truth_dir.exists() or not any(truth_dir.glob("*.json")):
         return None
     tenders = tuple(
@@ -93,12 +95,12 @@ def load_golden(root: Path) -> Suite | None:
     files = {
         tender.tender_id: sorted(
             path
-            for path in (root / "files" / SUITE / tender.tender_id).glob("*")
+            for path in (root / "files" / suite / tender.tender_id).glob("*")
             if path.suffix.lower() in (".pdf", ".dxf")
         )
         for tender in tenders
     }
-    return Suite(GoldenSet(name=SUITE, tenders=tenders), files, synthetic=False)
+    return Suite(GoldenSet(name=suite, tenders=tenders), files, synthetic=False)
 
 
 def generate(

@@ -1518,3 +1518,82 @@ Entry template:
 - **Not done: a file is still read whole.** One file at a time is held in memory: up to 200 MB on the direct route, and any size at all on the presigned route (`/uploads/complete` fetches the object to check its digest and scan it). Streaming it means a file-like path through detection, the scanner, the store and archive expansion, and the parsers downstream still take whole files. Recorded as a follow-up, not attempted here.
 - **Cost:** an archive is decompressed twice.
 - **Tests:** `tests/db/test_document_ingestion.py` (an archive is taken a file at a time; one refused part of the way in stores none of it), `tests/db/test_document_api.py` (a file over the limit is refused before any file is stored).
+
+## P2-01 · Extended Fire Protection Systems and Supports · 2026-10-03
+
+- **Summary:** detection and takeoff now reach past wet-pipe sprinklers.
+  - **Object library:** 13 new canonical types, each with its attribute schema: fire pump (duty or standby is an attribute), jockey pump, pump controller, fire water tank, breeching inlet, landing valve, hydrant, hose reel, test header, air compressor (category `equipment`), and dry-pipe, pre-action and deluge valve sets (category `valve`). Keyword rules type their legend rows as consultants name them.
+  - **Detection (FR-VIS-04):** equipment is found by legend mapping and symbol matching like every other symbol. Each item of equipment carries the tag written beside it ("FP-01"). Pipe stops at equipment as it does at a valve. Each run records the system its pipework belongs to (hydrant, hose reel, rising main, wet or dry riser, sprinkler), from what stands on it and from how a riser is named.
+  - **Schedules:** an equipment schedule drawn on a sheet (a heading with SCHEDULE, a header row with a tag column, a row per tag) gives each tagged item its duty, flow, head and power. A flow is brought to L/min from L/s or m3/h by the column's own unit. Each attribute cites the schedule row, by sheet, in the row's words.
+  - **Takeoff (FR-QTO-06):** equipment is counted by type and attributes, with evidence. Equipment drawn only on a schematic (a breeching inlet, often the pumps) is counted from the schematic; equipment of a type a plan shows is not counted again. A rising main is measured by the P1-07 riser rule, with each level's floor-to-floor height taken from the level schedule a schematic or section gives ("L03 FFL +9.000"). Hydrant pipe is measured from the site plan at verified scale, as an item of its own, with the hydrant section's specification attributes.
+  - **Hangers and supports (FR-QTO-07):** one hanger per spacing, or part of one, of the pipe measured at a size on a level. The spacing is the verified specification's (attributes `hanger_spacing_mm`, read by rule with its size range and clause) or, where the specification is silent, the company default in the new `hanger_spacing` rule; the item says which and cites it. Seismic braces (lateral and longitudinal, rule `seismic_restraint`) are generated only where a verified `seismic_restraint` attribute requires them.
+  - **Evaluation:** a new suite, `p2_systems`, with a synthetic tender of four sheets (pump room, typical floor, site plan, riser schematic), a new metric `equipment_count_accuracy`, a baseline, and `make eval-gate` compares it.
+- **Key modules / files:**
+  - `backend/src/firebid/drawings/equipment.py` (new, pure): `tags`, `schedules`, `level_marks`, `level_at`, `system_of`.
+  - `drawings/detection.py`: tags, systems, a level for what a schematic draws; `DETECTOR_VERSION` is `2`, so every sheet is detected again once. `drawings/pipe_network.py`: equipment is a network node and votes for the pipe layer.
+  - `backend/src/firebid/qto/hangers.py` (new, pure): `derive`, `spacing_for`, `default_spacing`, `count`.
+  - `qto/generate.py`: equipment items, schedule citations, a run's own system and its specification (`_spec_of`), the rising main's name. `qto/dedup.py`: schematic-only equipment is kept. `qto/rules.py`: `level_parameters`. `qto/model.py`: `Run.system`, `ScheduleRow`; a `SITE` or `EXT` drawing number gives that as the level.
+  - `services/qto.py`: `sheet_texts` (one query a recompute), `note_parameters` (ceiling notes and level schedules), `schedule_rows`; `rule_rows` seeds rules an organisation has never had. `services/object_library.py`: `ensure_seeded` adds types an organisation has never had.
+  - `specs/attributes.py`: hanger spacing and seismic restraint (`RULES_VERSION` is `spec-rules-2`).
+  - `evals/`: `synthetic_systems.py`, `p2_systems.py`, `metrics.equipment_count_accuracy`, new `ObjectType` values; `synthetic_spec.with_supports`.
+  - Configuration: `config/object_library.yaml`, `config/symbol_rules.yaml`, `config/measurement_rules.yaml` (`hanger_spacing`, `seismic_restraint`, allowance classes `equipment` and `support`), `config/boq_templates.yaml` (groups Equipment, Hangers and supports).
+  - No migration, and no API change: the new data is in existing JSON columns (`detected_object.attributes`, `pipe_run.features`, `qto_item.attributes`).
+- **How to run and demo:**
+  1. `make up`. Create a bid whose design consultant is `DELTA M&E CONSULTANTS PTE LTD` and upload the four sheets written by `firebid-eval run --suite p2_systems` (under `eval/synthetic/p2_systems/SYS-001/`).
+  2. Confirm the legend on the **Symbols** page: the keyword rules propose every row.
+  3. `GET /bids/{id}/qto/items`: the duty and standby pumps as separate items with flow, head and power from the schedule; a breeching inlet from the schematic; the rising main at 4.500 m with the level schedule as its source; the hydrant main at 26.250 m; hangers citing the company default.
+  4. `make eval-systems` writes `eval/results/p2_systems.md`; `make eval-gate` compares it with its baseline.
+- **Requirement IDs covered (test names):**
+  - FR-VIS-04:
+    - `tests/drawings/test_equipment.py`: tags, schedules (units, stray words between rows, blank cells), level marks, systems, and the legend rules for every new type.
+    - `tests/qto/test_systems.py::TestDetection`: every type on every sheet with the exact count; tags with their words as evidence; pipe by size and system; no length from the schematic.
+    - `tests/db/test_systems_takeoff.py::TestDetections`, and `TestAnOrganisationFromBeforeThisStep` (an existing library gains the types).
+    - `tests/evals/test_p2_systems_suite.py`.
+  - FR-QTO-06:
+    - `tests/qto/test_systems.py::TestTakeoff`: each type counted once across plans and schematic; attributes cite the schedule row; the breeching inlet kept from the schematic; the rising main from the level schedule; hydrant pipe with the hydrant specification; the same items on a second takeoff.
+    - `tests/db/test_systems_takeoff.py::TestTakeoff`: the same through the parse pipeline and the database, with complete evidence records and an idempotent recompute.
+  - FR-QTO-07:
+    - `tests/qto/test_hangers.py`: hand calculations (72,000 / 3,000 = 24; 8,250 / 4,000 = 3; 8,050 / 4,000 = 3); the clause cited; the company default cited when the specification is silent; an edited rule as version 2; no double count across a match line; seismic braces only for the specification that requires them, citing its clause; a buried hydrant main not hung.
+    - `tests/specs/test_extraction.py::TestSupports`: spacing by size range from the clause; a spacing figure not taken for a pipe size; "not required".
+    - `tests/db/test_systems_takeoff.py::TestHangers`, and an existing organisation gaining the two rules.
+- **Evaluation (`firebid-eval run --suite p2_systems`, synthetic tender, DXF):**
+
+  | Metric | Value |
+  |---|---|
+  | equipment_count_accuracy | 1.0 (13 types, 4 sheets) |
+  | pipe_length_error | 0.0 |
+  | missed_item_rate | 0.0 |
+  | false_detection_rate | 0.0 |
+  | duplicate_detection_rate | 1.0 |
+
+  The legend rows are typed by the keyword rules alone. There is no golden set, so none of this is a real-world figure.
+- **Deviations and decisions:**
+  - **No plan-and-approve pause.** The step prompt asks for a plan first; the owner's standing preference is to implement directly.
+  - **The suite is new (`p2_systems`), not an extension of `p1_detection`,** so each has its own baseline. `p1_detection` reports `equipment_count_accuracy` as well, for a golden set whose truth counts equipment.
+  - **The baseline's approver is the build step.** `eval/baselines/p2_systems.json` names "P2-01 build (to be confirmed by the product owner)". A person should accept it under their own name.
+  - **Hangers are counted on total length, not run by run.** Runs are cut at every tee and valve, so a count per run would put a hanger on every 200 mm stub. Length over spacing, rounded up, per size and level, is what an estimator calculates by hand.
+  - **Hanger and brace items are always taken off** when the rules exist, so every existing takeoff gains hanger items at its next recompute, as proposals. A verified one becomes a line of the company BOQ like any other item. The BOQ convention `hangers` (deemed included by default) is still wording for the qualifications only, as the `fittings` convention is: it does not take lines out of the bill. Three existing tests that list a takeoff or a bill in full were updated for the new items (`tests/boq/test_generate.py`, `tests/db/test_pricing.py`, `tests/db/test_qto.py`).
+  - **A hydrant main is not hung** (`exclude_systems: [hydrant]` in the rule): it is taken from a site plan and is buried. The rule is editable where it is not.
+  - **Seed defaults, all "to be confirmed":** hanger spacing 3,000 mm to DN50, 4,000 to DN100, 4,500 above; seismic braces at 12,000 mm (lateral) and 24,000 mm (longitudinal) from DN65.
+  - **Only a landing valve takes the size of its pipe.** A pump's suction and discharge differ, and neither is its size.
+  - **Keys of existing items are unchanged.** A run's system is part of a pipe item's key only when it is not the bid's own system, so items taken off before this step keep their keys and their verification.
+  - **Existing organisations gain the new types and rules** the next time their library or rules are read. Nothing they have is changed.
+  - **Items on a site plan have the level `SITE`,** and what a schematic draws has the level it names nearest. An evidence record needs a level (FR-QTO-09), and these had none.
+- **Manual checks and results:**
+  - The synthetic tender through the parse pipeline and database in `tests/db/test_systems_takeoff.py`: 12 passed. Not run on the local stack through the browser.
+  - `make check` on the first full run: lint and types clean; backend 1,754 passed and 3 failed, all three being full listings that now include hanger items. They were updated and re-run.
+- **Defects found and fixed during the step:**
+  - The schedule reader stopped at the first row: the fixture's grid bubbles lie between its rows. Words that do not start at the tag column are now passed over, and the table is bounded by its own columns.
+  - Four items had incomplete evidence (no level): the site plan's and the schematic's. Fixed as described under decisions.
+- **Known gaps and follow-ups:**
+  - **No golden set.** Tenders with pump rooms, hydrants and hose reels are needed (business track) before any figure here means anything on real drawings.
+  - **PDF is not measured.** The fixtures are DXF, where a block is matched exactly. On a PDF the new symbols are matched by shape, and how well they are told apart is unknown.
+  - **Confidence is not calibrated for equipment.** The calibration map was fitted on sprinkler installations; `calibration_error` is left out of the suite. Refit with golden-set outcomes.
+  - **Schedules in a specification are not read** (P1-06 reads no tables). Only schedules drawn on sheets are.
+  - **A schedule row with no symbol is not reported.** A pump scheduled but drawn nowhere is silently absent from the takeoff.
+  - **The model route does not read the new specification attributes.** `hanger_spacing_mm` and `seismic_restraint` are read by rule only; the `spec_attribute_extract` prompt and schema are unchanged.
+  - **Buried and above-ground pipe are not told apart.** Hydrant pipe is one item whatever the sheet.
+  - **Proposed (designed) range pipe gets no hangers,** and nor do drops or risers.
+  - **Pipe runs are still not identified from legend line styles** (the Phase 1 gap list named P2-01 for it; it was outside this step's prompt).
+  - **Pump room pipework takes the rising main's system** when the riser symbol is on it, so its pipe is described as wet rising main.
+  - **The workbench and BOQ pages were not changed.** Equipment and support items appear in the existing lists; the BOQ template seed has groups for them, which existing organisations' templates do not gain.

@@ -66,6 +66,10 @@ class TestGeneration:
             ("A13", "Tee, DN150xDN50 (rule-derived)", "nr", "3.000"),
             ("A14", "150 mm check valve", "nr", "1.000"),
             ("A15", "150 mm gate valve", "nr", "1.000"),
+            # Hangers by rule (P2-01): the company default spacing, no specification for it.
+            ("A16", "Pipe hanger, DN100 (rule-derived: not drawn)", "nr", "3.000"),
+            ("A17", "Pipe hanger, DN150 (rule-derived: not drawn)", "nr", "2.000"),
+            ("A18", "Pipe hanger, DN50 (rule-derived: not drawn)", "nr", "24.000"),
         ]
         assert {ln.section for ln in lines} == {"FIRE SPRINKLER INSTALLATION"}
         heads = by_description[("Sprinkler heads", "Pendent sprinkler head, K80, chrome finish")]

@@ -2,7 +2,9 @@
 #
 # Loaded into an organisation's library the first time it is needed, as version 1 of each
 # type. After that the library is edited through the admin screen, and every edit is a new
-# version: this file is never read again for an organisation that has a library.
+# version: nothing here ever changes a type an organisation already has. A type added to this
+# file by a later release (the Phase 2 equipment, P2-01) is added to an existing library as
+# its version 1, the next time the library is used.
 #
 # `measure` is how the QTO engine takes a type off a drawing: `count` (each instance),
 # `length` (along its run) or `none` (not an installed object: nothing is taken off).
@@ -18,6 +20,16 @@ valve_attributes: &valve
   nominal_diameter_mm: {type: number, unit: mm}
   end_connection: {type: enum, values: [flanged, grooved, threaded]}
   supervised: {type: enum, values: ["yes", "no"]}
+
+pump_attributes: &pump
+  duty: {type: enum, values: [duty, standby]}
+  driver: {type: enum, values: [electric, diesel]}
+  flow_l_min: {type: number, unit: "L/min"}
+  head_m: {type: number, unit: m}
+  power_kw: {type: number, unit: kW}
+
+valve_set_attributes: &valve_set
+  nominal_diameter_mm: {type: number, unit: mm}
 
 types:
   - {key: sprinkler_pendent, label: "Sprinkler, pendent", category: sprinkler, measure: count, attributes: *sprinkler}
@@ -57,6 +69,54 @@ types:
     category: device
     measure: count
     attributes: {}
+  # Phase 2 systems (FR-VIS-04, FR-QTO-06). Equipment is counted, each with the tag written
+  # beside it and whatever its schedule states (duty, flow, head).
+  - {key: fire_pump, label: "Fire pump", category: equipment, measure: count, attributes: *pump}
+  - key: jockey_pump
+    label: "Jockey pump"
+    category: equipment
+    measure: count
+    attributes:
+      flow_l_min: {type: number, unit: "L/min"}
+      head_m: {type: number, unit: m}
+      power_kw: {type: number, unit: kW}
+  - {key: pump_controller, label: "Pump controller", category: equipment, measure: count, attributes: {}}
+  - key: fire_water_tank
+    label: "Fire water tank"
+    category: equipment
+    measure: count
+    attributes:
+      capacity_m3: {type: number, unit: m3}
+      material: {type: text}
+  - key: breeching_inlet
+    label: "Breeching inlet"
+    category: equipment
+    measure: count
+    attributes:
+      inlets: {type: enum, values: ["2-way", "4-way"]}
+  - key: landing_valve
+    label: "Landing valve"
+    category: equipment
+    measure: count
+    attributes:
+      nominal_diameter_mm: {type: number, unit: mm}
+  - key: hydrant
+    label: "Hydrant"
+    category: equipment
+    measure: count
+    attributes:
+      pattern: {type: enum, values: [pillar, ground]}
+  - key: hose_reel
+    label: "Hose reel"
+    category: equipment
+    measure: count
+    attributes:
+      hose_length_m: {type: number, unit: m}
+  - {key: test_header, label: "Test header (flow-test arrangement)", category: equipment, measure: count, attributes: {}}
+  - {key: dry_pipe_valve_set, label: "Dry-pipe valve set", category: valve, measure: count, attributes: *valve_set}
+  - {key: pre_action_valve_set, label: "Pre-action valve set", category: valve, measure: count, attributes: *valve_set}
+  - {key: deluge_valve_set, label: "Deluge valve set", category: valve, measure: count, attributes: *valve_set}
+  - {key: air_compressor, label: "Air compressor", category: equipment, measure: count, attributes: {}}
   # Not an object: a grid bubble, a north point, a section mark. Mapping a symbol here is a
   # decision that it is never taken off, and it stops the symbol being raised as unmapped.
   - key: not_an_object

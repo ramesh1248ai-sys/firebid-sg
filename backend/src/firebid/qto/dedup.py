@@ -9,7 +9,9 @@ whatever its scale. Three kinds of repetition are found:
   position on both, and pipe drawn along the same line on both;
 * **schematic or section:** everything on a schematic, section, elevation or detail view. By
   default it does not count against plan items: its group is created resolved as excluded,
-  with the reason, and a person may reverse it.
+  with the reason, and a person may reverse it. Equipment is the exception (P2-01): pumps,
+  tanks and breeching inlets are often drawn on a schematic and on no plan at all, so
+  equipment of a type no plan shows is kept, and counted from the schematic.
 
 One group per pair of sheets (or per schematic sheet), listing every repeated member with
 its evidence location. In a plan group the general plan's member is kept and the other is
@@ -84,8 +86,16 @@ def find(detections: list[Detection], runs: list[Run]) -> list[Group]:
 
     # Schematics and sections: excluded by default, one group per sheet.
     everything: list[Detection | Run] = [*detections, *runs]
+    on_plans = {
+        d.object_type for d in detections if d.category == "equipment" and d.at.view_kind in PLANS
+    }
     for item in everything:
         if item.at.view_kind in NOT_PLANS:
+            only_here = (
+                isinstance(item, Detection)
+                and item.category == "equipment"
+                and item.object_type not in on_plans
+            )
             key = key_of("schematic", item.at.sheet_id)
             group = groups.setdefault(
                 key,
@@ -97,7 +107,7 @@ def find(detections: list[Detection], runs: list[Run]) -> list[Group]:
                     "against them by default",
                 ),
             )
-            group.members.append(_member(item, keep=False))
+            group.members.append(_member(item, keep=only_here))
 
     plan_detections = [d for d in detections if d.at.view_kind in PLANS and d.grid_index]
     by_level: dict[str | None, list[Detection]] = defaultdict(list)

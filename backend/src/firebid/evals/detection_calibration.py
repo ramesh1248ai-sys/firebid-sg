@@ -46,11 +46,14 @@ def _kinds() -> dict[str, Any]:
     return {kind.key: kind for kind in seed_types()}
 
 
-def type_of_factory() -> Any:
+def type_of_factory(described: dict[str, str] | None = None) -> Any:
+    """What a legend row is, as a person would confirm it: `described` maps a fixture's
+    legend descriptions to object types (the synthetic network's by default)."""
     kinds = _kinds()
+    known = DESCRIBED if described is None else described
 
     def type_of(description: str) -> TypeInfo | None:
-        key = DESCRIBED.get(description)
+        key = known.get(description)
         if key is None:
             return None
         kind = kinds[key]

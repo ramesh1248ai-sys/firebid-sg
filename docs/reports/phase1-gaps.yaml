@@ -22,7 +22,9 @@ gaps:
     cause: >-
       Pipework legend rows (a sample of line) are recognised and kept out of symbol matching,
       but are not yet used to pick out pipe runs on a PDF.
-    action: "Phase 2 (P2-01): line-style classification from legend samples."
+    action: >-
+      Line-style classification from legend samples. Not done in P2-01, whose scope was
+      equipment and supports: it needs its own step, measured on the 6405 sample.
   - gap: "No model path has run against a real provider"
     cause: >-
       No API key on any environment; decision D2 (provider data terms and hosting) is open.

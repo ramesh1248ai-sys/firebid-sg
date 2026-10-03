@@ -1,13 +1,15 @@
-"""Detections: every installed object and pipe run on a sheet, as proposals (FR-VIS-03/09).
+"""Detections: every installed object and pipe run on a sheet, as proposals (FR-VIS-03/04/09).
 
 From the confirmed symbols and the pipe network, one sheet yields:
 
-* **objects**: sprinklers, valves, devices and fittings, one per installed symbol, with its
-  orientation where the symbol shows one;
+* **objects**: sprinklers, valves, devices, fittings and equipment (pumps, tanks, breeching
+  inlets, hydrants, hose reels, landing valves), one per installed symbol, with its
+  orientation where the symbol shows one, and for equipment the tag written beside it;
 * **risers**: a riser symbol is a vertical pipe the plan cannot show the length of;
 * **drops**: one at every sprinkler on the network, "vertical, not drawn", for P1-07's rules
   to give a length;
-* **runs**: each pipe run with its class (main or branch), size and length.
+* **runs**: each pipe run with its class (main or branch), size and length, and the system
+  it belongs to where what stands on its pipework says (`equipment.system_of`).
 
 Every detection carries where it is (view, grid reference, level, sheet position), how it
 was found (method), what it was found from (geometry rows, symbol instance, labels), the
@@ -28,15 +30,21 @@ from typing import Any
 
 import pyarrow as pa
 
-from firebid.drawings import pipe_sizes
+from firebid.drawings import equipment, pipe_sizes
 from firebid.drawings.geometry import texts
 from firebid.drawings.grids import GridSystem
 from firebid.drawings.pipe_network import Network, Placed, Profile, build
 
 # Bump when detection changes what it produces.
-DETECTOR_VERSION = "1"
+DETECTOR_VERSION = "2"
 # A symbol found only by vision never starts above this (P1-05 build item 6).
 VISION_CAP = 0.5
+# A sprinkler or valve off the pipework is doubtful. Equipment is less so: a tank, a pump
+# controller or an air compressor is often drawn with no pipe to it.
+OFF_NETWORK = 0.55
+EQUIPMENT_OFF_NETWORK = 0.85
+# Views that are of no one level.
+NOT_PLANS = ("schematic", "section", "elevation", "detail")
 
 
 @dataclass(frozen=True)
@@ -92,6 +100,7 @@ class DetectedRun:
     features: dict[str, float | str | bool]
     raw_confidence: float
     calibrated_confidence: float | None = None
+    system: str | None = None  # hydrant | hose_reel | rising_main | ... where the sheet says
 
 
 @dataclass
@@ -125,7 +134,8 @@ def symbol_score(symbol: Placed, on_network: bool) -> tuple[float, dict[str, flo
         match = VISION_CAP
     else:
         match = max(0.0, 1.0 - 0.5 * symbol.match_distance / max(symbol.tolerance, 1e-6))
-    topology = 1.0 if on_network else 0.55
+    off = EQUIPMENT_OFF_NETWORK if symbol.category == "equipment" else OFF_NETWORK
+    topology = 1.0 if on_network else off
     raw = match * topology
     if symbol.method == "vision":
         raw = min(raw, VISION_CAP)
@@ -221,6 +231,14 @@ def detect(
     for run in network.runs:
         for index in run.sprinklers:
             run_of_sprinkler[index] = run.id
+    systems = _systems(network, placed)
+    spans = texts(table)
+    tagged = equipment.tags(
+        [(symbol.cx, symbol.cy, 2 * symbol.radius) for symbol in placed],
+        spans if any(symbol.category == "equipment" for symbol in placed) else [],
+    )
+
+    marks = equipment.level_marks(spans)
 
     objects: list[Detected] = []
     for index, symbol in enumerate(placed):
@@ -230,7 +248,7 @@ def detect(
         on_network = node is not None and node in network.graph
         raw, features = symbol_score(symbol, on_network)
         view, grid_reference = _where(views, symbol.cx, symbol.cy)
-        evidence = {
+        evidence: dict[str, Any] = {
             "geometry_rows": list(symbol.rows),
             "symbol_instance_id": symbol.instance_id,
             "network_node": node if on_network else None,
@@ -240,6 +258,23 @@ def detect(
         attributes = dict(symbol.attributes)
         if kind == "riser":
             attributes.update({"run_class": "riser", "vertical_not_drawn": True})
+            system = (
+                systems.get(node) if on_network and node is not None else None
+            ) or equipment.system_of(set(), set(), [symbol.description or ""])
+            if system:
+                attributes["system"] = system
+        tag = tagged.get(index) if symbol.category == "equipment" else None
+        if tag is not None:
+            attributes["tag"] = tag.tag
+            evidence["tag"] = {"text": tag.text, "distance_mm": tag.distance_mm}
+        level = view.level if view else None
+        if level is None and (view is None or view.kind in NOT_PLANS):
+            # A schematic or section is of no one level: what it draws is on the level it
+            # names nearest, where it names its levels.
+            mark = equipment.level_at(marks, symbol.cy)
+            if mark is not None:
+                level = mark.level
+                evidence["level_from"] = mark.text
         objects.append(
             Detected(
                 kind=kind,
@@ -251,7 +286,7 @@ def detect(
                 box=symbol.box,
                 view=view,
                 grid_reference=grid_reference,
-                level=view.level if view else None,
+                level=level,
                 evidence=evidence,
                 features=features,
                 raw_confidence=raw,
@@ -296,6 +331,9 @@ def detect(
         view, grid_reference = _where(views, *middle)
         paper = run.length(network)
         raw, features = run_score(size, fits[run.id])
+        system = systems.get(run.nodes[0])
+        if system:
+            features["system"] = system
         runs.append(
             DetectedRun(
                 run_id=run.id,
@@ -315,9 +353,27 @@ def detect(
                 rows=sorted({row for e in run.edges for row in network.edges[e].rows}),
                 features=features,
                 raw_confidence=raw,
+                system=system,
             )
         )
     return SheetDetections(objects, runs, network, network.pipe_key)
+
+
+def _systems(network: Network, placed: list[Placed]) -> dict[int, str]:
+    """Each network node's system, for the nodes of pipework that says which it is."""
+    import networkx as nx
+
+    out: dict[int, str] = {}
+    for component in nx.connected_components(network.graph):
+        on_it = [placed[network.node_symbol[n]] for n in component if n in network.node_symbol]
+        system = equipment.system_of(
+            {symbol.object_type for symbol in on_it},
+            {symbol.category for symbol in on_it},
+            [symbol.description or "" for symbol in on_it if symbol.category == "pipe"],
+        )
+        if system:
+            out.update(dict.fromkeys(component, system))
+    return out
 
 
 def _method(symbol: Placed) -> str:

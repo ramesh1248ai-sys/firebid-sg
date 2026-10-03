@@ -72,13 +72,19 @@ def _check(measure: str, attributes: dict[str, Any]) -> None:
 
 
 def ensure_seeded(session: Session, organisation_id: uuid.UUID) -> None:
-    """Give an organisation its library the first time it is needed."""
-    exists = session.execute(
-        select(ObjectType.id).where(ObjectType.organisation_id == organisation_id).limit(1)
-    ).first()
-    if exists:
+    """Give an organisation its library the first time it is needed, and afterwards any
+    type a later release added to the seed (the Phase 2 equipment, P2-01).
+
+    A type the organisation has, at any version, deprecated or not, is never touched."""
+    known = set(
+        session.execute(
+            select(ObjectType.key).where(ObjectType.organisation_id == organisation_id).distinct()
+        ).scalars()
+    )
+    missing = [spec for spec in seed_types() if spec.key not in known]
+    if not missing:
         return
-    for spec in seed_types():
+    for spec in missing:
         session.add(
             ObjectType(
                 # The clock, not the transaction's start: versions made in one transaction

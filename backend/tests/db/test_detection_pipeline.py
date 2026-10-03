@@ -39,8 +39,13 @@ from tests.db.test_symbol_mapping import (  # noqa: F401
 PERSON = Actor(label="Esther Tan", roles=frozenset({"estimator"}))
 
 
-def confirm_legend(session: Session, bid: Bid, store: MemoryObjectStore) -> None:
-    """A person confirms every legend row as what it is.
+def confirm_legend(
+    session: Session,
+    bid: Bid,
+    store: MemoryObjectStore,
+    described: dict[str, str] = DESCRIBED,
+) -> None:
+    """A person confirms every legend row as what it is (`described`: the fixture's rows).
 
     The upright, which no keyword rule reads, waits for the model; here the model is
     unavailable, so it is left for a person with no proposed type, and they give it one.
@@ -58,7 +63,7 @@ def confirm_legend(session: Session, bid: Bid, store: MemoryObjectStore) -> None
         if lineage is None or lineage in done:
             continue
         done.add(lineage)
-        key = DESCRIBED[entry.description]
+        key = described[entry.description]
         symbol_service.confirm(
             session,
             lineage,

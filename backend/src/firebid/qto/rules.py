@@ -15,8 +15,10 @@ Pure: rules and parameters in, quantities out.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -107,6 +109,22 @@ def riser_length(rule: Rule, parameters: list[Parameter], level: str | None) -> 
     height = value_of("floor_to_floor_mm", rule, parameters, level)
     served = value_of("levels_served", rule, parameters, level)
     return Derived(rule, round(height.value * served.value), (height, served))
+
+
+def level_parameters(sheet_number: str, marks: Sequence[Any]) -> list[Parameter]:
+    """Each level's floor-to-floor height, from the levels a sheet names with their floor
+    levels (`drawings.equipment.level_marks`, lowest first): the height from one to the
+    next above it. The riser rule then measures a rising main level by level (P2-01)."""
+    return [
+        Parameter(
+            "floor_to_floor_mm",
+            float(above.elevation_mm - low.elevation_mm),
+            f"level schedule on sheet {sheet_number}: '{low.text}' to '{above.text}'",
+            low.level,
+        )
+        for low, above in pairwise(marks)
+        if above.elevation_mm > low.elevation_mm
+    ]
 
 
 def couplings(rule: Rule, length_mm: int, connected_ends: int) -> Derived:

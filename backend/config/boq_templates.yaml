@@ -24,6 +24,8 @@ templates:
         - {key: pipework, heading: "Pipework", classes: [main, branch, drop, riser], by: building}
         - {key: fittings, heading: "Fittings", classes: [fitting], by: building}
         - {key: valves, heading: "Valves and ancillaries", classes: [valve, device], by: building}
+        - {key: equipment, heading: "Equipment", classes: [equipment], by: building}
+        - {key: supports, heading: "Hangers and supports", classes: [support], by: building}
       units: {"no": nr, "m": m}
       descriptions:
         sprinkler_pendent: ["Pendent sprinkler head", ", {response} response", ", K{k_factor}", ", {temperature_rating_c}°C", ", {finish} finish"]

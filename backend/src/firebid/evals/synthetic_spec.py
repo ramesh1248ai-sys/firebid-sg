@@ -75,6 +75,34 @@ CLAUSES: tuple[tuple[str, str, str], ...] = (
 )
 
 
+# Supports (P2-01), as a clause of the sprinkler section a specification may or may not
+# have: hanger spacing by size, and, on a project that calls for it, seismic restraint.
+SUPPORT_CLAUSES: tuple[tuple[str, str, str], ...] = (
+    ("2.3", "Supports", ""),
+    (
+        "2.3.1",
+        "",
+        "Hangers for pipes up to and including DN 50 shall be spaced at not more than 3.0 m "
+        "centres. Hangers for pipes DN 65 and above shall be fixed at intervals not exceeding "
+        "4000 mm.",
+    ),
+)
+SEISMIC_CLAUSES: tuple[tuple[str, str, str], ...] = (
+    (
+        "2.3.2",
+        "",
+        "Seismic bracing shall be provided to all sprinkler pipework DN 65 and above.",
+    ),
+)
+
+
+def with_supports(seismic: bool = False) -> tuple[tuple[str, str, str], ...]:
+    """The specification with its supports clauses, placed at the end of section 2."""
+    at = next(i for i, clause in enumerate(CLAUSES) if clause[0] == "3")
+    extra = SUPPORT_CLAUSES + (SEISMIC_CLAUSES if seismic else ())
+    return (*CLAUSES[:at], *extra, *CLAUSES[at:])
+
+
 @dataclass(frozen=True)
 class Expected:
     system: str
@@ -121,8 +149,19 @@ EXPECTED: tuple[Expected, ...] = (
 )
 
 
+EXPECTED_SUPPORTS: tuple[Expected, ...] = (
+    Expected("sprinkler", "hanger_spacing_mm", "3000", "2.3.1", None, 50),
+    Expected("sprinkler", "hanger_spacing_mm", "4000", "2.3.1", 65, None),
+)
+EXPECTED_SEISMIC: tuple[Expected, ...] = (
+    Expected("sprinkler", "seismic_restraint", "required", "2.3.2", 65, None),
+)
+
+
 def specification_docx(
-    title: str = "PARTICULAR SPECIFICATION FOR FIRE PROTECTION SERVICES", revision: str = "Rev B"
+    title: str = "PARTICULAR SPECIFICATION FOR FIRE PROTECTION SERVICES",
+    revision: str = "Rev B",
+    clauses: tuple[tuple[str, str, str], ...] = CLAUSES,
 ) -> bytes:
     """The specification as a Word document: heading styles for sections, numbered text."""
     import docx
@@ -131,7 +170,7 @@ def specification_docx(
     document.core_properties.title = title
     document.add_paragraph(title, style="Title")
     document.add_paragraph(f"Revision {revision}")
-    for number, heading, body in CLAUSES:
+    for number, heading, body in clauses:
         depth = number.count(".")
         if not body:
             document.add_heading(f"{number} {heading}", level=min(depth + 1, 3))
