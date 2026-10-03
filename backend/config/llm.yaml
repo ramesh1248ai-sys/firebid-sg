@@ -126,6 +126,17 @@ routes:
     max_output_tokens: 4000
     prompt: spec_attribute_extract
 
+  # Reads what specification clauses oblige the contractor to do, for clauses the obligation
+  # rules put in no category (P2-03). Asked for by a person, not queued when a
+  # specification is read. Sent the specification's text, as `spec_attribute_extract` is.
+  spec_obligation_extract:
+    requires: [structured_output]
+    data_class: confidential
+    models: [claude-opus-5, gpt-5.1, gemini-3-pro]
+    reasoning: low
+    max_output_tokens: 4000
+    prompt: spec_obligation_extract
+
   # Says which fire protection system a specification section heading is about, when the
   # heading rules could not (P1-06). Headings only.
   spec_section_find:

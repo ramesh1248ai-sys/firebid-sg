@@ -6,6 +6,8 @@ import { api, apiErrorMessage } from "@/api/client";
 import type { components } from "@/api/schema";
 import { Button } from "@/components/ui/button";
 
+import { type Cited, SpecAnalysis } from "./SpecAnalysis";
+
 /**
  * The specification attributes takeoff will use (FR-SPEC-01, FR-SPEC-05).
  *
@@ -41,7 +43,7 @@ function sizes(row: Attribute): string {
 
 export function SpecificationPage() {
   const { bidId = "" } = useParams();
-  const [open, setOpen] = useState<Attribute | null>(null);
+  const [open, setOpen] = useState<Cited | null>(null);
   const rows = useQuery({
     queryKey: ["spec", bidId, "attributes"],
     queryFn: async (): Promise<Attribute[]> => {
@@ -81,6 +83,7 @@ export function SpecificationPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-6">
+          <SpecAnalysis bidId={bidId} onOpenClause={setOpen} />
           {[...bySystem.entries()].map(([system, items]) => (
             <div key={system} className="space-y-2">
               <h2 className="text-lg font-medium">
@@ -259,7 +262,7 @@ function ClausePanel({
   onClose,
 }: {
   bidId: string;
-  row: Attribute;
+  row: Cited;
   onClose: () => void;
 }) {
   const clause = useQuery({
@@ -289,7 +292,8 @@ function ClausePanel({
         <div>
           <div className="font-medium">Clause {row.clause_number}</div>
           <div className="text-xs text-muted-foreground">
-            {row.document_title} · {row.revision_label ?? "no revision"}
+            {row.document_title || clause.data?.document_title} ·{" "}
+            {row.revision_label ?? clause.data?.revision_label ?? "no revision"}
             {clause.data?.anchor.page
               ? ` · page ${clause.data.anchor.page}`
               : ""}

@@ -177,6 +177,20 @@ def _sheet(
     return document, drawn
 
 
+def car_park_plan(
+    number: str = "FP-B1-201", notes: tuple[str, ...] = ()
+) -> tuple[Drawing, SheetTruth]:
+    """The same installation as a basement car park plan, with general notes on it: what
+    the specification is cross-checked against (P2-03)."""
+    document, drawn = _sheet(number, EVERYWHERE, title="BASEMENT 1 CAR PARK SPRINKLER LAYOUT PLAN")
+    space = document.modelspace()
+    for index, note in enumerate(notes):
+        space.add_text(note, height=250, dxfattribs={"layer": LAYER_TEXT}).set_placement(
+            (SHEET_ORIGIN[0] + 1_500, SHEET_ORIGIN[1] + 2_500 - index * 500)
+        )
+    return document, drawn
+
+
 # A ceiling height note, as an architect's reflected ceiling plan or a section states it.
 CEILING_NOTE = "CEILING HEIGHT 2750"
 

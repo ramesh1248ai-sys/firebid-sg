@@ -52,7 +52,13 @@ from firebid.db.models.documents import (
 )
 from firebid.db.models.drawings import GeometryFeature, SheetGeometry, SheetView
 from firebid.db.models.review import ActivityMinute, CorrectionEvent, ReviewAction
-from firebid.db.models.specs import SpecAttribute, SpecClause
+from firebid.db.models.specs import (
+    ScopeRow,
+    SpecAttribute,
+    SpecClause,
+    SpecIssue,
+    SpecObligation,
+)
 from firebid.db.models.symbols import (
     ConsultantProfile,
     LegendEntry,
@@ -120,6 +126,7 @@ __all__ = [
     "RegisterConfirmation",
     "ReviewAction",
     "ReviewSample",
+    "ScopeRow",
     "SharedTakeoff",
     "Sheet",
     "SheetDesign",
@@ -128,6 +135,8 @@ __all__ = [
     "SheetView",
     "SpecAttribute",
     "SpecClause",
+    "SpecIssue",
+    "SpecObligation",
     "SymbolInstance",
     "SymbolMapping",
     "SystemHeartbeat",

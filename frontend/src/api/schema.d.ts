@@ -2033,6 +2033,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/spec/analysis/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run
+         * @description Read the obligations, cross-check the drawings and build the matrix again. Nothing a
+         *     person has decided is undone.
+         */
+        post: operations["run_bids__bid_id__spec_analysis_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/spec/attributes": {
         parameters: {
             query?: never;
@@ -2070,6 +2091,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/spec/clarification-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Clarification Candidates
+         * @description The open issues: what the clarifications register (P2-06) starts from.
+         */
+        get: operations["clarification_candidates_bids__bid_id__spec_clarification_candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/spec/clauses/{clause_id}": {
         parameters: {
             query?: never;
@@ -2101,6 +2142,169 @@ export interface paths {
         get: operations["attributes_for_bids__bid_id__spec_for_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/spec/issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Issues
+         * @description Conflicts, missing items and ambiguities, most severe first, each citing both sides.
+         */
+        get: operations["issues_bids__bid_id__spec_issues_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/spec/issues/{issue_id}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Issue */
+        post: operations["decide_issue_bids__bid_id__spec_issues__issue_id__decide_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/spec/obligations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obligations */
+        get: operations["obligations_bids__bid_id__spec_obligations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/spec/obligations/read-with-model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read With Model
+         * @description Ask the model about clauses that oblige something the rules put in no category. Its
+         *     answers are proposals, each checked against the clause it cites.
+         */
+        post: operations["read_with_model_bids__bid_id__spec_obligations_read_with_model_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/spec/obligations/{obligation_id}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Obligation */
+        post: operations["decide_obligation_bids__bid_id__spec_obligations__obligation_id__decide_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/spec/scope-matrix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scope Matrix */
+        get: operations["scope_matrix_bids__bid_id__spec_scope_matrix_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/spec/scope-matrix/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Matrix */
+        post: operations["confirm_matrix_bids__bid_id__spec_scope_matrix_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/spec/scope-matrix/export.xlsx": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Matrix
+         * @description The matrix as a workbook. A download is a named person's explicit action.
+         */
+        get: operations["export_matrix_bids__bid_id__spec_scope_matrix_export_xlsx_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/spec/scope-matrix/rows/{row_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Edit Row */
+        post: operations["edit_row_bids__bid_id__spec_scope_matrix_rows__row_id__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2799,6 +3003,19 @@ export interface components {
             revision: string | null;
             /** State */
             state: string;
+        };
+        /** AnalysisOut */
+        AnalysisOut: {
+            /** Issues New */
+            issues_new: number;
+            /** Issues Open */
+            issues_open: number;
+            /** Issues Resolved */
+            issues_resolved: number;
+            /** Obligations */
+            obligations: number;
+            /** Rows */
+            rows: number;
         };
         /** AnswerOut */
         AnswerOut: {
@@ -3505,26 +3722,6 @@ export interface components {
             /** Note */
             note?: string | null;
         };
-        /** DecisionIn */
-        DecisionIn: {
-            /** Clause Number */
-            clause_number?: string | null;
-            /** Condition */
-            condition?: string | null;
-            /** Dn Max */
-            dn_max?: number | null;
-            /** Dn Min */
-            dn_min?: number | null;
-            /** Note */
-            note?: string | null;
-            /** Value */
-            value?: string | null;
-            /**
-             * Verdict
-             * @enum {string}
-             */
-            verdict: "confirm" | "edit" | "reject";
-        };
         /** DecisionRequest */
         DecisionRequest: {
             /** Attributes */
@@ -3907,6 +4104,44 @@ export interface components {
             superseded: number;
             /** Unchanged */
             unchanged: number;
+        };
+        /** IssueOut */
+        IssueOut: {
+            /** Category */
+            category: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /** Detail */
+            detail: {
+                [key: string]: unknown;
+            };
+            /** Drawing Ref */
+            drawing_ref: {
+                [key: string]: unknown;
+            };
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Note */
+            note: string | null;
+            /** Rule */
+            rule: string;
+            /** Severity */
+            severity: string;
+            /** Spec Ref */
+            spec_ref: {
+                [key: string]: unknown;
+            };
+            /** State */
+            state: string;
+            /** System */
+            system: string | null;
+            /** Title */
+            title: string;
         };
         /** ItemOut */
         ItemOut: {
@@ -4456,6 +4691,51 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** ObligationOut */
+        ObligationOut: {
+            /** Category */
+            category: string;
+            /** Citation Ok */
+            citation_ok: boolean;
+            /** Citation Reason */
+            citation_reason: string;
+            /** Clause Id */
+            clause_id: string | null;
+            /** Clause Number */
+            clause_number: string;
+            /** Confidence */
+            confidence: number;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /**
+             * Document Revision Id
+             * Format: uuid
+             */
+            document_revision_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Method */
+            method: string;
+            /** Note */
+            note: string | null;
+            /** Quantities */
+            quantities: {
+                [key: string]: unknown;
+            };
+            /** Quote */
+            quote: string;
+            /** State */
+            state: string;
+            /** Summary */
+            summary: string;
+            /** System */
+            system: string;
+        };
         /** OriginChange */
         OriginChange: {
             /** Document Ids */
@@ -4925,6 +5205,13 @@ export interface components {
             /** Routes */
             routes: components["schemas"]["RouteOut"][];
         };
+        /** RowIn */
+        RowIn: {
+            /** Note */
+            note?: string | null;
+            /** Status */
+            status: string;
+        };
         /** RuleChange */
         RuleChange: {
             /** Definition */
@@ -4969,6 +5256,46 @@ export interface components {
         ScopeRequest: {
             /** Polygon */
             polygon?: number[][] | null;
+        };
+        /** ScopeRowOut */
+        ScopeRowOut: {
+            /** Clause Id */
+            clause_id: string | null;
+            /** Clause Number */
+            clause_number: string | null;
+            /** Confirmed At */
+            confirmed_at: string | null;
+            /** Confirmed By */
+            confirmed_by: string | null;
+            /** Document Revision Id */
+            document_revision_id: string | null;
+            /** Edited By */
+            edited_by: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key */
+            key: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Note */
+            note: string | null;
+            /** Proposed Status */
+            proposed_status: string;
+            /** Quote */
+            quote: string | null;
+            /** Reason */
+            reason: string;
+            /** Source */
+            source: string;
+            /** Status */
+            status: string;
+            /** System */
+            system: string;
         };
         /** SheetDesignOut */
         SheetDesignOut: {
@@ -5511,6 +5838,33 @@ export interface components {
         firebid__api__registers__WithdrawRequest: {
             /** Reason */
             reason: string;
+        };
+        /** DecisionIn */
+        firebid__api__spec_analysis__DecisionIn: {
+            /** Decision */
+            decision: string;
+            /** Note */
+            note?: string | null;
+        };
+        /** DecisionIn */
+        firebid__api__specs__DecisionIn: {
+            /** Clause Number */
+            clause_number?: string | null;
+            /** Condition */
+            condition?: string | null;
+            /** Dn Max */
+            dn_max?: number | null;
+            /** Dn Min */
+            dn_min?: number | null;
+            /** Note */
+            note?: string | null;
+            /** Value */
+            value?: string | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "confirm" | "edit" | "reject";
         };
     };
     responses: never;
@@ -9290,6 +9644,37 @@ export interface operations {
             };
         };
     };
+    run_bids__bid_id__spec_analysis_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_attributes_bids__bid_id__spec_attributes_get: {
         parameters: {
             query?: never;
@@ -9333,7 +9718,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DecisionIn"];
+                "application/json": components["schemas"]["firebid__api__specs__DecisionIn"];
             };
         };
         responses: {
@@ -9344,6 +9729,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpecAttributeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clarification_candidates_bids__bid_id__spec_clarification_candidates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueOut"][];
                 };
             };
             /** @description Validation Error */
@@ -9411,6 +9827,302 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AnswerOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    issues_bids__bid_id__spec_issues_get: {
+        parameters: {
+            query?: {
+                state?: string | null;
+            };
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_issue_bids__bid_id__spec_issues__issue_id__decide_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issue_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["firebid__api__spec_analysis__DecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    obligations_bids__bid_id__spec_obligations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObligationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_with_model_bids__bid_id__spec_obligations_read_with_model_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObligationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_obligation_bids__bid_id__spec_obligations__obligation_id__decide_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                obligation_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["firebid__api__spec_analysis__DecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObligationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scope_matrix_bids__bid_id__spec_scope_matrix_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopeRowOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_matrix_bids__bid_id__spec_scope_matrix_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopeRowOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_matrix_bids__bid_id__spec_scope_matrix_export_xlsx_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_row_bids__bid_id__spec_scope_matrix_rows__row_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                row_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RowIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopeRowOut"];
                 };
             };
             /** @description Validation Error */

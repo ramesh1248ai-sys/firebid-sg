@@ -100,6 +100,7 @@ def create_app(
         registers,
         review,
         sheets,
+        spec_analysis,
         specs,
         symbols,
         views,
@@ -113,6 +114,7 @@ def create_app(
     app.include_router(detections.router)
     app.include_router(design.router)
     app.include_router(specs.router)
+    app.include_router(spec_analysis.router)
     app.include_router(library.router)
     app.include_router(qto.router)
     app.include_router(qto.rules_router)

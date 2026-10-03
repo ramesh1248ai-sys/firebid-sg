@@ -29,6 +29,7 @@ from firebid.ai_gateway.types import GenerationRequest, Message, TextPart
 
 ATTRIBUTE_ROUTE = "spec_attribute_extract"
 SECTION_ROUTE = "spec_section_find"
+OBLIGATION_ROUTE = "spec_obligation_extract"
 
 Attribute = Literal[
     "pipe_material",
@@ -173,6 +174,81 @@ class SpecSectionFinder(_Agent):
             assertions=[
                 Assertion(field=item.number, value=item.system, confidence=item.confidence)
                 for item in found.sections
+            ],
+            provider=response.provider,
+            model=response.model,
+            prompt_version=response.prompt_version,
+        )
+
+
+# --- Obligations (P2-03) ----------------------------------------------------------------------
+
+ObligationCategory = Literal[
+    "testing",
+    "flushing",
+    "painting",
+    "identification",
+    "commissioning",
+    "approved_makes",
+    "warranty",
+    "defects_liability",
+    "maintenance",
+    "spares",
+    "training",
+    "submittals",
+    "authority",
+]
+
+
+class ObligationInput(BaseModel):
+    clauses: list[tuple[str, str, str]]  # (number, heading, text), the whole specification
+    clause_numbers: list[str]  # the clauses to read
+
+
+class SpecObligationAnswer(BaseModel):
+    category: ObligationCategory
+    summary: str = Field(min_length=1, description="what the contractor must do, in a sentence")
+    clause: str = Field(min_length=1, description="the clause number that obliges it")
+    quote: str = Field(description="the words of the clause that oblige it")
+    quantities: dict[str, float | int | str] = Field(default_factory=dict)
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class SpecObligations(BaseModel):
+    obligations: list[SpecObligationAnswer]
+
+
+class SpecObligationExtractor(_Agent):
+    """Read what specification clauses oblige the contractor to do, citing each."""
+
+    name = "spec_obligation_extractor"
+    route = OBLIGATION_ROUTE
+
+    def run(self, request: AgentInput) -> AgentResult[SpecObligations]:
+        payload = request.payload
+        if not isinstance(payload, ObligationInput):
+            raise TypeError(f"{self.name} needs an ObligationInput, got {type(payload).__name__}")
+        parts = (
+            TextPart("The specification:\n" + specification_text(payload.clauses), cache=True),
+            TextPart(
+                f"Read clauses {', '.join(payload.clause_numbers)} and return every obligation "
+                "they place on the fire protection contractor."
+            ),
+        )
+        response = self._router.generate(
+            OBLIGATION_ROUTE,
+            GenerationRequest(
+                messages=(Message(role="user", parts=parts),), output_model=SpecObligations
+            ),
+        )
+        found = response.parsed
+        if not isinstance(found, SpecObligations):
+            raise TypeError("the gateway returned no parsed obligations")
+        return AgentResult(
+            output=found,
+            assertions=[
+                Assertion(field=item.category, value=item.clause, confidence=item.confidence)
+                for item in found.obligations
             ],
             provider=response.provider,
             model=response.model,

@@ -1651,3 +1651,60 @@ Entry template:
   - **Clarification candidates are flagged client BOQ lines** until P2-06 builds the clarifications register.
   - **PDF revisions are not measured:** the fixtures are DXF.
   - **ADR-012 is Proposed** and waits for the product owner.
+
+## P2-03 · Full Specification Analysis and Scope Matrix · 2026-10-03
+
+- **Summary:** the specification becomes a cited list of what the contractor must do, is checked against the drawings, and gives a scope matrix.
+  - **Obligations (FR-SPEC-02):** thirteen categories (testing, flushing, painting, identification, commissioning, approved makes, warranty, defects liability, maintenance, spares, training, submittals, authority inspections and FSC). Each obligation has its category, the sentence that obliges it, any quantity it states with its unit (a test pressure, a duration, a period, a number of sets or coats), and the clause it cites. The citation is checked against the clause's words. Read by rule when a specification is read; a person confirms or rejects each.
+  - **Cross-check (FR-SPEC-03):** deterministic rules, each issue citing both sides.
+    - **Conflict:** a note on a Current sheet states a pipe material, class or joining method that the specification states differently for that system and size. A drawing note is read with the specification's own rules, so the two are compared like for like. A clause limited to a place (the basement car park) governs the sheets of that place.
+    - **Missing from the drawings:** the specification requires an item (a flow test header) and the takeoff has none.
+    - **Missing from the specification:** the takeoff counts a type of item no clause mentions.
+    - **Ambiguous:** a clause leaves it open ("or equal", "where required", "as directed"), or two values are given for one thing with nothing to choose between them.
+
+    Open issues are the clarification candidates for P2-06. A person dismisses one with a reason; an issue no longer found is marked resolved.
+  - **Scope matrix (FR-SPEC-04):** per system, a row for each obligation category and each interface, with a status (included, excluded, by others, unclear) and the clause it was read from. The estimator changes a status, confirms the matrix, and exports it to xlsx.
+  - **UI:** the Specification page has three new tabs (Obligations, Issues, Scope matrix), each row one click from its clause, and an issue from its sheet.
+- **Key modules / files:**
+  - Pure: `specs/obligations.py`, `specs/crosscheck.py`, `specs/scope_matrix.py`.
+  - `services/spec_analysis.py` (`read_obligations`, `find_issues`, `analyse`, `clarification_candidates`, `matrix`, `edit_row`, `confirm_matrix`, `export_matrix`, and `read_obligations_with_model`); `services/specs.py` reads obligations when a specification is read.
+  - `api/spec_analysis.py`: `/bids/{id}/spec/analysis/run`, `/obligations`, `/issues`, `/clarification-candidates`, `/scope-matrix` (rows, confirm, `export.xlsx`).
+  - Model path: `agents/spec_reader.SpecObligationExtractor`, route `spec_obligation_extract` in `llm.yaml`, prompt `v1`.
+  - Migration `0035`: `spec_obligation`, `spec_issue`, `scope_row`, all under RLS.
+  - `config/scope_matrix.yaml`: the interface list, marked "to be confirmed".
+  - Frontend: `pages/SpecAnalysis.tsx`, wired into `pages/SpecificationPage.tsx`.
+  - Fixture: `synthetic_spec.extended()` (sections 6 and 7 and clause 2.4), `EXPECTED_OBLIGATIONS`, `SEEDED_ISSUES`, `EXPECTED_INTERFACES`; `synthetic_qto.car_park_plan`.
+- **How to run and demo:**
+  1. `make up`. Upload a fire protection specification and the drawings; confirm the legend so the takeoff exists.
+  2. Open **Specification**. **Obligations** lists what was read; click a clause number to see the words.
+  3. **Check against the drawings**, then **Issues**: each with its clause and its sheet. Dismiss one with a reason.
+  4. **Scope matrix**: change a status, **Confirm the matrix**, **Export to Excel**.
+  5. `GET /bids/{id}/spec/clarification-candidates` is what P2-06 will read.
+- **Requirement IDs covered (test names):**
+  - FR-SPEC-02: `tests/specs/test_analysis.py::TestObligations` (every category with its clause and quantities, DOCX and PDF; every citation resolves; quantities as consultants write them); `tests/db/test_spec_analysis.py::TestObligations` (stored on reading, idempotent, a person's decision audited, a model answer checked against its clause); `SpecAnalysis.test.tsx`.
+  - FR-SPEC-03: `tests/specs/test_analysis.py::TestCrossCheck` (every seeded issue and nothing else; the P1-06 contradiction with both citations; document and revision on both sides of every issue; the same note on another floor is no conflict); `tests/db/test_spec_analysis.py::TestIssues` (through the parse pipeline; clarification candidates; a dismissal kept and a resolved issue across runs); `SpecAnalysis.test.tsx`.
+  - FR-SPEC-04: `tests/specs/test_analysis.py::TestScopeMatrix`; `tests/db/test_spec_analysis.py::TestScopeMatrix` (status and clause on each row; edit, confirm and the exported workbook read back cell by cell; a person's status kept across runs); `SpecAnalysis.test.tsx`.
+- **Deviations and decisions:**
+  - **No plan-and-approve pause,** as the owner prefers.
+  - **Rules first, as P1-06.** On the extended fixture the rules read all thirteen obligations, so no model call is made. The model path is built and tested with the fake adapter.
+  - **The model is not queued when a specification is read.** It is asked through `POST …/obligations/read-with-model`. Queued automatically it would add a failed run and an escalation task to every specification while no provider key exists (decision D2).
+  - **The model is not used for the cross-check.** Ambiguity is found by its wording. The prompt allows a model "to interpret ambiguous clauses"; nothing here needed it.
+  - **An issue with one silent side cites what was looked through:** the specification revision with no such clause, or the Current sheets with no such item. So every issue cites a document and revision on both sides.
+  - **A sentence requires an item only when the item is what must be provided.** "Power supply to the fire pump panels shall be provided by the electrical contractor" does not require a fire pump. Found on the fixture.
+  - **A sentence that obliges without naming a party is the contractor's** ("shall be painted" is included). One that names nobody and obliges nothing is unclear.
+  - **A row the specification does not mention is "unclear"** and links to the specification revision, not to a clause.
+  - **A person's status survives re-running the analysis;** the clause the row cites is still updated.
+- **Manual checks and results:**
+  - Not run through the browser on the local stack. The page is covered by component tests and the API by database tests.
+- **Defects found and fixed during the step:**
+  - "shall warrant" was not read as a warranty (the pattern wanted "warranty").
+  - Regular expressions written through a shell lost their word boundaries to backspace characters, twice. The files were repaired and are now written from script files.
+  - Two type errors were hidden by a stale type-checker cache until it was cleared.
+- **Known gaps and follow-ups:**
+  - **Only a synthetic specification has been analysed.** Real obligations are worded in more ways than these rules read; the model path is there for the rest, unproven against a real provider.
+  - **The interface list and the obligation categories wait for the Design Manager's review** (business track). `config/scope_matrix.yaml` is marked "to be confirmed".
+  - **Drawing notes are compared for pipe material, class and joining method only.** Sprinkler type is checked through the takeoff's types, not through notes.
+  - **Specification tables are still not read** (P1-06's gap), so a pipe schedule set out as a table is not cross-checked.
+  - **Issues are recomputed on request,** not when a drawing or the takeoff changes.
+  - **A specification revised by an addendum** leaves its superseded revision's obligations out of the lists; a clause-level comparison of the two revisions is not built.
+  - **The clarifications register is P2-06;** until then the candidates are a list.
