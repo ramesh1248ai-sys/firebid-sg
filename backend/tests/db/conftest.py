@@ -8,10 +8,14 @@ is set for us there.
 
 from __future__ import annotations
 
+import hashlib
 import os
+import pickle
 import uuid
+from collections import OrderedDict
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from alembic import command
@@ -89,6 +93,48 @@ def as_application_role(database_url: str, monkeypatch: pytest.MonkeyPatch) -> I
     monkeypatch.undo()
     get_settings.cache_clear()
     clear_engine_caches()
+
+
+# What the sandbox gave for an input already read in this test run, as the pickled answer.
+_SANDBOXED: OrderedDict[str, bytes] = OrderedDict()
+_SANDBOXED_MOST_BYTES = 256 * 1024 * 1024
+
+
+@pytest.fixture(autouse=True)
+def sandbox_reads_an_input_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A sandboxed parse of exactly the same input gives back what it gave before.
+
+    Most of the slowest database tests read the same synthetic drawings in their set-up, each
+    a fresh process a call: about 30 calls and three quarters of the test. The parsers are
+    pure functions of their input, so the second time the answer is taken from the first. It
+    is unpickled afresh each time, as a real sandbox's answer is. A failure is never kept: a
+    test that makes the sandbox fail still sees it fail. The sandbox itself is tested, with a
+    process a call, in `tests/sandbox`.
+    """
+    from firebid.sandbox import runner
+
+    real = runner._attempt
+
+    def remembered(
+        function: Any, args: tuple[Any, ...], kwargs: dict[str, Any], limits: Any, **options: Any
+    ) -> Any:
+        try:
+            asked = pickle.dumps(
+                (function.__module__, function.__qualname__, args, sorted(kwargs.items()), limits)
+            )
+        except Exception:  # an argument that does not pickle: not ours to remember
+            return real(function, args, kwargs, limits, **options)
+        key = hashlib.sha256(asked).hexdigest()
+        if key in _SANDBOXED:
+            _SANDBOXED.move_to_end(key)
+            return pickle.loads(_SANDBOXED[key])  # noqa: S301 - written by this process
+        value = real(function, args, kwargs, limits, **options)
+        _SANDBOXED[key] = pickle.dumps(value)
+        while sum(map(len, _SANDBOXED.values())) > _SANDBOXED_MOST_BYTES and len(_SANDBOXED) > 1:
+            _SANDBOXED.popitem(last=False)
+        return value
+
+    monkeypatch.setattr(runner, "_attempt", remembered)
 
 
 @pytest.fixture(autouse=True)
