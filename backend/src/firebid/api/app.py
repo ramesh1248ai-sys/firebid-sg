@@ -89,6 +89,7 @@ def create_app(
         bids,
         boq,
         changes,
+        costing,
         design,
         detections,
         documents,
@@ -125,6 +126,8 @@ def create_app(
     app.include_router(boq.templates_router)
     app.include_router(pricing.router)
     app.include_router(pricing.rates_router)
+    app.include_router(costing.router)
+    app.include_router(costing.company_router)
     app.include_router(kpis.router)
     app.include_router(registers.router)
     app.include_router(addenda.router)

@@ -7,3 +7,32 @@ status: to be confirmed
 # When two current entries price the same item and took effect on the same day, the first
 # source in this list wins. A newer effective date always wins first.
 source_preference: [quotation, purchase_order, company_standard]
+
+# --- Phase 2 (P2-04): quotations, landed cost, GST, history ---------------------------------
+#
+# EVERYTHING BELOW IS "TO BE CONFIRMED" by the commercial team and Finance (the FX policy
+# and the company's import cost allowances are business-track inputs).
+
+# FR-CST-04. The buffer is added to a converted foreign-currency price, as a percentage of
+# it. FX rates themselves are recorded in the platform, each with its source and date.
+fx:
+  buffer_percent: 2.0
+
+# FR-CST-04. The import lines of a landed cost: each a percentage of the buffered price,
+# added when the quotation's delivery terms are one of `applies_to`. A CIF price already
+# includes freight and insurance; a DAP or DDP price is delivered and takes none.
+import_costs:
+  - {key: freight, label: Freight, percent: 5.0, applies_to: [EXW, FCA, FOB]}
+  - {key: insurance, label: Insurance, percent: 0.5, applies_to: [EXW, FCA, FOB, CFR, CPT]}
+  - {key: import_charges, label: Import and handling charges, percent: 1.0, applies_to: [EXW, FCA, FOB, CFR, CPT, CIF, CIP]}
+
+# FR-CST-05. GST by effective date. A bid is priced at the rate in force on its pricing
+# date; a new row changes the bids priced from that date on, and no earlier one.
+gst:
+  rates:
+    - {effective_from: 2023-01-01, percent: 8}
+    - {effective_from: 2024-01-01, percent: 9}
+
+# FR-CST-07. A price further than this from the median of its history is flagged.
+history:
+  outlier_tolerance_percent: 15

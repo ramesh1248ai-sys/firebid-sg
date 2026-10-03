@@ -26,7 +26,7 @@ import hashlib
 import io
 import json
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -297,6 +297,8 @@ def build_company_boq(
                 line_key=old.line_key,
                 group_heading=old.group_heading,
                 amount=old.amount,
+                allowance_by=old.allowance_by,
+                allowance_by_id=old.allowance_by_id,
             )
         )
     session.flush()
@@ -361,6 +363,9 @@ def add_marked_line(
         is_lump_sum=marker == "lump_sum",
         marker_note=note,
         amount=Money.of(amount) if amount is not None else None,
+        # The amount is the estimator's own allowance, and says whose (FR-CST-09).
+        allowance_by=actor.label if amount is not None else None,
+        allowance_by_id=actor.id if amount is not None else None,
         line_key=hashlib.sha256(f"{marker}:{description}".encode()).hexdigest()[:32],
     )
     session.add(line)
@@ -403,6 +408,61 @@ def mark_line(
         reason=note,
     )
     return line
+
+
+def set_allowance(session: Session, line: BoqLine, amount: Decimal | None, actor: Actor) -> BoqLine:
+    """An estimator's allowance on a provisional or lump sum line, under their name; or,
+    with no amount, the line left unpriced (FR-CST-09)."""
+    if not (line.is_provisional or line.is_lump_sum):
+        raise BoqError("only a provisional sum or a lump sum carries an allowance")
+    if line.rate_id is not None:
+        raise BoqError("the line is priced from a rate entry")
+    if amount is not None and amount < 0:
+        raise BoqError("an allowance is not negative")
+    if amount is not None and not actor.label.strip():
+        raise BoqError("an allowance carries the name of the estimator who entered it")
+    before = {
+        "amount": str(line.amount.amount) if line.amount is not None else None,
+        "allowance_by": line.allowance_by,
+    }
+    line.amount = Money.of(amount) if amount is not None else None
+    line.allowance_by = actor.label if amount is not None else None
+    line.allowance_by_id = actor.id if amount is not None else None
+    session.flush()
+    record_event(
+        session,
+        context=_context(session, line.bid_id),
+        actor=actor,
+        action="BOQ line: allowance" if amount is not None else "BOQ line: left unpriced",
+        entity_type=BoqLine.__tablename__,
+        entity_id=line.id,
+        before=before,
+        after={
+            "amount": str(line.amount.amount) if line.amount is not None else None,
+            "allowance_by": line.allowance_by,
+        },
+    )
+    return line
+
+
+def unsourced_lines(session: Session, bid_id: uuid.UUID) -> list[dict[str, Any]]:
+    """Lines of the current BOQ that carry an amount with neither a rate entry behind it
+    nor the name of an estimator whose allowance it is (FR-CST-09)."""
+    boq = current_boq(session, bid_id)
+    if boq is None:
+        return []
+    return [
+        {
+            "id": str(line.id),
+            "item_no": line.item_no,
+            "description": line.description,
+            "amount": str(line.amount.amount),
+        }
+        for line in lines_of(session, boq)
+        if line.amount is not None
+        and line.rate_id is None
+        and not (line.allowance_by or "").strip()
+    ]
 
 
 # --- Trace (FR-BOQ-05) ----------------------------------------------------------------------
@@ -1194,10 +1254,17 @@ class G2Blockers:
     g1_approved: bool
     boq_built: bool
     untraced_lines: list[dict[str, Any]]
+    # Amounts with no rate entry and no named estimator behind them (FR-CST-09).
+    unsourced_lines: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def clear(self) -> bool:
-        return self.g1_approved and self.boq_built and not self.untraced_lines
+        return (
+            self.g1_approved
+            and self.boq_built
+            and not self.untraced_lines
+            and not self.unsourced_lines
+        )
 
     def describe(self) -> str:
         parts = []
@@ -1209,6 +1276,11 @@ class G2Blockers:
             parts.append(
                 f"{len(self.untraced_lines)} BOQ line(s) with no QTO trace, "
                 "not marked provisional or lump sum"
+            )
+        if self.unsourced_lines:
+            parts.append(
+                f"{len(self.unsourced_lines)} priced line(s) with no source: neither a rate "
+                "entry nor a named estimator's allowance"
             )
         return "; ".join(parts)
 
@@ -1231,6 +1303,7 @@ def g2_blockers(session: Session, bid_id: uuid.UUID) -> G2Blockers:
         g1_approved=g1 > 0,
         boq_built=current_boq(session, bid_id) is not None,
         untraced_lines=untraced_lines(session, bid_id),
+        unsourced_lines=unsourced_lines(session, bid_id),
     )
 
 

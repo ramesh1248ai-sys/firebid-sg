@@ -168,6 +168,17 @@ routes:
     max_output_tokens: 4000
     prompt: rate_match
 
+  # Reads what the rules could not from a supplier's quotation (P2-04): its terms and lines,
+  # each with the line of the file it was read from. A quotation carries a supplier's prices,
+  # so this is commercial. Asked for by a person; the answer is a proposal they confirm.
+  quotation_extract:
+    requires: [structured_output]
+    data_class: commercial
+    models: [claude-opus-5, gpt-5.1, gemini-3-pro]
+    reasoning: low
+    max_output_tokens: 6000
+    prompt: quotation_extract
+
   # Proposes which columns of a client's bill hold the item, description, unit, quantity,
   # rate and amount, when the header words could not say (P1-09). Sent the top rows.
   boq_columns:
