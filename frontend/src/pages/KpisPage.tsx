@@ -13,10 +13,15 @@ import type { components } from "@/api/schema";
  * still open, time on task, how often agents escalated or failed, and what the AI cost
  * against the bid's budget and the target per tender. Accuracy against verified truth is in
  * the Phase 1 exit report, measured on the golden set.
+ *
+ * The Phase 2 KPIs follow: tender turnaround in working days against the baseline, the share
+ * of priced lines with a source, and the share of clarification drafts issued with only
+ * minor edits. A measure with nothing to measure yet says so, rather than showing zero.
  */
 
 type Kpis = components["schemas"]["KpisOut"];
 type Row = components["schemas"]["BidKpisOut"];
+type Phase2 = components["schemas"]["Phase2Out"];
 
 function percent(value: number | null | undefined): string {
   return value == null ? "–" : `${(100 * value).toFixed(1)}%`;
@@ -33,6 +38,14 @@ export function KpisPage() {
     queryFn: async (): Promise<Kpis> => {
       const { data } = await api.GET("/kpis");
       if (!data) throw new Error("Could not read the KPIs");
+      return data;
+    },
+  });
+  const phase2 = useQuery({
+    queryKey: ["kpis", "phase2"],
+    queryFn: async (): Promise<Phase2> => {
+      const { data } = await api.GET("/kpis/phase2");
+      if (!data) throw new Error("Could not read the Phase 2 KPIs");
       return data;
     },
   });
@@ -96,7 +109,86 @@ export function KpisPage() {
           </table>
         </>
       )}
+      {phase2.data && <Phase2Section data={phase2.data} />}
     </section>
+  );
+}
+
+function Phase2Section({ data }: { data: Phase2 }) {
+  const days = data.turnaround_working_days;
+  const baseline = data.baseline_turnaround_working_days;
+  const reduction = data.turnaround_reduction;
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">Phase 2</h2>
+        <p className="text-sm text-muted-foreground">
+          Turnaround runs from the day a bid was opened to its G3 approval, in working days. A
+          clarification counts as issued with minor edits when no more than{" "}
+          {percent(data.minor_edit_ratio)} of its drafted words were changed.
+        </p>
+      </div>
+      <dl className="grid gap-4 sm:grid-cols-3" aria-label="Phase 2 totals">
+        <Stat
+          label="Tender turnaround"
+          value={days == null ? "–" : `${days.toFixed(1)} working days`}
+          note={
+            baseline == null
+              ? "target −30%; no baseline recorded yet"
+              : `target −30% against ${baseline} days: ${reduction == null ? "–" : `${reduction >= 0 ? "−" : "+"}${Math.abs(100 * reduction).toFixed(0)}%`}`
+          }
+          warn={reduction != null && reduction < 0.3}
+        />
+        <Stat
+          label="Price provenance"
+          value={percent(data.price_provenance)}
+          note="target 100% of priced lines sourced"
+          warn={data.price_provenance != null && data.price_provenance < 1}
+        />
+        <Stat
+          label="Clarification acceptance"
+          value={percent(data.clarification_acceptance)}
+          note="target ≥70% issued with minor edits"
+          warn={data.clarification_acceptance != null && data.clarification_acceptance < 0.7}
+        />
+      </dl>
+      <table className="w-full text-sm" aria-label="Phase 2 by bid">
+        <thead className="text-left text-xs text-muted-foreground">
+          <tr>
+            <th className="py-2 pr-3">Bid</th>
+            <th className="py-2 pr-3">Opened</th>
+            <th className="py-2 pr-3">Ready (G3)</th>
+            <th className="py-2 pr-3 text-right">Working days</th>
+            <th className="py-2 pr-3 text-right">Priced lines sourced</th>
+            <th className="py-2 pr-3 text-right">Clarifications with minor edits</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.bids.map((row) => (
+            <tr key={row.bid_id} className="border-t">
+              <td className="py-2 pr-3">
+                <Link to={`/bids/${row.bid_id}`} className="underline">
+                  {row.human_id}
+                </Link>
+              </td>
+              <td className="py-2 pr-3">{row.received_on}</td>
+              <td className="py-2 pr-3">{row.ready_on ?? "not yet"}</td>
+              <td className="py-2 pr-3 text-right">{row.turnaround_working_days ?? "–"}</td>
+              <td
+                className={`py-2 pr-3 text-right ${row.sourced_lines < row.priced_lines ? "text-amber-700" : ""}`}
+              >
+                {row.priced_lines ? `${row.sourced_lines} of ${row.priced_lines}` : "–"}
+              </td>
+              <td className="py-2 pr-3 text-right">
+                {row.clarifications_measured
+                  ? `${row.clarifications_minor} of ${row.clarifications_measured}`
+                  : "–"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

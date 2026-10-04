@@ -70,7 +70,12 @@ class Quotation(UuidPk, BidScoped, Timestamped, CreatedBy, Base):
     exclusions: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     # Each field as it was read, with the line of the file it was read from; what was not
     # stated; and how it was read (rule version, or model, prompt and agent run).
-    extraction: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    extraction: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        info=personal("the file's lines may name a supplier's sender or sales contact"),
+    )
     state: Mapped[str] = mapped_column(String(16), nullable=False, default="extracted")
     decided_by: Mapped[str | None] = mapped_column(
         String(200), info=personal("who confirmed or rejected the quotation")

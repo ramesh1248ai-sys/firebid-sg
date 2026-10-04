@@ -18,6 +18,7 @@ from __future__ import annotations
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal
 from functools import cache
 from pathlib import Path
@@ -167,4 +168,138 @@ def bid_kpis(session: Session, bid: Bid) -> BidKpis:
         agents=agent_stats(session, bid.id),
         budget_sgd=budget,
         target_cost_sgd=target_cost_per_tender(),
+    )
+
+
+# --- Phase 2 (requirements §14; P2-09) -------------------------------------------------------
+
+
+def phase2_settings() -> dict[str, Any]:
+    return dict(settings().get("phase2") or {})
+
+
+def minor_edit_threshold() -> float:
+    return float(phase2_settings().get("clarification_minor_edit_ratio", 0.2))
+
+
+def baseline_turnaround() -> float | None:
+    value = phase2_settings().get("baseline_turnaround_working_days")
+    return float(value) if value is not None else None
+
+
+@dataclass
+class BidPhase2:
+    bid_id: uuid.UUID
+    human_id: str
+    received_on: date
+    # The day G3 approved the estimate: ready to submit.
+    ready_on: date | None
+    turnaround_working_days: int | None
+    priced_lines: int
+    sourced_lines: int
+    clarifications_issued: int
+    clarifications_measured: int
+    clarifications_minor: int
+
+    @property
+    def price_provenance(self) -> float | None:
+        return self.sourced_lines / self.priced_lines if self.priced_lines else None
+
+    @property
+    def clarification_acceptance(self) -> float | None:
+        if not self.clarifications_measured:
+            return None
+        return self.clarifications_minor / self.clarifications_measured
+
+
+def bid_phase2(session: Session, bid: Bid) -> BidPhase2:
+    """A bid's Phase 2 measures: turnaround from its lifecycle, price provenance from its
+    current bill, clarification acceptance from what was drafted and what was issued."""
+    from firebid.db.models.clarifications import Clarification
+    from firebid.db.models.workflow import Approval
+    from firebid.kpi import phase2
+    from firebid.services import boq
+
+    holidays = frozenset(
+        value if isinstance(value, date) else date.fromisoformat(str(value))
+        for value in phase2_settings().get("holidays") or []
+    )
+    ready = session.execute(
+        select(func.min(Approval.decided_at)).where(
+            Approval.bid_id == bid.id, Approval.gate == "G3", Approval.decision == "approved"
+        )
+    ).scalar_one_or_none()
+    received = bid.created_at.date()
+    current = boq.current_boq(session, bid.id)
+    lines = boq.lines_of(session, current) if current is not None else []
+    share = phase2.provenance(
+        [
+            (
+                line.amount is not None,
+                line.rate_id is not None or bool((line.allowance_by or "").strip()),
+            )
+            for line in lines
+        ]
+    )
+    issued = [
+        row
+        for row in session.execute(
+            select(Clarification).where(
+                Clarification.bid_id == bid.id, Clarification.issued_at.is_not(None)
+            )
+        ).scalars()
+    ]
+    measured = [row for row in issued if "minor_edits" in (row.drafting or {})]
+    return BidPhase2(
+        bid_id=bid.id,
+        human_id=bid.human_id,
+        received_on=received,
+        ready_on=ready.date() if ready else None,
+        turnaround_working_days=phase2.working_days(received, ready.date(), holidays)
+        if ready
+        else None,
+        priced_lines=share.of,
+        sourced_lines=share.count,
+        clarifications_issued=len(issued),
+        clarifications_measured=len(measured),
+        clarifications_minor=sum(1 for row in measured if row.drafting.get("minor_edits")),
+    )
+
+
+@dataclass
+class Phase2Kpis:
+    bids: list[BidPhase2]
+    turnaround_working_days: float | None
+    baseline_turnaround_working_days: float | None
+    turnaround_reduction: float | None
+    price_provenance: float | None
+    clarification_acceptance: float | None
+    targets: dict[str, Any]
+    minor_edit_ratio: float
+
+
+def phase2_kpis(session: Session, bids: list[Bid]) -> Phase2Kpis:
+    """The Phase 2 KPIs across the bids given. A measure with nothing to measure is None,
+    not zero: an exit report says "pending", not "missed"."""
+    from firebid.kpi import phase2
+
+    rows = [bid_phase2(session, bid) for bid in bids]
+    turned = [
+        row.turnaround_working_days for row in rows if row.turnaround_working_days is not None
+    ]
+    mean = sum(turned) / len(turned) if turned else None
+    priced = sum(row.priced_lines for row in rows)
+    measured = sum(row.clarifications_measured for row in rows)
+    baseline = baseline_turnaround()
+    return Phase2Kpis(
+        bids=rows,
+        turnaround_working_days=mean,
+        baseline_turnaround_working_days=baseline,
+        turnaround_reduction=phase2.reduction(baseline, mean),
+        price_provenance=sum(row.sourced_lines for row in rows) / priced if priced else None,
+        clarification_acceptance=sum(row.clarifications_minor for row in rows) / measured
+        if measured
+        else None,
+        targets=dict(phase2_settings().get("targets") or {}),
+        minor_edit_ratio=minor_edit_threshold(),
     )

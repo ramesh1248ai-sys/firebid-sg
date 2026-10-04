@@ -3645,6 +3645,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/kpis/phase2": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Phase2
+         * @description The Phase 2 KPIs across the bids this person can see: tender turnaround in working
+         *     days, price provenance, and clarifications issued with only minor edits.
+         */
+        get: operations["phase2_kpis_phase2_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/labour/catalogue": {
         parameters: {
             query?: never;
@@ -4380,6 +4401,39 @@ export interface components {
             tender_reference: string;
             /** Tender Validity Days */
             tender_validity_days: number | null;
+        };
+        /** BidPhase2Out */
+        BidPhase2Out: {
+            /**
+             * Bid Id
+             * Format: uuid
+             */
+            bid_id: string;
+            /** Clarification Acceptance */
+            clarification_acceptance: number | null;
+            /** Clarifications Issued */
+            clarifications_issued: number;
+            /** Clarifications Measured */
+            clarifications_measured: number;
+            /** Clarifications Minor */
+            clarifications_minor: number;
+            /** Human Id */
+            human_id: string;
+            /** Price Provenance */
+            price_provenance: number | null;
+            /** Priced Lines */
+            priced_lines: number;
+            /** Ready On */
+            ready_on: string | null;
+            /**
+             * Received On
+             * Format: date
+             */
+            received_on: string;
+            /** Sourced Lines */
+            sourced_lines: number;
+            /** Turnaround Working Days */
+            turnaround_working_days: number | null;
         };
         /**
          * BidState
@@ -6863,6 +6917,27 @@ export interface components {
             source: string;
             /** Value */
             value: string;
+        };
+        /** Phase2Out */
+        Phase2Out: {
+            /** Baseline Turnaround Working Days */
+            baseline_turnaround_working_days: number | null;
+            /** Bids */
+            bids: components["schemas"]["BidPhase2Out"][];
+            /** Clarification Acceptance */
+            clarification_acceptance: number | null;
+            /** Minor Edit Ratio */
+            minor_edit_ratio: number;
+            /** Price Provenance */
+            price_provenance: number | null;
+            /** Targets */
+            targets: {
+                [key: string]: unknown;
+            };
+            /** Turnaround Reduction */
+            turnaround_reduction: number | null;
+            /** Turnaround Working Days */
+            turnaround_working_days: number | null;
         };
         /** PickIn */
         PickIn: {
@@ -15126,6 +15201,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KpisOut"];
+                };
+            };
+        };
+    };
+    phase2_kpis_phase2_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Phase2Out"];
                 };
             };
         };

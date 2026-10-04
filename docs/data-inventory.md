@@ -16,6 +16,7 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `audit_event` | `actor_id` | CHAR(32) | yes | names the person who took the action, for accountability |
 | `audit_event` | `actor_label` | VARCHAR(200) | no | the actor's display name at the time, kept so history stays readable |
 | `bid_budget` | `owner_email` | VARCHAR(320) | yes | who to tell when the bid's AI budget runs down |
+| `bid_outcome` | `competitor_feedback` | TEXT | no | free text that may name people at the client or a competitor |
 | `bid_outcome` | `recorded_by` | VARCHAR(200) | no | who recorded the outcome |
 | `bid_parameter` | `source` | TEXT | no | may name the estimator who entered it |
 | `bid_price_basis` | `set_by` | VARCHAR(200) | no | who set the bid's pricing date |
@@ -37,6 +38,7 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `library_proposal` | `decided_by` | VARCHAR(200) | yes | the estimator who approved or rejected the change |
 | `measurement_rule` | `source_note` | TEXT | yes | may name the estimator whose judgement set the rule |
 | `qualification` | `decided_by` | VARCHAR(200) | yes | who accepted or rejected the qualification |
+| `quotation` | `extraction` | JSONB | no | the file's lines may name a supplier's sender or sales contact |
 | `quotation` | `decided_by` | VARCHAR(200) | yes | who confirmed or rejected the quotation |
 | `review_action` | `actor_label` | VARCHAR(200) | no | who took the action |
 | `review_sample` | `drawn_by` | VARCHAR(200) | no | who drew the sample |
@@ -52,4 +54,4 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `spec_obligation` | `decided_by` | VARCHAR(200) | yes | who confirmed or rejected the obligation |
 | `submission_snapshot` | `frozen_by` | VARCHAR(200) | no | the G4 approver who froze the submission |
 
-42 columns hold personal data.
+44 columns hold personal data.

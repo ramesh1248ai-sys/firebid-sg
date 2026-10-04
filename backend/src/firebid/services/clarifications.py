@@ -376,7 +376,12 @@ def draft(
         number=number,
         state=str(ClarificationState.DRAFT),
         due_at=due_date(bid),
-        drafting={"method": "rules", "candidates": len(picked)},
+        drafting={
+            "method": "rules",
+            "candidates": len(picked),
+            # The draft as the platform made it: what is issued is compared with this.
+            "drafted": _wording(composed.subject, composed.problem, composed.options),
+        },
         created_by_id=actor.id,
         **_columns(composed),
     )
@@ -409,6 +414,14 @@ def draft(
         },
     )
     return row
+
+
+def _wording(subject: str, problem: str, options: list[Any]) -> str:
+    """A clarification's words, as one text: its subject, its query and its options."""
+    texts = [
+        str(option.text if hasattr(option, "text") else option.get("text")) for option in options
+    ]
+    return "\n".join([subject, problem, *texts])
 
 
 def _columns(composed: drafting.Draft) -> dict[str, Any]:
@@ -599,6 +612,8 @@ def draft_with_model(
         "prompt_version": run.prompt_version,
         "agent_run_id": str(run.id),
         "evidence_relied_on": list(answer.evidence),
+        # The model's wording is now the draft a person's edits are measured against.
+        "drafted": _wording(row.subject, row.problem, list(row.options or [])),
     }
     session.flush()
     return row
@@ -653,10 +668,28 @@ def transition(
         row.approved_by, row.approved_by_id, row.approved_at = actor.label, actor.id, now
     elif wanted is ClarificationState.ISSUED:
         row.issued_by, row.issued_at = actor.label, now
+        _record_edits(row)
     elif wanted is ClarificationState.INTERNAL_REVIEW:
         row.approved_by = row.approved_by_id = row.approved_at = None
     session.flush()
     return row
+
+
+def _record_edits(row: Clarification) -> None:
+    """On issue: how much of the platform's draft a person changed (the clarification
+    acceptance KPI, requirements §14). A clarification drafted before this was measured
+    has no draft on record and is left unmeasured."""
+    from firebid.kpi import phase2
+    from firebid.services import kpis
+
+    record = dict(row.drafting or {})
+    drafted = record.get("drafted")
+    if not isinstance(drafted, str):
+        return
+    ratio = phase2.edit_ratio(drafted, _wording(row.subject, row.problem, list(row.options or [])))
+    record["issued_edit_ratio"] = round(ratio, 4)
+    record["minor_edits"] = ratio <= kpis.minor_edit_threshold()
+    row.drafting = record
 
 
 def _move(session: Session, row: Clarification, target: ClarificationState, actor: Actor) -> None:

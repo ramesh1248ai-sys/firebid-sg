@@ -65,7 +65,12 @@ class BidOutcome(UuidPk, BidScoped, Timestamped, Base):
     outcome: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     awarded_price: Mapped[Money | None] = mapped_column(MoneyType)
     reasons: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    competitor_feedback: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    competitor_feedback: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="",
+        info=personal("free text that may name people at the client or a competitor"),
+    )
     recorded_by: Mapped[str] = mapped_column(
         String(200), nullable=False, info=personal("who recorded the outcome")
     )

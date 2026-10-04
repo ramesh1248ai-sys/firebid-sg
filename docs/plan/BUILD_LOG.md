@@ -1986,3 +1986,49 @@ Entry template:
   - **The pack has no trend or comparison with earlier bids.**
   - **G0 (bid/no-bid) support is P4.**
   - **The full tender package (FR-PKG-04) is P4.**
+
+## P2-09 · Phase 2 Hardening and Exit Evaluation · 2026-10-04
+
+- **Summary:** the Phase 2 KPIs are instrumented, the exit report is generated, the Phase 1 suites and the non-functional benchmarks were rerun with Phase 2 in place, and the new surfaces were reviewed for security and privacy. **Gate recommendation: not ready to pass the gate; ready for the assisted-mode pilot.** No exit criterion can be judged without live tenders and a turnaround baseline.
+  - **Tender turnaround:** working days (weekends and configured holidays left out) from the day a bid is opened to its first G3 approval, averaged over bids, against `phase2.baseline_turnaround_working_days` in `config/kpi.yaml`. With no baseline the reduction is not measured, rather than zero.
+  - **Price provenance:** priced lines of the current bill with a library rate, a quotation or a named allowance, over priced lines. The database already refuses a priced line with neither, so the measure reads 100% wherever a bill is priced.
+  - **Clarification acceptance:** when a clarification is drafted its wording is kept (`drafting.drafted`); when it is issued, the word-level edit distance between the two, over the longer, is recorded (`issued_edit_ratio`). At or under `clarification_minor_edit_ratio` (0.20) it counts as issued with minor edits.
+  - **Where they show:** `GET /kpis/phase2`, a Phase 2 section on the KPIs page, and the exit report.
+  - **Exit report:** `make exit-report-p2` writes `docs/reports/phase2-exit.md` from the measures, the regression runs, the evidence files, requirement coverage and `docs/reports/phase2-gaps.yaml` (pilot findings, reviews, known gaps, recommendation). `LIVE=1` adds every bid's measures.
+  - **Retention:** the kept lines of a quotation file are cleared 365 days after its bid is lost, withdrawn or no-bid; the fields read from them and the file stay.
+- **Key modules / files:**
+  - `kpi/phase2.py` (`working_days`, `edit_ratio`, `minor_edits`, `provenance`, `reduction`).
+  - `services/kpis.py` (`bid_phase2`, `phase2_kpis`); `api/kpis.py` (`/kpis/phase2`); `services/clarifications.py` (`_record_edits`).
+  - `evals/p2_exit.py`, `firebid-eval exit-p2`; `evals/p2_workload.py`; Makefile targets `exit-report-p2`, `p2-benchmark`.
+  - `scripts/load_test.py`: the users also open the cost build-up, labour, clarifications, risk, review pack and gates.
+  - `services/retention.py` (`_clear_quotation_lines`); `config/retention.yaml`; `config/kpi.yaml` (`phase2`).
+  - `docs/reports/phase2-exit.md`, `phase2-gaps.yaml`, `phase2-security-review.md`.
+- **How to run and demo:**
+  1. `make p2-benchmark`, then `make exit-report-p2` (in the Dev Container). Open `docs/reports/phase2-exit.md`.
+  2. With the stack up: `make exit-report-p2 LIVE=1` for the measures of every bid; the KPIs page shows the same for the bids a person is on.
+  3. From the host, with the stack up: `uv run --project backend python scripts/load_test.py` and `scripts/pipeline_benchmark.py --synthetic 50` (they reach the stack on `localhost`).
+- **Requirement IDs covered (test names):**
+  - NFR-14: `tests/kpi/test_phase2.py` (working days, edit ratio, provenance, reduction); `tests/db/test_phase2_kpis.py` (turnaround from G3; the database refuses an unsourced price; acceptance from a draft issued as drafted and one rewritten; a clarification with no draft on record is not measured; the API); `tests/evals/test_p2_exit.py` (pending without a pilot; meets and misses; no baseline; a regression becomes a gap; coverage); `Kpis.test.tsx`.
+  - NFR-01, NFR-02: `tests/evals/test_p2_exit.py` (the Phase 2 workloads inside the 2 s budget; evidence recorded before Phase 2 is not counted as rerun).
+  - NFR-07: `tests/db/test_phase2_kpis.py::TestQuotationLinesRetention`.
+  - `make req-coverage PHASE=P2`: **106 of 108.** FR-DSN-05 and FR-DSN-06 have no test because they are not built (FR-DSN-06 partly); both are in the gap list.
+- **Regression and benchmarks, 4 Oct 2026, local stack rebuilt on this branch:**
+  - Phase 1 detection: no regression against the result of 28 Sep (sprinkler count 100%, pipe length error 0.002%). Title block reading and bill mapping 100%. Phase 2 systems: no regression against its baseline. `make eval-gate`: no regressions.
+  - Load test, 10 bids and 20 users, with the Phase 2 pages: 2,092 requests, none failed, p95 0.156 s (was 0.094 s without them).
+  - Ingestion: 50 sheets in 4.7 min, 300 projected at 28.4 min against 60 (was 23.2). First-pass takeoff of 50 sheets: 4.9 min against 240.
+  - Phase 2 workloads in process (5,000 bill lines, 500 clarification candidates, 2,000 clauses): the slowest, the labour estimate, about 0.5 s against 2 s.
+  - Restore drill: 3,455 MB restored and verified in 1.2 min; 83 tables and 151 audit chains match. Game day: 12 routes fall back, 1 escalates, 0 fail. Deployment guard refuses a window near a deadline.
+  - `pip-audit`, `npm audit` and `bandit`: nothing found.
+- **Deviations and decisions:**
+  - **No plan-and-approve pause,** as the owner prefers.
+  - **"Submission-ready" is read as the first G3 approval,** and "receipt" as the day the bid was opened: the bid has no received date.
+  - **Price provenance is measured on the current bill,** not frozen at G2: the constraint that holds it applies at all times.
+  - **Edit distance is by word,** case and spacing ignored, over the subject, the problem and the options.
+  - **The load test reads the Phase 2 pages; it does not price or draft on each bid.** Scale is measured in process instead.
+  - **No pilot evidence exists,** so every criterion is marked pending, as the step allows.
+  - **Cost and provider review:** nothing to compare. No provider key exists and `compare-models` scores a stand-in. No route change is proposed.
+- **Manual checks and results:**
+  - The stack was rebuilt on this branch (migrations 0038 to 0040 applied) and the benchmarks above run against it. The pages were not walked through in a browser.
+- **Defects found and fixed during the step:**
+  - Quotation file lines were kept for ever (now cleared by retention); `bid_outcome.competitor_feedback` was missing from the data inventory.
+- **Known gaps and follow-ups:** see the gap list in `docs/reports/phase2-exit.md`. The largest: no pilot and no baseline; CI not running (account billing); no model route run against a real provider (D2); FR-DSN-05 and 06; integration and end-to-end tests not run for P2-06 to P2-09; two open medium privacy and integrity findings (free text in the audit log; object lock unconfigured locally).
