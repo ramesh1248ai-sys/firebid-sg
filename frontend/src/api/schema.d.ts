@@ -883,6 +883,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/design/sheets/{sheet_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Layout
+         * @description The sheet's proposed layout over its tender drawing, as a PDF or a DXF, stamped
+         *     "For estimation only: not for construction" (FR-DSN-05). A download for the person
+         *     asking; the platform sends it nowhere.
+         */
+        get: operations["export_layout_bids__bid_id__design_sheets__sheet_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/design/sheets/{sheet_id}/scope": {
         parameters: {
             query?: never;
@@ -893,7 +915,8 @@ export interface paths {
         get?: never;
         /**
          * Set Scope
-         * @description The part of the plan this sheet answers for: its side of a match line.
+         * @description The part of the plan this sheet answers for: its side of its match lines
+         *     (FR-DSN-06), as proposed, as a person chooses, or as a polygon drawn by hand.
          */
         put: operations["set_scope_bids__bid_id__design_sheets__sheet_id__scope_put"];
         post?: never;
@@ -6528,6 +6551,21 @@ export interface components {
              */
             view_id: string;
         };
+        /** MatchLineOut */
+        MatchLineOut: {
+            /** Label */
+            label: string;
+            /** Line */
+            line?: number[][] | null;
+            /** Other Sheet */
+            other_sheet?: string | null;
+            /** Proposed Side */
+            proposed_side?: number | null;
+            /** Reason */
+            reason?: string | null;
+            /** Side */
+            side?: number | null;
+        };
         /** MeasureIn */
         MeasureIn: {
             /** Points */
@@ -7818,10 +7856,24 @@ export interface components {
             /** Version */
             version: number;
         };
-        /** ScopeRequest */
+        /**
+         * ScopeRequest
+         * @description One of: a polygon drawn by hand; the side of each match line (by its place in the
+         *     sheet's list, +1 or -1); the match lines' own proposal again. None of them: the whole
+         *     sheet.
+         */
         ScopeRequest: {
+            /**
+             * Follow Match Lines
+             * @default false
+             */
+            follow_match_lines: boolean;
             /** Polygon */
             polygon?: number[][] | null;
+            /** Sides */
+            sides?: {
+                [key: string]: number;
+            } | null;
         };
         /** ScopeRowOut */
         ScopeRowOut: {
@@ -7887,12 +7939,16 @@ export interface components {
             laid_out_at: string | null;
             /** Level */
             level: string | null;
+            /** Match Lines */
+            match_lines: components["schemas"]["MatchLineOut"][];
             /** Note */
             note: string | null;
             /** Rule Version */
             rule_version: number | null;
             /** Scope */
             scope: number[][] | null;
+            /** Scope Source */
+            scope_source: string | null;
             /**
              * Sheet Id
              * Format: uuid
@@ -10206,6 +10262,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConfirmOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_layout_bids__bid_id__design_sheets__sheet_id__export_get: {
+        parameters: {
+            query?: {
+                format?: string;
+            };
+            header?: never;
+            path: {
+                sheet_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

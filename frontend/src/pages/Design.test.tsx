@@ -42,6 +42,8 @@ function sheet(overrides: Record<string, unknown>) {
     criteria: [CONCEALED, DEFAULT],
     criterion: null,
     scope: null,
+    scope_source: null,
+    match_lines: [],
     rule_version: null,
     totals: {},
     spaces: [],
@@ -135,5 +137,93 @@ describe("design development", () => {
     expect(omitted).toHaveTextContent("LIFT 4, 9 m²");
     expect(table).toHaveTextContent("2 rows are fed by an allowance");
     expect(table).toHaveTextContent("sheet FP-L10-01 notes: 'MAXIMUM SPACING: (4M X 3M)'");
+  });
+
+  // req: FR-DSN-06
+  it("shows the match line a sheet's layout stops at, and lets a person take the other side", async () => {
+    signedInAs({ name: "Sam Lim", preferred_username: "senior.estimator@firebid.test", roles: ["senior_estimator"] });
+    const lined = sheet({
+      scope: [[0, 0], [175, 0], [175, 300], [0, 300]],
+      scope_source: "match_lines",
+      match_lines: [
+        {
+          label: "MATCH LINE - SEE DWG FP-L10-02",
+          other_sheet: "FP-L10-02",
+          line: [[175, 0], [175, 300]],
+          side: 1,
+          proposed_side: 1,
+          reason: "the side with more of the pipework drawn",
+        },
+        { label: "MATCH LINE", other_sheet: null, line: null, side: null, proposed_side: null, reason: null },
+      ],
+    });
+    const calls = stubApi({
+      "/scope": () => new Response(null, { status: 204 }),
+      "/design": () => Response.json({ rule_version: 1, rule_status: "to be confirmed", sheets: [lined] }),
+    });
+    renderAt(`/bids/${BID}/design`);
+
+    const table = await screen.findByRole("table", { name: "Plan sheets" });
+    const row = within(table).getByText("FP-L10-01").closest("tr")!;
+    expect(row).toHaveTextContent("Limited to its side of its match lines");
+    await userEvent.click(within(row).getByRole("button", { name: "FP-L10-01" }));
+
+    const lines = screen.getByRole("list", { name: "Match lines" });
+    expect(lines).toHaveTextContent("continues on FP-L10-02");
+    expect(lines).toHaveTextContent("this sheet's side: the side with more of the pipework drawn");
+    expect(lines).toHaveTextContent("its line was not found, so it does not limit the layout");
+    expect(table).toHaveTextContent("so the shared floor is designed once");
+
+    await userEvent.click(within(lines).getByRole("button", { name: "Take the other side" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("The sheet's scope was changed");
+    const sent = calls.find((call) => call.url.endsWith("/scope"));
+    expect(sent!.method).toBe("PUT");
+    expect(JSON.parse(sent!.body!)).toEqual({ follow_match_lines: false, sides: { "0": -1 } });
+
+    await userEvent.click(screen.getByRole("button", { name: "Use the whole sheet" }));
+    const whole = calls.filter((call) => call.url.endsWith("/scope")).at(-1);
+    expect(JSON.parse(whole!.body!)).toEqual({ follow_match_lines: false });
+  });
+
+  // req: FR-DSN-05
+  it("offers a confirmed sheet's layout as a PDF and a DXF, and says what the download is", async () => {
+    signedInAs({ name: "Sam Lim", preferred_username: "senior.estimator@firebid.test", roles: ["senior_estimator"] });
+    const confirmed = sheet({
+      state: "confirmed",
+      criterion: CONCEALED,
+      rule_version: 1,
+      confirmed_by: "Sam Lim",
+      totals: { heads: 41, range_pipe_m: { "25": 60.5 }, area_m2: 311.0 },
+    });
+    const calls = stubApi({
+      "/export": () =>
+        new Response("0\nSECTION", {
+          headers: {
+            "content-type": "application/dxf",
+            "content-disposition": 'attachment; filename="FP-L10-01-proposed-layout.dxf"',
+          },
+        }),
+      "/design": () =>
+        Response.json({ rule_version: 1, rule_status: "to be confirmed", sheets: [confirmed, sheet({ sheet_id: "50000000-0000-4000-8000-000000000009", id: "d0000000-0000-4000-8000-000000000009", sheet_number: "FP-L12-01" })] }),
+    });
+    URL.createObjectURL = () => "blob:layout";
+    URL.revokeObjectURL = () => undefined;
+    renderAt(`/bids/${BID}/design`);
+
+    const table = await screen.findByRole("table", { name: "Plan sheets" });
+    await userEvent.click(within(table).getByRole("button", { name: "FP-L10-01" }));
+
+    expect(table).toHaveTextContent("For estimation only: not for construction");
+    expect(table).toHaveTextContent("the platform sends it nowhere");
+    expect(screen.getByRole("button", { name: "Download the layout as PDF" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "Download the layout as DXF" }));
+
+    const sent = calls.find((call) => call.url.includes("/export"));
+    expect(sent!.url).toContain("/design/sheets/50000000-0000-4000-8000-000000000001/export?format=dxf");
+
+    // A sheet with no layout yet offers nothing to download.
+    await userEvent.click(within(table).getByRole("button", { name: "FP-L12-01" }));
+    expect(screen.queryByRole("button", { name: "Download the layout as PDF" })).toBeNull();
   });
 });

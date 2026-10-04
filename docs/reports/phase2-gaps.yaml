@@ -61,32 +61,34 @@ cost_review:
     an approved fallback and 1 escalated cleanly.
 
 gaps:
-  - gap: "FR-DSN-05 (export the design-intent layout as PDF and DXF) is not built"
+  - gap: "Match lines (FR-DSN-06) are found on synthetic sheets only so far"
     cause: >-
-      A Should for Phase 2 that no build step covered: the layout is shown on the Design
-      page and counted into the takeoff, but cannot be exported as a drawing.
+      A match line is found from its "MATCH LINE" label and the straight line beside it, and
+      the sheet's side is proposed from the pipework found drawn, then coloured linework,
+      then the larger side. That has not been run on a real tender. A match line that steps
+      is followed as one straight line; a DXF whose pipes are coloured by layer gives no
+      colour to judge by; nothing compares two sheets to check that they took opposite sides.
     action: >-
-      Product owner: build it in a short step before the gate, or move it to Phase 3 by
-      change control.
-  - gap: "FR-DSN-06 (each sheet's layout limited to its side of its match lines) is only partly built"
+      Run it on the MOH design-intent set and a second consultant's drawings; a person
+      confirms each sheet's side on the Design page meanwhile.
+  - gap: "The layout export (FR-DSN-05) redraws the tender drawing rather than overlaying the original file"
     cause: >-
-      A Should for Phase 2 that no build step covered. A sheet's scope can be set by hand
-      and its spaces then keep to it, but match lines are not found from the drawing, so by
-      default each sheet is laid out whole and a shared floor is designed twice. No test
-      carries the requirement's ID.
-    action: "As FR-DSN-05: build, or defer by change control."
-  - gap: "CI has not run on P2-06 (stack and end-to-end job), P2-07, P2-08 or P2-09"
+      The PDF and DXF are drawn from the sheet's extracted geometry, in grey, so they show
+      what the platform read: hatches, images and fonts of the original are not reproduced.
+    action: "Product owner: accept, or ask for an overlay on the original PDF page."
+  - gap: "CI has not run since P2-06: not on P2-07 to P2-09, the dependency refresh, the move to Python 3.14 or FR-DSN-05 and 06"
     cause: >-
       GitHub Actions refuses to start jobs: the account's payments have failed or its
       spending limit is reached.
     action: >-
-      Fix the billing; re-run CI on main. Until then the evidence is local: `make check`
-      in the Dev Container.
-  - gap: "Integration and end-to-end tests have not run against the Phase 2 pages"
+      Fix the billing; re-run CI on main. Until then the evidence is local: `make check`,
+      `make test-integration` and `make e2e` in the Dev Container.
+  - gap: "The end-to-end tests do not open the Phase 2 pages"
     cause: >-
-      They run in CI's stack job, which is not running, and were not run locally for P2-06
-      to P2-09. The pages were not walked through in a browser either.
-    action: "`make up && make test-integration && make e2e` on the current build."
+      The eleven end-to-end tests cover sign-in, the bid workspace, document intake and the
+      workbench, and pass on the current stack. None opens Costing, Labour, Clarifications,
+      Risk, Review or Design, and those pages were not walked through in a browser.
+    action: "Add an end-to-end test that takes a bid from pricing to G4; walk the pages before the pilot."
   - gap: "Title block reading measures 100% here and measured 50% in the Phase 1 report"
     cause: >-
       The suite's scanned tenders need Tesseract. The Phase 1 report was generated where it
@@ -143,7 +145,7 @@ gaps:
 
 recommendation: >-
   **Not ready to pass the gate; ready for the assisted-mode pilot.** The platform does what
-  Phase 2 asked of it, with two Should requirements unbuilt (FR-DSN-05, FR-DSN-06): the
+  Phase 2 asked of it, and every Phase 2 requirement has a test: the
   estimate is priced with a source on every price (the database refuses one without), labour
   is estimated, clarifications, risks and qualifications are drafted for people to decide,
   the review pack and gates G3 and G4 work, and the submission is frozen and verifiable. The
@@ -152,6 +154,6 @@ recommendation: >-
   tenders, and no pilot has run and no turnaround baseline exists. Recommended: (1) fix CI
   billing and run the full pipeline on main; (2) decide D2 so the model routes can be
   measured and costed; (3) record the turnaround baseline and confirm the placeholder
-  figures; (4) decide FR-DSN-05 and 06; (5) run the assisted-mode pilot on at least three
-  live tenders and regenerate this report with `make exit-report-p2 LIVE=1`. Hold the gate
+  figures; (4) try the match lines and the layout export on a real design-intent tender;
+  (5) run the assisted-mode pilot on at least three live tenders and regenerate this report with `make exit-report-p2 LIVE=1`. Hold the gate
   review until that report shows the three criteria measured.
