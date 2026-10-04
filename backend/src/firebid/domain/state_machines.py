@@ -4,8 +4,8 @@ Services never set a state field. They call :func:`plan_transition`, which check
 transition exists, that the actor holds a permitted role, and that any guard passes. The
 caller then writes the new state and exactly one audit event in the same transaction.
 
-Each machine here is one of the five models in §7. Phase 1 needs three; the clarification and
-external-approval models arrive with the steps that use them (P2-06 and later).
+Each machine here is one of the five models in §7. Phase 1 needs three; the clarification
+model arrived with P2-06, and the external-approval model arrives with the step that uses it.
 """
 
 from __future__ import annotations
@@ -62,6 +62,17 @@ class QtoItemState(StrEnum):
     REJECTED = "rejected"
     BASELINED = "baselined"
     SUPERSEDED = "superseded"
+
+
+class ClarificationState(StrEnum):
+    DRAFT = "draft"
+    INTERNAL_REVIEW = "internal_review"
+    APPROVED_TO_ISSUE = "approved_to_issue"
+    ISSUED = "issued"
+    RESPONDED = "responded"
+    CLOSED_INCORPORATED = "closed_incorporated"
+    CLOSED_NO_CHANGE = "closed_no_change"
+    CONVERTED_TO_QUALIFICATION = "converted_to_qualification"
 
 
 class TransitionError(Exception):
@@ -372,8 +383,120 @@ QTO_ITEM = StateMachine(
 )
 
 
+# --- Tender clarification ------------------------------------------------------------------
+
+_DRAFTERS = frozenset({Role.ESTIMATOR, Role.SENIOR_ESTIMATOR, Role.BID_MANAGER})
+_ISSUERS = frozenset({Role.BID_MANAGER})
+
+
+def _evidence_and_engineering_approval(context: Mapping[str, Any]) -> GuardResult:
+    """Guardrail 5: nothing is issued without evidence, and an option with engineering,
+    fire-safety or structural content needs the Design Manager first (FR-RFI-06)."""
+    if not context.get("has_evidence"):
+        return "the clarification has no evidence reference"
+    if context.get("engineering_content") and not context.get("design_manager_approved"):
+        return (
+            "it has engineering, fire-safety or structural content: "
+            "the Design Manager's approval is missing"
+        )
+    return None
+
+
+def _impact_assessed(context: Mapping[str, Any]) -> GuardResult:
+    """A response is closed only once someone has said what it changed (FR-RFI-04)."""
+    return None if context.get("impact_assessed") else "the response's impact is not assessed"
+
+
+_UNRESOLVED = (
+    ClarificationState.DRAFT,
+    ClarificationState.INTERNAL_REVIEW,
+    ClarificationState.APPROVED_TO_ISSUE,
+    ClarificationState.ISSUED,
+    ClarificationState.RESPONDED,
+)
+
+CLARIFICATION = StateMachine(
+    name="clarification",
+    states=ClarificationState,
+    initial=ClarificationState.DRAFT,
+    terminal=frozenset(
+        {
+            ClarificationState.CLOSED_INCORPORATED,
+            ClarificationState.CLOSED_NO_CHANGE,
+            ClarificationState.CONVERTED_TO_QUALIFICATION,
+        }
+    ),
+    transitions=(
+        Transition(
+            ClarificationState.DRAFT,
+            ClarificationState.INTERNAL_REVIEW,
+            "send for internal review",
+            _DRAFTERS,
+        ),
+        Transition(
+            ClarificationState.INTERNAL_REVIEW,
+            ClarificationState.DRAFT,
+            "send back to draft",
+            _DRAFTERS | {Role.DESIGN_MANAGER},
+        ),
+        Transition(
+            ClarificationState.INTERNAL_REVIEW,
+            ClarificationState.APPROVED_TO_ISSUE,
+            "approve to issue",
+            _ISSUERS,
+            guard=_evidence_and_engineering_approval,
+            note="The Bid Manager approves; engineering content needs the Design Manager too.",
+        ),
+        Transition(
+            ClarificationState.APPROVED_TO_ISSUE,
+            ClarificationState.INTERNAL_REVIEW,
+            "withdraw the approval",
+            _ISSUERS,
+        ),
+        Transition(
+            ClarificationState.APPROVED_TO_ISSUE,
+            ClarificationState.ISSUED,
+            "record as issued",
+            _ISSUERS,
+            note="A person sent it outside the platform; the platform sends nothing (L3).",
+        ),
+        Transition(
+            ClarificationState.ISSUED,
+            ClarificationState.RESPONDED,
+            "record the response",
+            _DRAFTERS,
+        ),
+        Transition(
+            ClarificationState.RESPONDED,
+            ClarificationState.CLOSED_INCORPORATED,
+            "close: incorporated",
+            _DRAFTERS,
+            guard=_impact_assessed,
+        ),
+        Transition(
+            ClarificationState.RESPONDED,
+            ClarificationState.CLOSED_NO_CHANGE,
+            "close: no change",
+            _DRAFTERS,
+            guard=_impact_assessed,
+        ),
+        *(
+            Transition(
+                source,
+                ClarificationState.CONVERTED_TO_QUALIFICATION,
+                "convert to a qualification",
+                _ISSUERS,
+                note="Unresolved at submission: proposed as a qualification or assumption.",
+            )
+            for source in _UNRESOLVED
+        ),
+    ),
+)
+
+
 MACHINES: dict[str, StateMachine] = {
     "bid": BID_LIFECYCLE,
     "sheet_revision": SHEET_REVISION,
     "qto_item": QTO_ITEM,
+    "clarification": CLARIFICATION,
 }

@@ -19,6 +19,10 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `bid_parameter` | `source` | TEXT | no | may name the estimator who entered it |
 | `bid_price_basis` | `set_by` | VARCHAR(200) | no | who set the bid's pricing date |
 | `boq_line` | `allowance_by` | VARCHAR(200) | yes | the estimator whose allowance the amount is |
+| `clarification` | `design_approved_by` | VARCHAR(200) | yes | the Design Manager who approved the engineering content |
+| `clarification` | `approved_by` | VARCHAR(200) | yes | the Bid Manager who approved it for issue |
+| `clarification` | `issued_by` | VARCHAR(200) | yes | who recorded that it was sent to the client |
+| `clarification` | `impact_by` | VARCHAR(200) | yes | who assessed the response's impact |
 | `cost_buildup_line` | `entered_by` | VARCHAR(200) | no | the estimator whose figure it is |
 | `coverage_policy` | `note` | TEXT | yes | may name the estimator whose judgement set the policy |
 | `document` | `filename` | VARCHAR(512) | no | a consultant's file name can contain a person's name |
@@ -29,6 +33,7 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `labour_condition` | `decided_by` | VARCHAR(200) | yes | who confirmed or rejected the multiplier |
 | `labour_productivity` | `source_reference` | VARCHAR(200) | no | names the estimator when the source is an estimator's judgement |
 | `measurement_rule` | `source_note` | TEXT | yes | may name the estimator whose judgement set the rule |
+| `qualification` | `decided_by` | VARCHAR(200) | yes | who accepted or rejected the qualification |
 | `quotation` | `decided_by` | VARCHAR(200) | yes | who confirmed or rejected the quotation |
 | `review_action` | `actor_label` | VARCHAR(200) | no | who took the action |
 | `review_sample` | `drawn_by` | VARCHAR(200) | no | who drew the sample |
@@ -40,4 +45,4 @@ Retention follows the audit retention policy per organisation (default 7 years, 
 | `spec_issue` | `decided_by` | VARCHAR(200) | yes | who dismissed the issue |
 | `spec_obligation` | `decided_by` | VARCHAR(200) | yes | who confirmed or rejected the obligation |
 
-30 columns hold personal data.
+35 columns hold personal data.
