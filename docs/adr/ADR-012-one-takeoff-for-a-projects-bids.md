@@ -1,6 +1,6 @@
 # ADR-012: One verified takeoff for a project's several bids
 
-- **Status:** Proposed. Built in P2-02 (3 Oct 2026); to be accepted by the product owner.
+- **Status:** Accepted by the product owner on 4 Oct 2026. Built in P2-02 (3 Oct 2026).
 - **Date:** 2026-10-03
 - **Deciders:** Tech Lead, Senior Estimator; Commercial Director for what one bid's team may see of another's
 - **Requirements:** FR-BID-04; guardrails 2 and 8; NFR-08 (bid isolation); the immutability convention
