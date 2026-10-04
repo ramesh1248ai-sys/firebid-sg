@@ -1,6 +1,6 @@
 # Development image. Same base as the production backend and worker images (backend/Dockerfile),
 # so native libraries behave identically in development, CI and production.
-FROM python:3.12-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -15,7 +15,7 @@ RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
  && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
 # uv, pinned (Renovate keeps it current)
-COPY --from=ghcr.io/astral-sh/uv:0.11.25 /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /uvx /usr/local/bin/
 
 # The image runs as the person developing, not as root. The Dev Container feature
 # `common-utils` is told the same name in devcontainer.json: it finds this user and gives it
