@@ -95,7 +95,7 @@ class AuditFilters:
         self.occurred_from = occurred_from
         self.occurred_to = occurred_to
 
-    def apply(self, statement: Select[tuple[AuditEvent]]) -> Select[tuple[AuditEvent]]:
+    def apply(self, statement: Select[AuditEvent]) -> Select[AuditEvent]:
         if self.bid_id:
             statement = statement.where(AuditEvent.bid_id == self.bid_id)
         if self.entity_type:
@@ -126,11 +126,11 @@ def decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
 
 
 def scope_to_caller(
-    statement: Select[tuple[AuditEvent]],
+    statement: Select[AuditEvent],
     session: Session,
     principal: Principal,
     bid_id: uuid.UUID | None,
-) -> Select[tuple[AuditEvent]]:
+) -> Select[AuditEvent]:
     """Limit a query to what this caller may read."""
     if bid_id is not None:
         if not is_member(session, bid_id, principal.user_id):
