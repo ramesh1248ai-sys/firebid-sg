@@ -106,6 +106,7 @@ def create_app(
         sheets,
         spec_analysis,
         specs,
+        submission,
         symbols,
         views,
     )
@@ -135,6 +136,8 @@ def create_app(
     app.include_router(labour.company_router)
     app.include_router(clarifications.router)
     app.include_router(risk.router)
+    app.include_router(submission.router)
+    app.include_router(submission.company_router)
     app.include_router(kpis.router)
     app.include_router(registers.router)
     app.include_router(addenda.router)

@@ -5520,6 +5520,138 @@
         "title": "G2Out",
         "type": "object"
       },
+      "GateApproveIn": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "title": "GateApproveIn",
+        "type": "object"
+      },
+      "GateOut": {
+        "properties": {
+          "approved": {
+            "title": "Approved",
+            "type": "boolean"
+          },
+          "approver_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approver Id"
+          },
+          "approver_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approver Role"
+          },
+          "blockers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Blockers",
+            "type": "array"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "gate": {
+            "title": "Gate",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "snapshot_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Hash"
+          }
+        },
+        "required": [
+          "gate",
+          "role",
+          "approved",
+          "blockers",
+          "approver_role",
+          "approver_id",
+          "decided_at",
+          "comment",
+          "snapshot_hash"
+        ],
+        "title": "GateOut",
+        "type": "object"
+      },
+      "GatesOut": {
+        "properties": {
+          "gates": {
+            "items": {
+              "$ref": "#/components/schemas/GateOut"
+            },
+            "title": "Gates",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "gates"
+        ],
+        "title": "GatesOut",
+        "type": "object"
+      },
       "GradeRateOut": {
         "properties": {
           "components": {
@@ -8541,6 +8673,266 @@
         "title": "OriginProposal",
         "type": "object"
       },
+      "OutcomeIn": {
+        "properties": {
+          "awarded_price": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awarded Price"
+          },
+          "competitor_feedback": {
+            "default": "",
+            "maxLength": 6000,
+            "title": "Competitor Feedback",
+            "type": "string"
+          },
+          "outcome": {
+            "pattern": "^(awarded|lost|withdrawn)$",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reasons": {
+            "default": "",
+            "maxLength": 6000,
+            "title": "Reasons",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome"
+        ],
+        "title": "OutcomeIn",
+        "type": "object"
+      },
+      "OutcomeOut": {
+        "properties": {
+          "awarded_price": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awarded Price"
+          },
+          "competitor_feedback": {
+            "title": "Competitor Feedback",
+            "type": "string"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reasons": {
+            "title": "Reasons",
+            "type": "string"
+          },
+          "recorded_at": {
+            "format": "date-time",
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "recorded_by": {
+            "title": "Recorded By",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "awarded_price",
+          "reasons",
+          "competitor_feedback",
+          "recorded_by",
+          "recorded_at",
+          "state"
+        ],
+        "title": "OutcomeOut",
+        "type": "object"
+      },
+      "OutcomeReportOut": {
+        "properties": {
+          "awaiting": {
+            "title": "Awaiting",
+            "type": "integer"
+          },
+          "awarded": {
+            "title": "Awarded",
+            "type": "integer"
+          },
+          "awarded_value": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Awarded Value",
+            "type": "string"
+          },
+          "lost": {
+            "title": "Lost",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "submitted": {
+            "title": "Submitted",
+            "type": "integer"
+          },
+          "win_rate_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Win Rate Percent"
+          },
+          "withdrawn": {
+            "title": "Withdrawn",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "submitted",
+          "awarded",
+          "lost",
+          "withdrawn",
+          "awaiting",
+          "win_rate_percent",
+          "awarded_value",
+          "rows"
+        ],
+        "title": "OutcomeReportOut",
+        "type": "object"
+      },
+      "PackOut": {
+        "properties": {
+          "client": {
+            "title": "Client",
+            "type": "string"
+          },
+          "figure_labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Figure Labels",
+            "type": "object"
+          },
+          "figures": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Figures",
+            "type": "object"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "human_id": {
+            "title": "Human Id",
+            "type": "string"
+          },
+          "priced_on": {
+            "format": "date",
+            "title": "Priced On",
+            "type": "string"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/PackSectionOut"
+            },
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "human_id",
+          "client",
+          "reference",
+          "generated_at",
+          "priced_on",
+          "figures",
+          "figure_labels",
+          "sections"
+        ],
+        "title": "PackOut",
+        "type": "object"
+      },
+      "PackSectionOut": {
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "link",
+          "columns",
+          "rows",
+          "note"
+        ],
+        "title": "PackSectionOut",
+        "type": "object"
+      },
       "ParameterIn": {
         "properties": {
           "level": {
@@ -9162,6 +9554,189 @@
           "finished"
         ],
         "title": "Progress",
+        "type": "object"
+      },
+      "ProposalDecisionIn": {
+        "properties": {
+          "approve": {
+            "title": "Approve",
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "approve"
+        ],
+        "title": "ProposalDecisionIn",
+        "type": "object"
+      },
+      "ProposalIn": {
+        "properties": {
+          "library": {
+            "pattern": "^(rate|productivity)$",
+            "title": "Library",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "source": {
+            "pattern": "^(quotation|outcome|estimator)$",
+            "title": "Source",
+            "type": "string"
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref"
+          }
+        },
+        "required": [
+          "library",
+          "payload",
+          "source",
+          "reason"
+        ],
+        "title": "ProposalIn",
+        "type": "object"
+      },
+      "ProposalOut": {
+        "properties": {
+          "applied_entry_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Entry Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "library": {
+            "title": "Library",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "proposed_by": {
+            "title": "Proposed By",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "library",
+          "payload",
+          "source",
+          "source_ref",
+          "reason",
+          "state",
+          "proposed_by",
+          "decided_by",
+          "decided_at",
+          "note",
+          "applied_entry_id",
+          "created_at"
+        ],
+        "title": "ProposalOut",
         "type": "object"
       },
       "ProviderOut": {
@@ -12090,6 +12665,101 @@
           "sheet_number"
         ],
         "title": "SheetRefOut",
+        "type": "object"
+      },
+      "SnapshotFileOut": {
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "sha256",
+          "size",
+          "content_type"
+        ],
+        "title": "SnapshotFileOut",
+        "type": "object"
+      },
+      "SnapshotOut": {
+        "properties": {
+          "changed_since": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Changed Since",
+            "type": "array"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/SnapshotFileOut"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "frozen_at": {
+            "format": "date-time",
+            "title": "Frozen At",
+            "type": "string"
+          },
+          "frozen_by": {
+            "title": "Frozen By",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "title": "Manifest Sha256",
+            "type": "string"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "record_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Record Counts",
+            "type": "object"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "manifest_sha256",
+          "frozen_by",
+          "frozen_at",
+          "files",
+          "record_counts",
+          "verified",
+          "problems",
+          "changed_since"
+        ],
+        "title": "SnapshotOut",
         "type": "object"
       },
       "SourceOut": {
@@ -17809,6 +18479,173 @@
         ]
       }
     },
+    "/bids/{bid_id}/gates": {
+      "get": {
+        "description": "Each gate: approved, by whom, when and on which hash; or what stands in its way.",
+        "operationId": "gates_bids__bid_id__gates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Gates",
+        "tags": [
+          "submission"
+        ]
+      }
+    },
+    "/bids/{bid_id}/gates/g3/approve": {
+      "post": {
+        "description": "The Commercial Director approves the estimate. Refused, with the reasons, while G2 is\nnot approved, a scope checklist item is open or a risk has no treatment.",
+        "operationId": "approve_g3_bids__bid_id__gates_g3_approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GateApproveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve G3",
+        "tags": [
+          "submission"
+        ]
+      }
+    },
+    "/bids/{bid_id}/gates/g4/approve": {
+      "post": {
+        "description": "The Commercial Director approves submission: the submission is frozen and the bid\nbecomes submitted. The platform sends nothing; the files are then offered for download.",
+        "operationId": "approve_g4_bids__bid_id__gates_g4_approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GateApproveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve G4",
+        "tags": [
+          "submission"
+        ]
+      }
+    },
     "/bids/{bid_id}/kpis": {
       "get": {
         "description": "One bid's measures and its AI cost report by route, provider and model.",
@@ -18120,6 +18957,119 @@
         "summary": "Add Member",
         "tags": [
           "bids"
+        ]
+      }
+    },
+    "/bids/{bid_id}/outcome": {
+      "get": {
+        "operationId": "get_outcome_bids__bid_id__outcome_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/OutcomeOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Outcome Bids  Bid Id  Outcome Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Outcome",
+        "tags": [
+          "submission"
+        ]
+      },
+      "post": {
+        "description": "Record how the tender ended: awarded (with the price, where known), lost or withdrawn,\nwith the reasons and what was learned of competitors. The bid's lifecycle follows.",
+        "operationId": "record_outcome_bids__bid_id__outcome_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutcomeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutcomeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Record Outcome",
+        "tags": [
+          "submission"
         ]
       }
     },
@@ -20565,6 +21515,112 @@
         "summary": "Export",
         "tags": [
           "registers"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review-pack": {
+      "get": {
+        "description": "The review pack for G2 and G3: the estimate by component and by system, cost drivers\nand margin, risk allowances, variances, what is open or unpriced, and G1 coverage.",
+        "operationId": "get_pack_bids__bid_id__review_pack_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Pack",
+        "tags": [
+          "submission"
+        ]
+      }
+    },
+    "/bids/{bid_id}/review-pack/download": {
+      "get": {
+        "description": "The review pack as a PDF or a workbook, for the person asking.",
+        "operationId": "download_pack_bids__bid_id__review_pack_download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "pdf",
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download Pack",
+        "tags": [
+          "submission"
         ]
       }
     },
@@ -24143,6 +25199,119 @@
         ]
       }
     },
+    "/bids/{bid_id}/submission": {
+      "get": {
+        "description": "The frozen submission and whether it still verifies: the manifest and every file are\nread back and their hashes checked.",
+        "operationId": "get_submission_bids__bid_id__submission_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SnapshotOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Submission Bids  Bid Id  Submission Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Submission",
+        "tags": [
+          "submission"
+        ]
+      }
+    },
+    "/bids/{bid_id}/submission/files/{name}": {
+      "get": {
+        "description": "A file of the frozen submission, for the person asking. Before G4 there is none.",
+        "operationId": "submission_file_bids__bid_id__submission_files__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Submission File",
+        "tags": [
+          "submission"
+        ]
+      }
+    },
     "/bids/{bid_id}/symbols/counts": {
       "get": {
         "description": "Counts of confirmed, countable types on Current sheets; everything else as unmapped.",
@@ -25426,6 +26595,169 @@
         ]
       }
     },
+    "/library-proposals": {
+      "get": {
+        "description": "The queue of proposed changes to the rate and productivity libraries.",
+        "operationId": "list_proposals_library_proposals_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProposalOut"
+                  },
+                  "title": "Response List Proposals Library Proposals Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Proposals",
+        "tags": [
+          "submission"
+        ]
+      },
+      "post": {
+        "description": "Propose a change. The library is not changed until an estimator approves it.",
+        "operationId": "propose_library_proposals_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Propose",
+        "tags": [
+          "submission"
+        ]
+      }
+    },
+    "/library-proposals/{proposal_id}/decide": {
+      "post": {
+        "description": "Approve a proposed change, which applies it as a new version, or reject it.",
+        "operationId": "decide_proposal_library_proposals__proposal_id__decide_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalDecisionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decide Proposal",
+        "tags": [
+          "submission"
+        ]
+      }
+    },
     "/library/consultants": {
       "get": {
         "description": "Every consultant with mappings, and how many are confirmed.",
@@ -25938,6 +27270,33 @@
         "summary": "Rule History",
         "tags": [
           "qto"
+        ]
+      }
+    },
+    "/outcomes": {
+      "get": {
+        "description": "Tenders submitted, won, lost and still out, with the win rate and the value won.",
+        "operationId": "outcomes_outcomes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutcomeReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Outcomes",
+        "tags": [
+          "submission"
         ]
       }
     },

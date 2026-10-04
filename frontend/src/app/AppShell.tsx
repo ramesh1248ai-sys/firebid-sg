@@ -24,6 +24,7 @@ const bidSections = [
   { to: "boq", label: "BOQ" },
   { to: "clarifications", label: "Clarifications" },
   { to: "risk", label: "Risk" },
+  { to: "review", label: "Review" },
 ];
 
 // Only the roles the API would let in; otherwise the link leads to a refusal.

@@ -5,6 +5,7 @@ import {
   ClipboardList,
   FileQuestion,
   FileStack,
+  Gavel,
   Pencil,
   PencilRuler,
   Receipt,
@@ -221,6 +222,12 @@ const PARTS: { to: string; label: string; what: string; icon: ReactNode }[] = [
     label: "Risk and qualifications",
     what: "The scope-gap checklist, the risk register and what the offer is qualified by.",
     icon: <ShieldAlert className="size-5" aria-hidden />,
+  },
+  {
+    to: "review",
+    label: "Review and submission",
+    what: "The review pack, gates G2 to G4, the frozen submission and the outcome.",
+    icon: <Gavel className="size-5" aria-hidden />,
   },
 ];
 

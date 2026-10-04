@@ -1211,6 +1211,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/gates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gates
+         * @description Each gate: approved, by whom, when and on which hash; or what stands in its way.
+         */
+        get: operations["gates_bids__bid_id__gates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/gates/g3/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve G3
+         * @description The Commercial Director approves the estimate. Refused, with the reasons, while G2 is
+         *     not approved, a scope checklist item is open or a risk has no treatment.
+         */
+        post: operations["approve_g3_bids__bid_id__gates_g3_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/gates/g4/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve G4
+         * @description The Commercial Director approves submission: the submission is frozen and the bid
+         *     becomes submitted. The platform sends nothing; the files are then offered for download.
+         */
+        post: operations["approve_g4_bids__bid_id__gates_g4_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/kpis": {
         parameters: {
             query?: never;
@@ -1305,6 +1367,28 @@ export interface paths {
         put?: never;
         /** Add Member */
         post: operations["add_member_bids__bid_id__members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/outcome": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Outcome */
+        get: operations["get_outcome_bids__bid_id__outcome_get"];
+        put?: never;
+        /**
+         * Record Outcome
+         * @description Record how the tender ended: awarded (with the price, where known), lost or withdrawn,
+         *     with the reasons and what was learned of competitors. The bid's lifecycle follows.
+         */
+        post: operations["record_outcome_bids__bid_id__outcome_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2009,6 +2093,47 @@ export interface paths {
          * @description Download a register as a workbook. A named user's explicit action (guardrail 7).
          */
         get: operations["export_bids__bid_id__registers__kind__xlsx_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/review-pack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pack
+         * @description The review pack for G2 and G3: the estimate by component and by system, cost drivers
+         *     and margin, risk allowances, variances, what is open or unpriced, and G1 coverage.
+         */
+        get: operations["get_pack_bids__bid_id__review_pack_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/review-pack/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Pack
+         * @description The review pack as a PDF or a workbook, for the person asking.
+         */
+        get: operations["download_pack_bids__bid_id__review_pack_download_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3096,6 +3221,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/submission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Submission
+         * @description The frozen submission and whether it still verifies: the manifest and every file are
+         *     read back and their hashes checked.
+         */
+        get: operations["get_submission_bids__bid_id__submission_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/submission/files/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Submission File
+         * @description A file of the frozen submission, for the person asking. Before G4 there is none.
+         */
+        get: operations["submission_file_bids__bid_id__submission_files__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/symbols/counts": {
         parameters: {
             query?: never;
@@ -3561,6 +3727,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/library-proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Proposals
+         * @description The queue of proposed changes to the rate and productivity libraries.
+         */
+        get: operations["list_proposals_library_proposals_get"];
+        put?: never;
+        /**
+         * Propose
+         * @description Propose a change. The library is not changed until an estimator approves it.
+         */
+        post: operations["propose_library_proposals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/library-proposals/{proposal_id}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Proposal
+         * @description Approve a proposed change, which applies it as a new version, or reject it.
+         */
+        post: operations["decide_proposal_library_proposals__proposal_id__decide_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/library/consultants": {
         parameters: {
             query?: never;
@@ -3739,6 +3949,26 @@ export interface paths {
         };
         /** Rule History */
         get: operations["rule_history_measurement_rules__key__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Outcomes
+         * @description Tenders submitted, won, lost and still out, with the win rate and the value won.
+         */
+        get: operations["outcomes_outcomes_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5590,6 +5820,39 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /** GateApproveIn */
+        GateApproveIn: {
+            /** Comment */
+            comment?: string | null;
+        };
+        /** GateOut */
+        GateOut: {
+            /** Approved */
+            approved: boolean;
+            /** Approver Id */
+            approver_id: string | null;
+            /** Approver Role */
+            approver_role: string | null;
+            /** Blockers */
+            blockers: string[];
+            /** Comment */
+            comment: string | null;
+            /** Decided At */
+            decided_at: string | null;
+            /** Gate */
+            gate: string;
+            /** Role */
+            role: string;
+            /** Snapshot Hash */
+            snapshot_hash: string | null;
+        };
+        /** GatesOut */
+        GatesOut: {
+            /** Gates */
+            gates: components["schemas"]["GateOut"][];
+            /** State */
+            state: string;
+        };
         /** GradeRateOut */
         GradeRateOut: {
             /** Components */
@@ -6468,6 +6731,108 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** OutcomeIn */
+        OutcomeIn: {
+            /** Awarded Price */
+            awarded_price?: number | string | null;
+            /**
+             * Competitor Feedback
+             * @default
+             */
+            competitor_feedback: string;
+            /** Outcome */
+            outcome: string;
+            /**
+             * Reasons
+             * @default
+             */
+            reasons: string;
+        };
+        /** OutcomeOut */
+        OutcomeOut: {
+            /** Awarded Price */
+            awarded_price: string | null;
+            /** Competitor Feedback */
+            competitor_feedback: string;
+            /** Outcome */
+            outcome: string;
+            /** Reasons */
+            reasons: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+            /** Recorded By */
+            recorded_by: string;
+            /** State */
+            state: string;
+        };
+        /** OutcomeReportOut */
+        OutcomeReportOut: {
+            /** Awaiting */
+            awaiting: number;
+            /** Awarded */
+            awarded: number;
+            /** Awarded Value */
+            awarded_value: string;
+            /** Lost */
+            lost: number;
+            /** Rows */
+            rows: {
+                [key: string]: unknown;
+            }[];
+            /** Submitted */
+            submitted: number;
+            /** Win Rate Percent */
+            win_rate_percent: number | null;
+            /** Withdrawn */
+            withdrawn: number;
+        };
+        /** PackOut */
+        PackOut: {
+            /** Client */
+            client: string;
+            /** Figure Labels */
+            figure_labels: {
+                [key: string]: string;
+            };
+            /** Figures */
+            figures: {
+                [key: string]: string;
+            };
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Human Id */
+            human_id: string;
+            /**
+             * Priced On
+             * Format: date
+             */
+            priced_on: string;
+            /** Reference */
+            reference: string;
+            /** Sections */
+            sections: components["schemas"]["PackSectionOut"][];
+        };
+        /** PackSectionOut */
+        PackSectionOut: {
+            /** Columns */
+            columns: string[];
+            /** Key */
+            key: string;
+            /** Link */
+            link: string;
+            /** Note */
+            note: string;
+            /** Rows */
+            rows: string[][];
+            /** Title */
+            title: string;
+        };
         /** ParameterIn */
         ParameterIn: {
             /** Level */
@@ -6690,6 +7055,65 @@ export interface components {
             sheets_parsed: number;
             /** Total */
             total: number;
+        };
+        /** ProposalDecisionIn */
+        ProposalDecisionIn: {
+            /** Approve */
+            approve: boolean;
+            /** Note */
+            note?: string | null;
+        };
+        /** ProposalIn */
+        ProposalIn: {
+            /** Library */
+            library: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Reason */
+            reason: string;
+            /** Source */
+            source: string;
+            /** Source Ref */
+            source_ref?: string | null;
+        };
+        /** ProposalOut */
+        ProposalOut: {
+            /** Applied Entry Id */
+            applied_entry_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Library */
+            library: string;
+            /** Note */
+            note: string | null;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Proposed By */
+            proposed_by: string;
+            /** Reason */
+            reason: string;
+            /** Source */
+            source: string;
+            /** Source Ref */
+            source_ref: string | null;
+            /** State */
+            state: string;
         };
         /** ProviderOut */
         ProviderOut: {
@@ -7528,6 +7952,46 @@ export interface components {
             sheet_id?: string | null;
             /** Sheet Number */
             sheet_number: string;
+        };
+        /** SnapshotFileOut */
+        SnapshotFileOut: {
+            /** Content Type */
+            content_type: string;
+            /** Name */
+            name: string;
+            /** Sha256 */
+            sha256: string;
+            /** Size */
+            size: number;
+        };
+        /** SnapshotOut */
+        SnapshotOut: {
+            /** Changed Since */
+            changed_since: string[];
+            /** Files */
+            files: components["schemas"]["SnapshotFileOut"][];
+            /**
+             * Frozen At
+             * Format: date-time
+             */
+            frozen_at: string;
+            /** Frozen By */
+            frozen_by: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Manifest Sha256 */
+            manifest_sha256: string;
+            /** Problems */
+            problems: string[];
+            /** Record Counts */
+            record_counts: {
+                [key: string]: number;
+            };
+            /** Verified */
+            verified: boolean;
         };
         /** SourceOut */
         SourceOut: {
@@ -10263,6 +10727,107 @@ export interface operations {
             };
         };
     };
+    gates_bids__bid_id__gates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_g3_bids__bid_id__gates_g3_approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GateApproveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_g4_bids__bid_id__gates_g4_approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GateApproveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     for_bid_bids__bid_id__kpis_get: {
         parameters: {
             query?: never;
@@ -10444,6 +11009,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_outcome_bids__bid_id__outcome_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutcomeOut"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_outcome_bids__bid_id__outcome_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutcomeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutcomeOut"];
                 };
             };
             /** @description Validation Error */
@@ -11792,6 +12423,70 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pack_bids__bid_id__review_pack_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PackOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_pack_bids__bid_id__review_pack_download_get: {
+        parameters: {
+            query?: {
+                format?: string;
+            };
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
             /** @description Validation Error */
             422: {
@@ -13720,6 +14415,69 @@ export interface operations {
             };
         };
     };
+    get_submission_bids__bid_id__submission_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SnapshotOut"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submission_file_bids__bid_id__submission_files__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     symbol_counts_bids__bid_id__symbols_counts_get: {
         parameters: {
             query?: never;
@@ -14520,6 +15278,105 @@ export interface operations {
             };
         };
     };
+    list_proposals_library_proposals_get: {
+        parameters: {
+            query?: {
+                state?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_library_proposals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_proposal_library_proposals__proposal_id__decide_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalDecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     consultants_library_consultants_get: {
         parameters: {
             query?: never;
@@ -14835,6 +15692,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    outcomes_outcomes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OutcomeReportOut"];
                 };
             };
         };
