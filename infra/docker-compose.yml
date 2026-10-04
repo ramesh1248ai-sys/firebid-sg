@@ -84,7 +84,7 @@ services:
     restart: "no"
 
   clamav:
-    image: clamav/clamav:1.5.4
+    image: clamav/clamav:1.4
     environment:
       # Fetch signatures on start; without them clamd answers but detects nothing.
       CLAMAV_NO_FRESHCLAMD: "false"

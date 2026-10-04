@@ -4,7 +4,7 @@
 # .doc and .xls) and the drawing parsers, and nothing that would be useful to someone who got
 # code execution through a malformed tender drawing: no credentials, and no writable
 # filesystem outside /scratch.
-FROM python:3.14-slim-bookworm
+FROM python:3.12-slim-bookworm
 
 # LibreOffice headless converts legacy Office formats (FR-DOC-01 item 5). The -nogui packages
 # keep this to what is needed to convert, rather than a desktop suite. Tesseract reads title
@@ -43,11 +43,11 @@ WORKDIR /app
 
 # Dependencies first, so code changes reuse the cached dependency layer.
 COPY pyproject.toml uv.lock .python-version README.md ./
-RUN --mount=from=ghcr.io/astral-sh/uv:0.12.23,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev --no-install-project
+RUN --mount=from=ghcr.io/astral-sh/uv:0.11.25,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev --no-install-project
 
 COPY config ./config
 COPY src ./src
-RUN --mount=from=ghcr.io/astral-sh/uv:0.12.23,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev
+RUN --mount=from=ghcr.io/astral-sh/uv:0.11.25,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev
 
 ARG GIT_SHA=unknown
 ENV FIREBID_GIT_SHA=$GIT_SHA
