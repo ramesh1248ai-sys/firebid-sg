@@ -2032,3 +2032,50 @@ Entry template:
 - **Defects found and fixed during the step:**
   - Quotation file lines were kept for ever (now cleared by retention); `bid_outcome.competitor_feedback` was missing from the data inventory.
 - **Known gaps and follow-ups:** see the gap list in `docs/reports/phase2-exit.md`. The largest: no pilot and no baseline; CI not running (account billing); no model route run against a real provider (D2); FR-DSN-05 and 06; integration and end-to-end tests not run for P2-06 to P2-09; two open medium privacy and integrity findings (free text in the audit log; object lock unconfigured locally).
+
+## Platform · Dependencies, Python 3.14 and container images · 2026-10-04
+
+- **Summary:** outside the build steps, `main` moved to Python 3.14 with refreshed dependencies and development images, each tested locally because CI is not running.
+  - **Dependencies (#46):** about 30 packages refreshed, SQLAlchemy 2.0 to 2.1 among them. Three annotations in `api/audit.py` changed to `Select[AuditEvent]`, as SQLAlchemy 2.1 writes them.
+  - **Python 3.14 and uv 0.12.23 (#47):** `requires-python`, `.python-version`, the ruff and mypy targets, the lock file and the backend, sandbox and Dev Container images. ADR-001 and the project context record why the 3.12 pin no longer holds. The formatter's 3.14 target writes `except A, B:` without parentheses.
+  - **Images (#50):** Keycloak 26.8, ClamAV 1.5.4, SeaweedFS 4.48. SeaweedFS 4.48 exits non-zero when a bucket already exists, which stopped a stack with data from starting; `s3-init` now treats that as success.
+  - Renovate's #12 and #13 were merged first and left `main` inconsistent; they were reverted (#45) and their content came back in #47 and #50.
+- **Defects found and fixed:** a timing test (`tests/drawings/test_touching.py`) compared one run with one run and failed on 3.14 when a pause landed in the first; it takes the best of three.
+- **Verification, local, on 3.14:** full `make check` (2,181 backend, 122 frontend) with that one timing failure, since fixed; `make test-integration` 10 passed; `make e2e` 10 passed, 1 skipped; load test 1,689 requests, none failed, p95 0.106 s. The stack and the Dev Container were rebuilt on the 3.14 images.
+- **Known gaps and follow-ups:**
+  - A 3.14 test run emits about 135,000 deprecation warnings, nearly all ezdxf setting a NumPy array's shape (NumPy 2.5).
+  - `make bootstrap` runs before git trusts the mounted repository, so a Dev Container rebuild fails at its setup step until `git config --global --add safe.directory` is run by hand.
+  - `make e2e` expects a database with no load-test bids: the load test adds the estimator account to every bid it creates.
+
+## FR-DSN-05, FR-DSN-06 · Layout export and match lines · 2026-10-05
+
+- **Summary:** the two Phase 2 requirements no build step had covered. Requirement coverage for Phase 2 is now 108 of 108.
+  - **Match lines (FR-DSN-06):** when a sheet's design basis is read, its match lines are found: a text reading "MATCH LINE", and the straight line beside it that runs across the plan (dashed or not; a line of the structural grid only when nothing else is beside the label). The sheet it names ("SEE DWG FP-L10-02") is kept. The sheet's side is proposed as the side with more of the pipework found drawn; failing that, more coloured linework; failing that, the larger side; and the reason is shown. The sheet's scope becomes the plan on its side of every line, so the layout stops there and a shared floor is designed once.
+  - **A person decides.** On the Design page each line shows its words, the sheet it continues on and why that side; a person may take the other side, use the whole sheet, or go back to the proposal. A person's choice is kept when the sheet is read again, and a change lays a confirmed sheet out again. A label whose line was not found is named and limits nothing.
+  - **Export (FR-DSN-05):** a confirmed sheet's layout downloads as a PDF or a DXF: the tender drawing in grey, drawn from the sheet's extracted geometry; the proposed heads, range pipes and feeds with their sizes in colour; the scope outline where match lines limit it. Both are stamped "For estimation only: not for construction" across the sheet and in a note with the criterion and its source, the design rules version, who confirmed, the counts and when it was made. What a person rejected is left out. It is a download for a person on the bid, audited; nothing is sent.
+- **Key modules / files:**
+  - `design/match_lines.py` (`find`, `scope`, `scope_from_json`); `design/export.py` (`as_pdf`, `as_dxf`, `STAMP`).
+  - `services/design.py`: `_read_match_lines`, `choose_sides`, `follow_match_lines`, `export_layout`.
+  - `api/design.py`: `PUT .../design/sheets/{id}/scope` takes `sides` or `follow_match_lines` as well as a polygon; `GET .../design/sheets/{id}/export?format=pdf|dxf`.
+  - Migration `0041`: `sheet_design.match_lines`, `sheet_design.scope_source`.
+  - `evals/synthetic_design.design_intent_plan(match_line=True)`; `pages/DesignPage.tsx`.
+- **How to run and demo:**
+  1. `make up`. On a bid with a design-intent sheet, open **Design** and **Read the design basis**.
+  2. Open a sheet: its match lines are listed with the side proposed. **Take the other side** or **Use the whole sheet** to change it.
+  3. Confirm the criterion; once the layout is proposed, **Download the layout as PDF** or **as DXF**.
+- **Requirement IDs covered (test names):**
+  - FR-DSN-06: `tests/design/test_match_lines.py` (found from its label; the side by services, by pipework, by size; a sheet between two lines; a line at an angle; a grid line not mistaken for it; a label with no line; the spaces keep to the side); `tests/db/test_design_match_lines_and_export.py::TestMatchLines` (scope proposed with its words; the layout keeps to the side, and the two sides make the whole; a person's side kept on reading again; the API); `Design.test.tsx`.
+  - FR-DSN-05: `tests/design/test_export.py` (the PDF's size, stamp and words; the DXF's layers, head positions and stamp); `tests/db/test_design_match_lines_and_export.py::TestExport` (the stamp and what the layout rests on; a rejected head left out; the scope drawn; refused before a layout; a download for a member, audited, not found for another bid); `Design.test.tsx`.
+- **Deviations and decisions:**
+  - **No plan-and-approve pause,** as the owner prefers. No build prompt exists for these two; the requirements' own text was the brief.
+  - **The side is a proposal, not a reading.** A drawing does not say which side of a match line is the sheet's own; the platform says why it proposes one and a person can change it.
+  - **The export redraws the tender drawing** from extracted geometry, as the legend crops do, so it is made the same way for a PDF sheet and a DXF sheet and shows what the platform read.
+  - **The DXF is in sheet millimetres, y up,** on layers `TENDER-DRAWING`, `PROPOSED-HEADS`, `PROPOSED-PIPE`, `PROPOSED-SCOPE` and `ESTIMATION-ONLY`.
+- **Manual checks and results:** not run on a real tender, and the page was not walked through in a browser.
+- **Defects found and fixed during the step:** the first finder measured from a label's middle and took the longest line near it, which on the synthetic sheet was a structural grid line; it now measures from the label's box and sets grid lines aside.
+- **Known gaps and follow-ups:**
+  - **Synthetic sheets only:** see the gap list in `docs/reports/phase2-exit.md`.
+  - **A stepped match line** is followed as one straight line.
+  - **A DXF whose pipes take their colour from their layer** gives no colour to judge the side by; the extractor does not resolve layer colours.
+  - **Two sheets are not compared:** nothing checks that the sheets either side of a line took opposite sides.
+  - **The synthetic design sheet finds no pipe run** (it has no legend), so the database tests exercise the larger-side rule; the pipework rule is tested in `tests/design`.

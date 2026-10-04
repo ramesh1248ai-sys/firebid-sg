@@ -24,6 +24,7 @@ from firebid.db.base import Base
 from firebid.db.mixins import BidScoped, UuidPk, personal
 
 DESIGN_STATES = ("proposed", "confirmed", "blocked")
+SCOPE_SOURCES = ("match_lines", "person")
 
 
 class SheetDesign(UuidPk, BidScoped, Base):
@@ -45,6 +46,9 @@ class SheetDesign(UuidPk, BidScoped, Base):
             name="confirmation_named",
         ),
         CheckConstraint("state <> 'blocked' OR note IS NOT NULL", name="blocked_says_why"),
+        CheckConstraint(
+            f"scope_source IS NULL OR scope_source IN {SCOPE_SOURCES}", name="scope_source_known"
+        ),
     )
 
     sheet_id: Mapped[uuid.UUID] = mapped_column(
@@ -66,6 +70,14 @@ class SheetDesign(UuidPk, BidScoped, Base):
     # The part of the plan this sheet answers for, where match lines share a floor: a
     # polygon in sheet millimetres. Empty means the whole view.
     scope: Mapped[list[list[float]] | None] = mapped_column(JSONB)
+    # Where the scope came from: the sheet's match lines (FR-DSN-06), or a person, whose
+    # choice a later reading of the sheet leaves alone. None: nothing has set one.
+    scope_source: Mapped[str | None] = mapped_column(String(16))
+    # The match lines found across the plan: each label's words, the sheet it names, where
+    # the line runs, the side proposed for this sheet and why, and the side now taken.
+    match_lines: Mapped[list[dict[str, object]]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default="[]"
+    )
     rule_version: Mapped[int | None] = mapped_column(Integer)
     # The layout as made: every space with its heads, and each omission with its rule.
     spaces: Mapped[list[dict[str, object]]] = mapped_column(JSONB, nullable=False, default=list)

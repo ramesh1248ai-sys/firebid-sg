@@ -28,7 +28,7 @@ import itertools
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from sqlalchemy import delete, func, select
@@ -39,7 +39,8 @@ from firebid.db.models.design import SheetDesign
 from firebid.db.models.drawings import SheetGeometry, SheetView
 from firebid.db.models.symbols import LegendEntry
 from firebid.db.models.takeoff import DetectedObject, MeasurementRule, PipeRun
-from firebid.design import basis, layout, rooms
+from firebid.design import basis, layout, match_lines, rooms
+from firebid.design import export as layout_export
 from firebid.design.basis import NoteLine
 from firebid.design.layout import Criterion, Layout, Rules
 from firebid.domain.actors import Actor, AuditContext
@@ -171,7 +172,8 @@ def read_basis(session: Session, store: ObjectStore, bid_id: uuid.UUID) -> list[
         view, has_plan = _plan_view(list(info.views.values()))
         if record is None or not has_plan:
             continue  # not a plan (a schematic, a detail sheet): nothing to lay out on
-        lines = _note_lines(geometry_service.load(store, record))
+        table = geometry_service.load(store, record)
+        lines = _note_lines(table)
         stated = basis.criteria_from_notes(lines, info.number)
         quote = basis.design_intent(lines)
         row = existing.get(sheet_id)
@@ -188,10 +190,73 @@ def read_basis(session: Session, store: ObjectStore, bid_id: uuid.UUID) -> list[
         if row.state != "confirmed":
             row.state = "proposed" if view else "blocked"
             row.note = None if view else NOT_MEASURABLE
+            _read_match_lines(session, row, table, view)
         out.append(row)
     session.flush()
     log.info("design_basis_read", bid_id=str(bid_id), sheets=len(out))
     return out
+
+
+def _extent(view: SheetView) -> tuple[float, float, float, float]:
+    return (view.extent[0], view.extent[1], view.extent[2], view.extent[3])
+
+
+def _read_match_lines(
+    session: Session, row: SheetDesign, table: Any, view: SheetView | None
+) -> None:
+    """Find the sheet's match lines and propose its scope from them (FR-DSN-06).
+
+    A scope a person set, and the side a person chose for a line, are left as they are.
+    """
+    if view is None:
+        row.match_lines = []
+        return
+    grid = GridSystem.from_json(view.grid) if view.grid else None  # type: ignore[arg-type]
+    found = match_lines.find(
+        table,
+        _extent(view),
+        grid=[(line.axis, line.position) for line in (*grid.across, *grid.up)] if grid else None,
+        services=_drawn_pipes(session, row.sheet_id),
+    )
+    chosen = {
+        _line_key(line): line.get("side")
+        for line in row.match_lines or []
+        if row.scope_source == "person"
+    }
+    lines = []
+    for line in found.lines:
+        entry = line.to_json()
+        entry["side"] = chosen.get(_line_key(entry)) or entry["side"]
+        lines.append(entry)
+    lines += [{"label": label, "line": None} for label in found.unplaced]
+    row.match_lines = lines
+    if row.scope_source == "person":
+        return
+    placed = [line for line in lines if line.get("line")]
+    polygon = match_lines.scope_from_json(_extent(view), placed)
+    row.scope = [[round(x, 3), round(y, 3)] for x, y in polygon] if polygon else None
+    row.scope_source = "match_lines" if polygon else None
+
+
+def _drawn_pipes(session: Session, sheet_id: uuid.UUID) -> list[list[tuple[float, float]]]:
+    """The pipe runs found drawn on the sheet, less any a person rejected."""
+    return [
+        [(float(p[0]), float(p[1])) for p in run.points]
+        for run in session.execute(
+            select(PipeRun).where(
+                PipeRun.sheet_id == sheet_id,
+                PipeRun.origin == "detected",
+                PipeRun.state != "rejected",
+            )
+        ).scalars()
+    ]
+
+
+def _line_key(line: dict[str, Any]) -> tuple[float, ...] | None:
+    ends = line.get("line")
+    if not ends:
+        return None
+    return tuple(round(float(value)) for point in ends for value in point)
 
 
 # --- A person's decisions ---------------------------------------------------------------------
@@ -326,8 +391,10 @@ def set_scope(
     """The part of the plan this sheet answers for (its side of a match line)."""
     if polygon is not None and len(polygon) < 3:
         raise DesignError("a scope needs at least three points")
-    before = {"scope": row.scope}
+    before = {"scope": row.scope, "scope_source": row.scope_source}
     row.scope = [[round(x, 3), round(y, 3)] for x, y in polygon] if polygon else None
+    # A person's choice, the whole sheet included: reading the sheet again leaves it alone.
+    row.scope_source = "person"
     session.flush()
     record_event(
         session,
@@ -339,7 +406,82 @@ def set_scope(
         entity_type=SheetDesign.__tablename__,
         entity_id=row.id,
         before=before,
-        after={"scope": row.scope},
+        after={"scope": row.scope, "scope_source": row.scope_source},
+    )
+    if row.state == "confirmed":
+        queue_layout(session, row.bid_id, actor.id, [row.sheet_id])
+
+
+def choose_sides(session: Session, row: SheetDesign, sides: dict[int, int], actor: Actor) -> None:
+    """A person says which side of each match line this sheet answers for (FR-DSN-06).
+
+    `sides` is by the match line's place in the sheet's list: +1 or -1, as the line records
+    it. The scope becomes the plan on the chosen side of every line.
+    """
+    view = session.get(SheetView, row.view_id) if row.view_id else None
+    lines = [dict(line) for line in row.match_lines or []]
+    placed = [index for index, line in enumerate(lines) if line.get("line")]
+    if view is None or not placed:
+        raise DesignError("no match line was found on this sheet: set its scope by hand")
+    for index, side in sides.items():
+        if index not in placed:
+            raise DesignError(f"this sheet has no match line {index + 1}")
+        if side not in (1, -1):
+            raise DesignError("a side is +1 or -1")
+        lines[index]["side"] = side
+    polygon = match_lines.scope_from_json(_extent(view), [lines[index] for index in placed])
+    if polygon is None:
+        raise DesignError("those sides leave no part of the plan: choose another")
+    before = {"scope": row.scope, "scope_source": row.scope_source}
+    row.match_lines = lines
+    row.scope = [[round(x, 3), round(y, 3)] for x, y in polygon]
+    row.scope_source = "person"
+    session.flush()
+    record_event(
+        session,
+        context=AuditContext(
+            organisation_id=qto_service._organisation_of(session, row.bid_id), bid_id=row.bid_id
+        ),
+        actor=actor,
+        action="design basis: match line side",
+        entity_type=SheetDesign.__tablename__,
+        entity_id=row.id,
+        before=before,
+        after={
+            "scope": row.scope,
+            "scope_source": row.scope_source,
+            "sides": {str(index): lines[index]["side"] for index in placed},
+        },
+    )
+    if row.state == "confirmed":
+        queue_layout(session, row.bid_id, actor.id, [row.sheet_id])
+
+
+def follow_match_lines(session: Session, row: SheetDesign, actor: Actor) -> None:
+    """Go back to the scope the sheet's match lines propose, as it was first read."""
+    view = session.get(SheetView, row.view_id) if row.view_id else None
+    lines = [dict(line) for line in row.match_lines or []]
+    for line in lines:
+        if line.get("line"):
+            line["side"] = line.get("proposed_side", line.get("side"))
+    placed = [line for line in lines if line.get("line")]
+    polygon = match_lines.scope_from_json(_extent(view), placed) if view is not None else None
+    before = {"scope": row.scope, "scope_source": row.scope_source}
+    row.match_lines = lines
+    row.scope = [[round(x, 3), round(y, 3)] for x, y in polygon] if polygon else None
+    row.scope_source = "match_lines" if polygon else None
+    session.flush()
+    record_event(
+        session,
+        context=AuditContext(
+            organisation_id=qto_service._organisation_of(session, row.bid_id), bid_id=row.bid_id
+        ),
+        actor=actor,
+        action="design basis: scope",
+        entity_type=SheetDesign.__tablename__,
+        entity_id=row.id,
+        before=before,
+        after={"scope": row.scope, "scope_source": row.scope_source},
     )
     if row.state == "confirmed":
         queue_layout(session, row.bid_id, actor.id, [row.sheet_id])
@@ -449,7 +591,7 @@ def lay_out(session: Session, store: ObjectStore, row: SheetDesign) -> Layout | 
     rules = rules_of(rule)
     criterion = basis.criterion_from_json(dict(row.criterion))
     table = geometry_service.load(store, record)
-    extent = (view.extent[0], view.extent[1], view.extent[2], view.extent[3])
+    extent = _extent(view)
     found = rooms.find(
         table,
         extent,
@@ -458,16 +600,7 @@ def lay_out(session: Session, store: ObjectStore, row: SheetDesign) -> Layout | 
         scope=[(p[0], p[1]) for p in row.scope] if row.scope else None,
         settings=basis.space_settings(dict(rule.definition)),
     )
-    drawn = [
-        [(float(p[0]), float(p[1])) for p in run.points]
-        for run in session.execute(
-            select(PipeRun).where(
-                PipeRun.sheet_id == row.sheet_id,
-                PipeRun.origin == "detected",
-                PipeRun.state != "rejected",
-            )
-        ).scalars()
-    ]
+    drawn = _drawn_pipes(session, row.sheet_id)
     plan = layout.plan(
         found.spaces, float(view.denominator), criterion, rules, level=view.level, pipes=drawn
     )
@@ -666,3 +799,123 @@ def lay_out_bid(
         else:
             outcome.heads += len(plan.heads)
     return outcome
+
+
+# --- Export (FR-DSN-05) -----------------------------------------------------------------------
+
+
+@dataclass
+class Exported:
+    content: bytes
+    media_type: str
+    filename: str
+
+
+def export_layout(
+    session: Session, store: ObjectStore, row: SheetDesign, fmt: str, actor: Actor
+) -> Exported:
+    """The sheet's proposed layout over its tender drawing, as a PDF or a DXF, stamped
+    "For estimation only: not for construction". A download for the person asking: nothing
+    is sent anywhere. What a person rejected is left out; the export is recorded.
+    """
+    if fmt not in layout_export.FORMATS:
+        raise DesignError(f"a layout is exported as PDF or DXF, not {fmt!r}")
+    if row.state != "confirmed" or row.laid_out_at is None:
+        raise DesignError("this sheet has no proposed layout to export yet")
+    record = session.execute(
+        select(SheetGeometry).where(SheetGeometry.sheet_id == row.sheet_id)
+    ).scalar_one_or_none()
+    if record is None:
+        raise DesignError("this sheet's drawing has not been read")
+    heads = [
+        layout_export.Head(float(place["x"]), float(place["y"]), found.object_type)
+        for found in session.execute(
+            select(DetectedObject).where(
+                DetectedObject.bid_id == row.bid_id,
+                DetectedObject.sheet_id == row.sheet_id,
+                DetectedObject.extraction_method == DESIGNED,
+                DetectedObject.kind == "object",
+                DetectedObject.state != "rejected",
+            )
+        ).scalars()
+        if (place := cast("dict[str, Any]", found.geometry_ref or {})).get("x") is not None
+    ]
+    if not heads:
+        raise DesignError("this sheet's layout proposes no heads: there is nothing to export")
+    pipes = [
+        layout_export.Pipe(
+            [(float(p[0]), float(p[1])) for p in run.points],
+            run.nominal_dn,
+            str((run.features or {}).get("part", "range")),
+        )
+        for run in session.execute(
+            select(PipeRun)
+            .where(
+                PipeRun.sheet_id == row.sheet_id,
+                PipeRun.origin == DESIGNED,
+                PipeRun.state != "rejected",
+            )
+            .order_by(PipeRun.run_index)
+        ).scalars()
+    ]
+    info = qto_service.current_sheets(session, row.bid_id).get(row.sheet_id)
+    number = info.number if info else "sheet"
+    revision = info.revision.revision_label if info else None
+    view = session.get(SheetView, row.view_id) if row.view_id else None
+    criterion: dict[str, Any] = dict(row.criterion or {})
+    spacing = list(criterion.get("max_spacing_mm") or [])
+    metres = round(sum(run_length for run_length in _lengths(session, row)) / 1000.0, 1)
+    notes = [
+        f"Tender drawing {number}"
+        + (f" revision {revision}" if revision else "")
+        + (f", drawn at 1:{view.denominator:g}" if view and view.denominator else "")
+        + ".",
+        f"Criterion: {criterion.get('title', '-')}: at most {criterion.get('max_area_m2', '-')} m2 "
+        f"a head, {' x '.join(str(v) for v in spacing) or '-'} mm apart "
+        f"({criterion.get('source', '-')}).",
+        f"Design rules version {row.rule_version}; confirmed by {row.confirmed_by}.",
+        f"{len(heads)} proposed heads; {metres} m of proposed range pipe and feeds.",
+    ]
+    if row.scope:
+        notes.append(
+            "Limited to this sheet's side of its match lines (the dashed outline)."
+            if row.scope_source == "match_lines"
+            else "Limited to the scope set for this sheet (the dashed outline)."
+        )
+    notes.append(f"Made {datetime.now(UTC):%d %b %Y %H:%M} UTC by FireBid SG for {actor.label}.")
+    sheet = layout_export.Sheet(
+        number=number,
+        page=(record.page[0], record.page[1], record.page[2], record.page[3]),
+        table=geometry_service.load(store, record),
+        heads=heads,
+        pipes=pipes,
+        scope=[(p[0], p[1]) for p in row.scope] if row.scope else None,
+        notes=notes,
+    )
+    content = layout_export.render(sheet, fmt)
+    record_event(
+        session,
+        context=AuditContext(
+            organisation_id=qto_service._organisation_of(session, row.bid_id), bid_id=row.bid_id
+        ),
+        actor=actor,
+        action="design layout: exported",
+        entity_type=SheetDesign.__tablename__,
+        entity_id=row.id,
+        after={"format": fmt, "heads": len(heads), "pipes": len(pipes), "bytes": len(content)},
+    )
+    safe = "".join(c if c.isalnum() or c in "-_." else "-" for c in number)
+    return Exported(content, layout_export.FORMATS[fmt], f"{safe}-proposed-layout.{fmt}")
+
+
+def _lengths(session: Session, row: SheetDesign) -> list[float]:
+    return [
+        float(length or 0.0)
+        for length in session.execute(
+            select(PipeRun.length_mm).where(
+                PipeRun.sheet_id == row.sheet_id,
+                PipeRun.origin == DESIGNED,
+                PipeRun.state != "rejected",
+            )
+        ).scalars()
+    ]

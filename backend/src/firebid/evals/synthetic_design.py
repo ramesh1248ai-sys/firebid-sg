@@ -27,6 +27,9 @@ WARD = (1_500.0, 9_500.0, 11_500.0, 17_500.0)
 STORE = (11_500.0, 14_500.0, 15_500.0, 17_500.0)
 LIFT = (18_500.0, 14_500.0, 21_500.0, 17_500.0)
 MAIN_Y = 8_500.0
+# Where a floor shared between two sheets is cut: 12 m of the 20 m is this sheet's.
+MATCH_LINE_X = 13_500.0
+MATCH_LINE_NOTE = "MATCH LINE - SEE DWG FP-L10-02"
 
 INTENT_NOTE = "THE DESIGN INTENT CONVEYED IN THIS DRAWING SHALL CONSTITUTE THE MINIMUM REQUIREMENT."
 NOTES = (
@@ -79,8 +82,14 @@ def design_intent_plan(
     *,
     with_dimensions: bool = True,
     with_notes: bool = True,
+    match_line: bool = False,
 ) -> Drawing:
-    """The sheet. Without dimensions its stated scale has nothing to confirm it."""
+    """The sheet. Without dimensions its stated scale has nothing to confirm it.
+
+    With a match line the floor is shared with the next sheet: the whole base plan is
+    drawn, a dashed line labelled "MATCH LINE" cuts it at `MATCH_LINE_X`, and the main is
+    drawn up to a stub past the line, as a sheet shows where its services continue.
+    """
     document, space = synthetic._new_drawing()
     if LAYER_WALL not in document.layers:
         document.layers.add(LAYER_WALL, true_color=GREY)
@@ -91,9 +100,22 @@ def design_intent_plan(
     _wall(space, LIFT[0], LIFT[1], LIFT[2], LIFT[3])
     _wall(space, LIFT[0], LIFT[3], LIFT[2], LIFT[1])
 
+    main_end = MATCH_LINE_X + 800 if match_line else BUILDING[2] - 500
     space.add_line(
-        (BUILDING[0] + 500, MAIN_Y), (BUILDING[2] - 500, MAIN_Y), dxfattribs={"layer": LAYER_PIPE}
+        (BUILDING[0] + 500, MAIN_Y), (main_end, MAIN_Y), dxfattribs={"layer": LAYER_PIPE}
     )
+    if match_line:
+        y = BUILDING[1] - 800
+        while y < BUILDING[3] + 800:
+            space.add_line(
+                (MATCH_LINE_X, y),
+                (MATCH_LINE_X, min(y + 900, BUILDING[3] + 800)),
+                dxfattribs={"layer": LAYER_TEXT},
+            )
+            y += 1_200
+        space.add_text(MATCH_LINE_NOTE, height=200, dxfattribs={"layer": LAYER_TEXT}).set_placement(
+            (MATCH_LINE_X + 150, BUILDING[1] - 600)
+        )
     space.add_text("DN150 SPR", height=180, dxfattribs={"layer": LAYER_TEXT}).set_placement(
         (6_000, MAIN_Y + 200)
     )

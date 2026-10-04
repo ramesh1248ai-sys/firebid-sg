@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel, Field, model_validator
 
 from firebid.api.deps import CurrentBid, DbSession, require
@@ -23,6 +23,7 @@ from firebid.auth.provisioning import Principal
 from firebid.db.models.design import SheetDesign
 from firebid.services import design as design_service
 from firebid.services import qto as qto_service
+from firebid.storage.object_store import get_object_store
 
 router = APIRouter(prefix="/bids/{bid_id}/design", tags=["design"])
 
@@ -51,6 +52,16 @@ class SpaceOut(BaseModel):
     box: list[float]
 
 
+class MatchLineOut(BaseModel):
+    label: str
+    other_sheet: str | None = None
+    # The line across the plan, in sheet millimetres. None: the label's line was not found.
+    line: list[list[float]] | None = None
+    side: int | None = None
+    proposed_side: int | None = None
+    reason: str | None = None
+
+
 class SheetDesignOut(BaseModel):
     id: uuid.UUID
     sheet_id: uuid.UUID
@@ -65,6 +76,8 @@ class SheetDesignOut(BaseModel):
     criteria: list[CriterionOut]
     criterion: CriterionOut | None
     scope: list[list[float]] | None
+    scope_source: str | None
+    match_lines: list[MatchLineOut]
     rule_version: int | None
     totals: dict[str, Any]
     spaces: list[SpaceOut]
@@ -103,7 +116,20 @@ class ConfirmOut(BaseModel):
 
 
 class ScopeRequest(BaseModel):
+    """One of: a polygon drawn by hand; the side of each match line (by its place in the
+    sheet's list, +1 or -1); the match lines' own proposal again. None of them: the whole
+    sheet."""
+
     polygon: Annotated[list[Point], Field(min_length=3, max_length=200)] | None = None
+    sides: dict[int, int] | None = None
+    follow_match_lines: bool = False
+
+    @model_validator(mode="after")
+    def one_choice(self) -> ScopeRequest:
+        chosen = [self.polygon is not None, self.sides is not None, self.follow_match_lines]
+        if sum(chosen) > 1:
+            raise ValueError("give a polygon, or sides, or follow the match lines: one of them")
+        return self
 
 
 class WithdrawRequest(BaseModel):
@@ -125,6 +151,8 @@ def _out(row: SheetDesign, number: str, level: str | None) -> SheetDesignOut:
         criteria=[CriterionOut.model_validate(c) for c in row.criteria or []],
         criterion=CriterionOut.model_validate(row.criterion) if row.criterion else None,
         scope=row.scope,
+        scope_source=row.scope_source,
+        match_lines=[MatchLineOut.model_validate(line) for line in row.match_lines or []],
         rule_version=row.rule_version,
         totals=dict(row.totals or {}),
         spaces=[SpaceOut.model_validate(s) for s in row.spaces or []],
@@ -231,11 +259,40 @@ def set_scope(
     session: DbSession,
     principal: Annotated[Principal, require(Action.QTO_EDIT)],
 ) -> None:
-    """The part of the plan this sheet answers for: its side of a match line."""
-    polygon = [(p[0], p[1]) for p in body.polygon] if body.polygon else None
+    """The part of the plan this sheet answers for: its side of its match lines
+    (FR-DSN-06), as proposed, as a person chooses, or as a polygon drawn by hand."""
+    row = _row(session, context, sheet_id)
     try:
-        design_service.set_scope(
-            session, _row(session, context, sheet_id), polygon, principal.actor()
+        if body.sides is not None:
+            design_service.choose_sides(session, row, body.sides, principal.actor())
+        elif body.follow_match_lines:
+            design_service.follow_match_lines(session, row, principal.actor())
+        else:
+            polygon = [(p[0], p[1]) for p in body.polygon] if body.polygon else None
+            design_service.set_scope(session, row, polygon, principal.actor())
+    except design_service.DesignError as refusal:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(refusal)) from refusal
+
+
+@router.get("/sheets/{sheet_id}/export")
+def export_layout(
+    sheet_id: uuid.UUID, context: CurrentBid, session: DbSession, format: str = "pdf"
+) -> Response:
+    """The sheet's proposed layout over its tender drawing, as a PDF or a DXF, stamped
+    "For estimation only: not for construction" (FR-DSN-05). A download for the person
+    asking; the platform sends it nowhere."""
+    try:
+        exported = design_service.export_layout(
+            session,
+            get_object_store(),
+            _row(session, context, sheet_id),
+            format.lower(),
+            context.principal.actor(),
         )
     except design_service.DesignError as refusal:
         raise HTTPException(status.HTTP_409_CONFLICT, str(refusal)) from refusal
+    return Response(
+        exported.content,
+        media_type=exported.media_type,
+        headers={"Content-Disposition": f'attachment; filename="{exported.filename}"'},
+    )

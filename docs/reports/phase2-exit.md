@@ -1,6 +1,6 @@
 # Phase 2 exit report
 
-Generated 04 Oct 2026 03:50 UTC by `firebid-eval exit-p2`. **No pilot data:** the KPIs below are instrumented and pending measurement.
+Generated 04 Oct 2026 19:49 UTC by `firebid-eval exit-p2`. **No pilot data:** the KPIs below are instrumented and pending measurement.
 
 ## Exit criteria (requirements §13.2)
 
@@ -37,7 +37,7 @@ The assisted-mode pilot has not run.
 | Evidence | Recorded | With Phase 2 in place | Status | Result |
 |---|---|---|---|---|
 | Phase 2 workload benchmark | 2026-10-04 | yes | recorded | 5 workloads; slowest labour estimate at 0.526 s on 5000 bill lines, 200 library entries, against 2.0 s |
-| load test | 2026-10-04 | yes | recorded | 10 bids and 20 users: 10 of 10 bids taken off in 2.8 min; 2092 requests, 0 failed; workbench p95 0.156 s (meets NFR-02 and the 2 s p95 of NFR-01) |
+| load test | 2026-10-04 | yes | recorded | 10 bids and 20 users: 10 of 10 bids taken off in 2.1 min; 1689 requests, 0 failed; workbench p95 0.106 s (meets NFR-02 and the 2 s p95 of NFR-01) |
 | ingest benchmark | 2026-10-04 | yes | recorded | synthetic-50: 50 sheets in 4.7 min (5.7 s a sheet); 300 sheets projected at 28.4 min (meets the 60 min of NFR-01) |
 | QTO benchmark | 2026-10-04 | yes | recorded | synthetic-50: first-pass takeoff of 50 sheets (17 items) in 4.9 min of machine time (legend confirmed by script); 50 sheets projected at 4.9 min (meets the 240 min of NFR-01) |
 | restore drill | 2026-10-04 | yes | recorded | local rehearsal (docker compose): 3455 MB restored and verified in 1.2 min (RTO target 8 h); data lost 0.0 min back (RPO target 24 h); 83 tables and 151 audit chains match |
@@ -47,12 +47,7 @@ The assisted-mode pilot has not run.
 
 ## Requirement coverage
 
-`make req-coverage PHASE=P2`: **106 of 108** requirements up to Phase 2 have at least one test.
-
-| Requirement | Priority | Phase | Status |
-|---|---|---|---|
-| FR-DSN-05 | S | P2 | **no test**: see the gap list |
-| FR-DSN-06 | S | P2 | **no test**: see the gap list |
+`make req-coverage PHASE=P2`: **108 of 108** requirements up to Phase 2 have at least one test.
 
 ## Security and privacy review
 
@@ -76,10 +71,10 @@ Not measurable yet. No provider key has been configured on any environment (deci
 |---|---|---|
 | No pilot: no Phase 2 exit criterion is measured | the assisted-mode pilot on live tenders has not run (business track) | run the pilot; then `make exit-report-p2 LIVE=1` |
 | Provider data terms: misses its target | to confirm under decision D2: anthropic, openai, google | sponsor decision D2: confirm each provider's region, retention and no-training terms, then record them in llm.yaml |
-| FR-DSN-05 (export the design-intent layout as PDF and DXF) is not built | A Should for Phase 2 that no build step covered: the layout is shown on the Design page and counted into the takeoff, but cannot be exported as a drawing. | Product owner: build it in a short step before the gate, or move it to Phase 3 by change control. |
-| FR-DSN-06 (each sheet's layout limited to its side of its match lines) is only partly built | A Should for Phase 2 that no build step covered. A sheet's scope can be set by hand and its spaces then keep to it, but match lines are not found from the drawing, so by default each sheet is laid out whole and a shared floor is designed twice. No test carries the requirement's ID. | As FR-DSN-05: build, or defer by change control. |
-| CI has not run on P2-06 (stack and end-to-end job), P2-07, P2-08 or P2-09 | GitHub Actions refuses to start jobs: the account's payments have failed or its spending limit is reached. | Fix the billing; re-run CI on main. Until then the evidence is local: `make check` in the Dev Container. |
-| Integration and end-to-end tests have not run against the Phase 2 pages | They run in CI's stack job, which is not running, and were not run locally for P2-06 to P2-09. The pages were not walked through in a browser either. | `make up && make test-integration && make e2e` on the current build. |
+| Match lines (FR-DSN-06) are found on synthetic sheets only so far | A match line is found from its "MATCH LINE" label and the straight line beside it, and the sheet's side is proposed from the pipework found drawn, then coloured linework, then the larger side. That has not been run on a real tender. A match line that steps is followed as one straight line; a DXF whose pipes are coloured by layer gives no colour to judge by; nothing compares two sheets to check that they took opposite sides. | Run it on the MOH design-intent set and a second consultant's drawings; a person confirms each sheet's side on the Design page meanwhile. |
+| The layout export (FR-DSN-05) redraws the tender drawing rather than overlaying the original file | The PDF and DXF are drawn from the sheet's extracted geometry, in grey, so they show what the platform read: hatches, images and fonts of the original are not reproduced. | Product owner: accept, or ask for an overlay on the original PDF page. |
+| CI has not run since P2-06: not on P2-07 to P2-09, the dependency refresh, the move to Python 3.14 or FR-DSN-05 and 06 | GitHub Actions refuses to start jobs: the account's payments have failed or its spending limit is reached. | Fix the billing; re-run CI on main. Until then the evidence is local: `make check`, `make test-integration` and `make e2e` in the Dev Container. |
+| The end-to-end tests do not open the Phase 2 pages | The eleven end-to-end tests cover sign-in, the bid workspace, document intake and the workbench, and pass on the current stack. None opens Costing, Labour, Clarifications, Risk, Review or Design, and those pages were not walked through in a browser. | Add an end-to-end test that takes a bid from pricing to G4; walk the pages before the pilot. |
 | Title block reading measures 100% here and measured 50% in the Phase 1 report | The suite's scanned tenders need Tesseract. The Phase 1 report was generated where it was not installed; this one in the Dev Container, where it is. The reader is unchanged. | None: generate the reports in the Dev Container. |
 | No model route has run against a real provider | No API key on any environment; decision D2 (provider data terms and hosting) is open. | Sponsor: decide D2. Then run the routes on the golden set, measure cost per tender by route, and only then compare models. |
 | `firebid-eval compare-models` does not call the route's models | It scores a stand-in predictor: it proves the harness, not a model. | Give it a route-backed predictor once a provider key exists. |
@@ -96,4 +91,4 @@ Not measurable yet. No provider key has been configured on any environment (deci
 
 ## Recommendation
 
-**Not ready to pass the gate; ready for the assisted-mode pilot.** The platform does what Phase 2 asked of it, with two Should requirements unbuilt (FR-DSN-05, FR-DSN-06): the estimate is priced with a source on every price (the database refuses one without), labour is estimated, clarifications, risks and qualifications are drafted for people to decide, the review pack and gates G3 and G4 work, and the submission is frozen and verifiable. The Phase 1 suites show no regression and the non-functional targets hold with the Phase 2 workload. But none of the three exit criteria can be judged: they are measures of live tenders, and no pilot has run and no turnaround baseline exists. Recommended: (1) fix CI billing and run the full pipeline on main; (2) decide D2 so the model routes can be measured and costed; (3) record the turnaround baseline and confirm the placeholder figures; (4) decide FR-DSN-05 and 06; (5) run the assisted-mode pilot on at least three live tenders and regenerate this report with `make exit-report-p2 LIVE=1`. Hold the gate review until that report shows the three criteria measured.
+**Not ready to pass the gate; ready for the assisted-mode pilot.** The platform does what Phase 2 asked of it, and every Phase 2 requirement has a test: the estimate is priced with a source on every price (the database refuses one without), labour is estimated, clarifications, risks and qualifications are drafted for people to decide, the review pack and gates G3 and G4 work, and the submission is frozen and verifiable. The Phase 1 suites show no regression and the non-functional targets hold with the Phase 2 workload. But none of the three exit criteria can be judged: they are measures of live tenders, and no pilot has run and no turnaround baseline exists. Recommended: (1) fix CI billing and run the full pipeline on main; (2) decide D2 so the model routes can be measured and costed; (3) record the turnaround baseline and confirm the placeholder figures; (4) try the match lines and the layout export on a real design-intent tender; (5) run the assisted-mode pilot on at least three live tenders and regenerate this report with `make exit-report-p2 LIVE=1`. Hold the gate review until that report shows the three criteria measured.
