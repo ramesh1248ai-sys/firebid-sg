@@ -76,8 +76,12 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
+        # A bucket that is already there is success: SeaweedFS 4.48 exits non-zero for it,
+        # which on a stack with data would otherwise stop the stack from starting.
         for i in $(seq 1 30); do
-          echo "s3.bucket.create -name firebid-dev" | weed shell -master=seaweedfs:9333 && exit 0
+          out=$$(echo "s3.bucket.create -name firebid-dev" | weed shell -master=seaweedfs:9333 2>&1) && exit 0
+          echo "$$out"
+          echo "$$out" | grep -q "already exists" && exit 0
           sleep 2
         done
         exit 1
