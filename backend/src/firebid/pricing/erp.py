@@ -90,7 +90,7 @@ def _day(value: Any) -> date | None:
 def _price(value: Any) -> Decimal | None:
     try:
         price = Decimal(str(value).replace(",", "").strip())
-    except (InvalidOperation, ValueError):
+    except InvalidOperation, ValueError:
         return None
     return price if price > 0 else None
 
