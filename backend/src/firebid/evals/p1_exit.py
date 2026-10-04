@@ -114,7 +114,7 @@ class ExitInputs:
 def _load(path: Path) -> dict[str, Any] | None:
     try:
         return dict(json.loads(path.read_text(encoding="utf-8")))
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return None
 
 

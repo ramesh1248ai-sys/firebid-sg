@@ -25,7 +25,7 @@ These words carry specific meaning across code, prompts and docs. Use them consi
 
 | Concern | Choice | Notes |
 |---|---|---|
-| Backend | Python 3.12 (pinned), FastAPI, Pydantic v2 | 3.12 because geometry and BIM libraries publish pre-built packages for it first. Package manager `uv`; lint `ruff`; types `mypy` (strict in `domain/`). |
+| Backend | Python 3.14 (pinned), FastAPI, Pydantic v2 | Moved from 3.12 on 4 October 2026, once every dependency published pre-built packages for 3.14 (ADR-001); check a new geometry or BIM library for them before choosing it. Package manager `uv`; lint `ruff`; types `mypy` (strict in `domain/`). |
 | Persistence | PostgreSQL 17 (or the newest version the managed service supports in Singapore) + pgvector; SQLAlchemy 2.0 ORM with **synchronous** sessions on psycopg 3; Alembic | Async only for streaming endpoints (progress via SSE). Row-level security on bid-scoped tables. Large tables partitioned. Connection pooling via PgBouncer or the managed proxy. Geometry via Shapely in app code with bbox columns indexed; adopt PostGIS only via ADR. |
 | Background work | PostgreSQL-backed job queue (Procrastinate, per ADR-006) | Jobs are queued in the same transaction as the data they process. Retries, periodic jobs and job history live in SQL. Workers are processes, because CPU-bound work does not share threads well in Python. No Redis: shared counters such as rate limits also live in PostgreSQL unless measurements justify Redis via ADR. |
 | Agent execution | Typed Python functions on `ai_gateway`, run as queued jobs (ADR-007) | Human waits use `HumanTask` records and the domain state machines. The Phase 4 orchestration engine (e.g. LangGraph or Temporal) is re-decided at the Phase 3 exit. |

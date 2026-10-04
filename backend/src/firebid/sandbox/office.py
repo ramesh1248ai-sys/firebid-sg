@@ -154,7 +154,7 @@ def converter_version() -> str:
         result = subprocess.run(  # noqa: S603 - a fixed command
             [CONVERTER, "--version"], capture_output=True, timeout=30, check=False
         )
-    except (OSError, subprocess.SubprocessError):  # pragma: no cover - a broken install
+    except OSError, subprocess.SubprocessError:  # pragma: no cover - a broken install
         return "libreoffice:unknown"
     first = result.stdout.decode("utf-8", "replace").strip().splitlines()
     return f"libreoffice:{first[0].strip()}" if first else "libreoffice:unknown"
