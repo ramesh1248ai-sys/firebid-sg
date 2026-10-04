@@ -17,6 +17,7 @@ import { NewBidPage } from "@/pages/NewBidPage";
 import { OverlayBenchPage } from "@/pages/OverlayBenchPage";
 import { RatesPage } from "@/pages/RatesPage";
 import { RegistersPage } from "@/pages/RegistersPage";
+import { ReviewPage } from "@/pages/ReviewPage";
 import { RiskPage } from "@/pages/RiskPage";
 import { SheetViewerPage } from "@/pages/SheetViewerPage";
 import { SignInPage } from "@/pages/SignInPage";
@@ -47,6 +48,7 @@ export const routes: RouteObject[] = [
           { path: "bids/:bidId/boq", element: <BoqPage /> },
           { path: "bids/:bidId/clarifications", element: <ClarificationsPage /> },
           { path: "bids/:bidId/risk", element: <RiskPage /> },
+          { path: "bids/:bidId/review", element: <ReviewPage /> },
           { path: "audit", element: <AuditPage /> },
           { path: "library", element: <LibraryPage /> },
           { path: "rates", element: <RatesPage /> },

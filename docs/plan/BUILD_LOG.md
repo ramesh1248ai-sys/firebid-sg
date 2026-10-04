@@ -1937,3 +1937,52 @@ Entry template:
   - **Accepted allowances are not yet added to the cost build-up;** contingency there is still entered by the estimator.
   - **The owner is a name typed in,** not chosen from the bid's team.
   - **Contract-term review is FR-RSK-07 (P4).**
+
+## P2-08 · Review Pack, Gates G2–G4, Submission Freeze and Outcomes · 2026-10-04
+
+- **Summary:** approvers get a review pack and sign G3 and G4 in the platform; G4 freezes the submission; outcomes are recorded; the libraries change only through approved proposals.
+  - **Review pack (FR-PKG-01):** eight sections from what the platform already holds: estimate by component, estimate by system, key cost drivers and margin, risk allowances with treatments, top variances against the client's bill, open clarifications and issues, unpriced lines, G1 coverage. Each names the page it comes from. As a workbook (a summary sheet and a sheet a section) and a PDF.
+  - **Gates (FR-PKG-02):** G1 and G2 were built earlier (Senior Estimator). G3 (Commercial Director) needs G2, a resolved scope checklist, treated risks and a bid under review; it records approver, time, comment and the hash of the estimate, and moves the bid to "approved for submission". G4 (Commercial Director) needs G3, no unresolved clarification and no undecided qualification; it freezes the submission, records the manifest's hash and moves the bid to "submitted".
+  - **No transmission.** After G4 the frozen files are offered for download to a person on the bid, and each download is audited. Nothing sends a bid anywhere.
+  - **Freeze (FR-PKG-03):** a manifest lists every record the submission rests on (takeoff items, evidence, bill and lines, rates used, quotations, build-up entries, conventions, labour conditions, clarifications, qualifications, risks, checklist, approvals), each with its version and a content hash, and five exported files with theirs. Manifest and files are written once to the snapshot store. The snapshot row is append-only in the database. `verify_snapshot()` reads everything back and checks each hash, and lists records changed in the platform since.
+  - **Outcome (FR-LRN-02):** awarded (with the price where known), lost or withdrawn, with reasons and competitor feedback; the bid's lifecycle follows. `GET /outcomes` reports submitted, won, lost, awaiting, win rate and value won.
+  - **Library governance (FR-LRN-03):** a change to the rate or productivity library is proposed (from a quotation, an outcome or an estimator) and changes nothing. The Senior Estimator approves it, which applies it as a new version, or rejects it with a reason.
+  - **UI:** a **Review** page per bid (gates, frozen submission, outcome, the pack); the Rates page gains the proposals queue.
+- **Key modules / files:**
+  - `services/review_pack.py` (`build`, `as_workbook`, `as_pdf`).
+  - `services/submission.py` (`gate_status`, `g3_blockers`, `g4_blockers`, `approve_g3`, `approve_g4`, `freeze`, `verify_snapshot`, `submission_file`, `record_outcome`, `outcome_report`).
+  - `services/library_governance.py` (`propose`, `decide`).
+  - `api/submission.py`: `/bids/{id}/review-pack`, `/gates`, `/submission`, `/outcome`; `/outcomes`; `/library-proposals`.
+  - Migration `0040`: `submission_snapshot` (append-only trigger, RLS), `bid_outcome` (RLS), `library_proposal`.
+  - `storage/object_store.py`: `get_snapshot_store()`; settings `s3_snapshot_bucket`, `s3_snapshot_lock_days`.
+  - Frontend: `pages/ReviewPage.tsx`, `pages/LibraryProposals.tsx`.
+- **How to run and demo:**
+  1. `make up`. Take a bid through G1 and G2, the risk page (checklist resolved, risks treated) and move it to "under review".
+  2. Open **Review**. The pack shows the estimate; download it as PDF or Excel.
+  3. As Commercial Director: **Approve G3**. Accept or reject the qualifications, then **Approve G4 and freeze the submission**.
+  4. The page shows the snapshot verifying and offers its files. Record the **Outcome**.
+  5. On **Rates**, propose a rate as an estimator; approve it as Senior Estimator and see version 2.
+- **Requirement IDs covered (test names):**
+  - FR-PKG-01: `tests/db/test_submission.py::TestReviewPack` (every section; figures equal the build-up, the bill totals and the labour estimate; workbook and PDF with every section and link); `Review.test.tsx`.
+  - FR-PKG-02: `tests/db/test_submission.py::TestGates` (G3 blocked with reasons, approvable only by the Commercial Director, records the hash; G3 and G4 refuse every other role through the API; G4 waits for qualifications; no module can send, and no job is queued); `Review.test.tsx`.
+  - FR-PKG-03: `tests/db/test_submission.py::TestFreeze` (the snapshot verifies; a changed file, a missing file and a changed manifest each fail; UPDATE and DELETE on the snapshot row are refused; a later change to a record is listed); `Review.test.tsx`.
+  - FR-LRN-02: `tests/db/test_submission.py::TestOutcome`; `Review.test.tsx`.
+  - FR-LRN-03: `tests/db/test_submission.py::TestLibraryGovernance` (no effect until approved; a new version afterwards; a rejection leaves the library as it was; the database refuses an applied entry on an unapproved proposal); `Review.test.tsx`.
+- **Deviations and decisions:**
+  - **No plan-and-approve pause,** as the owner prefers.
+  - **Object lock is configuration.** Locally the snapshot goes in the main bucket, written once (`put_once`). With `s3_snapshot_bucket` set, objects go to that bucket, and with `s3_snapshot_lock_days` each is put under a compliance-mode lock. In production the bucket's own retention lock governs (ADR-008). The lock itself is not exercised by a test: SeaweedFS's support was not verified.
+  - **"Writes to snapshot records are rejected"** is the append-only trigger on `submission_snapshot`. The records the manifest lists are not frozen row by row; a change to one after submission is reported by `verify_snapshot` as changed since.
+  - **G3's hash is of the estimate** (the pack's figures, the bill and the qualifications); G4's is the manifest's.
+  - **The review pack's PDF is plain tables** drawn with matplotlib, the PDF library already in the project.
+  - **Outcomes stand once recorded;** the price, reasons and feedback can be added to.
+  - **Proposals are made by people.** Nothing proposes one automatically yet; a confirmed quotation still becomes a rate directly, by the Senior Estimator's confirmation.
+  - **Decision D5 (named approvers) is open:** the gate roles are those of the permission matrix.
+- **Manual checks and results:**
+  - Not run through the browser on the local stack. Pages are covered by component tests and the API by database tests.
+- **Defects found and fixed during the step:** none beyond lint and type findings while writing.
+- **Known gaps and follow-ups:**
+  - **The priced client workbook is not among the frozen files;** the company bill, the review pack, the qualifications and the clarification register are.
+  - **Accepted risk allowances are still not in the cost build-up** (P2-07's gap), so the pack shows them beside the estimate, not in it.
+  - **The pack has no trend or comparison with earlier bids.**
+  - **G0 (bid/no-bid) support is P4.**
+  - **The full tender package (FR-PKG-04) is P4.**

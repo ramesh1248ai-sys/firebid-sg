@@ -71,6 +71,7 @@ from firebid.db.models.specs import (
     SpecIssue,
     SpecObligation,
 )
+from firebid.db.models.submission import BidOutcome, LibraryProposal, SubmissionSnapshot
 from firebid.db.models.symbols import (
     ConsultantProfile,
     LegendEntry,
@@ -102,6 +103,7 @@ __all__ = [
     "Bid",
     "BidBudget",
     "BidMember",
+    "BidOutcome",
     "BidParameter",
     "BidPriceBasis",
     "Boq",
@@ -131,6 +133,7 @@ __all__ = [
     "LabourCondition",
     "LabourProductivity",
     "LegendEntry",
+    "LibraryProposal",
     "LlmPayload",
     "LlmRateBucket",
     "LlmResponseCache",
@@ -163,6 +166,7 @@ __all__ = [
     "SpecClause",
     "SpecIssue",
     "SpecObligation",
+    "SubmissionSnapshot",
     "SymbolInstance",
     "SymbolMapping",
     "SystemHeartbeat",

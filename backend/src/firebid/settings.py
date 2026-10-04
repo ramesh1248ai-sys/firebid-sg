@@ -68,6 +68,13 @@ class Settings(BaseSettings):
     s3_access_key_id: str = ""
     s3_secret_access_key: str = ""
     s3_region: str = "ap-southeast-1"
+    # Submission snapshots (FR-PKG-03). In production this is a bucket under a retention
+    # lock (ADR-008), so an object cannot be changed or removed even by an administrator.
+    # Empty: the snapshots go in the main bucket, written once.
+    s3_snapshot_bucket: str = ""
+    # Days an object written to the snapshot bucket is held under object lock. 0: the
+    # bucket's own retention policy governs, and no per-object lock is asked for.
+    s3_snapshot_lock_days: int = 0
 
 
 @lru_cache

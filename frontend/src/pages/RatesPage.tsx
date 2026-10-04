@@ -6,6 +6,7 @@ import type { components } from "@/api/schema";
 import { accessToken } from "@/auth/oidc";
 import { useAuth } from "@/auth/session";
 import { Button } from "@/components/ui/button";
+import { LibraryProposals } from "@/pages/LibraryProposals";
 
 /**
  * The company rate library (FR-CST-01).
@@ -96,6 +97,8 @@ export function RatesPage() {
         )}
         {open && <History rate={open} onClose={() => setOpen(null)} />}
       </div>
+
+      <LibraryProposals canDecide={canImport} />
     </section>
   );
 }

@@ -256,6 +256,9 @@ class TestExecution:
         bid, team = risk_bid
         qto.set_parameter(session, bid.id, "levels_served", Decimal(24), team.estimator)
         service.find(session, bid, team.estimator)
+        # A later request: parameters are ordered by when their transaction began, so the
+        # second value must be set in one of its own to be the later of the two.
+        session.commit()
         qto.set_parameter(session, bid.id, "levels_served", Decimal(6), team.estimator)
 
         live = by_key(service.find(session, bid, team.estimator))

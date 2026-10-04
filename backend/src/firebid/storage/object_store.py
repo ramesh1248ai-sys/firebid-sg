@@ -7,6 +7,7 @@ Locally this is SeaweedFS; in production it is the cloud provider's object stora
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from typing import Any, Protocol
 
@@ -41,8 +42,12 @@ class S3ObjectStore:
         access_key_id: str | None = None,
         secret_access_key: str | None = None,
         region: str = "ap-southeast-1",
+        lock_days: int = 0,
     ) -> None:
         self.bucket = bucket
+        # Each object is written under a compliance-mode lock for this many days (the
+        # snapshot bucket). 0: none is asked for.
+        self.lock_days = lock_days
         self._client: Any = boto3.client(
             "s3",
             endpoint_url=endpoint_url,
@@ -58,7 +63,15 @@ class S3ObjectStore:
         return self.put(key, data, content_type=content_type)
 
     def put(self, key: str, data: bytes, *, content_type: str) -> str:
-        self._client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
+        extra: dict[str, Any] = {}
+        if self.lock_days > 0:
+            extra = {
+                "ObjectLockMode": "COMPLIANCE",
+                "ObjectLockRetainUntilDate": datetime.now(UTC) + timedelta(days=self.lock_days),
+            }
+        self._client.put_object(
+            Bucket=self.bucket, Key=key, Body=data, ContentType=content_type, **extra
+        )
         return key
 
     def get(self, key: str) -> bytes:
@@ -91,6 +104,20 @@ def get_object_store() -> S3ObjectStore:
         access_key_id=settings.s3_access_key_id or None,
         secret_access_key=settings.s3_secret_access_key or None,
         region=settings.s3_region,
+    )
+
+
+@lru_cache
+def get_snapshot_store() -> S3ObjectStore:
+    """Where submission snapshots are kept: the locked bucket, where one is configured."""
+    settings = get_settings()
+    return S3ObjectStore(
+        bucket=settings.s3_snapshot_bucket or settings.s3_bucket,
+        endpoint_url=settings.s3_endpoint_url or None,
+        access_key_id=settings.s3_access_key_id or None,
+        secret_access_key=settings.s3_secret_access_key or None,
+        region=settings.s3_region,
+        lock_days=settings.s3_snapshot_lock_days if settings.s3_snapshot_bucket else 0,
     )
 
 
