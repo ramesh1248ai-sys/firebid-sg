@@ -1880,3 +1880,60 @@ Entry template:
   - **Deadline alerts for clarification due dates** use the existing cut-off alerts; there is no per-clarification reminder.
   - **Clarifications from coordination issues are FR-RFI-03 (P3).**
   - **Accepted qualifications are listed, not yet assembled into the tender package** (FR-PKG-04, P4).
+
+## P2-07 · Bid Risk and Qualifications · 2026-10-04
+
+- **Summary:** the bid team sees scope gaps, design-responsibility exposure and execution risk, each with its evidence, a treatment and an impact, and the list of what the offer is qualified by, every entry tied to its source.
+  - **Scope-gap checklist (FR-RSK-01):** eleven items per system (pumps, tanks, breeching inlets, hydrants, hose reels, hydraulic calculations, shop drawings, testing and commissioning, authority inspections and FSC support, builder's works, power supply interfaces), from `config/risk.yaml`. Each is pre-filled from the scope matrix (an interface row, or obligation rows that agree) or the takeoff (item types counted). What nothing settles is open. A person resolves each as included, excluded, by others or clarified; a status other than the one proposed needs a reason. A rebuild keeps what a person decided.
+  - **Design responsibility (FR-RSK-02):** sentences that put design and build, shop drawings, hydraulic calculations or the engagement of a Qualified Person on the contractor, one risk a kind, citing every clause. Each has a proposed treatment.
+  - **Execution risks (FR-RSK-03):** basement levels (from the drawings and the takeoff), work at height (a ceiling height above 3,000 mm), high-rise (levels served), and night work, occupied building, shutdowns, congested ceilings and restricted access from the words of clauses and drawing notes. Each cites its evidence.
+  - **Impact (FR-RSK-04):** an execution risk that a labour multiplier describes is valued with the labour engine: the baseline hours it reaches times what the multiplier adds, at the trades' rates. A multiplier already confirmed in the labour estimate adds nothing more. Design risks are not computed. The estimator accepts the figure, or sets their own with a reason.
+  - **Qualifications (FR-RSK-05):** proposed from risks (qualify → qualification; priced → assumption), checklist items and scope rows that are excluded or by others (exclusions), and the measurement conventions (assumptions); P2-06 adds those from unresolved clarifications. Every entry names its source, enforced in the database. Entries are edited with a history, and a person may add their own (a deviation, say), linked to a source.
+  - **Register (FR-RSK-06):** treatment (price, qualify, clarify, accept), owner and status per risk, every change in the audit trail. A risk no longer found is marked, not deleted.
+  - **G3 readiness:** the checklist built, every item resolved, every risk treated. The bid's "approve (G3)" transition now refuses until then, and the Risk page shows it.
+  - **UI:** a **Risk** page per bid (bid bar tab and bid page card).
+- **Key modules / files:**
+  - Pure: `risk/rules.py` (`checklist`, `design_risks`, `execution_risks`), `risk/impact.py`.
+  - `services/risk.py` (`build_checklist`, `resolve_check`, `find`, `computed_impact`, `decide_impact`, `treat`, `propose_qualifications`, `add_qualification`, `edit_qualification`, `history`, `g3_readiness`).
+  - `api/risk.py`: `/bids/{id}/risk…`.
+  - `domain/state_machines.py`: a guard on "approve (G3)"; `services/transitions.py` reads readiness.
+  - Migration `0039`: `scope_check`, `risk` (under RLS); `qualification.source_kind`, `source_ref`, `source_label`, and the kinds `exclusion` and `deviation`.
+  - `config/risk.yaml`: the checklist, the wording rules, thresholds. Marked "to be confirmed".
+  - Frontend: `pages/RiskPage.tsx`; route, bid bar and bid page card.
+  - Fixture: `synthetic_spec.RISK_CLAUSES`, `with_risks()`, `EXPECTED_DESIGN_RISKS`, `EXPECTED_WORDING_RISKS`.
+- **How to run and demo:**
+  1. `make up`. Take a bid through the specification analysis so the scope matrix exists, and build its BOQ with a productivity library loaded.
+  2. Open **Risk**. **Build the checklist**: items settled by the scope matrix are filled in; resolve the rest.
+  3. **Find the risks**: each shows its clause, drawing note or parameter. Set a treatment and owner.
+  4. On an execution risk, **Accept the computed impact**, or enter an allowance and a reason and **Adjust**.
+  5. **Propose from risks and scope**: edit an entry's wording, open its **History**, accept or reject it.
+  6. The banner turns to "Ready for G3" once nothing is open.
+- **Requirement IDs covered (test names):**
+  - FR-RSK-01: `tests/risk/test_risk.py::TestChecklist`; `tests/db/test_risk.py::TestChecklist` (pre-filled from the scope matrix; G3 refused until every item is resolved, then approved; a resolution survives a rebuild), `::TestApi`; `Risk.test.tsx`.
+  - FR-RSK-02: `tests/risk/test_risk.py::TestDesignResponsibility`; `tests/db/test_risk.py::TestDesignResponsibility`; `Risk.test.tsx`.
+  - FR-RSK-03: `tests/risk/test_risk.py::TestExecution`; `tests/db/test_risk.py::TestExecution` (basement, high ceiling, night work, occupied building, shutdown, high-rise with evidence; a risk no longer found is kept); `Risk.test.tsx`.
+  - FR-RSK-04: `tests/risk/test_risk.py::TestImpact`; `tests/db/test_risk.py::TestImpact` (night work at a fifth more hours and cost from the labour engine; an adjustment needs a reason, in the service and the database; a confirmed multiplier adds nothing more); `Risk.test.tsx`.
+  - FR-RSK-05: `tests/db/test_risk.py::TestQualifications` (every entry's source resolves to an item of the bid; edited with history; a person's entry must name a source); `Risk.test.tsx`.
+  - FR-RSK-06: `tests/db/test_risk.py::TestRegister`, `::TestApi`; `Risk.test.tsx`.
+- **Deviations and decisions:**
+  - **No plan-and-approve pause,** as the owner prefers.
+  - **Rules only.** No model is used: every finding is a pattern over a sentence, a level name, or a parameter against a threshold.
+  - **G3 is enforced, not only shown.** The prompt asks for a readiness check shown to the Commercial Director. The check is also a guard on the bid's G3 transition, so a bid with no checklist cannot be approved.
+  - **"Contract text" is the specification.** Contract conditions are not read as clauses yet (FR-RSK-07 is P4), so design-responsibility risks come from specification clauses only.
+  - **Impact is an allowance, not a range.** The labour engine gives one figure per multiplier; programme impact is given as extra man-hours.
+  - **Checklist items unresolved are not risks.** They hold up G3 by themselves; excluded and by-others items become exclusions.
+  - **History is the audit trail** of the entry or risk, not a separate table.
+  - **One entry a source.** Proposing again leaves an existing entry, and its edited wording, alone.
+- **Manual checks and results:**
+  - Not run through the browser on the local stack. The page is covered by component tests and the API by database tests.
+- **Defects found and fixed during the step:**
+  - Three response models were named like existing ones and renamed those in the generated client; they are prefixed now.
+- **Known gaps and follow-ups:**
+  - **The checklist, wording rules and thresholds are placeholders** until the company's scope-gap checklist and risk-appetite guidance arrive.
+  - **Level multipliers reach only lines billed by level** (P2-05's gap), so a basement or height risk is valued on the sprinkler heads of that level, not its pipework.
+  - **Design risks have no computed impact;** the estimator enters an allowance.
+  - **Shutdowns have no labour multiplier,** so their impact is not computed.
+  - **Risks are found on request,** not when a document or parameter changes.
+  - **Accepted allowances are not yet added to the cost build-up;** contingency there is still entered by the estimator.
+  - **The owner is a name typed in,** not chosen from the bid's team.
+  - **Contract-term review is FR-RSK-07 (P4).**

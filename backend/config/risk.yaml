@@ -1,0 +1,116 @@
+# Bid risk and qualifications (FR-RSK-01 to 06; P2-07).
+#
+# "TO BE CONFIRMED": the checklist, the wording that marks a design-responsibility or
+# execution risk, and the thresholds are a starting point until the company's scope-gap
+# checklist and risk-appetite guidance arrive (business track).
+
+# The scope-gap checklist (FR-RSK-01). Each item is checked for every system the bid has,
+# unless `systems` limits it. Its status is proposed from, in order:
+#   * `scope_interface`: the scope matrix's interface row with that key;
+#   * `scope_obligations`: the scope matrix's obligation rows of those categories;
+#   * `takeoff_types`: whether the takeoff counts any item of those types.
+# An item none of them settles is open, and stays open until a person resolves it as
+# included, excluded, by others or clarified.
+checklist:
+  - key: pumps
+    label: Fire pumps and jockey pumps
+    systems: [sprinkler, fire_pump, wet_riser, hydrant, hose_reel]
+    takeoff_types: [fire_pump, jockey_pump, pump_controller]
+  - key: tanks
+    label: Fire water tanks
+    systems: [sprinkler, fire_pump, wet_riser, hydrant, hose_reel]
+    takeoff_types: [fire_water_tank]
+  - key: breeching_inlets
+    label: Breeching inlets
+    systems: [sprinkler, wet_riser, dry_riser]
+    takeoff_types: [breeching_inlet]
+  - key: hydrants
+    label: Hydrants
+    systems: [hydrant]
+    takeoff_types: [hydrant]
+  - key: hose_reels
+    label: Hose reels
+    systems: [hose_reel]
+    takeoff_types: [hose_reel]
+  - key: hydraulic_calculations
+    label: Hydraulic calculations
+    scope_obligations: [submittals]
+  - key: shop_drawings
+    label: Shop drawings
+    scope_obligations: [submittals]
+  - key: testing_commissioning
+    label: Testing and commissioning
+    scope_obligations: [testing, commissioning]
+  - key: authority_fsc
+    label: Authority inspections and FSC support
+    scope_obligations: [authority]
+  - key: builders_works
+    label: "Builder's works"
+    scope_interface: builders_works
+  - key: power_supply
+    label: Power supply interfaces
+    scope_interface: power_supply
+
+# Design responsibility (FR-RSK-02): what a clause says the contractor carries. `match` is
+# a regular expression over a sentence, case-insensitive. `treatment` is what is proposed;
+# a person decides.
+design_responsibility:
+  - key: design_and_build
+    label: Design and build
+    match: '\bdesign[-\s]+and[-\s]+build\b|\bresponsible\s+for\s+the\s+(detailed\s+)?design\b|\bcontractor.?s\s+design\b|\bdesign\s+(liability|responsibility)\b'
+    treatment: qualify
+  - key: shop_drawings
+    label: Shop drawings
+    match: '\bshop\s+drawings?\b'
+    treatment: price
+  - key: hydraulic_calculations
+    label: Hydraulic calculations
+    match: '\bhydraulic\s+calculations?\b'
+    treatment: price
+  - key: qp_engagement
+    label: Engagement of a Qualified Person
+    match: '\b(engage|appoint|employ)\w*\s+(a|an|the|its\s+own)\s+(qualified\s+person|QP|professional\s+engineer|PE)\b|\bQP\s+endorse\w*\b|\bendorsed\s+by\s+(a|the)\s+(qualified\s+person|professional\s+engineer|PE)\b'
+    treatment: price
+
+# Execution risks (FR-RSK-03).
+execution:
+  # A level named B1, B2, BASEMENT ...
+  basement_levels: "^(B\\d+|BASEMENT.*)$"
+  # A ceiling (installation) height above this is work at height.
+  work_at_height_above_mm: 3000
+  # "levels_served" at or above this is high-rise.
+  high_rise_from_levels: 20
+  # Wording in a specification clause or a drawing note. `multiplier` is the labour
+  # multiplier of config/labour.yaml the risk's impact is worked out with.
+  wording:
+    - key: night_work
+      label: Night work
+      match: '\bnight\s+(work|shift)s?\b|\bat\s+night\b|\bafter\s+(office|trading|business)\s+hours\b|\bbetween\s+2[0-3]00\s+and\s+0[0-9]00\b'
+      multiplier: night_work
+    - key: occupied_building
+      label: Occupied or live building
+      match: '\b(remain|remains|remaining)\s+(occupied|in\s+operation|operational|open)\b|\blive\s+building\b|\boccupied\s+(building|premises|floors?)\b|\bexisting\s+tenants?\b'
+      multiplier: occupied_building
+    - key: shutdown
+      label: Shutdowns of existing systems
+      match: '\bshut[-\s]?downs?\b|\bisolation\s+of\s+the\s+existing\b|\bimpairment\b'
+      multiplier: null
+    - key: congested_ceilings
+      label: Congested ceilings
+      match: '\bcongest\w+\b|\bcoordinat\w+\s+with\s+(all\s+)?other\s+services\b|\blimited\s+ceiling\s+(space|void)\b'
+      multiplier: mep_congestion
+    - key: access
+      label: Restricted access
+      match: '\b(restricted|limited|difficult)\s+access\b|\bno\s+(hoist|crane)\b'
+      multiplier: access_difficult
+  labels:
+    basement: Basement levels
+    work_at_height: Work at height
+    high_rise: High-rise logistics
+  multipliers:
+    basement: basement
+    high_rise: high_rise
+
+# The treatment proposed for an execution risk; a person decides.
+treatments:
+  execution: price

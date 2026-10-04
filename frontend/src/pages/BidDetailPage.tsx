@@ -9,6 +9,7 @@ import {
   PencilRuler,
   Receipt,
   ScrollText,
+  ShieldAlert,
   Shapes,
   SquareMousePointer,
   TriangleAlert,
@@ -214,6 +215,12 @@ const PARTS: { to: string; label: string; what: string; icon: ReactNode }[] = [
     label: "Clarifications",
     what: "Questions for the client, with their evidence, and what stays unresolved.",
     icon: <FileQuestion className="size-5" aria-hidden />,
+  },
+  {
+    to: "risk",
+    label: "Risk and qualifications",
+    what: "The scope-gap checklist, the risk register and what the offer is qualified by.",
+    icon: <ShieldAlert className="size-5" aria-hidden />,
   },
 ];
 

@@ -151,6 +151,13 @@ def _submission_needs_gate_approval(context: Mapping[str, Any]) -> GuardResult:
     return None if context.get("has_g4_approval") else "the G4 submission approval is missing"
 
 
+def _g3_ready(context: Mapping[str, Any]) -> GuardResult:
+    """G3: the commercial approval rests on a resolved scope checklist and treated risks
+    (FR-RSK-01, 06)."""
+    blockers = context.get("g3_blockers")
+    return f"not ready for G3: {blockers}" if blockers else None
+
+
 def _bid_details_complete(context: Mapping[str, Any]) -> GuardResult:
     """FR-BID-01: work starts only once the tender's details and team are known."""
     missing = context.get("missing_fields") or []
@@ -183,7 +190,12 @@ BID_LIFECYCLE = StateMachine(
             BidState.UNDER_REVIEW, BidState.IN_PREPARATION, "send back for rework", _BID_MANAGEMENT
         ),
         Transition(
-            BidState.UNDER_REVIEW, BidState.APPROVED_FOR_SUBMISSION, "approve (G3)", _COMMERCIAL
+            BidState.UNDER_REVIEW,
+            BidState.APPROVED_FOR_SUBMISSION,
+            "approve (G3)",
+            _COMMERCIAL,
+            guard=_g3_ready,
+            note="Every scope checklist item is resolved and every risk has a treatment.",
         ),
         Transition(BidState.UNDER_REVIEW, BidState.WITHDRAWN, "withdraw", _BID_MANAGEMENT),
         Transition(

@@ -75,6 +75,11 @@ def _guard_context(session: Session, entity: Stateful, target: StrEnum) -> dict[
 
         return {"missing_fields": missing_mandatory_fields(session, entity)}
 
+    if isinstance(entity, Bid) and target == BidState.APPROVED_FOR_SUBMISSION:
+        from firebid.services.risk import g3_readiness
+
+        return {"g3_blockers": g3_readiness(session, entity.id).describe()}
+
     if isinstance(entity, Bid) and target == BidState.SUBMITTED:
         approved = session.execute(
             select(func.count())

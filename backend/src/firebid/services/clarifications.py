@@ -947,7 +947,14 @@ def prepare_submission(session: Session, bid: Bid, actor: Actor) -> list[Qualifi
         kind, words = _proposed_text(row)
         _move(session, row, ClarificationState.CONVERTED_TO_QUALIFICATION, actor)
         qualification = Qualification(
-            bid_id=bid.id, kind=kind, text=words, clarification_id=row.id, state="proposed"
+            bid_id=bid.id,
+            kind=kind,
+            text=words,
+            clarification_id=row.id,
+            source_kind="clarification",
+            source_ref=str(row.id),
+            source_label=f"{label(row)}: {row.subject}"[:300],
+            state="proposed",
         )
         session.add(qualification)
         made.append(qualification)

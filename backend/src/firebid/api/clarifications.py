@@ -181,6 +181,9 @@ class QualificationOut(BaseModel):
     id: uuid.UUID
     kind: str
     text: str
+    source_kind: str
+    source_ref: str
+    source_label: str
     clarification_id: uuid.UUID | None
     clarification_number: str | None
     state: str
@@ -476,6 +479,9 @@ def _qualifications(session: DbSession, bid: Bid) -> list[QualificationOut]:
             id=row.id,
             kind=row.kind,
             text=row.text,
+            source_kind=row.source_kind,
+            source_ref=row.source_ref,
+            source_label=row.source_label,
             clarification_id=row.clarification_id,
             clarification_number=numbers.get(row.clarification_id)
             if row.clarification_id
