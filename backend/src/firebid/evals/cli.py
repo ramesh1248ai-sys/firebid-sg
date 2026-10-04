@@ -13,6 +13,7 @@
     firebid-eval run       --suite p2_systems            Phase 2 equipment and pipe (FR-VIS-04)
     firebid-eval shadow    --bid <id> --workbook x.xlsx  manual takeoff beside the AI's (§13.3)
     firebid-eval exit      --out ../docs/reports/phase1-exit.md   the Phase 1 exit report
+    firebid-eval exit-p2   --out ../docs/reports/phase2-exit.md   the Phase 2 exit report
     firebid-eval corrections --out corrections.jsonl     people's corrections (FR-REV-06)
 
 `import` and `compare` write nothing and exit non-zero when they are unhappy, which is what
@@ -173,7 +174,16 @@ def main(argv: list[str] | None = None) -> int:
     exit_report.add_argument("--gaps", type=Path, default=Path("../docs/reports/phase1-gaps.yaml"))
     exit_report.add_argument("--out", type=Path, default=Path("../docs/reports/phase1-exit.md"))
 
+    exit_p2 = commands.add_parser("exit-p2", help="write the Phase 2 exit report")
+    exit_p2.add_argument("--live", action="store_true", help="include every bid's measures")
+    exit_p2.add_argument("--coverage", type=Path, default=None, help="req_coverage's table")
+    exit_p2.add_argument("--gaps", type=Path, default=Path("../docs/reports/phase2-gaps.yaml"))
+    exit_p2.add_argument("--out", type=Path, default=Path("../docs/reports/phase2-exit.md"))
+
     arguments = parser.parse_args(argv)
+
+    if arguments.command == "exit-p2":
+        return _run_exit_p2(arguments)
 
     if arguments.command == "shadow":
         return _run_shadow(arguments)
@@ -466,6 +476,29 @@ def _run_exit(arguments: argparse.Namespace) -> int:
     ]
     arguments.out.parent.mkdir(parents=True, exist_ok=True)
     arguments.out.write_text(p1_exit.report(inputs, gaps), encoding="utf-8", newline="\n")
+    print(f"wrote {arguments.out}")
+    return 0
+
+
+def _run_exit_p2(arguments: argparse.Namespace) -> int:
+    import yaml
+
+    from firebid.evals import p2_exit
+
+    curated = (
+        yaml.safe_load(arguments.gaps.read_text(encoding="utf-8"))
+        if arguments.gaps.exists()
+        else {}
+    ) or {}
+    inputs = p2_exit.gather(
+        arguments.root,
+        arguments.live,
+        arguments.coverage,
+        phase2_since=str(curated.get("phase2_complete_on") or ""),
+        recorded=curated.get("phase1_recorded"),
+    )
+    arguments.out.parent.mkdir(parents=True, exist_ok=True)
+    arguments.out.write_text(p2_exit.report(inputs, curated), encoding="utf-8", newline="\n")
     print(f"wrote {arguments.out}")
     return 0
 

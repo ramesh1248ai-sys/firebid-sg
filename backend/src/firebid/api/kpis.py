@@ -8,6 +8,7 @@ target cost per tender. Accuracy against verified truth comes from `firebid-eval
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -97,6 +98,66 @@ def portfolio(principal: CurrentPrincipal, session: DbSession) -> KpisOut:
         cost_sgd=sum((r.agents.cost_sgd for r in rows), Decimal("0")),
         target_cost_sgd=kpis.target_cost_per_tender(),
         targets=dict(kpis.settings().get("targets") or {}),
+    )
+
+
+class BidPhase2Out(BaseModel):
+    bid_id: uuid.UUID
+    human_id: str
+    received_on: date
+    ready_on: date | None
+    turnaround_working_days: int | None
+    priced_lines: int
+    sourced_lines: int
+    price_provenance: float | None
+    clarifications_issued: int
+    clarifications_measured: int
+    clarifications_minor: int
+    clarification_acceptance: float | None
+
+
+class Phase2Out(BaseModel):
+    bids: list[BidPhase2Out]
+    turnaround_working_days: float | None
+    baseline_turnaround_working_days: float | None
+    turnaround_reduction: float | None
+    price_provenance: float | None
+    clarification_acceptance: float | None
+    targets: dict[str, Any]
+    minor_edit_ratio: float
+
+
+@router.get("/kpis/phase2", response_model=Phase2Out)
+def phase2(principal: CurrentPrincipal, session: DbSession) -> Phase2Out:
+    """The Phase 2 KPIs across the bids this person can see: tender turnaround in working
+    days, price provenance, and clarifications issued with only minor edits."""
+    bids = list(session.execute(select(Bid).order_by(Bid.human_id)).scalars())
+    found = kpis.phase2_kpis(session, bids)
+    return Phase2Out(
+        bids=[
+            BidPhase2Out(
+                bid_id=row.bid_id,
+                human_id=row.human_id,
+                received_on=row.received_on,
+                ready_on=row.ready_on,
+                turnaround_working_days=row.turnaround_working_days,
+                priced_lines=row.priced_lines,
+                sourced_lines=row.sourced_lines,
+                price_provenance=row.price_provenance,
+                clarifications_issued=row.clarifications_issued,
+                clarifications_measured=row.clarifications_measured,
+                clarifications_minor=row.clarifications_minor,
+                clarification_acceptance=row.clarification_acceptance,
+            )
+            for row in found.bids
+        ],
+        turnaround_working_days=found.turnaround_working_days,
+        baseline_turnaround_working_days=found.baseline_turnaround_working_days,
+        turnaround_reduction=found.turnaround_reduction,
+        price_provenance=found.price_provenance,
+        clarification_acceptance=found.clarification_acceptance,
+        targets=found.targets,
+        minor_edit_ratio=found.minor_edit_ratio,
     )
 
 

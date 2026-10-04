@@ -17,5 +17,11 @@ delete_after_days:
   activity_minute: 400         # time on task: kept a year and a month for the QTO effort trend
   procrastinate_jobs: 90       # finished job history
 
+# A supplier's quotation keeps the lines of its file, so a person can check what was read
+# against them. Those lines can name people (a sender, a sales contact). Once the bid has
+# ended (lost, withdrawn or no-bid) and this many days have passed, the lines are cleared;
+# the fields read from them, and the file itself, stay. An awarded or live bid keeps them.
+quotation_source_lines_after_days: 365
+
 # Expired by their own `expires_at`: the AI response cache and debugging payloads.
 expire: [llm_response_cache, llm_payload]

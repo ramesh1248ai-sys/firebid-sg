@@ -978,6 +978,105 @@
         "title": "BidOut",
         "type": "object"
       },
+      "BidPhase2Out": {
+        "properties": {
+          "bid_id": {
+            "format": "uuid",
+            "title": "Bid Id",
+            "type": "string"
+          },
+          "clarification_acceptance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clarification Acceptance"
+          },
+          "clarifications_issued": {
+            "title": "Clarifications Issued",
+            "type": "integer"
+          },
+          "clarifications_measured": {
+            "title": "Clarifications Measured",
+            "type": "integer"
+          },
+          "clarifications_minor": {
+            "title": "Clarifications Minor",
+            "type": "integer"
+          },
+          "human_id": {
+            "title": "Human Id",
+            "type": "string"
+          },
+          "price_provenance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Provenance"
+          },
+          "priced_lines": {
+            "title": "Priced Lines",
+            "type": "integer"
+          },
+          "ready_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ready On"
+          },
+          "received_on": {
+            "format": "date",
+            "title": "Received On",
+            "type": "string"
+          },
+          "sourced_lines": {
+            "title": "Sourced Lines",
+            "type": "integer"
+          },
+          "turnaround_working_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turnaround Working Days"
+          }
+        },
+        "required": [
+          "bid_id",
+          "human_id",
+          "received_on",
+          "ready_on",
+          "turnaround_working_days",
+          "priced_lines",
+          "sourced_lines",
+          "price_provenance",
+          "clarifications_issued",
+          "clarifications_measured",
+          "clarifications_minor",
+          "clarification_acceptance"
+        ],
+        "title": "BidPhase2Out",
+        "type": "object"
+      },
       "BidState": {
         "enum": [
           "registered",
@@ -9054,6 +9153,93 @@
           "created_at"
         ],
         "title": "ParameterOut",
+        "type": "object"
+      },
+      "Phase2Out": {
+        "properties": {
+          "baseline_turnaround_working_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Turnaround Working Days"
+          },
+          "bids": {
+            "items": {
+              "$ref": "#/components/schemas/BidPhase2Out"
+            },
+            "title": "Bids",
+            "type": "array"
+          },
+          "clarification_acceptance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clarification Acceptance"
+          },
+          "minor_edit_ratio": {
+            "title": "Minor Edit Ratio",
+            "type": "number"
+          },
+          "price_provenance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Provenance"
+          },
+          "targets": {
+            "additionalProperties": true,
+            "title": "Targets",
+            "type": "object"
+          },
+          "turnaround_reduction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turnaround Reduction"
+          },
+          "turnaround_working_days": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turnaround Working Days"
+          }
+        },
+        "required": [
+          "bids",
+          "turnaround_working_days",
+          "baseline_turnaround_working_days",
+          "turnaround_reduction",
+          "price_provenance",
+          "clarification_acceptance",
+          "targets",
+          "minor_edit_ratio"
+        ],
+        "title": "Phase2Out",
         "type": "object"
       },
       "PickIn": {
@@ -26359,6 +26545,33 @@
           }
         ],
         "summary": "Portfolio",
+        "tags": [
+          "kpis"
+        ]
+      }
+    },
+    "/kpis/phase2": {
+      "get": {
+        "description": "The Phase 2 KPIs across the bids this person can see: tender turnaround in working\ndays, price provenance, and clarifications issued with only minor edits.",
+        "operationId": "phase2_kpis_phase2_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Phase2Out"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Phase2",
         "tags": [
           "kpis"
         ]

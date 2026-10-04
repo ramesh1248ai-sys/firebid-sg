@@ -14,6 +14,10 @@ heartbeat once a minute, pausing a second or two between actions. Each user sign
 their own, as the API's rate limit is per session. It ends once every bid's first-pass
 takeoff is done.
 
+The Phase 2 pages are worked too (P2-09): the cost build-up, the labour estimate, the
+clarification register and its candidates, the risk page, the review pack and the gates,
+each by the roles that may open it (a role refused a page before the run is not sent to it).
+
 Reported: the time until every bid was taken off, each request kind's p50, p95 and slowest
 time, and the failures. NFR-01 asks workbench interactions under 2 s at p95; NFR-02 asks for
 this load without degradation, which is read here as no failed request and the p95 target
@@ -57,6 +61,16 @@ ACCOUNTS = {
 }
 # The users working the bids, by role: mostly estimators, as on a real bid.
 WORKING = ("estimator", "senior_estimator", "estimator", "design_manager", "bid_manager")
+# The estimating pages Phase 2 added, each computed from the bid's records when it is opened.
+PHASE2_PAGES = (
+    ("cost build-up", "/cost/build-up"),
+    ("labour estimate", "/labour"),
+    ("clarification register", "/clarifications"),
+    ("clarification candidates", "/clarifications/candidates"),
+    ("risk page", "/risk"),
+    ("review pack", "/review-pack"),
+    ("gates", "/gates"),
+)
 
 
 def user_id(access_token: str) -> str:
@@ -154,6 +168,17 @@ def main() -> int:
             ).raise_for_status()
         bids.append(bid_id)
 
+    # Which role may open which Phase 2 page: asked once, so a page a role is refused is
+    # left out of that role's work rather than counted as a failure.
+    permitted = {
+        role: [
+            (kind, path)
+            for kind, path in PHASE2_PAGES
+            if api.get(f"/bids/{bids[0]}{path}").status_code not in (401, 403, 404)
+        ]
+        for role, api in clients.items()
+    }
+
     files = tender_files()
     recorder = Recorder()
     done: dict[str, float] = {}
@@ -222,6 +247,7 @@ def main() -> int:
             ("overlay", "GET", f"/bids/{bid_id}/qto/overlay"),
             ("review coverage", "GET", f"/bids/{bid_id}/review/coverage"),
         ]
+        actions += [(kind, "GET", f"/bids/{bid_id}{path}") for kind, path in permitted[role]]
         sheet_ids: list[str] = []
         last_beat = 0.0
         while not stop.is_set():
@@ -300,6 +326,7 @@ def main() -> int:
             }
             for kind, values in sorted(recorder.times.items())
         },
+        "phase2_pages": {role: [kind for kind, _ in pages] for role, pages in permitted.items()},
         "meets_nfr02": meets,
         "shadow_bid": shadow_bid,
         "shadow_items_accepted": len(open_items),

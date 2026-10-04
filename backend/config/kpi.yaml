@@ -15,5 +15,21 @@ targets:
   qto_effort_reduction: {at_least: 0.30}
   workflow_success_rate: {at_least: 0.98}
 
+# Phase 2 KPIs (requirements §14; P2-09).
+phase2:
+  targets:
+    turnaround_reduction: {at_least: 0.30}
+    price_provenance: {at_least: 1.0}
+    clarification_acceptance: {at_least: 0.70}
+  # Working days from receipt to submission-ready, before the platform: the figure the
+  # turnaround is compared with. Not yet measured (business track): until it is, the
+  # reduction is reported as pending.
+  baseline_turnaround_working_days: null
+  # A clarification was issued "with only minor edits" when no more than this share of its
+  # drafted words was changed.
+  clarification_minor_edit_ratio: 0.20
+  # Public holidays, as dates, left out of working days. Empty: weekends only.
+  holidays: []
+
 # AI processing cost per tender, SGD (NFR-15). Placeholder.
 target_cost_per_tender_sgd: 50.00

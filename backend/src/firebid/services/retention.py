@@ -25,7 +25,7 @@ from typing import Any
 
 import structlog
 import yaml
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
 from firebid.db.audit import verify_chain
@@ -87,8 +87,39 @@ def purge(session: Session, now: datetime | None = None) -> RetentionRun:
         if name in expiring:
             result = session.execute(delete(model).where(model.expires_at <= now))
             run.deleted[name] = int(getattr(result, "rowcount", 0) or 0)
+    after = rules.get("quotation_source_lines_after_days")
+    if after is not None:
+        run.deleted["quotation_source_lines"] = _clear_quotation_lines(
+            session, now - timedelta(days=int(after))
+        )
     log.info("retention_purged", **run.deleted)
     return run
+
+
+def _clear_quotation_lines(session: Session, cutoff: datetime) -> int:
+    """Clear the kept file lines of quotations on bids that ended before the cutoff."""
+    from firebid.db.models.core import Bid
+    from firebid.db.models.costing import Quotation
+    from firebid.db.models.submission import BidOutcome
+
+    ended = (
+        select(Bid.id)
+        .outerjoin(BidOutcome, BidOutcome.bid_id == Bid.id)
+        .where(
+            Bid.state.in_(["lost", "withdrawn", "no_bid"]),
+            func.coalesce(BidOutcome.recorded_at, Bid.created_at) < cutoff,
+        )
+    )
+    cleared = 0
+    for row in session.execute(select(Quotation).where(Quotation.bid_id.in_(ended))).scalars():
+        extraction = dict(row.extraction or {})
+        if extraction.get("source_lines"):
+            extraction["source_lines"] = []
+            extraction["source_lines_cleared"] = True
+            row.extraction = extraction
+            cleared += 1
+    session.flush()
+    return cleared
 
 
 def archive_months(session: Session, store: Any, now: datetime | None = None) -> list[str]:
