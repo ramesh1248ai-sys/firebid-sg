@@ -185,6 +185,63 @@ def extended() -> tuple[tuple[str, str, str], ...]:
     return (*CLAUSES[:at], OBLIGATION_CLAUSES[0], *CLAUSES[at:], *OBLIGATION_CLAUSES[1:])
 
 
+# P2-07: what the specification puts on the contractor by way of design, and the conditions
+# the work is done in. Appended to the extended specification for the risk fixture only.
+RISK_CLAUSES: tuple[tuple[str, str, str], ...] = (
+    ("8", "FIRE PROTECTION SERVICES - DESIGN AND SITE CONDITIONS", ""),
+    (
+        "8.1",
+        "Design",
+        "The sprinkler installation shall be procured on a design and build basis. The "
+        "Contractor shall be responsible for the detailed design of the installation.",
+    ),
+    (
+        "8.2",
+        "Calculations",
+        "Hydraulic calculations shall be prepared by the Contractor for every design area.",
+    ),
+    (
+        "8.3",
+        "Qualified Person",
+        "The Contractor shall engage a Qualified Person to endorse the design and the "
+        "submissions to the authorities.",
+    ),
+    (
+        "8.4",
+        "Working hours",
+        "Works in the retail podium shall be carried out at night between 2200 and 0600 hours.",
+    ),
+    (
+        "8.5",
+        "Occupation",
+        "The existing building will remain occupied throughout the works.",
+    ),
+    (
+        "8.6",
+        "Existing systems",
+        "Any shutdown of the existing sprinkler system shall be agreed seven days in advance.",
+    ),
+)
+
+# The risks those clauses, and clause 6.6, seed: (kind, the clauses cited).
+EXPECTED_DESIGN_RISKS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("design_and_build", ("8.1",)),
+    ("shop_drawings", ("6.6",)),
+    ("hydraulic_calculations", ("6.6", "8.2")),
+    ("qp_engagement", ("8.3",)),
+)
+EXPECTED_WORDING_RISKS: tuple[tuple[str, str], ...] = (
+    ("night_work", "8.4"),
+    ("occupied_building", "8.5"),
+    ("shutdown", "8.6"),
+)
+
+
+def with_risks() -> tuple[tuple[str, str, str], ...]:
+    """The extended specification with section 8."""
+    return (*extended(), *RISK_CLAUSES)
+
+
 # Every obligation of the extended specification: (category, clause, quantities).
 EXPECTED_OBLIGATIONS: tuple[tuple[str, str, dict[str, object]], ...] = (
     ("testing", "6.1", {"pressure": 14, "pressure_unit": "bar", "duration_hours": 2}),

@@ -63,6 +63,7 @@ from firebid.db.models.documents import (
 from firebid.db.models.drawings import GeometryFeature, SheetGeometry, SheetView
 from firebid.db.models.labour import LabourCondition, LabourProductivity
 from firebid.db.models.review import ActivityMinute, CorrectionEvent, ReviewAction
+from firebid.db.models.risk import Risk, ScopeCheck
 from firebid.db.models.specs import (
     ScopeRow,
     SpecAttribute,
@@ -149,6 +150,8 @@ __all__ = [
     "RegisterConfirmation",
     "ReviewAction",
     "ReviewSample",
+    "Risk",
+    "ScopeCheck",
     "ScopeRow",
     "SharedTakeoff",
     "Sheet",

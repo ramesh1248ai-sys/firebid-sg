@@ -48,7 +48,7 @@ CLARIFICATION_STATES = (
 )
 SOURCE_KINDS = ("spec_issue", "boq_variance", "scope_row", "missing_information")
 IMPACT_OUTCOMES = ("incorporated", "no_change")
-QUALIFICATION_KINDS = ("qualification", "assumption")
+QUALIFICATION_KINDS = ("qualification", "assumption", "exclusion", "deviation")
 QUALIFICATION_STATES = ("proposed", "accepted", "rejected")
 
 
@@ -142,13 +142,21 @@ class Qualification(UuidPk, BidScoped, Timestamped, Base):
     __tablename__ = "qualification"
     __table_args__ = (
         UniqueConstraint("clarification_id", name="uq_qualification_clarification"),
+        UniqueConstraint("bid_id", "source_kind", "source_ref", name="uq_qualification_source"),
         CheckConstraint(f"kind IN {QUALIFICATION_KINDS}", name="kind_known"),
+        # FR-RSK-05: every entry links to the item it comes from.
+        CheckConstraint("btrim(source_ref) <> ''", name="source_named"),
         CheckConstraint(f"state IN {QUALIFICATION_STATES}", name="state_known"),
         CheckConstraint("state = 'proposed' OR decided_by IS NOT NULL", name="decision_named"),
     )
 
     kind: Mapped[str] = mapped_column(String(16), nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
+    # What it comes from: a clarification, a risk, a checklist item, a scope-matrix row or a
+    # measurement convention, and which one (P2-07).
+    source_kind: Mapped[str] = mapped_column(String(24), nullable=False)
+    source_ref: Mapped[str] = mapped_column(String(200), nullable=False)
+    source_label: Mapped[str] = mapped_column(String(300), nullable=False, default="")
     # The unresolved clarification it was proposed from (FR-RFI-05).
     clarification_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("clarification.id", ondelete="SET NULL"), index=True

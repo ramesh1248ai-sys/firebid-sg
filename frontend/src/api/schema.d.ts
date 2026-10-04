@@ -2280,6 +2280,237 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/risk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Page
+         * @description The scope checklist, the risk register, the qualifications and G3 readiness.
+         */
+        get: operations["get_page_bids__bid_id__risk_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/risk/checklist/build": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Build Checklist
+         * @description Build the checklist from the scope matrix and the takeoff, or refresh its proposals.
+         */
+        post: operations["build_checklist_bids__bid_id__risk_checklist_build_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/risk/checklist/{check_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Resolve Check */
+        put: operations["resolve_check_bids__bid_id__risk_checklist__check_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/risk/find": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Find
+         * @description Find the bid's design-responsibility and execution risks again, with their evidence
+         *     and what each could cost.
+         */
+        post: operations["find_bids__bid_id__risk_find_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/risk/g3": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * G3
+         * @description What the Commercial Director sees before G3: whether every checklist item is
+         *     resolved and every risk has a treatment, and which are not.
+         */
+        get: operations["g3_bids__bid_id__risk_g3_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/risk/qualifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Qualification
+         * @description An entry a person writes, linked to the item it comes from.
+         */
+        post: operations["add_qualification_bids__bid_id__risk_qualifications_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/risk/qualifications/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Propose Qualifications
+         * @description Propose assumptions, exclusions and qualifications from the risks, the checklist, the
+         *     scope matrix and the measurement conventions, each linked to its source.
+         */
+        post: operations["propose_qualifications_bids__bid_id__risk_qualifications_propose_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/risk/qualifications/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edit Qualification */
+        patch: operations["edit_qualification_bids__bid_id__risk_qualifications__entry_id__patch"];
+        trace?: never;
+    };
+    "/bids/{bid_id}/risk/qualifications/{entry_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Qualification History */
+        get: operations["qualification_history_bids__bid_id__risk_qualifications__entry_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/risk/risks/{risk_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Treat
+         * @description Set a risk's treatment, owner or status.
+         */
+        put: operations["treat_bids__bid_id__risk_risks__risk_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/risk/risks/{risk_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Risk History */
+        get: operations["risk_history_bids__bid_id__risk_risks__risk_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/risk/risks/{risk_id}/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Decide Impact
+         * @description Accept the computed impact, or adjust it with a reason.
+         */
+        put: operations["decide_impact_bids__bid_id__risk_risks__risk_id__impact_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/shared-takeoff": {
         parameters: {
             query?: never;
@@ -4252,6 +4483,43 @@ export interface components {
             /** Y */
             y: number;
         };
+        /** CheckIn */
+        CheckIn: {
+            /** Note */
+            note?: string | null;
+            /** Status */
+            status: string;
+        };
+        /** CheckOut */
+        CheckOut: {
+            /** Basis */
+            basis: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /** Evidence */
+            evidence: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Item Key */
+            item_key: string;
+            /** Label */
+            label: string;
+            /** Note */
+            note: string | null;
+            /** Proposed Status */
+            proposed_status: string;
+            /** Status */
+            status: string;
+            /** System */
+            system: string;
+        };
         /** CheckResult */
         CheckResult: {
             /**
@@ -5373,6 +5641,28 @@ export interface components {
             /** Status */
             status: string;
         };
+        /** HistoryOut */
+        HistoryOut: {
+            /** Action */
+            action: string;
+            /** After */
+            after: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Before */
+            before: {
+                [key: string]: unknown;
+            } | null;
+            /** By */
+            by: string;
+            /** Reason */
+            reason: string | null;
+        };
         /** IdentifyRequest */
         IdentifyRequest: {
             /** Document */
@@ -6434,6 +6724,52 @@ export interface components {
             /** Text */
             text?: string | null;
         };
+        /** QualificationEditIn */
+        QualificationEditIn: {
+            /** Kind */
+            kind?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Text */
+            text?: string | null;
+        };
+        /** QualificationEntryIn */
+        QualificationEntryIn: {
+            /** Kind */
+            kind: string;
+            /** Source Kind */
+            source_kind: string;
+            /** Source Ref */
+            source_ref: string;
+            /** Text */
+            text: string;
+        };
+        /** QualificationEntryOut */
+        QualificationEntryOut: {
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Note */
+            note: string | null;
+            /** Source Kind */
+            source_kind: string;
+            /** Source Label */
+            source_label: string;
+            /** Source Ref */
+            source_ref: string;
+            /** State */
+            state: string;
+            /** Text */
+            text: string;
+        };
         /** QualificationOut */
         QualificationOut: {
             /** Clarification Id */
@@ -6453,6 +6789,12 @@ export interface components {
             kind: string;
             /** Note */
             note: string | null;
+            /** Source Kind */
+            source_kind: string;
+            /** Source Label */
+            source_label: string;
+            /** Source Ref */
+            source_ref: string;
             /** State */
             state: string;
             /** Text */
@@ -6659,6 +7001,23 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** ReadinessOut */
+        ReadinessOut: {
+            /** Checklist Built */
+            checklist_built: boolean;
+            /** Open Checks */
+            open_checks: {
+                [key: string]: unknown;
+            }[];
+            /** Ready */
+            ready: boolean;
+            /** Summary */
+            summary: string;
+            /** Untreated Risks */
+            untreated_risks: {
+                [key: string]: unknown;
+            }[];
+        };
         /** ReadingRequest */
         ReadingRequest: {
             /**
@@ -6798,6 +7157,86 @@ export interface components {
             sheet_number: string | null;
             /** State */
             state: string;
+        };
+        /** RiskImpactIn */
+        RiskImpactIn: {
+            /**
+             * Accept Computed
+             * @default false
+             */
+            accept_computed: boolean;
+            /** Cost */
+            cost?: number | string | null;
+            /** Hours */
+            hours?: number | string | null;
+            /** Reason */
+            reason?: string | null;
+        };
+        /** RiskOut */
+        RiskOut: {
+            /** Category */
+            category: string;
+            /** Cost Allowance */
+            cost_allowance: string | null;
+            /** Description */
+            description: string;
+            /** Evidence */
+            evidence: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Impact */
+            impact: {
+                [key: string]: unknown;
+            };
+            /** Impact At */
+            impact_at: string | null;
+            /** Impact By */
+            impact_by: string | null;
+            /** Impact Reason */
+            impact_reason: string | null;
+            /** Impact State */
+            impact_state: string;
+            /** Key */
+            key: string;
+            /** Kind */
+            kind: string;
+            /** Level */
+            level: string | null;
+            /** Note */
+            note: string | null;
+            /** Owner */
+            owner: string | null;
+            /** Programme Hours */
+            programme_hours: string | null;
+            /** Proposed Treatment */
+            proposed_treatment: string;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /** Treatment */
+            treatment: string | null;
+        };
+        /** RiskPageOut */
+        RiskPageOut: {
+            /** Checklist */
+            checklist: components["schemas"]["CheckOut"][];
+            g3: components["schemas"]["ReadinessOut"];
+            /** Kinds */
+            kinds: string[];
+            /** Qualifications */
+            qualifications: components["schemas"]["QualificationEntryOut"][];
+            /** Risks */
+            risks: components["schemas"]["RiskOut"][];
+            /** Statuses */
+            statuses: string[];
+            /** Treatments */
+            treatments: string[];
         };
         /**
          * Role
@@ -7313,6 +7752,17 @@ export interface components {
             /** Reason */
             reason?: string | null;
             target: components["schemas"]["BidState"];
+        };
+        /** TreatIn */
+        TreatIn: {
+            /** Note */
+            note?: string | null;
+            /** Owner */
+            owner?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Treatment */
+            treatment?: string | null;
         };
         /** TypeRequest */
         TypeRequest: {
@@ -11811,6 +12261,404 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_page_bids__bid_id__risk_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    build_checklist_bids__bid_id__risk_checklist_build_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_check_bids__bid_id__risk_checklist__check_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                check_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    find_bids__bid_id__risk_find_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    g3_bids__bid_id__risk_g3_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadinessOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_qualification_bids__bid_id__risk_qualifications_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QualificationEntryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_qualifications_bids__bid_id__risk_qualifications_propose_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_qualification_bids__bid_id__risk_qualifications__entry_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QualificationEditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    qualification_history_bids__bid_id__risk_qualifications__entry_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treat_bids__bid_id__risk_risks__risk_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                risk_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TreatIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    risk_history_bids__bid_id__risk_risks__risk_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                risk_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_impact_bids__bid_id__risk_risks__risk_id__impact_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                risk_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RiskImpactIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskPageOut"];
                 };
             };
             /** @description Validation Error */
