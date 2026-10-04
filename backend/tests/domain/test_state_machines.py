@@ -53,7 +53,8 @@ def test_declared_transition_is_allowed_for_a_permitted_role(
         source=transition.source,
         target=transition.target,
         actor_roles=[next(iter(transition.roles))],
-        context={"has_g4_approval": True},
+        # The facts each guard asks for, as they are when nothing stands in the way.
+        context={"has_g4_approval": True, "has_evidence": True, "impact_assessed": True},
     )
     assert planned is transition
 

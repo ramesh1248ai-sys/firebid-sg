@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ChevronRight,
   ClipboardList,
+  FileQuestion,
   FileStack,
   Pencil,
   PencilRuler,
@@ -207,6 +208,12 @@ const PARTS: { to: string; label: string; what: string; icon: ReactNode }[] = [
     label: "BOQ",
     what: "The bill of quantities, pricing, quotations, labour and the cost build-up.",
     icon: <Receipt className="size-5" aria-hidden />,
+  },
+  {
+    to: "clarifications",
+    label: "Clarifications",
+    what: "Questions for the client, with their evidence, and what stays unresolved.",
+    icon: <FileQuestion className="size-5" aria-hidden />,
   },
 ];
 

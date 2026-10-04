@@ -19,6 +19,7 @@ from firebid.db.models.baseline import (
     SharedTakeoff,
     TakeoffSnapshot,
 )
+from firebid.db.models.clarifications import Clarification, ClarificationSource, Qualification
 from firebid.db.models.commercial import (
     Boq,
     BoqLine,
@@ -106,6 +107,8 @@ __all__ = [
     "BoqLine",
     "BoqLineSource",
     "BoqTemplate",
+    "Clarification",
+    "ClarificationSource",
     "ClientBoq",
     "ClientBoqLine",
     "ClientBoqMapping",
@@ -139,6 +142,7 @@ __all__ = [
     "PriceHistory",
     "Project",
     "QtoItem",
+    "Qualification",
     "Quotation",
     "QuotationLine",
     "Rate",

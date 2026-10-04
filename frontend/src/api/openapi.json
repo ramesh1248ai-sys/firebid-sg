@@ -1325,6 +1325,33 @@
         "title": "Body_import_rates_rates_import_post",
         "type": "object"
       },
+      "Body_record_response_bids__bid_id__clarifications__clarification_id__response_post": {
+        "properties": {
+          "file": {
+            "anyOf": [
+              {
+                "contentMediaType": "application/octet-stream",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "summary": {
+            "maxLength": 6000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "summary"
+        ],
+        "title": "Body_record_response_bids__bid_id__clarifications__clarification_id__response_post",
+        "type": "object"
+      },
       "Body_upload_bids__bid_id__documents_post": {
         "properties": {
           "addendum_id": {
@@ -1677,6 +1704,123 @@
         "title": "CalibrateRequest",
         "type": "object"
       },
+      "CandidateGroupOut": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateOut"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "reason",
+          "candidates"
+        ],
+        "title": "CandidateGroupOut",
+        "type": "object"
+      },
+      "CandidateOut": {
+        "properties": {
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceOut"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "level_grid": {
+            "title": "Level Grid",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "problem": {
+            "title": "Problem",
+            "type": "string"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          },
+          "sheets": {
+            "items": {
+              "$ref": "#/components/schemas/SheetRefOut"
+            },
+            "title": "Sheets",
+            "type": "array"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "system": {
+            "title": "System",
+            "type": "string"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "ref",
+          "subject",
+          "problem",
+          "evidence",
+          "system",
+          "level_grid",
+          "sheets",
+          "options",
+          "topic"
+        ],
+        "title": "CandidateOut",
+        "type": "object"
+      },
+      "CandidatesOut": {
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateGroupOut"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Kinds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "groups",
+          "kinds"
+        ],
+        "title": "CandidatesOut",
+        "type": "object"
+      },
       "CatalogueOut": {
         "properties": {
           "multipliers": {
@@ -1973,6 +2117,454 @@
           "quote"
         ],
         "title": "CitationOut",
+        "type": "object"
+      },
+      "ClarificationEditIn": {
+        "properties": {
+          "cost_impact": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Impact"
+          },
+          "level_grid": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level Grid"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "maxLength": 6000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem"
+          },
+          "programme_impact": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Programme Impact"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          }
+        },
+        "title": "ClarificationEditIn",
+        "type": "object"
+      },
+      "ClarificationOut": {
+        "properties": {
+          "approved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "cost_impact": {
+            "title": "Cost Impact",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "design_approved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Design Approved At"
+          },
+          "design_approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Design Approved By"
+          },
+          "design_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Design Note"
+          },
+          "drafting": {
+            "additionalProperties": true,
+            "title": "Drafting",
+            "type": "object"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "engineering_content": {
+            "title": "Engineering Content",
+            "type": "boolean"
+          },
+          "engineering_reason": {
+            "title": "Engineering Reason",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceOut"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "impact_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Impact By"
+          },
+          "impact_detail": {
+            "additionalProperties": true,
+            "title": "Impact Detail",
+            "type": "object"
+          },
+          "impact_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Impact Note"
+          },
+          "impact_outcome": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Impact Outcome"
+          },
+          "impact_task_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Impact Task Id"
+          },
+          "issued_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued At"
+          },
+          "issued_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued By"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "level_grid": {
+            "title": "Level Grid",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/OptionOut"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "overdue": {
+            "title": "Overdue",
+            "type": "boolean"
+          },
+          "problem": {
+            "title": "Problem",
+            "type": "string"
+          },
+          "programme_impact": {
+            "title": "Programme Impact",
+            "type": "string"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "qp_input_needed": {
+            "title": "Qp Input Needed",
+            "type": "boolean"
+          },
+          "required_reviewer": {
+            "title": "Required Reviewer",
+            "type": "string"
+          },
+          "responded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responded At"
+          },
+          "response_document_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Document Id"
+          },
+          "response_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Summary"
+          },
+          "sheets": {
+            "items": {
+              "$ref": "#/components/schemas/SheetRefOut"
+            },
+            "title": "Sheets",
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceOut"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "state_label": {
+            "title": "State Label",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "number",
+          "subject",
+          "project",
+          "level_grid",
+          "sheets",
+          "problem",
+          "evidence",
+          "options",
+          "cost_impact",
+          "programme_impact",
+          "required_reviewer",
+          "engineering_content",
+          "engineering_reason",
+          "qp_input_needed",
+          "state",
+          "state_label",
+          "due_at",
+          "overdue",
+          "drafting",
+          "design_approved_by",
+          "design_approved_at",
+          "design_note",
+          "approved_by",
+          "approved_at",
+          "issued_by",
+          "issued_at",
+          "responded_at",
+          "response_summary",
+          "response_document_id",
+          "impact_task_id",
+          "impact_outcome",
+          "impact_note",
+          "impact_detail",
+          "impact_by",
+          "sources",
+          "created_at"
+        ],
+        "title": "ClarificationOut",
+        "type": "object"
+      },
+      "ClarificationTemplateOut": {
+        "properties": {
+          "headings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Headings",
+            "type": "array"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "headings"
+        ],
+        "title": "ClarificationTemplateOut",
+        "type": "object"
+      },
+      "ClarificationTransitionIn": {
+        "properties": {
+          "target": {
+            "maxLength": 32,
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "ClarificationTransitionIn",
         "type": "object"
       },
       "ClauseOut": {
@@ -3270,6 +3862,29 @@
         "title": "DerivedByOut",
         "type": "object"
       },
+      "DesignApprovalIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "qp_input_needed": {
+            "default": false,
+            "title": "Qp Input Needed",
+            "type": "boolean"
+          }
+        },
+        "title": "DesignApprovalIn",
+        "type": "object"
+      },
       "DesignOut": {
         "properties": {
           "rule_status": {
@@ -3758,6 +4373,29 @@
           "addendum"
         ],
         "title": "DocumentRowOut",
+        "type": "object"
+      },
+      "DraftIn": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/PickIn"
+            },
+            "maxItems": 40,
+            "minItems": 1,
+            "title": "Candidates",
+            "type": "array"
+          },
+          "kind": {
+            "default": "tender_clarification",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidates"
+        ],
+        "title": "DraftIn",
         "type": "object"
       },
       "DrawingRowOut": {
@@ -4395,6 +5033,51 @@
         "title": "ErpImportOut",
         "type": "object"
       },
+      "EvidenceOut": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "quote": {
+            "default": "",
+            "title": "Quote",
+            "type": "string"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          }
+        },
+        "required": [
+          "kind",
+          "label"
+        ],
+        "title": "EvidenceOut",
+        "type": "object"
+      },
       "FailedDocument": {
         "properties": {
           "filename": {
@@ -4899,6 +5582,32 @@
           "document"
         ],
         "title": "IdentifyRequest",
+        "type": "object"
+      },
+      "ImpactIn": {
+        "properties": {
+          "note": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          },
+          "outcome": {
+            "pattern": "^(incorporated|no_change)$",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "rerun": {
+            "default": false,
+            "title": "Rerun",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "outcome",
+          "note"
+        ],
+        "title": "ImpactIn",
         "type": "object"
       },
       "ImportOut": {
@@ -7538,6 +8247,24 @@
         "title": "ObligationOut",
         "type": "object"
       },
+      "OptionOut": {
+        "properties": {
+          "recommendation": {
+            "default": true,
+            "title": "Recommendation",
+            "type": "boolean"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "OptionOut",
+        "type": "object"
+      },
       "OriginChange": {
         "properties": {
           "document_ids": {
@@ -7757,6 +8484,26 @@
           "created_at"
         ],
         "title": "ParameterOut",
+        "type": "object"
+      },
+      "PickIn": {
+        "properties": {
+          "kind": {
+            "maxLength": 24,
+            "title": "Kind",
+            "type": "string"
+          },
+          "ref": {
+            "maxLength": 200,
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "ref"
+        ],
+        "title": "PickIn",
         "type": "object"
       },
       "PipeRunOut": {
@@ -8320,6 +9067,135 @@
           }
         },
         "title": "PublishIn",
+        "type": "object"
+      },
+      "QualificationDecisionIn": {
+        "properties": {
+          "decision": {
+            "pattern": "^(accepted|rejected)$",
+            "title": "Decision",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "maxLength": 6000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "QualificationDecisionIn",
+        "type": "object"
+      },
+      "QualificationOut": {
+        "properties": {
+          "clarification_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clarification Id"
+          },
+          "clarification_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clarification Number"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "text",
+          "clarification_id",
+          "clarification_number",
+          "state",
+          "decided_by",
+          "decided_at",
+          "note"
+        ],
+        "title": "QualificationOut",
         "type": "object"
       },
       "QueueRowOut": {
@@ -9323,6 +10199,56 @@
           "reason"
         ],
         "title": "RefusedOut",
+        "type": "object"
+      },
+      "RegisterOut": {
+        "properties": {
+          "clarification_cutoff": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clarification Cutoff"
+          },
+          "clarifications": {
+            "items": {
+              "$ref": "#/components/schemas/ClarificationOut"
+            },
+            "title": "Clarifications",
+            "type": "array"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "templates": {
+            "items": {
+              "$ref": "#/components/schemas/ClarificationTemplateOut"
+            },
+            "title": "Templates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "clarification_cutoff",
+          "due_at",
+          "clarifications",
+          "templates"
+        ],
+        "title": "RegisterOut",
         "type": "object"
       },
       "RegisterStatus": {
@@ -10442,6 +11368,59 @@
           "base_height_px"
         ],
         "title": "SheetOut",
+        "type": "object"
+      },
+      "SheetRefOut": {
+        "properties": {
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "sheet_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sheet Id"
+          },
+          "sheet_number": {
+            "title": "Sheet Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sheet_number"
+        ],
+        "title": "SheetRefOut",
+        "type": "object"
+      },
+      "SourceOut": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "ref": {
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "ref"
+        ],
+        "title": "SourceOut",
         "type": "object"
       },
       "SpaceOut": {
@@ -13761,6 +14740,756 @@
         "summary": "Export Reconciliation",
         "tags": [
           "boq"
+        ]
+      }
+    },
+    "/bids/{bid_id}/clarifications": {
+      "get": {
+        "description": "The register: every clarification with its state and when it is due.",
+        "operationId": "register_bids__bid_id__clarifications_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Register",
+        "tags": [
+          "clarifications"
+        ]
+      },
+      "post": {
+        "description": "Draft one clarification from a candidate, or from the candidates of a group the\nperson confirmed. A draft with no evidence to cite is refused and not saved.",
+        "operationId": "draft_bids__bid_id__clarifications_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClarificationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Draft",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/bids/{bid_id}/clarifications/candidates": {
+      "get": {
+        "description": "What the platform has flagged that only the client can settle, in the groups it\nproposes: related issues to be asked as one clarification, once a person confirms.",
+        "operationId": "candidates_bids__bid_id__clarifications_candidates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidatesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Candidates",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/bids/{bid_id}/clarifications/export": {
+      "get": {
+        "description": "The register as a file, in the company's form or a client's layout. This download,\nby the person signed in, is the only way a clarification leaves the platform.",
+        "operationId": "export_register_bids__bid_id__clarifications_export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "template",
+            "required": false,
+            "schema": {
+              "default": "company_default",
+              "title": "Template",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "xlsx",
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "only",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Only"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Register",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/bids/{bid_id}/clarifications/prepare-submission": {
+      "post": {
+        "description": "At submission: every unresolved clarification becomes a proposed qualification or\nassumption, linked back to it, for review.",
+        "operationId": "prepare_submission_bids__bid_id__clarifications_prepare_submission_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QualificationOut"
+                  },
+                  "title": "Response Prepare Submission Bids  Bid Id  Clarifications Prepare Submission Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Prepare Submission",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/bids/{bid_id}/clarifications/{clarification_id}": {
+      "get": {
+        "operationId": "get_one_bids__bid_id__clarifications__clarification_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "clarification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Clarification Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClarificationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get One",
+        "tags": [
+          "clarifications"
+        ]
+      },
+      "patch": {
+        "operationId": "edit_bids__bid_id__clarifications__clarification_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "clarification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Clarification Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClarificationEditIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClarificationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Edit",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/bids/{bid_id}/clarifications/{clarification_id}/design-approval": {
+      "post": {
+        "description": "The Design Manager approves the engineering content, and says whether the QP's input\nis needed.",
+        "operationId": "design_approval_bids__bid_id__clarifications__clarification_id__design_approval_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "clarification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Clarification Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DesignApprovalIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClarificationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Design Approval",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/bids/{bid_id}/clarifications/{clarification_id}/draft-with-model": {
+      "post": {
+        "description": "Ask the model to word the draft more clearly, from the evidence it already cites.",
+        "operationId": "draft_with_model_bids__bid_id__clarifications__clarification_id__draft_with_model_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "clarification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Clarification Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClarificationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Draft With Model",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/bids/{bid_id}/clarifications/{clarification_id}/impact": {
+      "post": {
+        "description": "Say what the response changed: incorporated, or no change. With `rerun`, takeoff and\npricing are run again first and what they changed is recorded.",
+        "operationId": "assess_impact_bids__bid_id__clarifications__clarification_id__impact_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "clarification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Clarification Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImpactIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClarificationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Assess Impact",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/bids/{bid_id}/clarifications/{clarification_id}/response": {
+      "post": {
+        "description": "The client's response: what it says, and its file, kept with the tender documents.\nA task to assess its impact is raised.",
+        "operationId": "record_response_bids__bid_id__clarifications__clarification_id__response_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "clarification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Clarification Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_record_response_bids__bid_id__clarifications__clarification_id__response_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClarificationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Record Response",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/bids/{bid_id}/clarifications/{clarification_id}/transition": {
+      "post": {
+        "description": "Send for review, approve to issue (the Bid Manager), or record as issued.",
+        "operationId": "transition_bids__bid_id__clarifications__clarification_id__transition_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "clarification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Clarification Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClarificationTransitionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClarificationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Transition",
+        "tags": [
+          "clarifications"
         ]
       }
     },
@@ -17117,6 +18846,131 @@
         "summary": "Workbench Sheets",
         "tags": [
           "qto"
+        ]
+      }
+    },
+    "/bids/{bid_id}/qualifications": {
+      "get": {
+        "description": "Proposed qualifications and assumptions, each linked to the clarification it is from.",
+        "operationId": "qualifications_bids__bid_id__qualifications_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QualificationOut"
+                  },
+                  "title": "Response Qualifications Bids  Bid Id  Qualifications Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Qualifications",
+        "tags": [
+          "clarifications"
+        ]
+      }
+    },
+    "/bids/{bid_id}/qualifications/{qualification_id}/decide": {
+      "post": {
+        "operationId": "decide_qualification_bids__bid_id__qualifications__qualification_id__decide_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "qualification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Qualification Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QualificationDecisionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QualificationOut"
+                  },
+                  "title": "Response Decide Qualification Bids  Bid Id  Qualifications  Qualification Id  Decide Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Decide Qualification",
+        "tags": [
+          "clarifications"
         ]
       }
     },

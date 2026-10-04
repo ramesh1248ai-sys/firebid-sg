@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from firebid.db.audit import record_event
+from firebid.db.models.clarifications import Clarification
 from firebid.db.models.core import Bid
 from firebid.db.models.documents import DocumentRevision, SheetRevision
 from firebid.db.models.takeoff import QtoItem
@@ -21,6 +22,7 @@ from firebid.db.models.workflow import Approval
 from firebid.domain.actors import Actor, AuditContext
 from firebid.domain.state_machines import (
     BID_LIFECYCLE,
+    CLARIFICATION,
     QTO_ITEM,
     SHEET_REVISION,
     BidState,
@@ -43,6 +45,7 @@ _MACHINES: dict[type, StateMachine] = {
     # Requirements §7 names one model for document and sheet revisions.
     DocumentRevision: SHEET_REVISION,
     QtoItem: QTO_ITEM,
+    Clarification: CLARIFICATION,
 }
 
 
@@ -106,6 +109,14 @@ def _guard_context(session: Session, entity: Stateful, target: StrEnum) -> dict[
         ).first()
         # A Current revision with no label is still a Current revision.
         return {"other_current_revision": (found[1] or "(unlabelled)") if found else None}
+
+    if isinstance(entity, Clarification):
+        return {
+            "has_evidence": bool(entity.evidence),
+            "engineering_content": entity.engineering_content,
+            "design_manager_approved": entity.design_approved_by_id is not None,
+            "impact_assessed": entity.impact_outcome is not None,
+        }
 
     if isinstance(entity, QtoItem) and target == QtoItemState.BASELINED:
         unresolved = entity.duplicate_group_id is not None

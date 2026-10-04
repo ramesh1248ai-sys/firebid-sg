@@ -179,6 +179,17 @@ routes:
     max_output_tokens: 6000
     prompt: quotation_extract
 
+  # Words a tender clarification more clearly (P2-06). Sent the draft and the words of the
+  # evidence it cites (clauses, drawing notes, quantities): no prices. Asked for by a
+  # person; an answer that cites no evidence is refused by the output's validation.
+  clarification_draft:
+    requires: [structured_output]
+    data_class: confidential
+    models: [claude-opus-5, gpt-5.1, gemini-3-pro]
+    reasoning: medium
+    max_output_tokens: 3000
+    prompt: clarification_draft
+
   # Proposes which columns of a client's bill hold the item, description, unit, quantity,
   # rate and amount, when the header words could not say (P1-09). Sent the top rows.
   boq_columns:

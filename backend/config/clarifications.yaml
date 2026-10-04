@@ -1,0 +1,64 @@
+# Tender clarifications (FR-RFI-01, 02, 04, 05, 06, 07; P2-06).
+#
+# "TO BE CONFIRMED": the lead time, the words that mark engineering content and the client
+# template below are placeholders until the Bid Manager and the Design Manager review them
+# and the clients' own templates arrive (business track).
+
+# A clarification is due to be issued this many days before the tender's clarification
+# cut-off, so there is time to send it. With no cut-off set, nothing has a due date.
+issue_days_before_cutoff: 2
+
+# What marks a clarification as having engineering, fire-safety or structural content, so
+# that the Design Manager must approve it before issue (FR-RFI-06). A spec issue about any
+# of these subjects is one; so is a draft whose words contain any of these.
+engineering:
+  subjects: [pipe_material, pipe_class, pipe_standard, joining_method, sprinkler_type, k_factor, temperature_rating_c, response, required_item, item_not_specified]
+  words:
+    - hazard
+    - design density
+    - hydraulic
+    - pump duty
+    - fire rating
+    - fire-rated
+    - structural
+    - penetration
+    - seismic
+    - code of practice
+    - "SS CP 52"
+    - SCDF
+    - pipe material
+    - pipe class
+    - galvanised
+    - sprinkler type
+
+# Export layouts. `company_default` is the company's own form; the others are clients' logs,
+# each a list of column headings and the field under each. Fields: number, subject, project,
+# level_grid, sheets, problem, evidence, options, cost_impact, programme_impact, reviewer,
+# status, due, issued, response.
+templates:
+  - key: company_default
+    label: "Company default"
+    title: "Tender clarifications"
+    columns:
+      - {heading: "No.", field: number}
+      - {heading: "Subject", field: subject}
+      - {heading: "Level / grid", field: level_grid}
+      - {heading: "Drawing and revision", field: sheets}
+      - {heading: "Query", field: problem}
+      - {heading: "Evidence", field: evidence}
+      - {heading: "Options (recommendations only)", field: options}
+      - {heading: "Potential cost impact", field: cost_impact}
+      - {heading: "Potential programme impact", field: programme_impact}
+      - {heading: "Reviewer", field: reviewer}
+      - {heading: "Status", field: status}
+      - {heading: "Due", field: due}
+  - key: client_query_log
+    label: "Client query log (sample layout)"
+    title: "Tenderer's queries"
+    columns:
+      - {heading: "Query No", field: number}
+      - {heading: "Drawing / Spec Ref", field: sheets}
+      - {heading: "Location", field: level_grid}
+      - {heading: "Tenderer's Query", field: problem}
+      - {heading: "Tenderer's Proposal", field: options}
+      - {heading: "Consultant's Response", field: response}

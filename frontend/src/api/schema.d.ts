@@ -510,6 +510,215 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/clarifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Register
+         * @description The register: every clarification with its state and when it is due.
+         */
+        get: operations["register_bids__bid_id__clarifications_get"];
+        put?: never;
+        /**
+         * Draft
+         * @description Draft one clarification from a candidate, or from the candidates of a group the
+         *     person confirmed. A draft with no evidence to cite is refused and not saved.
+         */
+        post: operations["draft_bids__bid_id__clarifications_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/clarifications/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Candidates
+         * @description What the platform has flagged that only the client can settle, in the groups it
+         *     proposes: related issues to be asked as one clarification, once a person confirms.
+         */
+        get: operations["candidates_bids__bid_id__clarifications_candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/clarifications/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Register
+         * @description The register as a file, in the company's form or a client's layout. This download,
+         *     by the person signed in, is the only way a clarification leaves the platform.
+         */
+        get: operations["export_register_bids__bid_id__clarifications_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/clarifications/prepare-submission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Prepare Submission
+         * @description At submission: every unresolved clarification becomes a proposed qualification or
+         *     assumption, linked back to it, for review.
+         */
+        post: operations["prepare_submission_bids__bid_id__clarifications_prepare_submission_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/clarifications/{clarification_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get One */
+        get: operations["get_one_bids__bid_id__clarifications__clarification_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edit */
+        patch: operations["edit_bids__bid_id__clarifications__clarification_id__patch"];
+        trace?: never;
+    };
+    "/bids/{bid_id}/clarifications/{clarification_id}/design-approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Design Approval
+         * @description The Design Manager approves the engineering content, and says whether the QP's input
+         *     is needed.
+         */
+        post: operations["design_approval_bids__bid_id__clarifications__clarification_id__design_approval_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/clarifications/{clarification_id}/draft-with-model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Draft With Model
+         * @description Ask the model to word the draft more clearly, from the evidence it already cites.
+         */
+        post: operations["draft_with_model_bids__bid_id__clarifications__clarification_id__draft_with_model_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/clarifications/{clarification_id}/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assess Impact
+         * @description Say what the response changed: incorporated, or no change. With `rerun`, takeoff and
+         *     pricing are run again first and what they changed is recorded.
+         */
+        post: operations["assess_impact_bids__bid_id__clarifications__clarification_id__impact_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/clarifications/{clarification_id}/response": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Response
+         * @description The client's response: what it says, and its file, kept with the tender documents.
+         *     A task to assess its impact is raised.
+         */
+        post: operations["record_response_bids__bid_id__clarifications__clarification_id__response_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/clarifications/{clarification_id}/transition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transition
+         * @description Send for review, approve to issue (the Bid Manager), or record as issued.
+         */
+        post: operations["transition_bids__bid_id__clarifications__clarification_id__transition_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/cost/allowances/{line_id}": {
         parameters: {
             query?: never;
@@ -1532,6 +1741,43 @@ export interface paths {
         get: operations["workbench_sheets_bids__bid_id__qto_sheets_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/qualifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Qualifications
+         * @description Proposed qualifications and assumptions, each linked to the clarification it is from.
+         */
+        get: operations["qualifications_bids__bid_id__qualifications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/qualifications/{qualification_id}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Qualification */
+        post: operations["decide_qualification_bids__bid_id__qualifications__qualification_id__decide_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3787,6 +4033,13 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_record_response_bids__bid_id__clarifications__clarification_id__response_post */
+        Body_record_response_bids__bid_id__clarifications__clarification_id__response_post: {
+            /** File */
+            file?: string | null;
+            /** Summary */
+            summary: string;
+        };
         /** Body_upload_bids__bid_id__documents_post */
         Body_upload_bids__bid_id__documents_post: {
             /** Addendum Id */
@@ -3903,6 +4156,45 @@ export interface components {
             /** Points */
             points: number[][];
         };
+        /** CandidateGroupOut */
+        CandidateGroupOut: {
+            /** Candidates */
+            candidates: components["schemas"]["CandidateOut"][];
+            /** Key */
+            key: string;
+            /** Reason */
+            reason: string;
+        };
+        /** CandidateOut */
+        CandidateOut: {
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceOut"][];
+            /** Kind */
+            kind: string;
+            /** Level Grid */
+            level_grid: string;
+            /** Options */
+            options: string[];
+            /** Problem */
+            problem: string;
+            /** Ref */
+            ref: string;
+            /** Sheets */
+            sheets: components["schemas"]["SheetRefOut"][];
+            /** Subject */
+            subject: string;
+            /** System */
+            system: string;
+            /** Topic */
+            topic: string;
+        };
+        /** CandidatesOut */
+        CandidatesOut: {
+            /** Groups */
+            groups: components["schemas"]["CandidateGroupOut"][];
+            /** Kinds */
+            kinds: string[];
+        };
         /** CatalogueOut */
         CatalogueOut: {
             /** Multipliers */
@@ -4003,6 +4295,124 @@ export interface components {
             revision_label: string | null;
             /** Title */
             title: string | null;
+        };
+        /** ClarificationEditIn */
+        ClarificationEditIn: {
+            /** Cost Impact */
+            cost_impact?: string | null;
+            /** Level Grid */
+            level_grid?: string | null;
+            /** Options */
+            options?: string[] | null;
+            /** Problem */
+            problem?: string | null;
+            /** Programme Impact */
+            programme_impact?: string | null;
+            /** Subject */
+            subject?: string | null;
+        };
+        /** ClarificationOut */
+        ClarificationOut: {
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By */
+            approved_by: string | null;
+            /** Cost Impact */
+            cost_impact: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Design Approved At */
+            design_approved_at: string | null;
+            /** Design Approved By */
+            design_approved_by: string | null;
+            /** Design Note */
+            design_note: string | null;
+            /** Drafting */
+            drafting: {
+                [key: string]: unknown;
+            };
+            /** Due At */
+            due_at: string | null;
+            /** Engineering Content */
+            engineering_content: boolean;
+            /** Engineering Reason */
+            engineering_reason: string;
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceOut"][];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Impact By */
+            impact_by: string | null;
+            /** Impact Detail */
+            impact_detail: {
+                [key: string]: unknown;
+            };
+            /** Impact Note */
+            impact_note: string | null;
+            /** Impact Outcome */
+            impact_outcome: string | null;
+            /** Impact Task Id */
+            impact_task_id: string | null;
+            /** Issued At */
+            issued_at: string | null;
+            /** Issued By */
+            issued_by: string | null;
+            /** Kind */
+            kind: string;
+            /** Level Grid */
+            level_grid: string;
+            /** Number */
+            number: string;
+            /** Options */
+            options: components["schemas"]["OptionOut"][];
+            /** Overdue */
+            overdue: boolean;
+            /** Problem */
+            problem: string;
+            /** Programme Impact */
+            programme_impact: string;
+            /** Project */
+            project: string;
+            /** Qp Input Needed */
+            qp_input_needed: boolean;
+            /** Required Reviewer */
+            required_reviewer: string;
+            /** Responded At */
+            responded_at: string | null;
+            /** Response Document Id */
+            response_document_id: string | null;
+            /** Response Summary */
+            response_summary: string | null;
+            /** Sheets */
+            sheets: components["schemas"]["SheetRefOut"][];
+            /** Sources */
+            sources: components["schemas"]["SourceOut"][];
+            /** State */
+            state: string;
+            /** State Label */
+            state_label: string;
+            /** Subject */
+            subject: string;
+        };
+        /** ClarificationTemplateOut */
+        ClarificationTemplateOut: {
+            /** Headings */
+            headings: string[];
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
+        /** ClarificationTransitionIn */
+        ClarificationTransitionIn: {
+            /** Target */
+            target: string;
         };
         /** ClauseOut */
         ClauseOut: {
@@ -4426,6 +4836,16 @@ export interface components {
             /** Value */
             value: number;
         };
+        /** DesignApprovalIn */
+        DesignApprovalIn: {
+            /** Note */
+            note?: string | null;
+            /**
+             * Qp Input Needed
+             * @default false
+             */
+            qp_input_needed: boolean;
+        };
         /** DesignOut */
         DesignOut: {
             /** Rule Status */
@@ -4577,6 +4997,16 @@ export interface components {
             type_confidence: number | null;
             /** Type Decided By */
             type_decided_by: string | null;
+        };
+        /** DraftIn */
+        DraftIn: {
+            /** Candidates */
+            candidates: components["schemas"]["PickIn"][];
+            /**
+             * Kind
+             * @default tender_clarification
+             */
+            kind: string;
         };
         /** DrawingRowOut */
         DrawingRowOut: {
@@ -4765,6 +5195,22 @@ export interface components {
             /** Unchanged */
             unchanged: number;
         };
+        /** EvidenceOut */
+        EvidenceOut: {
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Link */
+            link?: string | null;
+            /**
+             * Quote
+             * @default
+             */
+            quote: string;
+            /** Revision */
+            revision?: string | null;
+        };
         /** FailedDocument */
         FailedDocument: {
             /** Filename */
@@ -4933,6 +5379,18 @@ export interface components {
             document: string;
             /** Revision */
             revision?: string | null;
+        };
+        /** ImpactIn */
+        ImpactIn: {
+            /** Note */
+            note: string;
+            /** Outcome */
+            outcome: string;
+            /**
+             * Rerun
+             * @default false
+             */
+            rerun: boolean;
         };
         /** ImportOut */
         ImportOut: {
@@ -5677,6 +6135,16 @@ export interface components {
             /** System */
             system: string;
         };
+        /** OptionOut */
+        OptionOut: {
+            /**
+             * Recommendation
+             * @default true
+             */
+            recommendation: boolean;
+            /** Text */
+            text: string;
+        };
         /** OriginChange */
         OriginChange: {
             /** Document Ids */
@@ -5740,6 +6208,13 @@ export interface components {
             source: string;
             /** Value */
             value: string;
+        };
+        /** PickIn */
+        PickIn: {
+            /** Kind */
+            kind: string;
+            /** Ref */
+            ref: string;
         };
         /** PipeRunOut */
         PipeRunOut: {
@@ -5949,6 +6424,39 @@ export interface components {
         PublishIn: {
             /** Note */
             note?: string | null;
+        };
+        /** QualificationDecisionIn */
+        QualificationDecisionIn: {
+            /** Decision */
+            decision: string;
+            /** Note */
+            note?: string | null;
+            /** Text */
+            text?: string | null;
+        };
+        /** QualificationOut */
+        QualificationOut: {
+            /** Clarification Id */
+            clarification_id: string | null;
+            /** Clarification Number */
+            clarification_number: string | null;
+            /** Decided At */
+            decided_at: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Note */
+            note: string | null;
+            /** State */
+            state: string;
+            /** Text */
+            text: string;
         };
         /** QueueRowOut */
         QueueRowOut: {
@@ -6213,6 +6721,17 @@ export interface components {
             filename: string;
             /** Reason */
             reason: string;
+        };
+        /** RegisterOut */
+        RegisterOut: {
+            /** Clarification Cutoff */
+            clarification_cutoff: string | null;
+            /** Clarifications */
+            clarifications: components["schemas"]["ClarificationOut"][];
+            /** Due At */
+            due_at: string | null;
+            /** Templates */
+            templates: components["schemas"]["ClarificationTemplateOut"][];
         };
         /** RegisterStatus */
         RegisterStatus: {
@@ -6561,6 +7080,22 @@ export interface components {
             } | null;
             /** Width Mm */
             width_mm: number | null;
+        };
+        /** SheetRefOut */
+        SheetRefOut: {
+            /** Revision */
+            revision?: string | null;
+            /** Sheet Id */
+            sheet_id?: string | null;
+            /** Sheet Number */
+            sheet_number: string;
+        };
+        /** SourceOut */
+        SourceOut: {
+            /** Kind */
+            kind: string;
+            /** Ref */
+            ref: string;
         };
         /** SpaceOut */
         SpaceOut: {
@@ -7975,6 +8510,413 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_bids__bid_id__clarifications_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    draft_bids__bid_id__clarifications_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    candidates_bids__bid_id__clarifications_candidates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidatesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_register_bids__bid_id__clarifications_export_get: {
+        parameters: {
+            query?: {
+                template?: string;
+                format?: string;
+                only?: string | null;
+            };
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    prepare_submission_bids__bid_id__clarifications_prepare_submission_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualificationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_one_bids__bid_id__clarifications__clarification_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clarification_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_bids__bid_id__clarifications__clarification_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clarification_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarificationEditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    design_approval_bids__bid_id__clarifications__clarification_id__design_approval_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clarification_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DesignApprovalIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    draft_with_model_bids__bid_id__clarifications__clarification_id__draft_with_model_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clarification_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assess_impact_bids__bid_id__clarifications__clarification_id__impact_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clarification_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImpactIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_response_bids__bid_id__clarifications__clarification_id__response_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clarification_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_record_response_bids__bid_id__clarifications__clarification_id__response_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transition_bids__bid_id__clarifications__clarification_id__transition_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clarification_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarificationTransitionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationOut"];
                 };
             };
             /** @description Validation Error */
@@ -9896,6 +10838,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkbenchSheet"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    qualifications_bids__bid_id__qualifications_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualificationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_qualification_bids__bid_id__qualifications__qualification_id__decide_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                qualification_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QualificationDecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualificationOut"][];
                 };
             };
             /** @description Validation Error */

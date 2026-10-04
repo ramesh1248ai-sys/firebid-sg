@@ -1821,3 +1821,62 @@ Entry template:
   - **Rate tables are read at start-up,** so a change needs a restart, as GST does.
   - **Crew-days and the manpower histogram are FR-LAB-04 (P3); learning from actual hours is FR-LAB-05 (P4).**
   - **No page for the productivity library itself:** it is listed and changed through the API.
+
+## P2-06 · Tender Clarifications Register · 2026-10-04
+
+- **Summary:** flagged issues become evidence-backed tender clarifications, with a register, approvals, responses and qualifications. The platform sends nothing to a client.
+  - **Tender clarifications only (FR-RFI-01):** the `kind` column reserves `construction_rfi`; the service refuses to create one and the UI offers no choice.
+  - **Candidates:** open specification issues (conflicts, missing items, ambiguous clauses), flagged bill variances (quantity differences, bill items with nothing measured, items measured but not billed) and scope rows left unclear. Each carries its evidence. A candidate already in a clarification is not offered again.
+  - **Drafting (FR-RFI-02):** composed by rule from one candidate or a confirmed group: number (`TC-001`), subject, project, level/grid, sheet and revision, problem, evidence, options, potential cost and programme impact, required reviewer. A draft with no evidence is refused by the draft's own model and not saved; the database refuses one too. Evidence can be added to, never emptied.
+  - **Options and approvals (FR-RFI-06):** every option is worded "Recommendation: …". A clarification has engineering content when its issue is about an engineering subject (pipe material, class, joining, sprinkler type, a required item) or its words name one (`config/clarifications.yaml`). The Bid Manager approves for issue; engineering content needs the Design Manager first, who may flag "QP input needed".
+  - **Register (FR-RFI-04):** the lifecycle of requirements §7 (`domain.state_machines.CLARIFICATION`). Due date: two days before the clarification cut-off. A response is recorded against an issued clarification with its file kept as a tender document, and raises an impact task. The assessment may re-run takeoff and pricing, records what changed, and closes it as incorporated or no change.
+  - **Grouping and export (FR-RFI-07):** issues on the same sheet and system, and unclear scope rows of a system, are proposed as one clarification; nothing is merged until a person confirms. The register exports to xlsx or docx in the company's form or a client layout.
+  - **The only exit is a download.** The export is returned to the signed-in person and recorded as theirs. "Issued" is a person saying they sent it.
+  - **Qualifications (FR-RFI-05):** "Prepare the submission" turns every unresolved clarification into a proposed qualification (asked, not settled) or assumption (never asked), linked back, for a person to accept or reject.
+  - **UI:** a **Clarifications** page per bid (bid bar tab and bid page card): candidates, register, a panel per clarification with its actions, export, qualifications.
+- **Key modules / files:**
+  - `domain/state_machines.py`: `ClarificationState`, `CLARIFICATION`; `services/transitions.py` reads the guards' facts from the row.
+  - Pure: `clarifications/drafting.py` (`Candidate`, `Draft`, `compose`, `engineering`, `propose_groups`), `clarifications/export.py`.
+  - `services/clarifications.py` (`candidates`, `draft`, `edit`, `draft_with_model`, `transition`, `design_approval`, `record_response`, `assess_impact`, `export_register`, `prepare_submission`, `decide_qualification`).
+  - `api/clarifications.py`: `/bids/{id}/clarifications…`, `/bids/{id}/qualifications…`.
+  - Model path: `agents/clarification_drafter.ClarificationDrafter`, route `clarification_draft`, prompt `v1`.
+  - Migration `0038`: `clarification`, `clarification_source`, `qualification`, all under RLS.
+  - `config/clarifications.yaml`: lead time, engineering subjects and words, export templates. Marked "to be confirmed".
+  - Frontend: `pages/ClarificationsPage.tsx`; route, bid bar and bid page card.
+- **How to run and demo:**
+  1. `make up`. Take a bid through the specification analysis (**Specification → Check against the drawings**) and, for variances, the client BOQ mapping.
+  2. Set the bid's **Clarifications close** date on the bid page.
+  3. Open **Clarifications**. Under **To raise**, **Draft** one, or **Confirm the group and draft one**.
+  4. **Open** it: edit the query, **Send for internal review**. As Design Manager, **Approve as Design Manager** (if flagged). As Bid Manager, **Approve to issue**.
+  5. **Download the register**, send it yourself, then **Record as issued**.
+  6. Record the response with its file; **Assess the impact** and close.
+  7. **Prepare the submission**: unresolved ones appear as proposed qualifications.
+- **Requirement IDs covered (test names):**
+  - FR-RFI-01: `tests/clarifications/test_clarifications.py::test_the_model_reserves_construction_rfis_and_nothing_else`; `tests/db/test_clarifications.py::TestTenderClarificationsOnly`; `Clarifications.test.tsx`.
+  - FR-RFI-02: `tests/clarifications/test_clarifications.py::TestDraft`; `tests/db/test_clarifications.py::TestDrafting` (a seeded spec conflict and a bill variance each draft with every field and evidence; no evidence, no draft, in the service and the database; the model rewords only when it cites the draft's evidence); `Clarifications.test.tsx`.
+  - FR-RFI-04: `tests/clarifications/test_clarifications.py::TestLifecycle`; `tests/db/test_clarifications.py::TestRegister` (due dates follow the cut-off; a response links back, raises a task and closes after the impact is assessed), `::TestApi`; `Clarifications.test.tsx`.
+  - FR-RFI-05: `tests/db/test_clarifications.py::TestQualifications`; `Clarifications.test.tsx`.
+  - FR-RFI-06: `tests/clarifications/test_clarifications.py::TestOptionsAndEngineering`; `tests/db/test_clarifications.py::TestApproval`, `::TestApi`; `Clarifications.test.tsx`.
+  - FR-RFI-07: `tests/clarifications/test_clarifications.py::TestGroupingAndExport` (groups; headings and cells match the template, xlsx and docx; no module imports anything that could send); `tests/db/test_clarifications.py::TestGroupingAndExport` (merged on confirmation; the export is a recorded download and no job is queued); `Clarifications.test.tsx`.
+- **Deviations and decisions:**
+  - **No plan-and-approve pause,** as the owner prefers.
+  - **Rules draft, the model rewords.** The prompt names a drafting agent. Here the draft is composed by rule, so every field and citation is deterministic, and the model is asked by a person only to improve the wording. Its output must cite evidence by number; an answer citing none fails output validation and nothing is saved.
+  - **A "client's template" is a configured layout** (headings and the field under each), not an uploaded file, since no client template has arrived. One sample client layout is shipped.
+  - **Potential cost and programme impact are fields the estimator fills.** A quantity variance states the quantity difference; nothing else is estimated by the platform.
+  - **"Missing-information flags" are the specification issues of category "missing"**, offered as the source kind `missing_information`.
+  - **The Design Manager's approval is a recorded act of its own,** not a state: the lifecycle of §7 has no state for it.
+  - **Conversion at submission is asked for by the Bid Manager.** It is not tied to G4, which is not built yet.
+  - **Editing a draft re-checks its engineering content;** new engineering content clears an earlier Design Manager approval.
+- **Manual checks and results:**
+  - Not run through the browser on the local stack. The page is covered by component tests and the API by database tests.
+- **Defects found and fixed during the step:**
+  - Response models named like existing ones (`TransitionIn`, `TemplateOut`, `EditIn`, `GroupOut`, `SheetOut`) changed those models' generated names; they are prefixed now.
+  - A forward reference in a route's response model stopped the OpenAPI schema from being generated.
+- **Known gaps and follow-ups:**
+  - **The lead time, engineering words and templates are placeholders** for the Bid Manager and Design Manager to confirm; clients' real templates are a business-track input.
+  - **Level and grid are filled only where an issue carries them;** most specification issues cite a sheet, not a grid.
+  - **Bill variances are not grouped,** only issues sharing a sheet and system or a system's scope rows.
+  - **The impact assessment re-runs takeoff and pricing for the whole bid,** not only what the response touches; a response that brings revised drawings goes through the addendum flow (P2-02).
+  - **Deadline alerts for clarification due dates** use the existing cut-off alerts; there is no per-clarification reminder.
+  - **Clarifications from coordination issues are FR-RFI-03 (P3).**
+  - **Accepted qualifications are listed, not yet assembled into the tender package** (FR-PKG-04, P4).
