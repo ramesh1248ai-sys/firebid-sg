@@ -1,6 +1,6 @@
 # Backend API and job worker image (same image, different commands).
 # Base image matches the Dev Container, so native libraries behave identically.
-FROM python:3.14-slim-bookworm
+FROM python:3.12-slim-bookworm
 
 # numpy's BLAS sizes its thread pool from the host's CPUs, not the container's limit, and
 # idle BLAS threads spin: with two jobs on 2 CPUs that made finding symbols 40 times
@@ -22,13 +22,13 @@ WORKDIR /app
 
 # Dependencies first, so code changes reuse the cached dependency layer.
 COPY pyproject.toml uv.lock .python-version README.md ./
-RUN --mount=from=ghcr.io/astral-sh/uv:0.12.23,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev --no-install-project
+RUN --mount=from=ghcr.io/astral-sh/uv:0.11.25,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev --no-install-project
 
 COPY alembic.ini ./
 # The LLM routing table. It is read at runtime, and /health fails without it.
 COPY config ./config
 COPY src ./src
-RUN --mount=from=ghcr.io/astral-sh/uv:0.12.23,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev
+RUN --mount=from=ghcr.io/astral-sh/uv:0.11.25,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev
 
 ARG GIT_SHA=unknown
 ENV FIREBID_GIT_SHA=$GIT_SHA
