@@ -200,3 +200,18 @@ class TestViews:
         (plan,) = analysed(synthetic.general_arrangement()[0], "dxf", tmp_path, "1:100")
         # The title block's cells start at x = 280 mm; the plan stops before them.
         assert plan.view.extent[2] < 300
+
+
+@pytest.mark.req("FR-VIS-05")
+def test_a_figure_of_nought_beside_a_line_is_not_evidence_of_a_scale() -> None:
+    # Found on a real plan: a "0" (a level, a count) paired with the line beside it implied a
+    # scale of 1:0, and comparing two of them divided by zero, so the sheet got no views.
+    from firebid.drawings.scale import Evidence, Stated, same_scale, verify
+
+    nought = Evidence(0.0, 12.0, "figure")
+
+    assert not same_scale(0.0, 0.0)
+    assert not same_scale(nought.denominator, nought.denominator)
+    verdict = verify(Stated(None, False), [nought, nought])
+    assert verdict.denominator is None
+    assert not verdict.measurable

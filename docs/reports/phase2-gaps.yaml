@@ -61,16 +61,35 @@ cost_review:
     an approved fallback and 1 escalated cleanly.
 
 gaps:
-  - gap: "Match lines (FR-DSN-06) are found on synthetic sheets only so far"
+  - gap: "Match lines (FR-DSN-06) have been tried on one real floor: four sheets of one consultant"
     cause: >-
-      A match line is found from its "MATCH LINE" label and the straight line beside it, and
-      the sheet's side is proposed from the pipework found drawn, then coloured linework,
-      then the larger side. That has not been run on a real tender. A match line that steps
-      is followed as one straight line; a DXF whose pipes are coloured by layer gives no
-      colour to judge by; nothing compares two sheets to check that they took opposite sides.
+      On the four tenth-storey sheets of the MOH set, run on their extracted geometry, each
+      match line and the sheet it continues on are found, and sheet 1's layout falls from
+      514 heads to 372 on its own side (the estimators counted 346 there). The other 144
+      sheets and other consultants' ways of marking a cut are untried. A match line that
+      steps is followed as one straight line; a DXF whose pipes are coloured by layer gives
+      no colour to judge by; nothing compares two sheets to check they took opposite sides.
     action: >-
-      Run it on the MOH design-intent set and a second consultant's drawings; a person
-      confirms each sheet's side on the Design page meanwhile.
+      Run the rest of the MOH set and a second consultant's drawings; a person confirms
+      each sheet's side on the Design page meanwhile.
+  - gap: "The real design-intent sheets do not get from upload to a layout on the stack"
+    cause: >-
+      Found on the MOH tenth-storey sheets. Three of four got no register entry at all and
+      the fourth was read as "T/B", so none is Current and the design step finds no sheet;
+      a sheet with no entry cannot be identified by a person. Two of the four are classed
+      as schematic and detail, not plan, likely from words in their notes. None carries a
+      dimension, so every plan view needs a person to calibrate its scale.
+    action: >-
+      Before the pilot: read this consultant's title block (or let a person identify a
+      sheet with no entry), and correct the plan classification; then run the set again.
+  - gap: "The layout export is slow and large on a real sheet"
+    cause: >-
+      A real A0 sheet has 1.5 million line segments. Its PDF is 11 MB and takes about a
+      minute; its DXF is 273 MB and takes about a minute and a half. Both are made inside
+      the request for the download.
+    action: >-
+      Make the export in a background job and keep the file; write the DXF's tender
+      drawing as polylines or a block, or offer the layout alone.
   - gap: "The layout export (FR-DSN-05) redraws the tender drawing rather than overlaying the original file"
     cause: >-
       The PDF and DXF are drawn from the sheet's extracted geometry, in grey, so they show
@@ -154,6 +173,7 @@ recommendation: >-
   tenders, and no pilot has run and no turnaround baseline exists. Recommended: (1) fix CI
   billing and run the full pipeline on main; (2) decide D2 so the model routes can be
   measured and costed; (3) record the turnaround baseline and confirm the placeholder
-  figures; (4) try the match lines and the layout export on a real design-intent tender;
+  figures; (4) get a real design-intent tender from upload to a layout on the stack (its
+  title blocks and plan views are not yet read);
   (5) run the assisted-mode pilot on at least three live tenders and regenerate this report with `make exit-report-p2 LIVE=1`. Hold the gate
   review until that report shows the three criteria measured.

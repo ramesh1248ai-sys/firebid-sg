@@ -113,9 +113,10 @@ def design_intent_plan(
                 dxfattribs={"layer": LAYER_TEXT},
             )
             y += 1_200
-        space.add_text(MATCH_LINE_NOTE, height=200, dxfattribs={"layer": LAYER_TEXT}).set_placement(
-            (MATCH_LINE_X + 150, BUILDING[1] - 600)
-        )
+        # Written along its line, as a consultant writes it.
+        space.add_text(
+            MATCH_LINE_NOTE, height=200, rotation=90, dxfattribs={"layer": LAYER_TEXT}
+        ).set_placement((MATCH_LINE_X - 150, BUILDING[1] + 300))
     space.add_text("DN150 SPR", height=180, dxfattribs={"layer": LAYER_TEXT}).set_placement(
         (6_000, MAIN_Y + 200)
     )

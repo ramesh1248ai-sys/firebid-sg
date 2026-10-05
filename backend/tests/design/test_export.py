@@ -100,3 +100,27 @@ def test_only_pdf_and_dxf_are_offered() -> None:
     assert set(export.FORMATS) == {"pdf", "dxf"}
     with pytest.raises(ValueError, match="pdf or dxf"):
         export.render(sheet(), "dwg")
+
+
+def test_words_written_up_the_sheet_stay_written_up_the_sheet() -> None:
+    # Found on a real sheet: a note written along a match line came out upside down.
+    plan = building()
+    plan.builder.text(
+        "FOR CONTINUATION",
+        (195.0, 120.0, 201.0, 240.0),
+        plan.builder.group(),
+        height=6.0,
+        rotation=90.0,
+    )
+    content = export.as_dxf(sheet(table=plan.table()))
+
+    document = ezdxf.read(io.StringIO(content.decode("utf-8")))
+    (note,) = [
+        e
+        for e in document.modelspace()
+        if e.dxftype() == "TEXT" and e.dxf.text == "FOR CONTINUATION"
+    ]
+    # It starts at the bottom of its box (y = 240 of 300, so 60 up) and runs up the sheet,
+    # its feet to the right (x = 201).
+    assert note.dxf.rotation == 90.0
+    assert (round(note.dxf.insert.x), round(note.dxf.insert.y)) == (201, 60)
