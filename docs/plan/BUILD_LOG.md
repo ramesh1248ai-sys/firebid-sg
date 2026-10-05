@@ -2110,3 +2110,17 @@ Entry template:
   - FR-DOC-02: `tests/drawings/test_title_block.py::TestANamingStandardNumber`, `::test_text_is_placed_on_the_sheet_when_the_page_s_origin_is_not_its_corner`.
   - FR-DSN-05: `tests/db/test_design_match_lines_and_export.py::TestExport` (asked for, made by a job, kept, downloaded; a stale file refused; nothing queued for an empty layout); `tests/design/test_export.py`; `Design.test.tsx`.
 - **Known gaps and follow-ups:** see the gap list: two of the four sheets are not classed as plans; a plan with no dimension needs a person's calibration; the DXF is 110 MB once unpacked.
+
+## Fix · View titles on a real sheet · 2026-10-05
+
+- **Summary:** two of the four MOH tenth-storey sheets were classed as a schematic and a detail, not a plan, so the design step passed them by. All four are now one plan view each.
+- **Cause:** a view is known by its title, and a title was any text holding a title's word. The sheets' general notes say "... THE SCHEMATIC LAYOUTS, EQUIPMENT SIZES ..." and "... BIM MODELING FOR DETAIL": two "titles". Where the notes sat inside the area taken for the title block they were ignored (sheets 1 and 4); where they sat on the left they split the sheet in two (sheets 2 and 3). The sheet's real title, 87 characters long, was written by the PDF in two pieces cut inside the word LAYOUT, and was read on none of them.
+- **Fix (`drawings/views.py`):**
+  - `is_title`: a title is a phrase, not a sentence: nothing after a full stop, not a numbered note, at most 14 words, or 8 where it holds a comma.
+  - `joined`: text written across the sheet in pieces on one line is put back together before titles are looked for.
+  - `level_of` reads `10TH STOREY` as L10.
+  - With the title found, the "1 : 100" printed beneath it becomes the view's stated scale without further change. It is still unverified: the sheet has no dimension to check it by.
+- **On the stack, 5 Oct 2026:** the four sheets are read and Current, each one plan at a stated 1:100 on L10; calibrated by hand for the trial, each gets its design basis with the criteria its notes state, its match line, its neighbour and its side. Real schematic sheets of the same set are still classed as schematics.
+- **Requirement IDs covered (test names):** FR-VIS-05: `tests/drawings/test_views.py::TestTitlesOnARealSheet` (a sentence of the notes is not a title; a title in two pieces is read as one; the sheet is one plan with its title, scale and level; a level before its word).
+- **Tests:** 1,523 non-database tests pass. The database and frontend suites were not rerun: the change touches neither.
+- **Known gaps and follow-ups:** four sheets of 148, one consultant; a plan with no dimension still needs a person's calibration.

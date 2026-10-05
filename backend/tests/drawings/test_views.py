@@ -215,3 +215,76 @@ def test_a_figure_of_nought_beside_a_line_is_not_evidence_of_a_scale() -> None:
     verdict = verify(Stated(None, False), [nought, nought])
     assert verdict.denominator is None
     assert not verdict.measurable
+
+
+@pytest.mark.req("FR-VIS-05")
+class TestTitlesOnARealSheet:
+    """Found on a real tender: an A0 plan whose general notes hold a title's words, and whose
+    own title is long enough for the PDF to have written it in two pieces."""
+
+    PAGE = (0.0, 0.0, 1189.0, 841.0)
+    NOTES = (
+        "1. THE DESIGN INTENT CONVEYED IN THIS DRAWING SHALL CONSTITUTE THE MINIMUM",
+        "HFDS / TENDER DOCUMENTS AND DRAWINGS. THE SCHEMATIC LAYOUTS, EQUIPMENT SIZES",
+        "EMPLOYER. BIM SERVICES COORDINATION AND BIM MODELING FOR DETAIL",
+    )
+
+    def sheet(self) -> Any:
+        builder = geometry.Builder(geometry.Method.PDF_VECTOR)
+
+        def write(words: str, x: float, y: float, height: float) -> None:
+            box = (x, y, x + 0.5 * height * len(words), y + height)
+            builder.text(words, box, builder.group(), height=height)
+
+        # The plan itself, the notes beside it, and the title beneath it in two pieces
+        # with its scale under it.
+        builder.line(300.0, 200.0, 1000.0, 200.0, builder.group())
+        builder.line(300.0, 600.0, 1000.0, 600.0, builder.group())
+        builder.line(300.0, 200.0, 300.0, 600.0, builder.group())
+        for index, note in enumerate(self.NOTES):
+            write(note, 60.0, 60.0 + 5.0 * index, 3.5)
+        first = "FIRE PROTECTION INSTALLATION - FIRE PROTECTION ENLARGEMENT LAYO"
+        write(first, 40.0, 793.6, 8.5)
+        write("UT - 10TH STOREY - SHEET 2", 40.0 + 0.5 * 8.5 * len(first) + 1.0, 793.6, 8.5)
+        write("1 : 100", 42.0, 803.0, 5.6)
+        # The title block, down the whole of the right edge: its revision table at the top.
+        write("DATE", 1081.0, 250.0, 2.0)
+        write("REV", 1094.0, 250.0, 2.0)
+        write("SCALE:", 1138.0, 500.0, 2.0)
+        write("DRAWING TITLE:", 1072.0, 745.0, 2.0)
+        write("SHEET NUMBER:", 1071.0, 798.0, 2.0)
+        write("60743399_ACM_TN_TO_D_MFP_A03-10-02", 1079.0, 810.0, 3.0)
+        write("REVISION:", 1147.0, 798.0, 2.0)
+        write("00", 1156.0, 810.0, 3.0)
+        return builder.table()
+
+    def test_a_sentence_of_the_notes_is_not_a_view_s_title(self) -> None:
+        assert not any(views.is_title(note) for note in self.NOTES)
+        assert views.is_title("LEVEL 5 SPRINKLER LAYOUT PLAN - PART 1")
+        assert views.is_title("WET RISER SCHEMATIC DIAGRAM SHEET 1 N.T.S.")
+        assert views.is_title("ENLARGED PLAN - RISER AREA")
+        assert views.is_title("TYPICAL DETAIL OF SPRINKLER DROP, CONCEALED TYPE")
+        assert not views.is_title("GENERAL NOTES")
+
+    def test_a_title_written_in_two_pieces_is_read_as_one(self) -> None:
+        whole = [span["text"] for span in views.joined(geometry.texts(self.sheet()))]
+
+        assert (
+            "FIRE PROTECTION INSTALLATION - FIRE PROTECTION ENLARGEMENT LAYOUT - "
+            "10TH STOREY - SHEET 2" in whole
+        )
+
+    def test_the_sheet_is_one_plan_with_its_title_its_scale_and_its_level(self) -> None:
+        (view,) = views.detect(self.sheet(), self.PAGE, "AS INDICATED")
+
+        assert view.kind is views.ViewKind.PLAN
+        assert view.source == "title"
+        assert view.title is not None and view.title.endswith("10TH STOREY - SHEET 2")
+        assert view.stated.denominator == 100
+        assert view.level == "L10"
+
+    def test_a_level_is_read_before_its_word_as_well_as_after(self) -> None:
+        assert views.level_of("10TH STOREY - SHEET 1") == "L10"
+        assert views.level_of("3RD FLOOR PLAN") == "L03"
+        assert views.level_of("LEVEL 5 SPRINKLER LAYOUT PLAN") == "L05"
+        assert views.level_of("21 STOREY TOWER") is None
