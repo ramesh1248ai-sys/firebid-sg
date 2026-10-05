@@ -640,6 +640,29 @@ def read_design_basis(context: JobContext, bid_id: str, user_id: str) -> int:
         return len(read_basis(session, get_object_store(), uuid_module.UUID(bid_id)))
 
 
+@app.task(name="design.export", queue="default", pass_context=True)
+def make_design_export(
+    context: JobContext, bid_id: str, user_id: str, sheet_id: str, fmt: str
+) -> dict[str, object]:
+    """Make a sheet's layout export and keep it (FR-DSN-05). A real sheet takes tens of
+    seconds to draw, which a request for a download cannot wait for.
+
+    Idempotent: it makes the file of the layout as it stands, and making it again replaces it.
+    """
+    import uuid as uuid_module
+
+    from firebid.db.identity import acting_as
+    from firebid.services import design
+    from firebid.storage.object_store import get_object_store
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        row = design.designs(session, uuid_module.UUID(bid_id)).get(uuid_module.UUID(sheet_id))
+        if row is None:
+            return {"state": "none"}
+        return dict(design.make_export(session, get_object_store(), row, fmt))
+
+
 @app.task(name="design.layout", queue="default", pass_context=True)
 def lay_out_design(
     context: JobContext, bid_id: str, user_id: str, sheet_id: str = ""

@@ -78,6 +78,12 @@ class SheetDesign(UuidPk, BidScoped, Base):
     match_lines: Mapped[list[dict[str, object]]] = mapped_column(
         JSONB, nullable=False, default=list, server_default="[]"
     )
+    # The layout's exports (FR-DSN-05), by format: asked for, made or failed; where the
+    # file is kept; and a stamp of the layout it was made from, so a file made before the
+    # layout changed is not handed out as the layout.
+    exports: Mapped[dict[str, dict[str, object]]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
     rule_version: Mapped[int | None] = mapped_column(Integer)
     # The layout as made: every space with its heads, and each omission with its rule.
     spaces: Mapped[list[dict[str, object]]] = mapped_column(JSONB, nullable=False, default=list)

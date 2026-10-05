@@ -34,6 +34,14 @@ def pdf_text(payload: bytes, index: int) -> dict[str, Any]:
             raise PdfUnreadable(f"this PDF has no page {index + 1}")
         page = document[index]
         width, height = page.get_size()
+        # Text is placed in the page's own coordinates, whose origin need not be a corner of
+        # the sheet: some CAD exports put it at the centre. Measured from the crop box, as
+        # the geometry is (`geometry_pdf`), or every word lands half a sheet from where it
+        # is drawn and the title block is looked for where it is not.
+        try:
+            page_left, _, _, page_top = page.get_cropbox()
+        except Exception:
+            page_left, page_top = 0.0, height
         textpage = page.get_textpage()
         spans = []
         for rect in range(textpage.count_rects()):
@@ -43,10 +51,10 @@ def pdf_text(payload: bytes, index: int) -> dict[str, Any]:
                 spans.append(
                     [
                         text,
-                        left * POINTS_TO_MM,
-                        (height - top) * POINTS_TO_MM,
-                        right * POINTS_TO_MM,
-                        (height - bottom) * POINTS_TO_MM,
+                        (left - page_left) * POINTS_TO_MM,
+                        (page_top - top) * POINTS_TO_MM,
+                        (right - page_left) * POINTS_TO_MM,
+                        (page_top - bottom) * POINTS_TO_MM,
                         1.0,
                     ]
                 )

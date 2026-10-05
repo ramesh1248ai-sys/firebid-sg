@@ -892,11 +892,36 @@ export interface paths {
         };
         /**
          * Export Layout
-         * @description The sheet's proposed layout over its tender drawing, as a PDF or a DXF, stamped
-         *     "For estimation only: not for construction" (FR-DSN-05). A download for the person
-         *     asking; the platform sends it nowhere.
+         * @description The file once it is made: stamped "For estimation only: not for construction". A
+         *     download for the person asking; the platform sends it nowhere.
          */
         get: operations["export_layout_bids__bid_id__design_sheets__sheet_id__export_get"];
+        put?: never;
+        /**
+         * Request Export
+         * @description Ask for the sheet's proposed layout over its tender drawing, as a PDF or a DXF
+         *     (FR-DSN-05). A real sheet takes tens of seconds to draw, so a job makes the file and
+         *     keeps it; one already made from the layout as it stands is ready at once.
+         */
+        post: operations["request_export_bids__bid_id__design_sheets__sheet_id__export_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bids/{bid_id}/design/sheets/{sheet_id}/export/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Status
+         * @description Where each format's export stands.
+         */
+        get: operations["export_status_bids__bid_id__design_sheets__sheet_id__export_status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5786,6 +5811,22 @@ export interface components {
             /** Revision */
             revision?: string | null;
         };
+        /**
+         * ExportOut
+         * @description One format's export: none, queued, ready, stale (the layout changed) or failed.
+         */
+        ExportOut: {
+            /** Bytes */
+            bytes?: number | null;
+            /** Format */
+            format: string;
+            /** Made At */
+            made_at?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** State */
+            state: string;
+        };
         /** FailedDocument */
         FailedDocument: {
             /** Filename */
@@ -10296,6 +10337,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_export_bids__bid_id__design_sheets__sheet_id__export_post: {
+        parameters: {
+            query?: {
+                format?: string;
+            };
+            header?: never;
+            path: {
+                sheet_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_status_bids__bid_id__design_sheets__sheet_id__export_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheet_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportOut"][];
                 };
             };
             /** @description Validation Error */

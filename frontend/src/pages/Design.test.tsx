@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
@@ -197,13 +197,23 @@ describe("design development", () => {
       totals: { heads: 41, range_pipe_m: { "25": 60.5 }, area_m2: 311.0 },
     });
     const calls = stubApi({
-      "/export": () =>
-        new Response("0\nSECTION", {
-          headers: {
-            "content-type": "application/dxf",
-            "content-disposition": 'attachment; filename="FP-L10-01-proposed-layout.dxf"',
-          },
-        }),
+      "/export/status": () =>
+        Response.json([
+          { format: "pdf", state: "none", bytes: null, made_at: null, reason: null },
+          { format: "dxf", state: "ready", bytes: 9, made_at: "2026-10-05T02:00:00+00:00", reason: null },
+        ]),
+      "/export": (call) =>
+        call.method === "POST"
+          ? Response.json(
+              { format: "dxf", state: "queued", bytes: null, made_at: null, reason: null },
+              { status: 202 },
+            )
+          : new Response("0\nSECTION", {
+              headers: {
+                "content-type": "application/dxf",
+                "content-disposition": 'attachment; filename="FP-L10-01-proposed-layout.dxf"',
+              },
+            }),
       "/design": () =>
         Response.json({ rule_version: 1, rule_status: "to be confirmed", sheets: [confirmed, sheet({ sheet_id: "50000000-0000-4000-8000-000000000009", id: "d0000000-0000-4000-8000-000000000009", sheet_number: "FP-L12-01" })] }),
     });
@@ -219,8 +229,16 @@ describe("design development", () => {
     expect(screen.getByRole("button", { name: "Download the layout as PDF" })).toBeEnabled();
     await userEvent.click(screen.getByRole("button", { name: "Download the layout as DXF" }));
 
-    const sent = calls.find((call) => call.url.includes("/export"));
-    expect(sent!.url).toContain("/design/sheets/50000000-0000-4000-8000-000000000001/export?format=dxf");
+    // Asked for, waited for, then downloaded: three calls, in that order.
+    expect(await screen.findByRole("status")).toHaveTextContent("Making the DXF of FP-L10-01");
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("The DXF of FP-L10-01 was downloaded"), {
+      timeout: 6000,
+    });
+    const made = calls.filter((call) => call.url.includes("/export"));
+    expect(made.map((call) => call.method)).toEqual(["POST", "GET", "GET"]);
+    expect(made[0]!.url).toContain("/design/sheets/50000000-0000-4000-8000-000000000001/export?format=dxf");
+    expect(made[1]!.url).toContain("/export/status");
+    expect(made[2]!.url).toContain("/export?format=dxf");
 
     // A sheet with no layout yet offers nothing to download.
     await userEvent.click(within(table).getByRole("button", { name: "FP-L12-01" }));

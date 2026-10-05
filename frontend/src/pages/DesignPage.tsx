@@ -30,6 +30,9 @@ type Criterion = components["schemas"]["CriterionOut"];
 // One of: sides, follow_match_lines, a polygon; none of them is the whole sheet.
 type ScopeChoice = Partial<components["schemas"]["ScopeRequest"]>;
 
+const EXPORT_POLL_MS = 2000;
+const EXPORT_WAIT_MS = 5 * 60 * 1000;
+
 async function save(url: string, fallback: string) {
   const token = await accessToken();
   const response = await fetch(new URL(url, window.location.origin), {
@@ -156,12 +159,37 @@ export function DesignPage() {
     },
     onError: (error: Error) => setMessage(error.message),
   });
+  // A real sheet takes tens of seconds to draw: the file is asked for, made by a job and
+  // kept, and downloaded once it is ready.
   const exported = useMutation({
-    mutationFn: ({ sheet, format }: { sheet: Sheet; format: "pdf" | "dxf" }) =>
-      save(
+    mutationFn: async ({ sheet, format }: { sheet: Sheet; format: "pdf" | "dxf" }) => {
+      const path = { bid_id: bidId, sheet_id: sheet.sheet_id };
+      const asked = await api.POST("/bids/{bid_id}/design/sheets/{sheet_id}/export", {
+        params: { path, query: { format } },
+      });
+      if (asked.error || !asked.data) throw new Error(apiErrorMessage(asked.error, "Could not ask for the file"));
+      let state = asked.data.state;
+      let reason = asked.data.reason;
+      if (state !== "ready") setMessage(`Making the ${format.toUpperCase()} of ${sheet.sheet_number}. It downloads when it is ready.`);
+      for (let waited = 0; state === "queued" && waited < EXPORT_WAIT_MS; waited += EXPORT_POLL_MS) {
+        await new Promise((resolve) => setTimeout(resolve, EXPORT_POLL_MS));
+        const { data } = await api.GET("/bids/{bid_id}/design/sheets/{sheet_id}/export/status", {
+          params: { path },
+        });
+        const found = data?.find((entry) => entry.format === format);
+        state = found?.state ?? state;
+        reason = found?.reason ?? reason;
+      }
+      if (state === "failed") throw new Error(`The file could not be made: ${reason ?? "no reason was given"}`);
+      if (state !== "ready") throw new Error("The file is still being made. Ask for it again in a minute.");
+      await save(
         `/api/bids/${bidId}/design/sheets/${sheet.sheet_id}/export?format=${format}`,
         `${sheet.sheet_number}-proposed-layout.${format}`,
-      ),
+      );
+      return { sheet, format };
+    },
+    onSuccess: ({ sheet, format }) =>
+      setMessage(`The ${format.toUpperCase()} of ${sheet.sheet_number} was downloaded.`),
     onError: (error: Error) => setMessage(error.message),
   });
 

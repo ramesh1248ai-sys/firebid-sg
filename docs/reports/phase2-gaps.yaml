@@ -72,29 +72,30 @@ gaps:
     action: >-
       Run the rest of the MOH set and a second consultant's drawings; a person confirms
       each sheet's side on the Design page meanwhile.
-  - gap: "The real design-intent sheets do not get from upload to a layout on the stack"
+  - gap: "Half of the real design-intent sheets tried are not classed as plans"
     cause: >-
-      Found on the MOH tenth-storey sheets. Three of four got no register entry at all and
-      the fourth was read as "T/B", so none is Current and the design step finds no sheet;
-      a sheet with no entry cannot be identified by a person. Two of the four are classed
-      as schematic and detail, not plan, likely from words in their notes. None carries a
-      dimension, so every plan view needs a person to calibrate its scale.
+      Of the four MOH tenth-storey sheets, two go from upload to a layout and an export on
+      the stack (their title blocks are now read, and a person calibrates their scale). The
+      other two are classed as schematic and detail, likely from words in their general
+      notes, so the design step passes them by.
     action: >-
-      Before the pilot: read this consultant's title block (or let a person identify a
-      sheet with no entry), and correct the plan classification; then run the set again.
-  - gap: "The layout export is slow and large on a real sheet"
+      Correct the plan classification on this consultant's sheets, then run the whole set.
+  - gap: "A real plan with no dimensions needs a person to calibrate its scale"
     cause: >-
-      A real A0 sheet has 1.5 million line segments. Its PDF is 11 MB and takes about a
-      minute; its DXF is 273 MB and takes about a minute and a half. Both are made inside
-      the request for the download.
+      None of the MOH sheets carries a dimension, and the scale is printed under the view
+      title, not in the title block ("As indicated"). By design a stated scale with nothing
+      to check it against is not trusted, so every plan view waits for a calibration.
     action: >-
-      Make the export in a background job and keep the file; write the DXF's tender
-      drawing as polylines or a block, or offer the layout alone.
-  - gap: "The layout export (FR-DSN-05) redraws the tender drawing rather than overlaying the original file"
+      Pilot runbook: calibrate each plan on a known grid spacing. Consider reading the scale
+      under the view title as the stated scale, still to be confirmed by a person.
+  - gap: "A real sheet's DXF export is about 110 MB on disk"
     cause: >-
-      The PDF and DXF are drawn from the sheet's extracted geometry, in grey, so they show
-      what the platform read: hatches, images and fonts of the original are not reproduced.
-    action: "Product owner: accept, or ask for an overlay on the original PDF page."
+      A real A0 sheet has 1.5 million line segments. The export is now made by a job in
+      about 20 seconds and kept; the PDF is 8 MB; the DXF travels as 4 MB compressed but
+      unpacks to about 110 MB, as that much linework in a text format does.
+    action: >-
+      Product owner: accept, or offer the DXF of the layout alone, to be laid over the
+      consultant's own CAD file.
   - gap: "CI has not run since P2-06: not on P2-07 to P2-09, the dependency refresh, the move to Python 3.14 or FR-DSN-05 and 06"
     cause: >-
       GitHub Actions refuses to start jobs: the account's payments have failed or its
@@ -173,7 +174,7 @@ recommendation: >-
   tenders, and no pilot has run and no turnaround baseline exists. Recommended: (1) fix CI
   billing and run the full pipeline on main; (2) decide D2 so the model routes can be
   measured and costed; (3) record the turnaround baseline and confirm the placeholder
-  figures; (4) get a real design-intent tender from upload to a layout on the stack (its
-  title blocks and plan views are not yet read);
+  figures; (4) get every sheet of a real design-intent tender from upload to a layout (two
+  of the four sheets tried get there; the other two are not classed as plans);
   (5) run the assisted-mode pilot on at least three live tenders and regenerate this report with `make exit-report-p2 LIVE=1`. Hold the gate
   review until that report shows the three criteria measured.
