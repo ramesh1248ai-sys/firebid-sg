@@ -75,9 +75,9 @@ def test_the_dxf_keeps_the_tender_drawing_and_the_proposal_on_layers_of_their_ow
         (80, 200),
         (110, 200),
     ]
-    assert len(on(export.LAYER_PIPE, "LWPOLYLINE")) == 2
+    assert len(on(export.LAYER_PIPE, "POLYLINE")) == 2
     assert {t.dxf.text for t in on(export.LAYER_PIPE, "TEXT")} == {"DN25 range", "DN32 feed"}
-    assert len(on(export.LAYER_SCOPE, "LWPOLYLINE")) == 1
+    assert len(on(export.LAYER_SCOPE, "POLYLINE")) == 1
     assert len(on(export.LAYER_TENDER, "LINE")) > 20
     assert {"WARD A", "STORE"} <= {t.dxf.text for t in on(export.LAYER_TENDER, "TEXT")}
     stamped = [t.dxf.text for t in on(export.LAYER_STAMP, "TEXT")]

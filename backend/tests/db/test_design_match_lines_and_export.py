@@ -18,7 +18,6 @@ from sqlalchemy.orm import Session
 from firebid.db.models.audit import AuditEvent
 from firebid.db.models.core import Bid, Organisation
 from firebid.db.models.design import SheetDesign
-from firebid.db.models.takeoff import DetectedObject
 from firebid.design import export as layout_export
 from firebid.domain.state_machines import Role
 from firebid.evals import synthetic_design
@@ -257,7 +256,7 @@ class TestExport:
         with pytest.raises(design.DesignError, match="PDF or DXF"):
             design.export_layout(session, store, row, "dwg", SENIOR)
 
-    def test_the_export_is_a_download_for_a_person_on_the_bid(
+    def test_the_file_is_asked_for_made_by_a_job_kept_and_then_downloaded(
         self,
         session: Session,
         organisation: Organisation,
@@ -274,6 +273,29 @@ class TestExport:
         address = f"/bids/{bid.id}/design/sheets/{row.sheet_id}/export"
         estimator = sign_in(member(session, organisation, bid, "esther", Role.ESTIMATOR))
 
+        # Nothing is made until it is asked for, and asking queues one job.
+        early = estimator.get(address)
+        assert early.status_code == 409 and "not made yet" in early.json()["detail"]
+        asked = estimator.post(address)
+        assert asked.status_code == 202, asked.text
+        assert (asked.json()["format"], asked.json()["state"]) == ("pdf", "queued")
+        estimator.post(address)
+        jobs = session.execute(
+            text("SELECT count(*) FROM procrastinate_jobs WHERE task_name = 'design.export'")
+        ).scalar_one()
+        assert jobs == 1
+        assert estimator.post(address, params={"format": "dwg"}).status_code == 409
+
+        # The job, as the worker runs it.
+        session.refresh(row)
+        made = design.make_export(session, store, row, "pdf")
+        design.request_export(session, row, "dxf", SENIOR)
+        design.make_export(session, store, row, "dxf")
+        session.commit()
+        assert made["state"] == "ready" and made["bytes"] > 1000
+
+        states = {e["format"]: e["state"] for e in estimator.get(f"{address}/status").json()}
+        assert states == {"pdf": "ready", "dxf": "ready"}
         pdf = estimator.get(address)
         assert pdf.status_code == 200, pdf.text
         assert pdf.headers["content-type"] == "application/pdf"
@@ -281,14 +303,52 @@ class TestExport:
             'attachment; filename="FP-L10-01-proposed-layout.pdf"'
         )
         assert pdf.content.startswith(b"%PDF")
+        with pdfplumber.open(io.BytesIO(pdf.content)) as document:
+            words = " ".join((document.pages[0].extract_text() or "").split())
+        assert layout_export.STAMP.upper() in words and "for Esther" in words
+        # A DXF is kept compressed and unpacked on the way to the person.
         dxf = estimator.get(address, params={"format": "dxf"})
         assert dxf.status_code == 200 and dxf.headers["content-type"] == "application/dxf"
-        assert estimator.get(address, params={"format": "dwg"}).status_code == 409
+        assert dxf.headers["content-encoding"] == "gzip"
+        assert dxf.content.lstrip().startswith(b"0") and b"ESTIMATION-ONLY" in dxf.content
+        kept = row.exports["dxf"]
+        assert int(str(kept["stored_bytes"])) < int(str(kept["bytes"])) / 3
+        # Asking again finds the file ready, and queues nothing.
+        assert estimator.post(address).json()["state"] == "ready"
 
         outsider = sign_in(member(session, organisation, second_bid, "olive", Role.ESTIMATOR))
         assert outsider.get(address).status_code == 404
+        assert outsider.post(address).status_code == 404
         exports = session.execute(
             select(AuditEvent).where(AuditEvent.action == "design layout: exported")
         ).scalars()
-        assert len(list(exports)) == 2
-        assert session.execute(select(DetectedObject).limit(1)).first() is not None
+        # The two downloads, each in the name of the person who took it; not the making.
+        assert [event.actor_label for event in exports] == ["Esther", "Esther"]
+
+    def test_a_file_made_before_the_layout_changed_is_not_handed_out_as_the_layout(
+        self, session: Session, bid: Bid, store: MemoryObjectStore
+    ) -> None:
+        row = confirmed(session, bid, store)
+        design.request_export(session, row, "pdf", SENIOR)
+        design.make_export(session, store, row, "pdf")
+        assert design.exports_of(session, row)["pdf"]["state"] == "ready"
+
+        head = next(o for o in designed(session, bid)[0] if o.kind == "object")
+        head.state = "rejected"
+        session.flush()
+
+        assert design.exports_of(session, row)["pdf"]["state"] == "stale"
+        with pytest.raises(design.DesignError, match="has changed since"):
+            design.export_file(session, store, row, "pdf", SENIOR)
+        assert design.request_export(session, row, "pdf", SENIOR)["state"] == "queued"
+        design.make_export(session, store, row, "pdf")
+        assert design.export_file(session, store, row, "pdf", SENIOR).content.startswith(b"%PDF")
+
+    def test_a_layout_with_nothing_proposed_is_not_queued(
+        self, session: Session, bid: Bid, store: MemoryObjectStore
+    ) -> None:
+        row = lined_sheet(session, bid, store)
+
+        with pytest.raises(design.DesignError, match="no proposed layout to export yet"):
+            design.request_export(session, row, "pdf", SENIOR)
+        assert design.exports_of(session, row)["pdf"]["state"] == "none"

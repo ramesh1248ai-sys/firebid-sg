@@ -89,11 +89,13 @@ OTHER_LABELS = re.compile(
 )
 
 # A drawing number: a letter prefix (`FP-L05-201`), or a project number with an optional
-# bracketed building or discipline code (`6405(HFC)-F/1B`), then one to four parts. A date
-# (`2026-09-26`, `26/09/2026`) has the same shape and is never one.
+# bracketed building or discipline code (`6405(HFC)-F/1B`), then one to eight parts: a
+# number built to a naming standard (`60743399_ACM_TN_TO_D_MFP_A03-10-01`) runs to seven. A
+# date (`2026-09-26`, `26/09/2026`) has the same shape and is never one; nor is a telephone
+# number, whose second part is longer than any part of a drawing number.
 DRAWING_NUMBER = re.compile(
     r"(?!\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}$)"
-    r"(?:[A-Z]{1,5}\d{0,3}|\d{2,6}(?:\([A-Z0-9]{1,6}\))?)(?:[-_/.][A-Z0-9]{1,6}){1,4}"
+    r"(?:[A-Z]{1,5}\d{0,3}|\d{2,10}(?:\([A-Z0-9]{1,6}\))?)(?:[-_/.][A-Z0-9]{1,6}){1,8}"
 )
 # A revision code, or a dash: a first issue, not revised yet, as tender sets often mark it.
 REVISION = re.compile(r"[A-Z]{0,2}\d{1,3}|[A-Z]{1,2}|[-\u2013]")
@@ -398,6 +400,16 @@ def _value_for(
         set_in = candidate.x0 >= label.x0 and candidate.x0 < label.x1 + 10 * label.height
         beside = _same_line(label, candidate) and 0 <= candidate.x0 - label.x1 < 12 * label.height
         fits = name is not None and _valid(name, normalise(name, candidate.clean))
+        # A drawing number under a DATE or SCALE label is the next cell's value, not a date
+        # or a scale misread: it is left for the label it belongs to.
+        if (
+            name is not None
+            and name is not Field.SHEET_NUMBER
+            and name is not Field.TITLE
+            and not fits
+            and _valid(Field.SHEET_NUMBER, normalise(Field.SHEET_NUMBER, candidate.clean))
+        ):
+            continue
         if below and aligned:
             distance = (candidate.cy - label.cy) + 0.5 * abs(candidate.x0 - label.x0)
         elif beside:

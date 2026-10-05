@@ -809,14 +809,25 @@ class Exported:
     content: bytes
     media_type: str
     filename: str
+    # "gzip" when the content is kept compressed: a DXF is text, and a real sheet's is large.
+    encoding: str | None = None
 
 
 def export_layout(
-    session: Session, store: ObjectStore, row: SheetDesign, fmt: str, actor: Actor
+    session: Session,
+    store: ObjectStore,
+    row: SheetDesign,
+    fmt: str,
+    actor: Actor,
+    *,
+    audit: bool = True,
 ) -> Exported:
     """The sheet's proposed layout over its tender drawing, as a PDF or a DXF, stamped
     "For estimation only: not for construction". A download for the person asking: nothing
     is sent anywhere. What a person rejected is left out; the export is recorded.
+
+    Made here and now: a real sheet takes tens of seconds, so the API asks a job for it
+    (`request_export`, `make_export`) and hands out the kept file (`export_file`).
     """
     if fmt not in layout_export.FORMATS:
         raise DesignError(f"a layout is exported as PDF or DXF, not {fmt!r}")
@@ -893,6 +904,15 @@ def export_layout(
         notes=notes,
     )
     content = layout_export.render(sheet, fmt)
+    if audit:
+        _exported_event(session, row, actor, fmt, len(content), len(heads))
+    safe = "".join(c if c.isalnum() or c in "-_." else "-" for c in number)
+    return Exported(content, layout_export.FORMATS[fmt], f"{safe}-proposed-layout.{fmt}")
+
+
+def _exported_event(
+    session: Session, row: SheetDesign, actor: Actor, fmt: str, size: int, heads: int
+) -> None:
     record_event(
         session,
         context=AuditContext(
@@ -902,10 +922,181 @@ def export_layout(
         action="design layout: exported",
         entity_type=SheetDesign.__tablename__,
         entity_id=row.id,
-        after={"format": fmt, "heads": len(heads), "pipes": len(pipes), "bytes": len(content)},
+        after={"format": fmt, "bytes": size, "heads": heads},
     )
-    safe = "".join(c if c.isalnum() or c in "-_." else "-" for c in number)
-    return Exported(content, layout_export.FORMATS[fmt], f"{safe}-proposed-layout.{fmt}")
+
+
+# The export as a job: asked for, made on a worker, kept, and handed out.
+
+
+def _proposed_heads(row: SheetDesign) -> int:
+    totals: dict[str, Any] = dict(row.totals or {})
+    return int(totals.get("heads") or 0)
+
+
+def layout_stamp(session: Session, row: SheetDesign) -> str:
+    """What an export is made from, as a hash: a file made before any of it changed is not
+    the layout's file any more."""
+    import hashlib
+    import json
+
+    kept = session.execute(
+        select(func.count())
+        .select_from(DetectedObject)
+        .where(
+            DetectedObject.bid_id == row.bid_id,
+            DetectedObject.sheet_id == row.sheet_id,
+            DetectedObject.extraction_method == DESIGNED,
+            DetectedObject.state != "rejected",
+        )
+    ).scalar_one()
+    pipes = session.execute(
+        select(func.count())
+        .select_from(PipeRun)
+        .where(
+            PipeRun.sheet_id == row.sheet_id,
+            PipeRun.origin == DESIGNED,
+            PipeRun.state != "rejected",
+        )
+    ).scalar_one()
+    facts = [
+        row.laid_out_at.isoformat() if row.laid_out_at else None,
+        row.scope,
+        row.rule_version,
+        row.criterion,
+        int(kept),
+        int(pipes),
+    ]
+    return hashlib.sha256(json.dumps(facts, sort_keys=True, default=str).encode()).hexdigest()
+
+
+def exports_of(session: Session, row: SheetDesign) -> dict[str, dict[str, Any]]:
+    """Each format's export as it stands: none, queued, ready, stale (the layout has
+    changed since it was made) or failed, with why."""
+    stamp = layout_stamp(session, row)
+    out: dict[str, dict[str, Any]] = {}
+    for fmt in layout_export.FORMATS:
+        entry: dict[str, Any] = dict((row.exports or {}).get(fmt) or {})
+        state = str(entry.get("state") or "none")
+        if state == "ready" and entry.get("stamp") != stamp:
+            state = "stale"
+        out[fmt] = {
+            "format": fmt,
+            "state": state,
+            "bytes": entry.get("bytes"),
+            "made_at": entry.get("made_at"),
+            "reason": entry.get("reason"),
+        }
+    return out
+
+
+def request_export(session: Session, row: SheetDesign, fmt: str, actor: Actor) -> dict[str, Any]:
+    """Ask for the sheet's layout in this format. A file already made from the layout as
+    it stands is offered at once; otherwise a job is queued to make it."""
+    from firebid.jobs.enqueue import enqueue_once
+    from firebid.jobs.tasks import make_design_export
+
+    if fmt not in layout_export.FORMATS:
+        raise DesignError(f"a layout is exported as PDF or DXF, not {fmt!r}")
+    if row.state != "confirmed" or row.laid_out_at is None:
+        raise DesignError("this sheet has no proposed layout to export yet")
+    if not _proposed_heads(row):
+        raise DesignError("this sheet's layout proposes no heads: there is nothing to export")
+    status = exports_of(session, row)[fmt]
+    if status["state"] == "ready":
+        return status
+    row.exports = {
+        **(row.exports or {}),
+        fmt: {
+            "state": "queued",
+            "asked_by": actor.label,
+            "asked_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        },
+    }
+    session.flush()
+    enqueue_once(
+        session,
+        make_design_export,
+        f"design.export:{row.sheet_id}:{fmt}",
+        bid_id=str(row.bid_id),
+        user_id=str(actor.id) if actor.id else "",
+        sheet_id=str(row.sheet_id),
+        fmt=fmt,
+    )
+    return exports_of(session, row)[fmt]
+
+
+def make_export(session: Session, store: ObjectStore, row: SheetDesign, fmt: str) -> dict[str, Any]:
+    """Make the file and keep it (the job). A DXF is kept compressed."""
+    import gzip
+
+    entry: dict[str, Any] = dict((row.exports or {}).get(fmt) or {})
+    asked_by = str(entry.get("asked_by") or "the estimator")
+    try:
+        made = export_layout(
+            session, store, row, fmt, Actor(label=asked_by, roles=frozenset()), audit=False
+        )
+    except DesignError as refusal:
+        failed: dict[str, object] = {"state": "failed", "reason": str(refusal)}
+        row.exports = {**(row.exports or {}), fmt: failed}
+        session.flush()
+        return exports_of(session, row)[fmt]
+    stamp = layout_stamp(session, row)
+    compressed = fmt == "dxf"
+    data = gzip.compress(made.content, 6) if compressed else made.content
+    key = f"bids/{row.bid_id}/design-exports/{row.sheet_id}/{stamp[:16]}.{fmt}" + (
+        ".gz" if compressed else ""
+    )
+    store.put(key, data, content_type="application/gzip" if compressed else made.media_type)
+    row.exports = {
+        **(row.exports or {}),
+        fmt: {
+            "state": "ready",
+            "stamp": stamp,
+            "key": key,
+            "gzip": compressed,
+            "bytes": len(made.content),
+            "stored_bytes": len(data),
+            "heads": _proposed_heads(row),
+            "filename": made.filename,
+            "asked_by": asked_by,
+            "made_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        },
+    }
+    session.flush()
+    log.info(
+        "design_export_made",
+        sheet_id=str(row.sheet_id),
+        format=fmt,
+        bytes=len(made.content),
+        stored_bytes=len(data),
+    )
+    return exports_of(session, row)[fmt]
+
+
+def export_file(
+    session: Session, store: ObjectStore, row: SheetDesign, fmt: str, actor: Actor
+) -> Exported:
+    """The kept file, for the person asking. Recorded; sent nowhere."""
+    if fmt not in layout_export.FORMATS:
+        raise DesignError(f"a layout is exported as PDF or DXF, not {fmt!r}")
+    status = exports_of(session, row)[fmt]
+    if status["state"] == "stale":
+        raise DesignError("the layout has changed since this file was made: ask for it again")
+    if status["state"] == "failed":
+        raise DesignError(f"the file could not be made: {status['reason']}")
+    if status["state"] != "ready":
+        raise DesignError("this file is not made yet: ask for it, then wait for it to be ready")
+    entry: dict[str, Any] = dict(row.exports[fmt])
+    content = store.get(str(entry["key"]))
+    size = int(entry.get("bytes") or len(content))
+    _exported_event(session, row, actor, fmt, size, int(entry.get("heads") or 0))
+    return Exported(
+        content,
+        layout_export.FORMATS[fmt],
+        str(entry.get("filename") or f"proposed-layout.{fmt}"),
+        "gzip" if entry.get("gzip") else None,
+    )
 
 
 def _lengths(session: Session, row: SheetDesign) -> list[float]:

@@ -17,7 +17,7 @@ from __future__ import annotations
 import io
 import math
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pyarrow as pa
@@ -75,6 +75,35 @@ def _note_lines(sheet: Sheet) -> list[str]:
     ]
 
 
+def _tender_lines(table: pa.Table) -> list[np.ndarray]:
+    """The tender drawing's linework, a run of points a primitive: (n, 2) arrays, sheet mm.
+
+    A real sheet has over a million straight pieces in a few hundred thousand lines and
+    polylines. Drawn a primitive at a time, a file is a third the size and made in a third
+    of the time it takes a piece at a time.
+    """
+    kinds = np.asarray(table.column("kind").to_pylist(), dtype=object)
+    rows = np.flatnonzero(np.isin(kinds, [str(Kind.LINE), str(Kind.POLYLINE)]))
+    out: list[np.ndarray] = []
+    if rows.size:
+        picked = table.take(rows)
+        points = cast("pa.ListArray[Any]", picked.column("points").combine_chunks())
+        flat = points.values.to_numpy(zero_copy_only=False).reshape(-1, 2)
+        offsets = points.offsets.to_numpy() // 2
+        closed = picked.column("closed").to_numpy(zero_copy_only=False)
+        for run, shut in zip(np.split(flat, offsets[1:-1]), closed, strict=True):
+            if len(run) < 2:
+                continue
+            out.append(np.vstack([run, run[:1]]) if shut and len(run) > 2 else run)
+    arcs = geometry.segments(table, kinds=(Kind.ARC,))
+    if len(arcs):
+        pieces = np.stack(
+            [np.column_stack([arcs.x0, arcs.y0]), np.column_stack([arcs.x1, arcs.y1])], axis=1
+        )
+        out.extend(pieces)
+    return out
+
+
 def _tender_circles(table: pa.Table) -> list[tuple[float, float, float]]:
     return [
         (float(row["cx"]), float(row["cy"]), float(row["radius"]))
@@ -116,13 +145,9 @@ def as_pdf(sheet: Sheet) -> bytes:
         axes.set_axis_off()
         figure.patch.set_facecolor("white")
 
-        lines = geometry.segments(sheet.table)
-        if len(lines):
-            pieces = np.stack(
-                [np.column_stack([lines.x0, lines.y0]), np.column_stack([lines.x1, lines.y1])],
-                axis=1,
-            )
-            axes.add_collection(LineCollection(list(pieces), colors="0.55", linewidths=0.25))
+        lines = _tender_lines(sheet.table)
+        if lines:
+            axes.add_collection(LineCollection(lines, colors="0.55", linewidths=0.25))
         circles = _tender_circles(sheet.table)
         if circles:
             axes.add_collection(
@@ -239,78 +264,102 @@ def as_pdf(sheet: Sheet) -> bytes:
         plt.close(figure)
 
 
-def as_dxf(sheet: Sheet) -> bytes:
-    """The same drawing as layers of a DXF, in sheet millimetres with y up as CAD has it."""
-    import ezdxf
-    from ezdxf import units
+# AutoCAD colour indices for the layers: grey, red, blue, green, red.
+LAYER_COLOURS = {
+    LAYER_TENDER: 8,
+    LAYER_HEADS: 1,
+    LAYER_PIPE: 5,
+    LAYER_SCOPE: 3,
+    LAYER_STAMP: 1,
+}
 
-    document = ezdxf.new("R2010", setup=True)
-    document.units = units.MM
-    for name, colour in (
-        (LAYER_TENDER, 8),
-        (LAYER_HEADS, 1),
-        (LAYER_PIPE, 5),
-        (LAYER_SCOPE, 3),
-        (LAYER_STAMP, 1),
-    ):
-        document.layers.add(name, color=colour)
-    space = document.modelspace()
-    x0, y0, x1, y1 = sheet.page
-    width, height = max(x1 - x0, 1.0), max(y1 - y0, 1.0)
+
+def as_dxf(sheet: Sheet) -> bytes:
+    """The same drawing as layers of a DXF, in sheet millimetres with y up as CAD has it.
+
+    Written as DXF R12, entity by entity as it goes: every CAD program opens it, and a sheet
+    of a million pieces is written without first being built in memory. Coordinates are to a
+    hundredth of a millimetre on the sheet, which is finer than the drawing was plotted.
+    """
+    from ezdxf.addons import r12writer
+
+    x0, _, x1, y1 = sheet.page
+    width, height = max(x1 - x0, 1.0), max(y1 - sheet.page[1], 1.0)
 
     def up(x: float, y: float) -> tuple[float, float]:
-        return (x - x0, y1 - y)
-
-    lines = geometry.segments(sheet.table)
-    tender = {"layer": LAYER_TENDER}
-    for ax, ay, bx, by in zip(
-        lines.x0.tolist(), lines.y0.tolist(), lines.x1.tolist(), lines.y1.tolist(), strict=True
-    ):
-        space.add_line(up(ax, ay), up(bx, by), dxfattribs=tender)
-    for cx, cy, radius in _tender_circles(sheet.table):
-        space.add_circle(up(cx, cy), radius, dxfattribs=tender)
-    for span in geometry.texts(sheet.table):
-        if not span.get("text"):
-            continue
-        size = float(span.get("height") or (span["maxy"] - span["miny"]) or 2.0)
-        x, y, rotation = _written_from(span)
-        space.add_text(
-            str(span["text"]), height=max(size, 0.5), rotation=rotation, dxfattribs=tender
-        ).set_placement(up(x, y))
-
-    if sheet.scope:
-        space.add_lwpolyline(
-            [up(x, y) for x, y in sheet.scope], close=True, dxfattribs={"layer": LAYER_SCOPE}
-        )
-    for pipe in sheet.pipes:
-        if len(pipe.points) < 2:
-            continue
-        space.add_lwpolyline([up(x, y) for x, y in pipe.points], dxfattribs={"layer": LAYER_PIPE})
-        if pipe.dn is not None:
-            (ax, ay), (bx, by) = pipe.points[0], pipe.points[-1]
-            space.add_text(
-                f"DN{pipe.dn} {pipe.part}", height=1.2, dxfattribs={"layer": LAYER_PIPE}
-            ).set_placement(up((ax + bx) / 2, (ay + by) / 2 - 0.4))
-    for head in sheet.heads:
-        space.add_circle(up(head.x, head.y), HEAD_RADIUS_MM, dxfattribs={"layer": LAYER_HEADS})
-        space.add_point(up(head.x, head.y), dxfattribs={"layer": LAYER_HEADS})
-
-    stamp = {"layer": LAYER_STAMP}
-    space.add_text(
-        STAMP.upper(),
-        height=min(width, height) * 0.04,
-        rotation=math.degrees(math.atan2(height, width)),
-        dxfattribs=stamp,
-    ).set_placement((0.12 * width, 0.08 * height))
-    line_height = max(2.5, min(width, height) * 0.008)
-    notes = _note_lines(sheet)
-    for index, note in enumerate(notes):
-        space.add_text(note, height=line_height, dxfattribs=stamp).set_placement(
-            (0.012 * width, 0.012 * height + (len(notes) - 1 - index) * line_height * 1.6)
-        )
+        return (round(x - x0, 2), round(y1 - y, 2))
 
     stream = io.StringIO()
-    document.write(stream)
+    with r12writer(stream) as dxf:
+
+        def write(
+            text: str, at: tuple[float, float], size: float, layer: str, turn: float = 0.0
+        ) -> None:
+            dxf.add_text(
+                text,
+                at,
+                height=round(size, 2),
+                rotation=turn,
+                layer=layer,
+                color=LAYER_COLOURS[layer],
+            )
+
+        grey = LAYER_COLOURS[LAYER_TENDER]
+        for run in _tender_lines(sheet.table):
+            points = [up(float(x), float(y)) for x, y in run]
+            if len(points) == 2:
+                dxf.add_line(points[0], points[1], layer=LAYER_TENDER, color=grey)
+            else:
+                dxf.add_polyline(points, layer=LAYER_TENDER, color=grey)
+        for cx, cy, radius in _tender_circles(sheet.table):
+            dxf.add_circle(up(cx, cy), round(radius, 2), layer=LAYER_TENDER, color=grey)
+        for span in geometry.texts(sheet.table):
+            if not span.get("text"):
+                continue
+            size = float(span.get("height") or (span["maxy"] - span["miny"]) or 2.0)
+            x, y, rotation = _written_from(span)
+            write(str(span["text"]), up(x, y), max(size, 0.5), LAYER_TENDER, rotation)
+
+        if sheet.scope:
+            dxf.add_polyline(
+                [up(x, y) for x, y in sheet.scope],
+                closed=True,
+                layer=LAYER_SCOPE,
+                color=LAYER_COLOURS[LAYER_SCOPE],
+            )
+        blue = LAYER_COLOURS[LAYER_PIPE]
+        for pipe in sheet.pipes:
+            if len(pipe.points) < 2:
+                continue
+            dxf.add_polyline([up(x, y) for x, y in pipe.points], layer=LAYER_PIPE, color=blue)
+            if pipe.dn is not None:
+                (ax, ay), (bx, by) = pipe.points[0], pipe.points[-1]
+                write(
+                    f"DN{pipe.dn} {pipe.part}",
+                    up((ax + bx) / 2, (ay + by) / 2 - 0.4),
+                    1.2,
+                    LAYER_PIPE,
+                )
+        red = LAYER_COLOURS[LAYER_HEADS]
+        for head in sheet.heads:
+            dxf.add_circle(up(head.x, head.y), HEAD_RADIUS_MM, layer=LAYER_HEADS, color=red)
+            dxf.add_point(up(head.x, head.y), layer=LAYER_HEADS, color=red)
+
+        write(
+            STAMP.upper(),
+            (round(0.12 * width, 2), round(0.08 * height, 2)),
+            min(width, height) * 0.04,
+            LAYER_STAMP,
+            round(math.degrees(math.atan2(height, width)), 2),
+        )
+        line_height = max(2.5, min(width, height) * 0.008)
+        notes = _note_lines(sheet)
+        for index, note in enumerate(notes):
+            at = (
+                round(0.012 * width, 2),
+                round(0.012 * height + (len(notes) - 1 - index) * line_height * 1.6, 2),
+            )
+            write(note, at, line_height, LAYER_STAMP)
     return stream.getvalue().encode("utf-8")
 
 

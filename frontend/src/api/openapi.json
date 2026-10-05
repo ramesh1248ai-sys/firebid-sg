@@ -5293,6 +5293,58 @@
         "title": "EvidenceOut",
         "type": "object"
       },
+      "ExportOut": {
+        "description": "One format's export: none, queued, ready, stale (the layout changed) or failed.",
+        "properties": {
+          "bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bytes"
+          },
+          "format": {
+            "title": "Format",
+            "type": "string"
+          },
+          "made_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Made At"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "format",
+          "state"
+        ],
+        "title": "ExportOut",
+        "type": "object"
+      },
       "FailedDocument": {
         "properties": {
           "filename": {
@@ -17720,7 +17772,7 @@
     },
     "/bids/{bid_id}/design/sheets/{sheet_id}/export": {
       "get": {
-        "description": "The sheet's proposed layout over its tender drawing, as a PDF or a DXF, stamped\n\"For estimation only: not for construction\" (FR-DSN-05). A download for the person\nasking; the platform sends it nowhere.",
+        "description": "The file once it is made: stamped \"For estimation only: not for construction\". A\ndownload for the person asking; the platform sends it nowhere.",
         "operationId": "export_layout_bids__bid_id__design_sheets__sheet_id__export_get",
         "parameters": [
           {
@@ -17780,6 +17832,136 @@
           }
         ],
         "summary": "Export Layout",
+        "tags": [
+          "design"
+        ]
+      },
+      "post": {
+        "description": "Ask for the sheet's proposed layout over its tender drawing, as a PDF or a DXF\n(FR-DSN-05). A real sheet takes tens of seconds to draw, so a job makes the file and\nkeeps it; one already made from the layout as it stands is ready at once.",
+        "operationId": "request_export_bids__bid_id__design_sheets__sheet_id__export_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "pdf",
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Request Export",
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/bids/{bid_id}/design/sheets/{sheet_id}/export/status": {
+      "get": {
+        "description": "Where each format's export stands.",
+        "operationId": "export_status_bids__bid_id__design_sheets__sheet_id__export_status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sheet Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExportOut"
+                  },
+                  "title": "Response Export Status Bids  Bid Id  Design Sheets  Sheet Id  Export Status Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Status",
         "tags": [
           "design"
         ]

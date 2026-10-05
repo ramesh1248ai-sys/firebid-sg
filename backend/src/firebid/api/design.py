@@ -132,6 +132,16 @@ class ScopeRequest(BaseModel):
         return self
 
 
+class ExportOut(BaseModel):
+    """One format's export: none, queued, ready, stale (the layout changed) or failed."""
+
+    format: str
+    state: str
+    bytes: int | None = None
+    made_at: str | None = None
+    reason: str | None = None
+
+
 class WithdrawRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=500)
 
@@ -274,15 +284,37 @@ def set_scope(
         raise HTTPException(status.HTTP_409_CONFLICT, str(refusal)) from refusal
 
 
+@router.post("/sheets/{sheet_id}/export", response_model=ExportOut, status_code=202)
+def request_export(
+    sheet_id: uuid.UUID, context: CurrentBid, session: DbSession, format: str = "pdf"
+) -> ExportOut:
+    """Ask for the sheet's proposed layout over its tender drawing, as a PDF or a DXF
+    (FR-DSN-05). A real sheet takes tens of seconds to draw, so a job makes the file and
+    keeps it; one already made from the layout as it stands is ready at once."""
+    try:
+        found = design_service.request_export(
+            session, _row(session, context, sheet_id), format.lower(), context.principal.actor()
+        )
+    except design_service.DesignError as refusal:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(refusal)) from refusal
+    return ExportOut.model_validate(found)
+
+
+@router.get("/sheets/{sheet_id}/export/status", response_model=list[ExportOut])
+def export_status(sheet_id: uuid.UUID, context: CurrentBid, session: DbSession) -> list[ExportOut]:
+    """Where each format's export stands."""
+    found = design_service.exports_of(session, _row(session, context, sheet_id))
+    return [ExportOut.model_validate(entry) for entry in found.values()]
+
+
 @router.get("/sheets/{sheet_id}/export")
 def export_layout(
     sheet_id: uuid.UUID, context: CurrentBid, session: DbSession, format: str = "pdf"
 ) -> Response:
-    """The sheet's proposed layout over its tender drawing, as a PDF or a DXF, stamped
-    "For estimation only: not for construction" (FR-DSN-05). A download for the person
-    asking; the platform sends it nowhere."""
+    """The file once it is made: stamped "For estimation only: not for construction". A
+    download for the person asking; the platform sends it nowhere."""
     try:
-        exported = design_service.export_layout(
+        exported = design_service.export_file(
             session,
             get_object_store(),
             _row(session, context, sheet_id),
@@ -291,8 +323,8 @@ def export_layout(
         )
     except design_service.DesignError as refusal:
         raise HTTPException(status.HTTP_409_CONFLICT, str(refusal)) from refusal
-    return Response(
-        exported.content,
-        media_type=exported.media_type,
-        headers={"Content-Disposition": f'attachment; filename="{exported.filename}"'},
-    )
+    headers = {"Content-Disposition": f'attachment; filename="{exported.filename}"'}
+    if exported.encoding:
+        # Kept compressed; the browser unpacks it as it saves the file.
+        headers["Content-Encoding"] = exported.encoding
+    return Response(exported.content, media_type=exported.media_type, headers=headers)

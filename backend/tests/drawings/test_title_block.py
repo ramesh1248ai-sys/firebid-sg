@@ -463,3 +463,105 @@ class TestRememberedLayouts:
 
         assert similarity(one, other) > 0.8
         assert similarity(one, different) < 0.2
+
+
+class TestANamingStandardNumber:
+    """Found on a real tender: a title block down the right edge of an A0 sheet whose
+    drawing number is built to a naming standard, seven parts long, in a cell of its own
+    under SHEET NUMBER, with DATE and SCALE cells above it."""
+
+    A0 = Box(0, 0, 1189, 841)
+    NUMBER = "60743399_ACM_TN_TO_D_MFP_A03-10-01"
+
+    def spans(self) -> list[Span]:
+        return [
+            Span("DRAWING TITLE:", 1072, 745, 1088, 747),
+            Span("FIRE PROTECTION ENLARGEMENT LAYOUT", 1072, 756, 1149, 760),
+            Span("10TH STOREY - SHEET 1", 1072, 762, 1112, 766),
+            Span("DRAWN BY:", 1072, 777, 1084, 779),
+            Span("SCALE:", 1138, 777, 1145, 779),
+            Span("As indicated", 1155, 777, 1169, 779),
+            Span("DATE:", 1072, 784, 1077, 786),
+            Span("JUNE 2026", 1108, 784, 1119, 786),
+            Span("PROJ NO:", 1122, 784, 1132, 786),
+            Span("60743399", 1134, 784, 1144, 786),
+            Span("SHEET NUMBER:", 1071, 798, 1088, 800),
+            Span("REVISION:", 1147, 798, 1157, 800),
+            Span(self.NUMBER, 1079, 810, 1135, 813),
+            Span("00", 1156, 810, 1159, 813),
+            # Elsewhere in the block: abbreviations that have a short drawing number's shape,
+            # and the consultant's telephone number.
+            Span("SPR-PA", 1072, 228, 1080, 230),
+            Span("T/B", 1072, 215, 1076, 217),
+            Span("Tel: 65 - 63363900", 1071, 657, 1100, 660),
+            Span("65-63363900", 1101, 657, 1120, 660),
+        ]
+
+    def test_the_number_under_its_label_is_read_whole_and_trusted(self) -> None:
+        reading = read(self.spans(), self.A0)
+
+        assert reading.value(Field.SHEET_NUMBER) == self.NUMBER
+        assert reading.fields[Field.SHEET_NUMBER].how == "label"
+        assert reading.value(Field.REVISION) == "00"
+        assert not reading.needs_help()
+
+    def test_the_date_label_above_does_not_take_the_number_for_its_date(self) -> None:
+        reading = read(self.spans(), self.A0)
+
+        assert reading.value(Field.REVISION_DATE) != self.NUMBER
+        assert reading.value(Field.SCALE) == "AS INDICATED"
+
+    def test_a_telephone_number_is_not_a_drawing_number(self) -> None:
+        from firebid.drawings.title_block import DRAWING_NUMBER
+
+        assert DRAWING_NUMBER.fullmatch(self.NUMBER)
+        assert DRAWING_NUMBER.fullmatch("6405(HFC)-F/1B")
+        assert not DRAWING_NUMBER.fullmatch("65-63363900")
+        assert not DRAWING_NUMBER.fullmatch("2026-09-26")
+
+
+def offset_page_pdf() -> bytes:
+    """A one-page PDF whose origin is the middle of the sheet, as some CAD exports write it:
+    600 x 400 points, with "SHEET NUMBER" in its bottom-right quarter."""
+    stream = b"BT /F1 12 Tf 150 -150 Td (SHEET NUMBER) Tj ET"
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [-300 -200 300 200] "
+        b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += str(number).encode() + b" 0 obj\n" + body + b"\nendobj\n"
+    xref = len(out)
+    out += b"xref\n0 " + str(len(objects) + 1).encode() + b"\n0000000000 65535 f \n"
+    for offset in offsets:
+        out += f"{offset:010d} 00000 n \n".encode()
+    out += (
+        b"trailer\n<< /Size "
+        + str(len(objects) + 1).encode()
+        + b" /Root 1 0 R >>\nstartxref\n"
+        + str(xref).encode()
+        + b"\n%%EOF\n"
+    )
+    return bytes(out)
+
+
+def test_text_is_placed_on_the_sheet_when_the_page_s_origin_is_not_its_corner() -> None:
+    # Found on a real tender: every word was read half a sheet away from where it is drawn,
+    # so the title block was looked for where it was not and no sheet was identified.
+    data = pdf_text(offset_page_pdf(), 0)
+
+    _, _, width, height = data["page"]
+    (found,) = data["spans"]
+    words, x0, y0, x1, y1, _ = found
+    assert words == "SHEET NUMBER"
+    assert (round(width), round(height)) == (212, 141)  # 600 x 400 points, in millimetres
+    # In the bottom-right quarter, on the sheet: 450 of 600 points across, 350 of 400 down.
+    assert x0 == pytest.approx(450 / 72 * 25.4, abs=1.0)
+    assert 0.8 * height < y0 < y1 < 0.9 * height
+    assert width / 2 < x0 < x1 < width
