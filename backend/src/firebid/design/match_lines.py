@@ -5,10 +5,15 @@ the plan, labelled "MATCH LINE" and usually naming the sheet that continues it. 
 shows a little of the floor beyond its line, so a layout made on every sheet whole designs
 the shared strip twice.
 
-1. **The label.** A text span reading "MATCH LINE".
-2. **Its line.** The straight line nearest the label that runs across a good part of the
-   plan. It may be drawn dashed; its pieces are taken together. A line of the structural
-   grid is taken only when no other line is beside the label (a floor cut on a grid line).
+1. **The label.** A text span reading "MATCH LINE", or a note that the floor goes on
+   elsewhere ("FOR CONTINUATION, REFER TO DRG. NO. ..."). The sheet it names may be in the
+   same words or in a drawing number written beside them.
+2. **Its line.** A straight line beside the label that runs across a good part of the plan.
+   A real plan has many: walls, pipes and grid lines pass every label. So, in this order: a
+   line of the structural grid is taken only when no other is beside the label (a floor cut
+   on a grid line); a line running the way the words are written is taken before one
+   crossing them, as the note is written along its line; a line of regular dashes, as a
+   match line is usually drawn, before a solid one; then the longest of those nearest.
 3. **The sheet's side.** The side with more of the pipework the platform found drawn: a
    sheet draws its own part in full and only enough beyond to show where it continues.
    Where no pipe was found, the side with more coloured linework (the services, on a grey
@@ -38,7 +43,12 @@ Box = tuple[float, float, float, float]
 Point = tuple[float, float]
 Polygon = list[Point]
 
-LABEL = re.compile(r"\bMATCH\s*-?\s*LINE\b", re.IGNORECASE)
+# How a drawing marks the cut: "MATCH LINE", or a note along the line saying where the floor
+# goes on ("FOR CONTINUATION, REFER TO DRG. NO. ...", "CONTINUED ON ...").
+LABEL = re.compile(
+    r"\bMATCH\s*-?\s*LINE\b|\bFOR\s+CONTINUATION\b|\bCONTINU(?:ED|ES|ATION)\s+ON\b",
+    re.IGNORECASE,
+)
 CONTINUES = re.compile(
     r"\b(?:SEE|REFER(?:\s+TO)?|CONT(?:INUED|INUATION|\.)?(?:\s+ON)?)\s+"
     r"(?:(?:DWG|DRG|DRAWING|SHEET)\.?\s*)?(?:NO\.?\s*)?([A-Z0-9][A-Z0-9/_.()-]*\d[A-Z0-9/_.()-]*)",
@@ -51,6 +61,14 @@ MIN_SPAN_MM = 40.0
 NEAR_MM = 10.0
 # Lines this close to the nearest are taken as equally near; the longest is the match line.
 TIE_MM = 2.0
+# A line runs the way the words are written when it is within this of their direction.
+PARALLEL_DEG = 10.0
+# Regular dashes: at least this many pieces, most of them about the same length.
+DASHES = 8
+DASH_SPREAD = (0.6, 1.6)  # of the mean piece
+DASH_SHARE = 0.8
+# A drawing number: letters and figures in at least three parts, with a figure in it.
+DRAWING_NUMBER = re.compile(r"^[A-Z0-9]+(?:[-_/.][A-Z0-9]+){2,}$", re.IGNORECASE)
 # Drawn pieces over extent: a dash-dot line covers about half of its length.
 MIN_COVER = 0.25
 # max(r, g, b) - min(r, g, b) above this is a colour (the services), not a grey.
@@ -121,10 +139,16 @@ def _clip_to_box(theta: float, offset: float, region: Box) -> tuple[Point, Point
     )
 
 
-def _straight_lines(
-    seg: geometry.Segments, wanted: np.ndarray, shift: float
-) -> list[tuple[float, float, float, float, float]]:
-    """Segments grouped by the infinite line they lie on: (theta, offset, low, high, drawn)."""
+Line = tuple[float, float, float, float, float, bool]
+
+
+def _straight_lines(seg: geometry.Segments, wanted: np.ndarray, shift: float) -> list[Line]:
+    """Segments grouped by the infinite line they lie on.
+
+    Each as (theta, offset, low, high, drawn, dashed): its direction, its offset from the
+    origin, where along itself it starts and ends, how much of it is drawn, and whether it
+    is drawn as regular dashes.
+    """
     rows = np.flatnonzero(wanted)
     if rows.size == 0:
         return []
@@ -146,13 +170,57 @@ def _straight_lines(
     starts = np.flatnonzero(np.r_[True, sorted_keys[1:] != sorted_keys[:-1]])
     lows = np.minimum.reduceat(np.minimum(along0, along1)[order], starts)
     highs = np.maximum.reduceat(np.maximum(along0, along1)[order], starts)
-    drawn = np.add.reduceat(np.hypot(x1 - x0, y1 - y0)[order], starts)
-    offsets = np.add.reduceat(offset[order], starts) / np.diff(np.r_[starts, order.size])
+    lengths = np.hypot(x1 - x0, y1 - y0)[order]
+    drawn = np.add.reduceat(lengths, starts)
+    pieces = np.diff(np.r_[starts, order.size])
+    offsets = np.add.reduceat(offset[order], starts) / pieces
     thetas = theta[order][starts]
+    # Regular dashes: many pieces, most of them about as long as the mean piece.
+    mean = np.repeat(drawn / pieces, pieces)
+    alike = (lengths >= DASH_SPREAD[0] * mean) & (lengths <= DASH_SPREAD[1] * mean)
+    dashed = (pieces >= DASHES) & (
+        np.add.reduceat(alike.astype(np.int64), starts) >= DASH_SHARE * pieces
+    )
     return [
-        (float(t), float(o), float(lo), float(hi), float(d))
-        for t, o, lo, hi, d in zip(thetas, offsets, lows, highs, drawn, strict=True)
+        (float(t), float(o), float(lo), float(hi), float(d), bool(regular))
+        for t, o, lo, hi, d, regular in zip(
+            thetas, offsets, lows, highs, drawn, dashed, strict=True
+        )
     ]
+
+
+def _written_at(span: dict[str, Any]) -> float:
+    """The direction the words run, in degrees from 0 to 180 (0: across the sheet)."""
+    rotation = float(span.get("rotation") or 0.0) % 180.0
+    if rotation:
+        return rotation
+    wide = float(span["maxx"]) - float(span["minx"])
+    tall = float(span["maxy"]) - float(span["miny"])
+    return 90.0 if tall > wide else 0.0
+
+
+def _runs_with(theta: float, written: float) -> bool:
+    apart = abs(math.degrees(theta) % 180.0 - written) % 180.0
+    return min(apart, 180.0 - apart) <= PARALLEL_DEG
+
+
+def _named_beside(spans: list[dict[str, Any]], label: dict[str, Any]) -> str | None:
+    """A drawing number written beside the label, in line with it: the sheet it means."""
+    left, top = float(label["minx"]), float(label["miny"])
+    right, bottom = float(label["maxx"]), float(label["maxy"])
+    upright = _written_at(label) == 90.0
+    best: tuple[float, str] | None = None
+    for span in spans:
+        words = "".join(str(span.get("text") or "").split())
+        if span is label or not DRAWING_NUMBER.match(words) or not any(c.isdigit() for c in words):
+            continue
+        x0, y0, x1, y1 = (float(span[k]) for k in ("minx", "miny", "maxx", "maxy"))
+        # In line with the label (across its writing direction), and not far along it.
+        across = max(x0 - right, left - x1, 0.0) if upright else max(y0 - bottom, top - y1, 0.0)
+        along = max(y0 - bottom, top - y1, 0.0) if upright else max(x0 - right, left - x1, 0.0)
+        if across <= NEAR_MM and along <= 15 * NEAR_MM and (best is None or along < best[0]):
+            best = (along, words)
+    return best[1] if best else None
 
 
 def _is_grid(theta: float, offset: float, grid: list[tuple[str, float]]) -> bool:
@@ -193,11 +261,8 @@ def find(
     `grid` is the view's structural grid, as (axis, position) with "x" a vertical line at
     that x; `services` are the pipe runs found drawn on the sheet.
     """
-    labels = [
-        span
-        for span in geometry.texts(table)
-        if span.get("text") and LABEL.search(str(span["text"]))
-    ]
+    spans = geometry.texts(table)
+    labels = [span for span in spans if span.get("text") and LABEL.search(str(span["text"]))]
     if not labels:
         return Found([], [])
     x0, y0, x1, y1 = region
@@ -229,10 +294,10 @@ def find(
         right, bottom = float(span["maxx"]), float(span["maxy"])
         centre = ((left + right) / 2, (top + bottom) / 2)
         corners = ((left, top), (right, top), (right, bottom), (left, bottom))
-        beside: list[tuple[float, tuple[float, float, float, float, float]]] = []
-        on_grid: list[tuple[float, tuple[float, float, float, float, float]]] = []
+        beside: list[tuple[float, Line]] = []
+        on_grid: list[tuple[float, Line]] = []
         for line in candidates:
-            theta, offset, low, high, _ = line
+            theta, offset, low, high, _, _ = line
             # From the label's box, not its middle: words written across a line are as near
             # to it as words written along it.
             away = [-x * math.sin(theta) + y * math.cos(theta) - offset for x, y in corners]
@@ -246,8 +311,11 @@ def find(
         if not near:
             unplaced.append(words)
             continue
+        written = _written_at(span)
+        near = [item for item in near if _runs_with(item[1][0], written)] or near
+        near = [item for item in near if item[1][5]] or near
         nearest = min(distance for distance, _ in near)
-        theta, offset, _, _, _ = max(
+        theta, offset, _, _, _, _ = max(
             (line for distance, line in near if distance <= nearest + TIE_MM),
             key=lambda line: line[3] - line[2],
         )
@@ -280,7 +348,7 @@ def find(
         lines.append(
             MatchLine(
                 label=words,
-                other_sheet=other.group(1).rstrip(".") if other else None,
+                other_sheet=other.group(1).rstrip(".") if other else _named_beside(spans, span),
                 a=a,
                 b=b,
                 side=side,

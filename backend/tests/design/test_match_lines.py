@@ -215,3 +215,59 @@ def test_a_floor_cut_on_a_grid_line_is_still_found() -> None:
     line = match_lines.find(plan.table(), REGION, grid=[("x", 200.0)]).lines[0]
 
     assert line.a[0] == pytest.approx(200.0, abs=0.5)
+
+
+def upright(plan: Plan, text: str, x: float, y0: float, y1: float) -> None:
+    """Words written up the sheet, as a note along a vertical line is."""
+    plan.builder.text(
+        text, (x - 3.0, y0, x + 3.0, y1), plan.builder.group(), height=6.0, rotation=90.0
+    )
+
+
+def short_dashes(plan: Plan, x: float, y0: float, y1: float) -> None:
+    y = y0
+    while y < y1:
+        plan.wall(x, y, x, min(y + 3.0, y1), BLACK)
+        y += 4.5
+
+
+def dense_sheet() -> Plan:
+    """As a real plan is: a wall, a pipe and a room name all pass the note, the cut is a
+    row of short dashes beside it, and the sheet it continues on is a number written
+    after the note, not in it."""
+    plan = building()
+    short_dashes(plan, 200.0, 20.0, 280.0)
+    upright(plan, "FOR CONTINUATION, REFER TO DRG. NO. -", 195.0, 120.0, 240.0)
+    upright(plan, "60743399_ACM_TN_TO_D_MFP_A03-10-02", 195.0, 20.0, 116.0)
+    plan.wall(60.0, 180.0, 340.0, 180.0)  # a long wall straight through the note
+    plan.wall(192.0, 60.0, 192.0, 240.0)  # a solid wall alongside it, nearer than the cut
+    plan.pipe(210.0, 100.0, 340.0, 100.0)
+    plan.pipe(210.0, 200.0, 340.0, 200.0)
+    plan.pipe(150.0, 100.0, 190.0, 100.0)
+    return plan
+
+
+def test_a_continuation_note_marks_a_match_line_as_the_words_match_line_do() -> None:
+    found = match_lines.find(dense_sheet().table(), REGION)
+
+    assert found.unplaced == []
+    (line,) = found.lines
+    assert line.label == "FOR CONTINUATION, REFER TO DRG. NO. -"
+    assert line.a[0] == pytest.approx(200.0, abs=0.5) and line.b[0] == pytest.approx(200.0, abs=0.5)
+
+
+def test_the_sheet_it_continues_on_is_read_from_the_number_written_beside_the_note() -> None:
+    (line,) = match_lines.find(dense_sheet().table(), REGION).lines
+
+    assert line.other_sheet == "60743399_ACM_TN_TO_D_MFP_A03-10-02"
+
+
+def test_the_dashed_line_along_the_note_is_taken_not_the_wall_through_it_or_beside_it() -> None:
+    (line,) = match_lines.find(dense_sheet().table(), REGION).lines
+    polygon = match_lines.scope(REGION, [(line.a, line.b, line.side)])
+
+    # Not the wall at y = 180 that crosses the words, nor the solid wall at x = 192.
+    assert {round(line.a[0]), round(line.b[0])} == {200}
+    assert polygon is not None
+    # The side with more of the services: east of the cut.
+    assert min(x for x, _ in polygon) == pytest.approx(200.0, abs=0.5)

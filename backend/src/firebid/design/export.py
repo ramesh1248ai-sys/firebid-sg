@@ -17,6 +17,7 @@ from __future__ import annotations
 import io
 import math
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import pyarrow as pa
@@ -82,6 +83,21 @@ def _tender_circles(table: pa.Table) -> list[tuple[float, float, float]]:
     ]
 
 
+def _written_from(span: dict[str, Any]) -> tuple[float, float, float]:
+    """Where a span's words start, and the way they run: (x, y, degrees), sheet mm, y down.
+
+    The geometry keeps a span's box and its rotation. Words written up the sheet (90) start
+    at the bottom of their box with their feet to the right; turned over (180) at its far
+    corner; down the sheet (270) at its top with their feet to the left.
+    """
+    rotation = float(span.get("rotation") or 0.0) % 360.0
+    left, top = float(span["minx"]), float(span["miny"])
+    right, bottom = float(span["maxx"]), float(span["maxy"])
+    quarter = round(rotation / 90.0) % 4
+    x, y = ((left, bottom), (right, bottom), (right, top), (left, top))[quarter]
+    return x, y, rotation
+
+
 def as_pdf(sheet: Sheet) -> bytes:
     """One page the size of the sheet: the tender drawing in grey, the layout in colour."""
     import matplotlib
@@ -126,15 +142,16 @@ def as_pdf(sheet: Sheet) -> bytes:
             if not span.get("text"):
                 continue
             size = float(span.get("height") or (span["maxy"] - span["miny"]) or 2.0)
+            x, y, rotation = _written_from(span)
             axes.text(
-                float(span["minx"]),
-                float(span["maxy"]),
+                x,
+                y,
                 str(span["text"]),
                 fontsize=max(size, 0.5) * 72 / 25.4 * 0.8,
                 color="0.45",
                 va="bottom",
                 ha="left",
-                rotation=-float(span.get("rotation") or 0.0),
+                rotation=rotation,
                 rotation_mode="anchor",
                 clip_on=True,
             )
@@ -256,12 +273,10 @@ def as_dxf(sheet: Sheet) -> bytes:
         if not span.get("text"):
             continue
         size = float(span.get("height") or (span["maxy"] - span["miny"]) or 2.0)
+        x, y, rotation = _written_from(span)
         space.add_text(
-            str(span["text"]),
-            height=max(size, 0.5),
-            rotation=float(span.get("rotation") or 0.0),
-            dxfattribs=tender,
-        ).set_placement(up(float(span["minx"]), float(span["maxy"])))
+            str(span["text"]), height=max(size, 0.5), rotation=rotation, dxfattribs=tender
+        ).set_placement(up(x, y))
 
     if sheet.scope:
         space.add_lwpolyline(

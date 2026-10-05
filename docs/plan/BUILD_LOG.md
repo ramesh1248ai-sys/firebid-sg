@@ -2079,3 +2079,15 @@ Entry template:
   - **A DXF whose pipes take their colour from their layer** gives no colour to judge the side by; the extractor does not resolve layer colours.
   - **Two sheets are not compared:** nothing checks that the sheets either side of a line took opposite sides.
   - **The synthetic design sheet finds no pipe run** (it has no legend), so the database tests exercise the larger-side rule; the pipework rule is tested in `tests/design`.
+
+## Trial · FR-DSN-05, 06 on the MOH tenth-storey sheets · 2026-10-05
+
+- **Summary:** the four tenth-storey sheets of the MOH design-intent set (`A03-10-01` to `04`) were uploaded to the local stack, and run through the design modules from their extracted geometry. The new features work on the real geometry after three fixes; the stack does not yet take these sheets from upload to a layout.
+- **Defects found and fixed:**
+  - **The match line's words.** These sheets write "FOR CONTINUATION, REFER TO DRG. NO. -" along the line, with the drawing number as a separate text beside it; none says "MATCH LINE". The finder now takes a continuation note as a label and reads the sheet from the number written beside it.
+  - **The match line's line.** On a real plan dozens of lines pass every label, and the finder took a wall crossing the note. It now takes a line running the way the note is written before one crossing it, and a line of regular dashes before a solid one. The synthetic sheet writes its label along the line, as these do.
+  - **View detection crashed** (`drawings/scale.py`): a "0" beside a line was paired with it as a dimension, implying 1:0, and comparing two of them divided by zero; the sheet got no views. A figure of nought is no longer evidence, and `same_scale` no longer divides by it.
+  - **Words written up the sheet** came out upside down in the export.
+- **Results on the real geometry:** each of the four sheets gives one match line, the dashed one, naming its neighbour (01 with 02, 03 with 04), in about a second. Sheet 1 at the printed 1:100: 514 heads whole, 372 on its own side; the estimators counted 496 and 346. Its PDF, viewed, shows the plan in grey, the heads, pipes and sizes, the scope outline at the match line, and the stamp.
+- **Not fixed, and blocking these sheets on the stack:** see the gap list in `docs/reports/phase2-exit.md`: title blocks not read (no Current sheet), two sheets not classed as plans, no dimension to verify a scale by, and an export of 11 MB (PDF) and 273 MB (DXF) taking a minute or more.
+- **Tests:** `tests/design/test_match_lines.py` (a continuation note; the number beside it; the dashed line along the note, not the wall through or beside it), `tests/design/test_export.py` (words written up the sheet), `tests/drawings/test_views.py` (a figure of nought). 1,515 non-database tests pass. The full suite was not rerun.

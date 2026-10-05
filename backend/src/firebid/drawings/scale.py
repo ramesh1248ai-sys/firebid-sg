@@ -119,7 +119,8 @@ class Verdict:
 
 
 def same_scale(a: float, b: float) -> bool:
-    return abs(a - b) / max(a, b) <= AGREEMENT
+    largest = max(a, b)
+    return largest > 0 and abs(a - b) / largest <= AGREEMENT
 
 
 def verify(stated: Stated, evidence: list[Evidence]) -> Verdict:
@@ -238,7 +239,10 @@ def _paired_figures(table: pa.Table, extent: tuple[float, float, float, float]) 
         )
         if candidates.size:
             best = near[candidates[np.argmin(across[candidates])]]
-            found.append(Evidence(float(match.group(1)), float(lengths[best]), "figure", (cx, cy)))
+            value = float(match.group(1))
+            # A figure of nought is a level or a count beside a line, not a length along it.
+            if value > 0:
+                found.append(Evidence(value, float(lengths[best]), "figure", (cx, cy)))
     return found
 
 
