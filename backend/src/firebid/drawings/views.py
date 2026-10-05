@@ -56,6 +56,18 @@ TITLES: tuple[tuple[ViewKind, re.Pattern[str]], ...] = (
     (ViewKind.PLAN, re.compile(r"\bPLAN\b|\bLAYOUT\b", re.I)),
 )
 LEVEL_IN_TITLE = re.compile(r"\b(?:LEVEL|LVL|STOREY)\s*(\d{1,2}|B\d|ROOF)\b", re.I)
+# `10TH STOREY`, `3RD FLOOR`: the level before its word.
+ORDINAL_LEVEL = re.compile(r"\b(\d{1,2})(?:ST|ND|RD|TH)\s+(?:STOREY|FLOOR|LEVEL)\b", re.I)
+# A view's title is a phrase. A line of the general notes that happens to hold a title's
+# word ("THE SCHEMATIC LAYOUTS, EQUIPMENT SIZES ...", "... BIM MODELING FOR DETAIL") is a
+# sentence: it runs on past a full stop, opens with a note's number, or is long.
+SENTENCE_BREAK = re.compile(r"[.;]\s+[A-Za-z]")
+NUMBERED_NOTE = re.compile(r"^\s*\(?\d{1,2}[.)]\s")
+MAX_TITLE_WORDS = 14
+MAX_TITLE_WORDS_WITH_COMMA = 8
+# Two runs on one line closer than this (x their height) are one piece of text a PDF writer
+# split, as a long title often is.
+JOIN_GAP = 0.3
 
 
 @dataclass(frozen=True)
@@ -77,11 +89,62 @@ def kind_of(title: str) -> ViewKind | None:
     return None
 
 
+def is_title(text: str) -> bool:
+    """Whether text names a view: it holds a title's word and reads as a phrase, not as a
+    sentence of the notes."""
+    words = " ".join(text.split())
+    if len(words) < 4 or kind_of(words) is None:
+        return False
+    if SENTENCE_BREAK.search(words) or NUMBERED_NOTE.match(words):
+        return False
+    count = len([word for word in re.split(r"[\s/-]+", words) if any(c.isalnum() for c in word)])
+    if count > MAX_TITLE_WORDS:
+        return False
+    return not ("," in words and count > MAX_TITLE_WORDS_WITH_COMMA)
+
+
+def joined(spans: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Text a PDF writer split along one line, put back together.
+
+    A long view title arrives in pieces, cut in the middle of a word ("... ENLARGEMENT LAYO"
+    and "UT - 10TH STOREY"), and neither piece reads as what the whole says. Only text
+    written across the sheet is joined; the rest is passed through.
+    """
+    level = [s for s in spans if s.get("text") and not float(s.get("rotation") or 0.0) % 360]
+    other = [s for s in spans if not (s.get("text") and not float(s.get("rotation") or 0.0) % 360)]
+    out: list[dict[str, Any]] = []
+    for span in sorted(level, key=lambda s: (round(float(s["miny"]), 1), float(s["minx"]))):
+        last = out[-1] if out else None
+        if last is not None:
+            height = max(float(last["maxy"]) - float(last["miny"]), 1e-9)
+            same_line = (
+                abs(
+                    (float(last["miny"]) + float(last["maxy"])) / 2
+                    - (float(span["miny"]) + float(span["maxy"])) / 2
+                )
+                < 0.6 * height
+            )
+            gap = float(span["minx"]) - float(last["maxx"])
+            if same_line and -0.1 * height <= gap < JOIN_GAP * height:
+                out[-1] = {
+                    **last,
+                    "text": str(last["text"]).rstrip() + str(span["text"]).lstrip(),
+                    "maxx": float(span["maxx"]),
+                    "miny": min(float(last["miny"]), float(span["miny"])),
+                    "maxy": max(float(last["maxy"]), float(span["maxy"])),
+                }
+                continue
+        out.append(dict(span))
+    return out + other
+
+
 def level_of(title: str | None) -> str | None:
-    """`LEVEL 5 ...` is L05; `LEVEL B1` is B1; `ROOF` is RF: the drawing-number forms."""
+    """`LEVEL 5 ...` is L05; `LEVEL B1` is B1; `ROOF` is RF: the drawing-number forms.
+    `10TH STOREY` is L10."""
     match = LEVEL_IN_TITLE.search(title or "")
     if not match:
-        return None
+        ordinal = ORDINAL_LEVEL.search(title or "")
+        return f"L{int(ordinal.group(1)):02d}" if ordinal else None
     value = match.group(1).upper()
     if value.isdigit():
         return f"L{int(value):02d}"
@@ -95,15 +158,12 @@ def detect(
     source_views: list[dict[str, Any]] | None = None,
 ) -> list[View]:
     """The sheet's views: exact ones from the source, else found by their titles."""
-    spans = texts(table)
+    spans = joined(texts(table))
     region = _title_block_region(spans, page)
     titles = [
         span
         for span in spans
-        if span["text"]
-        and kind_of(span["text"])
-        and not _inside(span, region)
-        and len(span["text"]) >= 4
+        if span["text"] and is_title(str(span["text"])) and not _inside(span, region)
     ]
     viewports = [view for view in source_views or [] if view.get("kind") == "viewport"]
     if viewports:

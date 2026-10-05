@@ -72,22 +72,25 @@ gaps:
     action: >-
       Run the rest of the MOH set and a second consultant's drawings; a person confirms
       each sheet's side on the Design page meanwhile.
-  - gap: "Half of the real design-intent sheets tried are not classed as plans"
+  - gap: "A real design-intent tender has been taken to a design basis on four sheets of 148"
     cause: >-
-      Of the four MOH tenth-storey sheets, two go from upload to a layout and an export on
-      the stack (their title blocks are now read, and a person calibrates their scale). The
-      other two are classed as schematic and detail, likely from words in their general
-      notes, so the design step passes them by.
+      The four MOH tenth-storey sheets now go from upload to a design basis on the stack:
+      each is read, Current, one plan view with its title, level and stated scale, and its
+      match line and side proposed. Two were laid out and exported. The other 144 sheets,
+      the basements and the helipad among them, and any other consultant's drawings, have
+      not been run.
     action: >-
-      Correct the plan classification on this consultant's sheets, then run the whole set.
+      Run the whole set before the pilot, and a second consultant's drawings; fix what they
+      show.
   - gap: "A real plan with no dimensions needs a person to calibrate its scale"
     cause: >-
       None of the MOH sheets carries a dimension, and the scale is printed under the view
-      title, not in the title block ("As indicated"). By design a stated scale with nothing
-      to check it against is not trusted, so every plan view waits for a calibration.
+      title, not in the title block ("As indicated"). That scale is now read as the view's
+      stated scale, but by design a stated scale with nothing to check it against is not
+      trusted, so every plan view still waits for a calibration.
     action: >-
-      Pilot runbook: calibrate each plan on a known grid spacing. Consider reading the scale
-      under the view title as the stated scale, still to be confirmed by a person.
+      Pilot runbook: calibrate each plan on a known grid spacing. Product owner: consider
+      letting a person confirm the stated scale in one step where a sheet has no dimension.
   - gap: "A real sheet's DXF export is about 110 MB on disk"
     cause: >-
       A real A0 sheet has 1.5 million line segments. The export is now made by a job in
@@ -174,7 +177,7 @@ recommendation: >-
   tenders, and no pilot has run and no turnaround baseline exists. Recommended: (1) fix CI
   billing and run the full pipeline on main; (2) decide D2 so the model routes can be
   measured and costed; (3) record the turnaround baseline and confirm the placeholder
-  figures; (4) get every sheet of a real design-intent tender from upload to a layout (two
-  of the four sheets tried get there; the other two are not classed as plans);
+  figures; (4) run a whole real design-intent tender through the platform (four of its
+  148 sheets have been, to a design basis);
   (5) run the assisted-mode pilot on at least three live tenders and regenerate this report with `make exit-report-p2 LIVE=1`. Hold the gate
   review until that report shows the three criteria measured.
