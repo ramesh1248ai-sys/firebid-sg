@@ -148,9 +148,12 @@ def _fraction(lines: tuple[GridLine, ...], value: float) -> float | None:
     return low + (high - low) * (value - first) / (second - first)
 
 
-def detect(table: pa.Table) -> GridSystem | None:
+def detect(
+    table: pa.Table, bubbles: list[tuple[str, float, float, float]] | None = None
+) -> GridSystem | None:
     """The grid on a sheet, or None when it has none worth the name (two lines each way)."""
-    bubbles = _bubbles(table)
+    if bubbles is None:
+        bubbles = _bubbles(table)
     if not bubbles:
         return None
     lines = segments(table)
@@ -191,6 +194,101 @@ def detect(table: pa.Table) -> GridSystem | None:
     if len(across) < 2 or len(up) < 2:
         return None
     return GridSystem(tuple(_sorted(tuple(across.values()))), tuple(_sorted(tuple(up.values()))))
+
+
+# Bubbles in one row are a grid's when there are at least this many of them.
+MARKS_AT_LEAST = 3
+
+# Rows of marks across the sheet and up it; a row is (label, position) in position order.
+Marks = dict[str, list[list[list[object]]]]
+
+
+def marks(table: pa.Table, bubbles: list[tuple[str, float, float, float]] | None = None) -> Marks:
+    """Gridlines by their bubbles alone: rows of (label, x) `across` and of (label, y) `up`.
+
+    A real plan draws its gridlines dashed, so no long line ends at a bubble and `detect`
+    finds no grid. The bubbles still stand in a row along the sheet's edge, each on its own
+    gridline, and that is enough to say how far apart two named gridlines are on paper:
+    which is how one sheet's scale is checked against another's (FR-VIS-05).
+
+    Each row is kept apart. A building with a skewed wing has a second grid whose bubbles
+    stand in rows of their own, and a spacing is only ever taken along one row.
+    """
+    found = sorted(set(_bubbles(table) if bubbles is None else bubbles))
+    return {
+        "across": _in_rows([(label, cx, cy, radius) for label, cx, cy, radius in found]),
+        "up": _in_rows([(label, cy, cx, radius) for label, cx, cy, radius in found]),
+    }
+
+
+def marks_in(found: Marks, extent: tuple[float, float, float, float]) -> Marks:
+    """The marks whose gridline crosses a view."""
+
+    def inside(rows: list[list[list[object]]], low: float, high: float) -> list[list[list[object]]]:
+        kept = [[mark for mark in row if low <= float(str(mark[1])) <= high] for row in rows]
+        return [row for row in kept if len(row) >= 2]
+
+    return {
+        "across": inside(found.get("across", []), extent[0], extent[2]),
+        "up": inside(found.get("up", []), extent[1], extent[3]),
+    }
+
+
+def _in_rows(bubbles: list[tuple[str, float, float, float]]) -> list[list[list[object]]]:
+    """The bubbles that stand in rows, a row at a time. Each bubble is its label, its
+    position along the row, the coordinate a row shares, and its radius.
+
+    A row is bubbles of one size on one line, each label once, all letters or all numbers,
+    in their order. A symbol drawn as a letter in a circle is none of that: it repeats.
+    """
+    lines: list[list[tuple[str, float, float, float]]] = []
+    for bubble in sorted(bubbles, key=lambda item: item[2]):
+        if lines and abs(bubble[2] - lines[-1][-1][2]) <= 0.3 * bubble[3]:
+            lines[-1].append(bubble)
+        else:
+            lines.append([bubble])
+    found: dict[str, float] = {}
+    twice: set[str] = set()
+    rows: list[list[tuple[str, float]]] = []
+    for line in lines:
+        size = float(np.median([bubble[3] for bubble in line]))
+        # Letters run one way across a building and numbers the other, so a row is of one
+        # kind: a bubble of the other that happens to stand on its line is not part of it.
+        for numbered in (False, True):
+            ordered = sorted(
+                (
+                    bubble
+                    for bubble in line
+                    if math.isclose(bubble[3], size, rel_tol=0.1)
+                    and bubble[0].rstrip("'").isdigit() is numbered
+                ),
+                key=lambda item: item[1],
+            )
+            labels = [bubble[0] for bubble in ordered]
+            steps = [b - a for a, b in pairwise(ordinal(label) for label in labels)]
+            if (
+                len(ordered) < MARKS_AT_LEAST
+                or len(set(labels)) != len(labels)
+                or not (all(step >= 0 for step in steps) or all(step <= 0 for step in steps))
+            ):
+                continue
+            row = []
+            for label, position, _, radius in ordered:
+                if label not in found:
+                    found[label] = position
+                    row.append((label, position))
+                elif abs(found[label] - position) > 0.3 * radius:
+                    # A gridline has a bubble at each end, which is one mark; one label at
+                    # two places is two things, and marks neither.
+                    twice.add(label)
+            rows.append(row)
+    kept = [[[label, round(at, 3)] for label, at in row if label not in twice] for row in rows]
+    return [row for row in kept if len(row) >= 2]
+
+
+def bubbles_of(table: pa.Table) -> list[tuple[str, float, float, float]]:
+    """A sheet's grid bubbles, found once for `detect` and `marks`."""
+    return _bubbles(table)
 
 
 def _bubbles(table: pa.Table) -> list[tuple[str, float, float, float]]:

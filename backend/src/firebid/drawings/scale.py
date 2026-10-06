@@ -14,6 +14,11 @@ Statuses:
 * `nts`: marked not to scale. Never measured, whatever else it says.
 * `calibrated`: a person measured two points of known distance (the calibration API).
 
+A tender's upper floors are often drawn with no dimension at all, on the same grid as the
+floors below. There the known dimension is the grid's: where a view whose scale is proved
+shows gridlines AC and AD, how far apart they are is known, and a view that only states its
+scale is checked against that (`known_spacings`, `corroborate`).
+
 Pure: geometry in, verdict and evidence out.
 """
 
@@ -23,7 +28,7 @@ import math
 import re
 from dataclasses import dataclass, field
 from enum import StrEnum
-from itertools import pairwise
+from itertools import combinations, pairwise
 from typing import Any
 
 import numpy as np
@@ -77,8 +82,11 @@ class Evidence:
 
     value: float  # the figure, in drawing units (mm)
     paper_mm: float  # its span on the sheet
-    source: str  # "dimension" (a DXF entity) | "figure" (text paired with a line)
+    # "dimension" (a DXF entity) | "figure" (text paired with a line) | "grid" (two
+    # gridlines whose spacing another view proves) | "calibration" (a person's)
+    source: str
     at: tuple[float, float] = (0.0, 0.0)
+    note: str = ""  # for a grid spacing: which gridlines, and which sheet says so
 
     @property
     def denominator(self) -> float:
@@ -113,9 +121,36 @@ class Verdict:
                     "source": item.source,
                     "at": [round(item.at[0], 2), round(item.at[1], 2)],
                 }
+                | ({"note": item.note} if item.note else {})
                 for item in self.evidence
             ],
         }
+
+    @classmethod
+    def from_json(cls, data: dict[str, Any]) -> Verdict:
+        """A stored verdict, as `as_json` wrote it."""
+        denominator = data.get("denominator")
+        stated = data.get("stated")
+        return cls(
+            status=ScaleStatus(str(data["status"])),
+            denominator=None if denominator is None else float(denominator),
+            stated=Stated(
+                None if stated is None else float(stated),
+                bool(data.get("nts")),
+                data.get("stated_text"),
+            ),
+            evidence=tuple(
+                Evidence(
+                    float(item["value"]),
+                    float(item["paper_mm"]),
+                    str(item["source"]),
+                    (float(item["at"][0]), float(item["at"][1])),
+                    str(item.get("note", "")),
+                )
+                for item in data.get("evidence", [])
+            ),
+            reason=str(data.get("reason", "")),
+        )
 
 
 # A figure beside a line is taken for a dimension. On a real plan some are not: a grid
@@ -188,6 +223,133 @@ def verify(stated: Stated, evidence: list[Evidence]) -> Verdict:
         stated,
         tuple(evidence),
         f"{len(evidence)} dimension(s) agree with 1:{stated.denominator:.0f}",
+    )
+
+
+# --- One view's scale checked against another's, by the grid they share --------------------
+
+# A stated scale is taken as proved by the grid when at least this many spacings along one
+# row of gridlines, each known from a view whose scale is proved, all agree with it.
+GRID_SPACINGS_AT_LEAST = 3
+
+# Rows of gridline marks across a sheet and up it (`grids.marks`).
+Marks = dict[str, list[list[list[object]]]]
+
+
+@dataclass(frozen=True)
+class Spacing:
+    """How far apart two named gridlines really are, and the sheet that proves it."""
+
+    mm: float
+    known_from: str
+
+
+def _rows(marks: Marks) -> list[tuple[bool, list[tuple[str, float]]]]:
+    """Each row of marks, and whether it runs across the sheet."""
+    return [
+        (axis == "across", [(str(label), float(str(position))) for label, position in row])
+        for axis in ("across", "up")
+        for row in marks.get(axis, [])
+    ]
+
+
+def known_spacings(proved: list[tuple[str, float, Marks]]) -> dict[tuple[str, str], Spacing]:
+    """The real distance between each two gridlines that some proved view shows in one row.
+
+    `proved` is each such view's sheet, its denominator and its grid marks. Two views that
+    give one pair of gridlines different distances prove nothing about that pair: a tender
+    of two buildings may name its gridlines alike, and the bubbles of a skewed grid stand
+    wherever there was room for them.
+    """
+    known: dict[tuple[str, str], Spacing] = {}
+    disputed: set[tuple[str, str]] = set()
+    for name, denominator, marks in proved:
+        for _, row in _rows(marks):
+            for (first, at), (second, to) in combinations(row, 2):
+                pair = (min(first, second), max(first, second))
+                real = abs(to - at) * denominator
+                if real <= 0 or pair in disputed:
+                    continue
+                if pair in known and not same_scale(known[pair].mm, real):
+                    disputed.add(pair)
+                    del known[pair]
+                else:
+                    known.setdefault(pair, Spacing(real, name))
+    return known
+
+
+def grid_evidence(marks: Marks, known: dict[tuple[str, str], Spacing]) -> list[list[Evidence]]:
+    """A view's own gridlines as checks, a row at a time: each next two gridlines of a row
+    whose real spacing is known."""
+    found = []
+    for across, row in _rows(marks):
+        checks = []
+        for (first, at), (second, to) in pairwise(row):
+            spacing = known.get((min(first, second), max(first, second)))
+            if spacing is None or to == at:
+                continue
+            middle = (at + to) / 2
+            checks.append(
+                Evidence(
+                    spacing.mm,
+                    abs(to - at),
+                    "grid",
+                    (middle, 0.0) if across else (0.0, middle),
+                    f"gridlines {first} and {second} are {spacing.mm:.0f} mm apart on "
+                    f"{spacing.known_from}",
+                )
+            )
+        if checks:
+            found.append(checks)
+    return found
+
+
+def corroborate(own: Verdict, grid: list[list[Evidence]]) -> Verdict | None:
+    """What the grid makes of a view its own dimensions left unverified; None for no change.
+
+    The view is verified where one row of its gridlines has enough known spacings and every
+    one of them agrees with the stated scale: that cannot happen by chance to 1%. Spacings
+    along another row that disagree are set aside and said to be. On a real tender they are
+    a skewed wing's gridlines, whose bubbles do not stand square to them, so the grid never
+    makes a view conflicting. A view that states no scale is verified only where its own
+    dimensions, enough of them, and such a row all give the same one.
+    """
+    if own.status is not ScaleStatus.UNVERIFIED:
+        return None
+    scale_of = own.stated.denominator
+    mine = sorted(item.denominator for item in own.evidence)
+    if scale_of is None:
+        if len(mine) < MAJORITY_AT_LEAST:
+            return None
+        scale_of = mine[len(mine) // 2]
+        if not all(same_scale(item, scale_of) for item in mine):
+            return None
+        whole = float(round(scale_of))
+        scale_of = whole if same_scale(whole, scale_of) else scale_of
+    agreeing = [
+        check
+        for row in grid
+        if len(row) >= GRID_SPACINGS_AT_LEAST
+        and all(same_scale(check.denominator, scale_of) for check in row)
+        for check in row
+    ]
+    if not agreeing:
+        return None
+    others = [check for row in grid for check in row if check not in agreeing]
+    sheets = ", ".join(sorted({item.note.rsplit(" on ", 1)[-1] for item in agreeing})[:3])
+    reason = (
+        f"{len(agreeing)} grid spacing(s) known from {sheets} agree with 1:{scale_of:.0f}"
+        if own.stated.denominator is not None
+        else f"no scale is stated; {len(mine)} dimension(s) on the view and {len(agreeing)} "
+        f"grid spacing(s) known from {sheets} all give 1:{scale_of:.0f}"
+    )
+    if others:
+        reason += (
+            f"; {len(others)} along another row of bubbles do not and were set aside (a "
+            "skewed grid's bubbles are not square to it)"
+        )
+    return Verdict(
+        ScaleStatus.VERIFIED, scale_of, own.stated, (*own.evidence, *agreeing, *others), reason
     )
 
 

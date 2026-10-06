@@ -7,6 +7,9 @@ there, and nothing here opens the tender file. Then:
   or calibrated (FR-VIS-05). The refusal says why and what would unlock it.
 * **calibrate**: a person gives two points and the real distance between them. The view
   becomes `calibrated`, with who did it and when, and an audit event.
+* **check against the grid**: a view that only states its scale is verified where the grid
+  it shares with a proved view agrees (`check_against_grid`). One calibration, or one
+  dimensioned floor, so serves every sheet drawn on the same gridlines.
 * **locate**: a point on a sheet as an estimator says it: the view it is in, its grid
   reference, its level and zone (FR-VIS-07).
 """
@@ -120,6 +123,7 @@ def _row(
         scale_evidence=verdict.as_json(),
         grid=item.grid.as_json() if item.grid else None,
         grid_box=[round(value, 4) for value in grid_box] if grid_box else None,
+        grid_marks=item.marks,
         detector_version=views.DETECTOR_VERSION,
     )
 
@@ -194,7 +198,90 @@ def calibrate(
         after={"scale_status": view.scale_status, "denominator": view.denominator},
     )
     session.flush()
+    # What a person measured here is now known of every sheet on the same gridlines.
+    check_against_grid(session, view.bid_id)
     return view
+
+
+# What the grid decided is kept beside what the view's own dimensions said, under this key
+# of `scale_evidence`, so it can be decided again when the proved views change.
+OWN = "own"
+
+
+def check_against_grid(session: Session, bid_id: Any) -> list[SheetView]:
+    """Check every view that only states its scale against the grid of the proved views.
+
+    Proved: verified by its own dimensions, or calibrated by a person. The real distance
+    between two gridlines such a view shows is a known dimension (FR-VIS-05), and a view on
+    the same gridlines whose stated scale agrees with it is verified, with the spacings and
+    the sheet they are known from as its evidence. The grid only ever verifies: it does not
+    make a view conflicting. Decided afresh each time, from what each
+    view's own dimensions said: a view the grid verified goes back to unverified when the
+    view that proved it is gone. Returns the views whose status changed.
+    """
+    rows = list(
+        session.execute(
+            select(SheetView)
+            .where(SheetView.bid_id == bid_id, SheetView.grid_marks.is_not(None))
+            .order_by(SheetView.sheet_id, SheetView.ordinal)
+        ).scalars()
+    )
+    if not rows:
+        return []
+    numbers: dict[Any, str] = {}
+    for sheet_id, number in session.execute(
+        select(SheetRevision.sheet_id, SheetRevision.sheet_number)
+        .where(SheetRevision.sheet_id.in_({row.sheet_id for row in rows}))
+        .order_by(SheetRevision.created_at)
+    ):
+        if number:
+            numbers[sheet_id] = number
+
+    def own(row: SheetView) -> dict[str, Any]:
+        evidence: dict[str, Any] = dict(row.scale_evidence or {})
+        kept = evidence.get(OWN)
+        return dict(kept) if isinstance(kept, dict) else evidence
+
+    calibrated, verified = str(scale.ScaleStatus.CALIBRATED), str(scale.ScaleStatus.VERIFIED)
+    proved = []
+    for row in rows:
+        if row.scale_status == calibrated and row.denominator:
+            denominator = row.denominator
+        elif own(row).get("status") == verified and own(row).get("denominator"):
+            denominator = float(own(row)["denominator"])
+        else:
+            continue
+        name = numbers.get(row.sheet_id) or "another sheet"
+        proved.append((name, denominator, row.grid_marks or {}))
+    # In the sheets' order, so which sheet is named as the proof does not change by chance.
+    known = scale.known_spacings(sorted(proved, key=lambda item: item[0]))
+
+    changed = []
+    for row in rows:
+        mine = own(row)
+        if row.scale_status == calibrated or mine.get("status") != str(
+            scale.ScaleStatus.UNVERIFIED
+        ):
+            continue
+        decided = scale.corroborate(
+            scale.Verdict.from_json(mine), scale.grid_evidence(row.grid_marks or {}, known)
+        )
+        evidence = mine if decided is None else decided.as_json() | {OWN: mine}
+        status = str(mine["status"]) if decided is None else str(decided.status)
+        if status != row.scale_status:
+            changed.append(row)
+        row.scale_status = status
+        row.denominator = None if decided is None else decided.denominator
+        if evidence != row.scale_evidence:
+            row.scale_evidence = evidence
+    session.flush()
+    if changed:
+        log.info(
+            "views_checked_against_grid",
+            bid_id=str(bid_id),
+            changed=[(numbers.get(row.sheet_id), row.scale_status) for row in changed],
+        )
+    return changed
 
 
 @dataclass(frozen=True)

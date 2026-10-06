@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable, Iterator
+from typing import Any
 
 import numpy as np
 import pytest
@@ -332,6 +333,95 @@ class TestCalibration:
         assert again.detector_version == "test-bump"
         assert (again.scale_status, again.denominator) == ("calibrated", 100.0)
         assert again.calibrated_by == "Ethan"
+
+
+def floor_above(session: Session, bid: Bid, store: MemoryObjectStore, number: str) -> Sheet:
+    """The same plan on the same gridlines with no dimension on it: it only states 1:100."""
+    document, _ = synthetic.general_arrangement(sheet_number=number, with_dimensions=False)
+    return read_sheet(session, bid, store, document, number)
+
+
+@pytest.mark.req("FR-VIS-05")
+class TestScaleFromASharedGrid:
+    """Found on a real tender: sixty upper-floor plans with no dimension, on the gridlines of
+    floors whose dimensions prove the scale, each waiting for a person to calibrate it."""
+
+    def test_a_floor_with_no_dimensions_is_verified_by_the_grid_of_one_that_has_them(
+        self, session: Session, bid: Bid, store: MemoryObjectStore
+    ) -> None:
+        above = floor_above(session, bid, store, "FP-L06-201")
+        assert view_service.check_against_grid(session, bid.id) == []
+        assert only_view(session, above).scale_status == "unverified"
+
+        plan(session, bid, store)
+        changed = view_service.check_against_grid(session, bid.id)
+        session.commit()
+
+        view = only_view(session, above)
+        assert [row.id for row in changed] == [view.id]
+        assert (view.scale_status, view.denominator) == ("verified", 100.0)
+        evidence: dict[str, Any] = dict(view.scale_evidence)
+        assert "known from FP-L05-201 agree with 1:100" in str(evidence["reason"])
+        assert {item["source"] for item in evidence["evidence"]} == {"grid"}
+        # What its own dimensions said is kept beside what the grid decided.
+        assert evidence["own"]["status"] == "unverified"
+        # And a length may be measured on it now.
+        assert view_service.measure(view, [(0.0, 0.0), (30.0, 0.0)]) == pytest.approx(3000.0)
+
+    def test_checking_again_changes_nothing_and_a_view_no_longer_proved_goes_back(
+        self, session: Session, bid: Bid, store: MemoryObjectStore
+    ) -> None:
+        above = floor_above(session, bid, store, "FP-L06-201")
+        proved = plan(session, bid, store)
+        view_service.check_against_grid(session, bid.id)
+        session.commit()
+        before = dict(only_view(session, above).scale_evidence)
+
+        assert view_service.check_against_grid(session, bid.id) == []
+        assert only_view(session, above).scale_evidence == before
+
+        session.delete(only_view(session, proved))
+        session.flush()
+        changed = view_service.check_against_grid(session, bid.id)
+        session.commit()
+
+        view = only_view(session, above)
+        assert [row.id for row in changed] == [view.id]
+        assert (view.scale_status, view.denominator) == ("unverified", None)
+        assert "own" not in view.scale_evidence
+        assert "no dimension on the view confirms it" in str(view.scale_evidence["reason"])
+
+    def test_one_calibration_serves_every_sheet_on_the_same_gridlines(
+        self, session: Session, bid: Bid, store: MemoryObjectStore, estimator: Principal
+    ) -> None:
+        first = floor_above(session, bid, store, "FP-L06-201")
+        second = floor_above(session, bid, store, "FP-L07-201")
+
+        view_service.calibrate(
+            session, only_view(session, first), ((0.0, 0.0), (30.0, 0.0)), 3000.0, estimator.actor()
+        )
+        session.commit()
+
+        assert only_view(session, first).scale_status == "calibrated"
+        other = only_view(session, second)
+        assert (other.scale_status, other.denominator) == ("verified", 100.0)
+        assert "known from FP-L06-201" in str(other.scale_evidence["reason"])
+
+    def test_a_calibration_that_contradicts_a_stated_scale_proves_nothing_of_it(
+        self, session: Session, bid: Bid, store: MemoryObjectStore, estimator: Principal
+    ) -> None:
+        first = floor_above(session, bid, store, "FP-L06-201")
+        second = floor_above(session, bid, store, "FP-L07-201")
+
+        # A person says 30 mm of paper is 6 m: 1:200, on a grid the other sheet draws at 1:100.
+        view_service.calibrate(
+            session, only_view(session, first), ((0.0, 0.0), (30.0, 0.0)), 6000.0, estimator.actor()
+        )
+        session.commit()
+
+        other = only_view(session, second)
+        assert (other.scale_status, other.denominator) == ("unverified", None)
+        assert "own" not in other.scale_evidence
 
 
 @pytest.mark.req("FR-VIS-07")

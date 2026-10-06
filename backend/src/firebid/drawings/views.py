@@ -29,7 +29,7 @@ from firebid.drawings.scale import Stated, Verdict, evidence_in, parse_stated, v
 from firebid.drawings.title_block import Box, Span, locate
 
 # Bumped when detection changes, so every sheet's views are detected again.
-DETECTOR_VERSION = "1"
+DETECTOR_VERSION = "2"
 
 
 class ViewKind(StrEnum):
@@ -366,6 +366,8 @@ class Analysed:
     view: View
     verdict: Verdict
     grid: GridSystem | None
+    # The gridlines its bubbles mark, for checking its scale against another sheet's.
+    marks: grids.Marks | None = None
 
 
 def analyse(
@@ -379,12 +381,17 @@ def analyse(
     The structural grid is found once per sheet: views of one sheet share its gridlines, and
     a view without them (a schematic, a detail) is given none.
     """
-    grid = grids.detect(table)
+    bubbles = grids.bubbles_of(table)
+    grid = grids.detect(table, bubbles)
+    marks = grids.marks(table, bubbles)
     found = []
     for view in detect(table, page, sheet_scale, source_views):
         verdict = verify(view.stated, evidence_in(table, view.extent))
         on_grid = grid if view.kind in GRIDDED and _overlaps(grid, view.extent) else None
-        found.append(Analysed(view, verdict, on_grid))
+        inside = grids.marks_in(marks, view.extent) if view.kind in GRIDDED else None
+        found.append(
+            Analysed(view, verdict, on_grid, inside if inside and any(inside.values()) else None)
+        )
     return found
 
 
