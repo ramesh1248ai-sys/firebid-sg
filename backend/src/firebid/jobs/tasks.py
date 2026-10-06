@@ -663,6 +663,27 @@ def make_design_export(
         return dict(design.make_export(session, get_object_store(), row, fmt))
 
 
+@app.task(name="views.again", queue=PARSE_QUEUE, pass_context=True)
+def detect_views_again(context: JobContext, bid_id: str, user_id: str) -> dict[str, int]:
+    """Find again the views an older detector found, across a bid (a person asked).
+
+    In the parser pool, though it opens no tender file (it reads stored geometry): a real
+    sheet's geometry is two million primitives, and the pool is where there is room for it.
+    Idempotent: a sheet whose views this detector found is skipped.
+    """
+    import uuid as uuid_module
+
+    from firebid.db.identity import acting_as
+    from firebid.services import parse_pipeline
+    from firebid.storage.object_store import get_object_store
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        return parse_pipeline.views_again(
+            session, get_object_store(), uuid_module.UUID(bid_id), acting
+        )
+
+
 @app.task(name="design.layout", queue="default", pass_context=True)
 def lay_out_design(
     context: JobContext, bid_id: str, user_id: str, sheet_id: str = ""

@@ -20,12 +20,20 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from firebid.api.progress import read_progress
+from firebid.db.models.audit import AuditEvent
 from firebid.db.models.core import AppUser, Bid
 from firebid.db.models.documents import Document, Sheet, SheetRevision
 from firebid.db.models.drawings import SheetGeometry, SheetView
+from firebid.domain.actors import Actor
+from firebid.drawings import views as view_detection
 from firebid.evals.synthetic import dxf_bytes, general_arrangement, write_pdf
 from firebid.ingest.scanning import AlwaysCleanScanner
-from firebid.jobs.tasks import parse_document, parse_sheet, retry_stalled_jobs
+from firebid.jobs.tasks import (
+    detect_views_again,
+    parse_document,
+    parse_sheet,
+    retry_stalled_jobs,
+)
 from firebid.services import parse_pipeline
 from firebid.services.ingestion import Ingestor
 from firebid.storage import object_store
@@ -529,3 +537,214 @@ def test_a_job_whose_worker_is_alive_is_left_running(session: Session) -> None:
     session.execute(text("DELETE FROM procrastinate_jobs WHERE id = :id"), {"id": job_id})
     session.execute(text("DELETE FROM procrastinate_workers WHERE id = :id"), {"id": worker_id})
     session.commit()
+
+
+def person(user: AppUser) -> Actor:
+    return Actor(label=user.display_name, roles=frozenset({"estimator"}), id=user.id)
+
+
+@pytest.mark.req("FR-DOC-01")
+class TestReadAgain:
+    """Found on a real tender: four sheets failed for memory and a drawing was refused when
+    it was finished. After the fix nothing in the product could read them again, and views
+    found by an older detector stayed as they were; each took a script on the database."""
+
+    def unread(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        payload: bytes,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> tuple[Document, uuid.UUID]:
+        """A drawing set whose second sheet's linework could not be read, as it finished."""
+        from firebid.sandbox.runner import SandboxFailure
+        from firebid.services import geometry as geometry_service
+
+        document = upload(session, bid, store, payload)
+        parse_document(cast(JobContext, None), document_id=str(document.id), user_id=str(user.id))
+        session.expire_all()
+        heavy = sheets_of(session, document)[1].id
+        real = geometry_service.extract_sheet
+
+        def too_large(
+            session: Session, store: Any, document: Any, sheet: Sheet, payload: Any
+        ) -> Any:
+            if sheet.id == heavy:
+                raise SandboxFailure("memory", "the file needed more memory than a job is given")
+            return real(session, store, document, sheet, payload)
+
+        with monkeypatch.context() as patched:
+            patched.setattr(geometry_service, "extract_sheet", too_large)
+            run_parse(session, document.id, user.id)
+        return document, heavy
+
+    def test_a_sheet_that_could_not_be_read_is_said_and_can_be_read_again(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        three_sheet_pdf: bytes,
+        as_application_role: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        document, heavy = self.unread(session, bid, user, store, three_sheet_pdf, monkeypatch)
+
+        # The drawing is "done" with a sheet in it unread: the page says which, and why.
+        progress = read_progress(session, bid.id)
+        assert progress.finished and progress.failures == []
+        (unread,) = progress.unread_sheets
+        assert (unread.id, unread.filename, unread.page) == (heavy, "tender set.pdf", 2)
+        assert "more memory" in unread.reason
+        assert progress.read_again.model_dump() == {"documents": 1, "sheets": 1, "views": 0}
+
+        counts = parse_pipeline.read_again(session, bid.id, person(user))
+        session.commit()
+
+        assert counts == {"documents": 1, "sheets": 1, "views": 0}
+        sheet = session.get(Sheet, heavy)
+        assert sheet is not None and sheet.parsed_at is None and sheet.parse_error is None
+        assert session.get(Document, document.id).state == "received"  # type: ignore[union-attr]
+        assert [job["document_id"] for job in queued(session, "parse.document")] == [
+            str(document.id)
+        ]
+        event = session.execute(
+            select(AuditEvent).where(AuditEvent.action == "documents: read again")
+        ).scalar_one()
+        assert event.after == counts and event.actor_label == "Esther Tan"
+        waiting = read_progress(session, bid.id)
+        assert not waiting.finished and waiting.unread_sheets == []
+        # Asked again while it waits: nothing more is found, and nothing more is queued.
+        assert parse_pipeline.read_again(session, bid.id, person(user)) == {
+            "documents": 0,
+            "sheets": 0,
+            "views": 0,
+        }
+        assert len(queued(session, "parse.document")) == 1
+
+        session.execute(text("DELETE FROM procrastinate_jobs WHERE task_name = 'parse.document'"))
+        session.commit()
+        result = run_parse(session, document.id, user.id)
+
+        tasks = [job["task"] for job in result["jobs"]]
+        assert tasks.count("parse.sheet") == 1, "only the sheet that failed is read"
+        assert tasks.count("parse.finish") == 1 and tasks[-1] == "parse.complete"
+        sheets = sheets_of(session, document)
+        assert all(sheet.parsed_at is not None and sheet.parse_error is None for sheet in sheets)
+        assert session.execute(
+            select(SheetGeometry).where(SheetGeometry.sheet_id == heavy)
+        ).scalar_one_or_none(), "its linework is read now"
+        after = read_progress(session, bid.id)
+        assert after.finished and after.counts["done"] == 1
+        assert after.read_again.model_dump() == {"documents": 0, "sheets": 0, "views": 0}
+
+    def test_a_drawing_refused_when_it_was_finished_is_read_again_and_one_never_scanned_is_not(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        three_sheet_pdf: bytes,
+        as_application_role: None,
+    ) -> None:
+        document = upload(session, bid, store, three_sheet_pdf)
+        run_parse(session, document.id, user.id)
+        refused = session.get(Document, document.id)
+        assert refused is not None and refused.scanned_at is not None
+        refused.state = "rejected"
+        refused.rejected_reason = "the drawing was read but could not be finished: InternalError"
+        # Refused when it was sent: its type is not accepted, and it was never scanned.
+        unaccepted = Ingestor(session, store, AlwaysCleanScanner(), bid_id=bid.id).ingest(
+            "setup.exe", b"MZ" + b"\x00" * 64
+        )
+        assert unaccepted.rejected and not unaccepted.stored
+        session.commit()
+        assert read_progress(session, bid.id).counts["rejected"] == 2
+
+        counts = parse_pipeline.read_again(session, bid.id, person(user))
+        session.commit()
+
+        assert counts == {"documents": 1, "sheets": 0, "views": 0}
+        session.execute(text("DELETE FROM procrastinate_jobs WHERE task_name = 'parse.document'"))
+        session.commit()
+        result = run_parse(session, document.id, user.id)
+
+        tasks = [job["task"] for job in result["jobs"]]
+        assert tasks.count("parse.sheet") == 0, "its sheets were read; only the finish is owed"
+        assert tasks.count("parse.finish") == 1
+        finished = session.get(Document, document.id)
+        assert finished is not None
+        assert (finished.state, finished.rejected_reason) == ("done", None)
+        progress = read_progress(session, bid.id)
+        assert progress.counts["rejected"] == 1 and progress.read_again.documents == 0
+
+    def test_a_drawing_still_being_read_is_left_to_its_jobs(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        three_sheet_pdf: bytes,
+        as_application_role: None,
+    ) -> None:
+        document = upload(session, bid, store, three_sheet_pdf)
+        parse_document(cast(JobContext, None), document_id=str(document.id), user_id=str(user.id))
+        session.expire_all()
+        parse_pipeline.mark_failed(session, sheets_of(session, document)[0].id, user.id, "boom")
+        session.commit()
+        assert session.get(Document, document.id).state == "processing"  # type: ignore[union-attr]
+
+        assert parse_pipeline.read_again(session, bid.id, person(user)) == {
+            "documents": 0,
+            "sheets": 0,
+            "views": 0,
+        }
+
+    def test_views_found_by_an_older_detector_are_found_again_by_one_job(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        three_sheet_pdf: bytes,
+        as_application_role: None,
+    ) -> None:
+        document = upload(session, bid, store, three_sheet_pdf)
+        run_parse(session, document.id, user.id)
+        assert read_progress(session, bid.id).read_again.views == 0
+        session.execute(text("UPDATE sheet_view SET detector_version = 'older', grid_marks = NULL"))
+        session.commit()
+        assert read_progress(session, bid.id).read_again.model_dump() == {
+            "documents": 0,
+            "sheets": 0,
+            "views": SHEETS,
+        }
+
+        first = parse_pipeline.read_again(session, bid.id, person(user))
+        second = parse_pipeline.read_again(session, bid.id, person(user))
+        session.commit()
+
+        assert first == second == {"documents": 0, "sheets": 0, "views": SHEETS}
+        assert queued(session, "views.again") == [
+            {"bid_id": str(bid.id), "user_id": str(user.id)}
+        ], "one job for the bid, however often it is asked"
+        assert session.get(Document, document.id).state == "done"  # type: ignore[union-attr]
+
+        result = detect_views_again(
+            cast(JobContext, None), bid_id=str(bid.id), user_id=str(user.id)
+        )
+
+        assert (result["sheets"], result["failed"]) == (SHEETS, 0)
+        session.expire_all()
+        versions = set(
+            session.execute(
+                select(SheetView.detector_version).where(SheetView.bid_id == bid.id)
+            ).scalars()
+        )
+        assert versions == {view_detection.DETECTOR_VERSION}
+        assert read_progress(session, bid.id).read_again.views == 0
+        # Delivered twice: every sheet's views are this detector's, so none is found again.
+        again = detect_views_again(cast(JobContext, None), bid_id=str(bid.id), user_id=str(user.id))
+        assert again["sheets"] == 0

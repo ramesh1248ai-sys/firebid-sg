@@ -116,7 +116,8 @@ gaps:
     action: >-
       Pilot runbook: calibrate those on a known length; one calibration then serves every
       sheet on the same gridlines. A bid's views are checked when a document finishes or a
-      view is calibrated; a bid read before this needs its views detected again.
+      view is calibrated; a bid read before this has its views found again by "Read again"
+      on the Documents page.
   - gap: "A real plan's gridlines are dashed, so it has no grid references"
     cause: >-
       `grids.detect` wants a long line ending at each bubble, and finds no grid on any of the

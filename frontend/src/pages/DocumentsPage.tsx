@@ -28,6 +28,15 @@ type Progress = {
     state: string;
     reason: string | null;
   }[];
+  // A drawing can be "done" with a sheet in it unread.
+  unread_sheets?: {
+    id: string;
+    filename: string;
+    page: number;
+    reason: string;
+  }[];
+  // What asking for the set to be read again would reach.
+  read_again?: { documents: number; sheets: number; views: number };
 };
 
 type Sheet = {
@@ -193,6 +202,95 @@ function useUpload(bidId: string) {
       queryClient.invalidateQueries({ queryKey: ["sheets", bidId] });
     },
   });
+}
+
+function useReadAgain(bidId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await api.POST(
+        "/bids/{bid_id}/documents/read-again",
+        { params: { path: { bid_id: bidId } } },
+      );
+      if (error || !data)
+        throw new Error(apiErrorMessage(error, "Could not read the set again"));
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["progress", bidId] });
+      queryClient.invalidateQueries({ queryKey: ["sheets", bidId] });
+    },
+  });
+}
+
+/** "2 drawings", "1 drawing": a count with its noun. */
+function counted(count: number, noun: string) {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+/**
+ * What was not read, and the one action that reads it again.
+ *
+ * A sheet that failed sits inside a drawing that says "Ready", so it is listed here or
+ * nobody would know. The button is offered only when there is something for it to do.
+ */
+function ReadAgain({ bidId, progress }: { bidId: string; progress: Progress }) {
+  const readAgain = useReadAgain(bidId);
+  const unread = progress.unread_sheets ?? [];
+  const reach = progress.read_again ?? { documents: 0, sheets: 0, views: 0 };
+  if (unread.length === 0 && reach.documents === 0 && reach.views === 0)
+    return null;
+
+  const parts = [
+    reach.documents > 0 && counted(reach.documents, "drawing"),
+    reach.views > 0 &&
+      `the views of ${counted(reach.views, "sheet")} found by an older version`,
+  ].filter(Boolean);
+
+  return (
+    <div className="space-y-3 rounded-lg border border-amber-300 p-4 dark:border-amber-700">
+      {unread.length > 0 && (
+        <>
+          <h2 className="text-sm font-semibold">
+            {unread.length === 1
+              ? "1 sheet could not be read"
+              : `${unread.length} sheets could not be read`}
+          </h2>
+          <ul className="space-y-2">
+            {unread.map((sheet) => (
+              <li key={sheet.id} className="text-sm">
+                <span className="font-medium">{sheet.filename}</span>{" "}
+                <span className="text-muted-foreground">
+                  page {sheet.page}
+                </span>
+                <p className="text-xs text-muted-foreground">{sheet.reason}</p>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {parts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={readAgain.isPending}
+            onClick={() => readAgain.mutate()}
+          >
+            {readAgain.isPending ? "Queuing…" : "Read again"}
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            Reads again {parts.join(" and ")}. Nothing that was read is lost.
+          </p>
+        </div>
+      )}
+      {readAgain.isError && (
+        <p role="alert" className="text-sm text-destructive">
+          {readAgain.error.message}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function Counts({ progress }: { progress: Progress }) {
@@ -367,6 +465,8 @@ export function DocumentsPage() {
               </ul>
             </div>
           )}
+
+          <ReadAgain bidId={bidId} progress={progress.data} />
         </div>
       )}
 

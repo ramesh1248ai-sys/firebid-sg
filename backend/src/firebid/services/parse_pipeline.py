@@ -25,6 +25,11 @@ show until it ended. As a job a sheet it runs on as many processes as the pool h
 Every step is idempotent, because delivery is at-least-once: a parsed sheet is skipped, a
 detected sheet is skipped, and `finish` and `complete` can run twice and change nothing
 that matters the second time.
+
+**Read again** (`read_again`, a person's act): what failed is read once more, by the same
+jobs. A sheet that could not be read, and a drawing that was refused after it was scanned,
+go back through `parse.document`; views found by an older detector are found again by one
+`views.again` job, from the geometry already stored.
 """
 
 from __future__ import annotations
@@ -40,6 +45,7 @@ from sqlalchemy.orm import Session
 
 from firebid.db.models.documents import Document, Sheet
 from firebid.db.models.drawings import SheetGeometry
+from firebid.domain.actors import Actor, AuditContext
 from firebid.sandbox.runner import SandboxFailure, run_sandboxed
 from firebid.services.pages import sheet_payload
 from firebid.storage.object_store import ObjectStore
@@ -473,6 +479,188 @@ def detect_again(
         queue_recompute(session, bid_id, user_id)
     log.info("detection_queued", bid_id=str(bid_id), sheets=len(sheets), queued=queued, force=force)
     return {"sheets": len(sheets)}
+
+
+# --- Read again ------------------------------------------------------------------------------
+
+# The kinds of document the pipeline reads (as `api/documents` queues them).
+READ_KINDS = ("pdf", "dxf", "xlsx", "docx")
+
+
+@dataclass
+class ToReadAgain:
+    """What reading again would reach on a bid."""
+
+    documents: list[Document] = field(default_factory=list)
+    # Sheets that were not read (their reason is kept until they are queued again).
+    sheets: list[Sheet] = field(default_factory=list)
+    # Sheets whose views were found by an older detector than this one.
+    stale_views: list[uuid.UUID] = field(default_factory=list)
+
+    @property
+    def anything(self) -> bool:
+        return bool(self.documents or self.stale_views)
+
+
+def to_read_again(session: Session, bid_id: uuid.UUID) -> ToReadAgain:
+    """The documents and sheets a person can ask to be read again.
+
+    A document: one whose sheet could not be read, or a tender document that was refused
+    after it was scanned (while being read, or when it was finished). Never one refused when
+    it was sent (its type is not accepted), quarantined or not yet scanned; and never one
+    still being read, whose jobs are on their way.
+    """
+    from firebid.db.models.drawings import SheetView
+    from firebid.drawings import views as view_detection
+
+    found = ToReadAgain()
+    found.sheets = list(
+        session.execute(
+            select(Sheet)
+            .join(Document, Document.id == Sheet.document_id)
+            .where(
+                Sheet.bid_id == bid_id,
+                Sheet.parse_error.is_not(None),
+                Document.state.in_(("done", "rejected")),
+                Document.scanned_at.is_not(None),
+            )
+            .order_by(Sheet.document_id, Sheet.index_in_document)
+        ).scalars()
+    )
+    wanted = {sheet.document_id for sheet in found.sheets}
+    found.documents = list(
+        session.execute(
+            select(Document)
+            .where(
+                Document.bid_id == bid_id,
+                Document.scanned_at.is_not(None),
+                Document.kind.in_(READ_KINDS),
+                (Document.state == "rejected") | Document.id.in_(wanted),
+            )
+            .order_by(Document.filename)
+        ).scalars()
+    )
+    found.stale_views = list(
+        session.execute(
+            select(SheetView.sheet_id)
+            .where(
+                SheetView.bid_id == bid_id,
+                SheetView.detector_version != view_detection.DETECTOR_VERSION,
+            )
+            .distinct()
+        ).scalars()
+    )
+    return found
+
+
+def read_again(session: Session, bid_id: uuid.UUID, actor: Actor) -> dict[str, int]:
+    """Queue again what `to_read_again` finds, as the person who asked, and say who did.
+
+    Safe to ask twice: a document queued again is being read, so the second asking does not
+    find it, and one job is waiting for the views.
+    """
+    from firebid.db.audit import record_event
+    from firebid.db.models.core import Bid
+    from firebid.jobs.enqueue import enqueue_once
+    from firebid.jobs.tasks import detect_views_again, parse_document
+
+    if actor.id is None:
+        raise ValueError("reading again is a person's act")
+    user_id = actor.id
+    lock_bid(session, bid_id)
+    found = to_read_again(session, bid_id)
+    for sheet in found.sheets:
+        sheet.parsed_at = None
+        sheet.parse_error = None
+        sheet.detected_at = None
+        sheet.detection_error = None
+    for document in found.documents:
+        document.state = "received"
+        document.rejected_reason = None
+    session.flush()
+    for document in found.documents:
+        enqueue_once(
+            session,
+            parse_document,
+            f"parse.document:{document.id}:again",
+            document_id=str(document.id),
+            user_id=str(user_id),
+        )
+    if found.stale_views:
+        enqueue_once(
+            session,
+            detect_views_again,
+            f"views.again:{bid_id}",
+            bid_id=str(bid_id),
+            user_id=str(user_id),
+        )
+    counts = {
+        "documents": len(found.documents),
+        "sheets": len(found.sheets),
+        "views": len(found.stale_views),
+    }
+    if found.anything:
+        organisation_id = session.execute(
+            select(Bid.organisation_id).where(Bid.id == bid_id)
+        ).scalar_one()
+        record_event(
+            session,
+            context=AuditContext(organisation_id=organisation_id, bid_id=bid_id),
+            actor=actor,
+            action="documents: read again",
+            entity_type=Bid.__tablename__,
+            entity_id=bid_id,
+            after=counts,
+        )
+    log.info("read_again_queued", bid_id=str(bid_id), **counts)
+    return counts
+
+
+def views_again(
+    session: Session, store: ObjectStore, bid_id: uuid.UUID, user_id: uuid.UUID | None
+) -> dict[str, int]:
+    """Find again the views an older detector found, from each sheet's stored geometry.
+
+    A sheet at a time, each committed, so a job that is stopped has lost one sheet's work;
+    a sheet that fails is left as it was and the rest carry on. Then the bid's views are
+    checked against the grid they share, and the sheets whose scale changed are detected
+    again. A person's calibration is carried over to the view that is still there.
+    """
+    from firebid.services import views
+
+    found = to_read_again(session, bid_id).stale_views
+    done = failed = 0
+    for sheet_id in found:
+        # Two of these jobs can run at once (asked again while the first was running): a
+        # sheet one of them holds is the other's to skip, not to find at the same time.
+        record = session.execute(
+            select(SheetGeometry)
+            .where(SheetGeometry.sheet_id == sheet_id)
+            .with_for_update(skip_locked=True)
+        ).scalar_one_or_none()
+        if record is None:
+            session.rollback()
+            continue
+        try:
+            views.detect_sheet(session, store, record)
+            session.commit()
+            done += 1
+        except Exception:
+            session.rollback()
+            failed += 1
+            log.exception("views_again_failed", sheet_id=str(sheet_id))
+    lock_bid(session, bid_id)
+    regraded = views.check_against_grid(session, bid_id)
+    queued = detect_again(session, bid_id, user_id)["sheets"] if done else 0
+    log.info(
+        "views_found_again",
+        bid_id=str(bid_id),
+        sheets=done,
+        failed=failed,
+        regraded=len(regraded),
+        detecting=queued,
+    )
+    return {"sheets": done, "failed": failed, "regraded": len(regraded), "detecting": queued}
 
 
 # --- parse.complete --------------------------------------------------------------------------

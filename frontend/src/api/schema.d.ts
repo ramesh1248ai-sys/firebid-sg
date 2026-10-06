@@ -1134,6 +1134,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/documents/read-again": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Again
+         * @description Read again what could not be read: sheets that failed, drawings refused after they
+         *     were scanned, and views found by an older detector (`progress.read_again` counts them).
+         *
+         *     Safe to call repeatedly: what is queued is being read, so asking again finds nothing.
+         */
+        post: operations["read_again_bids__bid_id__documents_read_again_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/documents/rescan": {
         parameters: {
             query?: never;
@@ -7200,6 +7223,14 @@ export interface components {
             failures: components["schemas"]["FailedDocument"][];
             /** Finished */
             finished: boolean;
+            /**
+             * @default {
+             *       "documents": 0,
+             *       "sheets": 0,
+             *       "views": 0
+             *     }
+             */
+            read_again: components["schemas"]["ReadAgain"];
             /** Sheets */
             sheets: number;
             /**
@@ -7209,6 +7240,11 @@ export interface components {
             sheets_parsed: number;
             /** Total */
             total: number;
+            /**
+             * Unread Sheets
+             * @default []
+             */
+            unread_sheets: components["schemas"]["UnreadSheet"][];
         };
         /** ProposalDecisionIn */
         ProposalDecisionIn: {
@@ -7578,6 +7614,27 @@ export interface components {
             valid_until: string | null;
             /** Version */
             version: number;
+        };
+        /**
+         * ReadAgain
+         * @description What asking for the set to be read again would reach (`POST documents/read-again`).
+         */
+        ReadAgain: {
+            /**
+             * Documents
+             * @default 0
+             */
+            documents: number;
+            /**
+             * Sheets
+             * @default 0
+             */
+            sheets: number;
+            /**
+             * Views
+             * @default 0
+             */
+            views: number;
         };
         /** ReadinessOut */
         ReadinessOut: {
@@ -8422,6 +8479,23 @@ export interface components {
             status: string;
             /** Symbol Key */
             symbol_key: string;
+        };
+        /**
+         * UnreadSheet
+         * @description A sheet of a finished drawing that could not be read, and why.
+         */
+        UnreadSheet: {
+            /** Filename */
+            filename: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Page */
+            page: number;
+            /** Reason */
+            reason: string;
         };
         /**
          * UploadReport
@@ -10781,6 +10855,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OriginProposal"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_again_bids__bid_id__documents_read_again_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
                 };
             };
             /** @description Validation Error */

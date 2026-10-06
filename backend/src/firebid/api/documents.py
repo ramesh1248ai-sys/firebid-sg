@@ -445,6 +445,22 @@ def download(context: CurrentBid, session: DbSession, document_id: uuid.UUID) ->
     return {"url": url, "expires_in": "900"}
 
 
+@router.post("/read-again", response_model=dict[str, int])
+def read_again(
+    context: CurrentBid,
+    session: DbSession,
+    principal: Annotated[Principal, require(Action.DOCUMENT_UPLOAD)],
+) -> dict[str, int]:
+    """Read again what could not be read: sheets that failed, drawings refused after they
+    were scanned, and views found by an older detector (`progress.read_again` counts them).
+
+    Safe to call repeatedly: what is queued is being read, so asking again finds nothing.
+    """
+    from firebid.services import parse_pipeline
+
+    return parse_pipeline.read_again(session, context.bid.id, principal.actor())
+
+
 @router.post("/rescan", response_model=dict[str, int])
 def rescan(
     context: CurrentBid,

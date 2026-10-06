@@ -272,6 +272,24 @@ def test_a_file_released_by_a_rescan_is_queued_to_be_read(
     ]
 
 
+@pytest.mark.req("FR-DOC-01")
+def test_reading_again_is_for_those_who_may_send_documents(
+    sign_in: SignIn, estimator_principal: Principal, director_principal: Principal, bid: Bid
+) -> None:
+    assert (
+        sign_in(director_principal).post(f"/bids/{bid.id}/documents/read-again").status_code == 403
+    )
+
+    answer = sign_in(estimator_principal).post(f"/bids/{bid.id}/documents/read-again")
+
+    # Nothing has failed on this bid, so there is nothing to read again.
+    assert answer.status_code == 200
+    assert answer.json() == {"documents": 0, "sheets": 0, "views": 0}
+    progress = sign_in(estimator_principal).get(f"/bids/{bid.id}/progress").json()
+    assert progress["unread_sheets"] == []
+    assert progress["read_again"] == {"documents": 0, "sheets": 0, "views": 0}
+
+
 def parse_jobs(session: Session, document_id: str) -> list[dict[str, Any]]:
     """The parse jobs queued for one document. The job table outlives each test's cleanup."""
     session.rollback()  # see what the API committed
