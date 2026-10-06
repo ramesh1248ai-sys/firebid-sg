@@ -15,6 +15,14 @@ ENV OPENBLAS_NUM_THREADS=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
 
+# The base image's own packages, patched to the latest fixes, and its pip removed (NFR-06).
+# The base lags Debian's security updates between its own releases, and pip carries copies
+# of other packages inside it that are scanned and patched as if they were ours. Nothing
+# here uses pip: uv installs the dependencies at build time.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    && rm -rf /usr/local/lib/python3*/site-packages/pip /usr/local/lib/python3*/site-packages/pip-*.dist-info /usr/local/bin/pip*
+
 # uv installs the dependencies at build time and is not shipped: it is mounted into
 # the steps that need it, so the image carries no copy (NFR-06: nothing unused to patch).
 
