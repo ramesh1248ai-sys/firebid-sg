@@ -268,6 +268,7 @@ def finish(
     them is. Idempotent."""
     from firebid.jobs.enqueue import enqueue
     from firebid.jobs.tasks import detect_sheet_job
+    from firebid.services import views
     from firebid.services.classification import classify_in_sandbox
     from firebid.services.symbols import consultant_of, match_instances
 
@@ -277,6 +278,9 @@ def finish(
         ).scalars()
     )
     lock_bid(session, document.bid_id)
+    # A sheet that only states its scale is checked against the grid of the sheets whose
+    # scale is proved, whichever was read first: so across the bid, each time one finishes.
+    regraded = views.check_against_grid(session, document.bid_id)
     match_instances(session, document.bid_id, consultant_of(session, document.bid_id))
     classify_in_sandbox(session, document, store.get(document.storage_key))
     for sheet in sheets:
@@ -287,6 +291,10 @@ def finish(
         enqueue(session, detect_sheet_job, sheet_id=str(sheet.id), user_id=str(user_id))
     if not sheets:
         queue_complete(session, document.id, user_id)
+    if {view.sheet_id for view in regraded} - {sheet.id for sheet in sheets}:
+        # Another document's sheet may be measured now, or may no longer be: its lengths
+        # are detected again. Found by fingerprint, which a view's scale is part of.
+        detect_again(session, document.bid_id, user_id)
     failed = sum(1 for sheet in sheets if sheet.parse_error)
     log.info(
         "parse_finished",

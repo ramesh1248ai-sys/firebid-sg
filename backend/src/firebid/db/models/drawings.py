@@ -122,6 +122,12 @@ class SheetView(UuidPk, BidScoped, Base):
     grid: Mapped[dict[str, object] | None] = mapped_column(JSONB)
     # The view's extent in grid units, which is comparable between sheets (FR-VIS-08).
     grid_box: Mapped[list[float] | None] = mapped_column(JSONB)
+    # The gridlines the view's bubbles mark, a row of bubbles at a time:
+    # {"across": [[[label, x], ...], ...], "up": [[[label, y], ...], ...]}.
+    # How one sheet's scale is checked against another's (FR-VIS-05).
+    grid_marks: Mapped[dict[str, list[list[list[object]]]] | None] = mapped_column(
+        JSONB(none_as_null=True)
+    )
     detector_version: Mapped[str] = mapped_column(String(16), nullable=False)
     calibration: Mapped[dict[str, object] | None] = mapped_column(JSONB)
     calibrated_by: Mapped[str | None] = mapped_column(String(200))

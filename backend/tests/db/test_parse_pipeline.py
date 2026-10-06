@@ -22,8 +22,8 @@ from sqlalchemy.orm import Session
 from firebid.api.progress import read_progress
 from firebid.db.models.core import AppUser, Bid
 from firebid.db.models.documents import Document, Sheet, SheetRevision
-from firebid.db.models.drawings import SheetGeometry
-from firebid.evals.synthetic import general_arrangement, write_pdf
+from firebid.db.models.drawings import SheetGeometry, SheetView
+from firebid.evals.synthetic import dxf_bytes, general_arrangement, write_pdf
 from firebid.ingest.scanning import AlwaysCleanScanner
 from firebid.jobs.tasks import parse_document, parse_sheet, retry_stalled_jobs
 from firebid.services import parse_pipeline
@@ -58,10 +58,14 @@ def store(monkeypatch: pytest.MonkeyPatch) -> MemoryObjectStore:
     return memory
 
 
-def upload(session: Session, bid: Bid, store: MemoryObjectStore, payload: bytes) -> Document:
-    outcome = Ingestor(session, store, AlwaysCleanScanner(), bid_id=bid.id).ingest(
-        "tender set.pdf", payload
-    )
+def upload(
+    session: Session,
+    bid: Bid,
+    store: MemoryObjectStore,
+    payload: bytes,
+    name: str = "tender set.pdf",
+) -> Document:
+    outcome = Ingestor(session, store, AlwaysCleanScanner(), bid_id=bid.id).ingest(name, payload)
     assert outcome.stored, outcome.rejected
     session.commit()
     return outcome.stored[0]
@@ -415,6 +419,40 @@ class TestDetectionASheet:
 
         takeoff = [job for job in queued(session, "qto.recompute") if job["bid_id"] == str(bid.id)]
         assert len(takeoff) == 1
+
+
+@pytest.mark.req("FR-VIS-05")
+def test_a_sheet_read_later_proves_the_scale_of_one_read_before_and_it_is_detected_again(
+    session: Session, bid: Bid, user: AppUser, store: MemoryObjectStore, as_application_role: None
+) -> None:
+    # Found on a real tender of one-sheet files: the upper floors carry no dimension and are
+    # read before, or after, the floors whose dimensions prove the scale of the grid they share.
+    above, _ = general_arrangement(sheet_number="FP-L06-201", with_dimensions=False, columns=4)
+    below, _ = general_arrangement(sheet_number="FP-L05-201", columns=4)
+    first = upload(session, bid, store, dxf_bytes(above), "FP-L06-201.dxf")
+    run_parse(session, first.id, user.id)
+    (sheet,) = sheets_of(session, first)
+
+    def view() -> SheetView:
+        session.expire_all()
+        return session.execute(select(SheetView).where(SheetView.sheet_id == sheet.id)).scalar_one()
+
+    assert view().scale_status == "unverified"
+    assert sheet.detected_at is not None
+
+    second = upload(session, bid, store, dxf_bytes(below), "FP-L05-201.dxf")
+    run_parse(session, second.id, user.id)
+
+    assert (view().scale_status, view().denominator) == ("verified", 100.0)
+    # Its lengths may be measured now, so it is queued to be detected again.
+    session.refresh(sheet)
+    assert sheet.detected_at is None
+    waiting = [job["sheet_id"] for job in queued(session, "detection.sheet")]
+    assert waiting.count(str(sheet.id)) == 1
+    assert all(
+        document.state == "done"
+        for document in session.execute(select(Document).where(Document.bid_id == bid.id)).scalars()
+    )
 
 
 @pytest.mark.parametrize(

@@ -106,15 +106,26 @@ gaps:
       finding its symbol shapes from 2.1 GB to 1.2 GB, so it fits a parser job's 2 GiB. Two
       such sheets at once use most of the pool's 4 GiB.
     action: "Profile the symbol stage further if heavier sheets are met; the pool now restarts if killed."
-  - gap: "A real plan with no dimensions needs a person to calibrate its scale"
+  - gap: "A plan with no dimensions and no gridline in common with a proved sheet still needs a calibration"
     cause: >-
-      None of the MOH sheets carries a dimension, and the scale is printed under the view
-      title, not in the title block ("As indicated"). That scale is now read as the view's
-      stated scale, but by design a stated scale with nothing to check it against is not
-      trusted, so every plan view still waits for a calibration.
+      On the real set 68 of 145 plans state a scale that nothing on them confirms (the upper
+      floors carry no dimension). A sheet is now verified by the grid it shares with a sheet
+      whose scale is proved, by its own dimensions or by a person's calibration: 62 of the 68
+      are. Six are left: sheets with fewer than three gridline bubbles in a row whose spacing
+      is known (the skewed wing, and two with none).
     action: >-
-      Pilot runbook: calibrate each plan on a known grid spacing. Product owner: consider
-      letting a person confirm the stated scale in one step where a sheet has no dimension.
+      Pilot runbook: calibrate those on a known length; one calibration then serves every
+      sheet on the same gridlines. A bid's views are checked when a document finishes or a
+      view is calibrated; a bid read before this needs its views detected again.
+  - gap: "A real plan's gridlines are dashed, so it has no grid references"
+    cause: >-
+      `grids.detect` wants a long line ending at each bubble, and finds no grid on any of the
+      148 real sheets, so no object on them gets a grid reference (FR-VIS-07) and enlarged
+      plans cannot be matched by grid. The bubbles in a row are now read for checking scale
+      only.
+    action: >-
+      Build the grid from the rows of bubbles too. A skewed wing's bubbles do not stand
+      square to their gridlines, so that needs the dashed lines followed, not only bubbles.
   - gap: "A real sheet's DXF export is about 110 MB on disk"
     cause: >-
       A real A0 sheet has 1.5 million line segments. The export is now made by a job in
