@@ -2136,3 +2136,19 @@ Entry template:
 - **Also seen, not acted on:** the helipad and upper roof sheets each get a schematic view beside their plan; levels 15 and 21, like level 10, carry no dimension and need a person's calibration.
 - **Requirement IDs covered (test names):** FR-VIS-05: `tests/drawings/test_views.py::TestFiguresThatAreNotDimensions`. NFR-01: `tests/db/test_parse_pipeline.py::TestFailure::test_a_sheet_whose_linework_could_not_be_read_says_so_and_keeps_its_title_block`.
 - **Tests:** 1,527 non-database tests; the parse pipeline's failure tests. The rest of the database suite was not rerun.
+
+## Fix · Memory on a heavy real sheet · 2026-10-06
+
+- **Summary:** the whole MOH set (148 sheets) was run through the stack. At sheet 117 the parser pool was killed for memory and did not come back; four sheets had already failed for memory on their own. Reading a heavy sheet now takes a third of the memory, and the pool restarts if it is killed. With the fix, the remaining 31 sheets were read with no failure.
+- **Cause:** two stages held every primitive of the sheet as a Python value a cell. A real A0 plan has up to two million primitives.
+  - `drawings/geometry.Builder` collected all of them in Python lists before making the table.
+  - `drawings/symbols.candidates` turned eleven columns of the whole table into Python values (`to_pydict`), and `geometry.segments` then copied every column of the table to read three.
+- **Fix:**
+  - `Builder` packs what it has collected into the table's own form every 50,000 primitives (`PACK_EVERY`); `len(builder)` and `builder.has(kind)` answer for all of them; a DXF viewport, which goes back over its own lines to cut them, collects `unpacked()`.
+  - `geometry.kind_mask`, `shared_values` and `numbers` read a column without a Python value a cell: a boolean array, an array in which equal words are one object, floats with NaN where there is none. `symbols._Columns` gives finding symbols the same `columns[name][row]` from them; the loose shapes of a symbol's size are picked with arrays, not a row at a time.
+  - `geometry.segments` copies only the columns it reads.
+  - `infra/docker-compose.yml`: the sandbox restarts unless stopped.
+- **Measured on `A03-06-03` (1.96 million primitives):** reading its linework 1,643 MB to 604 MB; finding its symbol shapes 2,134 MB to 1,214 MB; times unchanged. Under the sandbox's limits in the Dev Container, the four sheets that failed pass extraction, symbol shapes and rendering.
+- **Requirement IDs covered (test names):** NFR-01: `tests/drawings/test_geometry.py::TestAHeavySheet` (packed as collected, the same table; a caller may go back over what it added; kinds, words and numbers read the same); `tests/drawings/test_symbols.py::test_candidates_are_the_ones_a_value_a_cell_found`.
+- **Tests:** 1,531 non-database tests. The database suite runs in CI on this change.
+- **Found by the same run, not fixed here:** finishing a document matches every symbol instance of the bid again. With 148 one-sheet files and 448,000 instances that is 148 full passes: the pool's memory crept to its limit and one document was rejected when the database could not sort them. See the gap list.

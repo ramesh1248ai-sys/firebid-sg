@@ -16,7 +16,7 @@ import ctypes
 import math
 from typing import Any
 
-from firebid.drawings.geometry import Builder, Method, bezier_points, to_parquet
+from firebid.drawings.geometry import Builder, Kind, Method, bezier_points, to_parquet
 from firebid.parsing.pdf import PdfUnreadable, _open
 
 POINTS_TO_MM = 25.4 / 72
@@ -105,7 +105,7 @@ def _pdfium(payload: bytes, index: int) -> tuple[bytes, str | None]:
         walk(page.raw, raw.FPDFPage_CountObjects(page.raw), raw.FPDFPage_GetObject, IDENTITY, 0)
         page_area = max(abs(right - left) * abs(top - bottom), 1.0)
         note = None
-        has_text = "text" in builder.columns["kind"]
+        has_text = builder.has(Kind.TEXT)
         if not has_text and image_area[0] / page_area >= SCAN_COVERAGE:
             note = _ocr_words(payload, index, builder)
         return to_parquet(builder.table()), note

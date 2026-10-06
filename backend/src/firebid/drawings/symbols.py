@@ -35,7 +35,7 @@ from typing import Any
 import numpy as np
 import pyarrow as pa
 
-from firebid.drawings.geometry import Kind, segments
+from firebid.drawings.geometry import Kind, kind_mask, numbers, segments, shared_values
 
 # Bump when signatures change: stored signatures and instances are recomputed.
 SIGNATURE_VERSION = "1"
@@ -156,11 +156,10 @@ class Sampler:
         # it has one, is one of the second. Both parts are in primitive order.
         self._owner, self._closer, self._cut = lines.row[:cut], lines.row[cut:], cut
         self._cut_last = max(int(self._closer.size) - 1, 0)
-        kinds = np.asarray(table.column("kind").to_pylist(), dtype=object)
-        self._circle = kinds == str(Kind.CIRCLE)
+        self._circle = kind_mask(table, (Kind.CIRCLE,))
+        # NaN where a row has none: only a circle's are read, and a circle has all three.
         self._cx, self._cy, self._radius = (
-            np.asarray(table.column(name).to_pylist(), dtype=object)
-            for name in ("cx", "cy", "radius")
+            numbers(table.column(name)) for name in ("cx", "cy", "radius")
         )
 
     def sample(self, rows: tuple[int, ...] | list[int]) -> tuple[np.ndarray, np.ndarray]:
@@ -372,60 +371,45 @@ def candidates(table: pa.Table) -> list[Cluster]:
 
     Depends only on the sheet's geometry, so it is found once and shared.
     """
-    columns = table.select(
-        [
-            "kind",
-            "group",
-            "block",
-            "text",
-            "value",
-            "rotation",
-            "layer",
-            "color",
-            "minx",
-            "miny",
-            "maxx",
-            "maxy",
-        ]
-    ).to_pydict()
+    columns = _Columns(table)
     kinds = columns["kind"]
-    shape = {str(kind) for kind in SHAPE_KINDS}
+    shape = np.isin(kinds, [str(kind) for kind in SHAPE_KINDS])
     found: list[Cluster] = []
 
-    in_insert: set[int] = set()
-    by_group: dict[int, list[int]] = {}
-    for row, kind in enumerate(kinds):
-        if kind in shape:
+    # A block insert's parts are the shapes of its group. Only a CAD file has inserts.
+    in_insert = np.zeros(len(kinds), dtype=bool)
+    inserts = np.flatnonzero(kinds == str(Kind.INSERT))
+    if inserts.size:
+        groups = columns.array("group")
+        by_group: dict[int, list[int]] = {}
+        for row in np.flatnonzero(shape & np.isin(groups, groups[inserts])).tolist():
             by_group.setdefault(columns["group"][row], []).append(row)
-    for row, kind in enumerate(kinds):
-        if kind != str(Kind.INSERT):
-            continue
-        parts = tuple(by_group.get(columns["group"][row], []))
-        if not parts:
-            continue
-        in_insert.update(parts)
-        box = _box_of(columns, parts)
-        if not _symbol_sized(box):
-            continue
-        found.append(
-            Cluster(
-                rows=parts,
-                box=box,
-                block=columns["block"][row],
-                block_hash=columns["text"][row],
-                rotation=columns["rotation"][row],
-                scale=columns["value"][row],
+        for row in inserts.tolist():
+            parts = tuple(by_group.get(columns["group"][row], []))
+            if not parts:
+                continue
+            in_insert[list(parts)] = True
+            box = _box_of(columns, parts)
+            if not _symbol_sized(box):
+                continue
+            found.append(
+                Cluster(
+                    rows=parts,
+                    box=box,
+                    block=columns["block"][row],
+                    block_hash=columns["text"][row],
+                    rotation=columns["rotation"][row],
+                    scale=columns["value"][row],
+                )
             )
-        )
 
-    loose = [
-        row
-        for row, kind in enumerate(kinds)
-        if kind in shape
-        and row not in in_insert
-        and columns["minx"][row] is not None
-        and _symbol_sized(_box_of(columns, (row,)))
-    ]
+    # The loose shapes of a symbol's size: every row's box at once, not a row at a time.
+    minx, miny = columns.array("minx"), columns.array("miny")
+    maxx, maxy = columns.array("maxx"), columns.array("maxy")
+    with np.errstate(invalid="ignore"):
+        diagonal = np.hypot(maxx - minx, maxy - miny)
+        sized = (diagonal >= SYMBOL_MIN_MM) & (diagonal <= SYMBOL_MAX_MM * math.sqrt(2))
+    loose = np.flatnonzero(shape & ~in_insert & ~np.isnan(minx) & sized).tolist()
     for group in _touching(columns, loose):
         box = _box_of(columns, group)
         if _symbol_sized(box):
@@ -449,9 +433,50 @@ def _inside(x: float, y: float, box: tuple[float, float, float, float]) -> bool:
     return box[0] <= x <= box[2] and box[1] <= y <= box[3]
 
 
-def _box_of(
-    columns: dict[str, list[Any]], rows: tuple[int, ...] | list[int]
-) -> tuple[float, float, float, float]:
+class _Numbers:
+    """A column of numbers read a row at a time from its array: `None` where it has none,
+    as a list of the column's values would give, without holding one."""
+
+    __slots__ = ("_whole", "array")
+
+    def __init__(self, column: Any) -> None:
+        self.array = numbers(column)
+        self._whole = pa.types.is_integer(column.type)
+
+    def __getitem__(self, row: int) -> Any:
+        value = self.array[row]
+        if value != value:
+            return None
+        return int(value) if self._whole else float(value)
+
+    def __len__(self) -> int:
+        return int(self.array.size)
+
+
+class _Columns:
+    """The columns finding symbols reads, each as `columns[name][row]`.
+
+    As `table.select(...).to_pydict()` read them, but that is a Python value for every cell:
+    on a plan of two million primitives, most of a gigabyte. Words are shared between rows
+    and numbers stay in their arrays.
+    """
+
+    WORDS = ("kind", "block", "text", "layer")
+    NUMBERS = ("group", "value", "rotation", "color", "minx", "miny", "maxx", "maxy")
+
+    def __init__(self, table: pa.Table) -> None:
+        self._words = {name: shared_values(table.column(name)) for name in self.WORDS}
+        self._numbers = {name: _Numbers(table.column(name)) for name in self.NUMBERS}
+
+    def __getitem__(self, name: str) -> Any:
+        return self._words[name] if name in self._words else self._numbers[name]
+
+    def array(self, name: str) -> np.ndarray:
+        """A number column whole, with NaN where it has none."""
+        return self._numbers[name].array
+
+
+def _box_of(columns: Any, rows: tuple[int, ...] | list[int]) -> tuple[float, float, float, float]:
     return (
         min(columns["minx"][row] for row in rows),
         min(columns["miny"][row] for row in rows),
@@ -469,7 +494,7 @@ def _symbol_sized(box: tuple[float, float, float, float]) -> bool:
 PAIR_CHUNK = 2_000_000
 
 
-def _touching(columns: dict[str, list[Any]], rows: list[int]) -> list[list[int]]:
+def _touching(columns: Any, rows: list[int]) -> list[list[int]]:
     """Groups of primitives whose boxes touch (within `TOUCH_MM`), each in the rows' order.
 
     Only primitives drawn alike (same layer and colour) join: a symbol is drawn in one pen,

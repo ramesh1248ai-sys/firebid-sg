@@ -72,26 +72,32 @@ gaps:
     action: >-
       Run the rest of the MOH set and a second consultant's drawings; a person confirms
       each sheet's side on the Design page meanwhile.
-  - gap: "A real design-intent tender has been taken to a design basis on 28 sheets of 148"
+  - gap: "The whole real set has been read once; its design basis has not been summarised"
     cause: >-
-      Four tenth-storey sheets, then 24 from eight other levels of the MOH set. All 28 are
-      read and Current with the right number; 27 get a plan view, most with a scale the
-      sheet's own grid dimensions verify; their match lines and neighbours are found. Four
-      have been laid out and two exported. The other 120 sheets and any other consultant's
-      drawings have not been run.
+      All 148 sheets of the MOH set were uploaded to one bid. Every sheet read is Current
+      with the right number, every readable sheet has a plan view, and about half have a
+      scale their own grid dimensions verify. Four sheets failed for memory before the fix
+      below and were not read again. The design basis and match lines across the whole set
+      were not tallied, and no other consultant's drawings have been run.
     action: >-
-      Run the whole set before the pilot, and a second consultant's drawings; fix what they
-      show.
-  - gap: "The heaviest real sheets do not fit the parser sandbox's memory"
+      Read the four again; read the design basis for the set; lay out one whole floor and
+      compare its head count with the estimators'.
+  - gap: "Finishing a document matches every symbol of the bid again"
     cause: >-
-      One sheet of the 28 (A03-06-03, nearly two million primitives) needs about 1.6 GB to
-      have its linework read, past the sandbox's 2 GiB address-space limit. It is now
-      recorded as a failed sheet, with why, and keeps its title block; before, it finished
-      as if read. Nothing can be measured or designed on it.
+      Matching symbols to legend rows runs once a document over every symbol instance of
+      the bid. A tender sent as 148 one-sheet files has 448,000 instances, so it ran 148
+      times over all of them: the parser pool's memory crept to its limit, and one
+      document was rejected when the database could not sort them.
     action: >-
-      Decide: raise the sandbox's memory limit (the container has 4 GiB for two jobs at
-      once), or have the extraction use less (it builds every primitive in Python lists
-      before writing them).
+      Match the instances of the document just read, and the whole bid only when its
+      legend rows changed. Then decide whether a plan's furniture should be kept as
+      candidate symbols at all (about 3,000 a sheet here).
+  - gap: "The heaviest real sheet still takes 1.2 GB to find its symbols"
+    cause: >-
+      Reading a two-million-primitive sheet's linework fell from 1.6 GB to 0.6 GB and
+      finding its symbol shapes from 2.1 GB to 1.2 GB, so it fits a parser job's 2 GiB. Two
+      such sheets at once use most of the pool's 4 GiB.
+    action: "Profile the symbol stage further if heavier sheets are met; the pool now restarts if killed."
   - gap: "A real plan with no dimensions needs a person to calibrate its scale"
     cause: >-
       None of the MOH sheets carries a dimension, and the scale is printed under the view
@@ -187,7 +193,7 @@ recommendation: >-
   tenders, and no pilot has run and no turnaround baseline exists. Recommended: (1) fix CI
   billing and run the full pipeline on main; (2) decide D2 so the model routes can be
   measured and costed; (3) record the turnaround baseline and confirm the placeholder
-  figures; (4) run a whole real design-intent tender through the platform (28 of its
-  148 sheets have been, to a design basis);
+  figures; (4) make finishing a document scale with a tender sent as many files, then take
+  a whole floor of the real set to a layout and compare it with the estimators' count;
   (5) run the assisted-mode pilot on at least three live tenders and regenerate this report with `make exit-report-p2 LIVE=1`. Hold the gate
   review until that report shows the three criteria measured.

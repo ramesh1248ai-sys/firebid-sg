@@ -344,3 +344,100 @@ def test_a_block_hash_matches_before_any_shape() -> None:
     found = symbols.best_match(symbols.Signature(_arrow_bar(), 1.0, block_hash="xyz"), shapes)
 
     assert found == symbols.Match(1, 0.0, "block_hash")
+
+
+@pytest.mark.req("NFR-01")
+def test_candidates_are_the_ones_a_value_a_cell_found() -> None:
+    """The symbols found are the same whether the columns are read as arrays (as they now
+    are, for a plan of two million primitives) or as a Python value a cell (as they were)."""
+    import math
+
+    from firebid.drawings.geometry import Builder, Kind, Method
+
+    builder = Builder(Method.CAD)
+    rng = np.random.default_rng(11)
+    for index in range(400):
+        x, y = float(rng.uniform(0, 400)), float(rng.uniform(0, 280))
+        group = builder.group()
+        size = float(rng.choice([0.2, 2.0, 4.0, 60.0]))
+        layer = str(rng.choice(["FP-HEAD", "A-WALL"]))
+        if index % 6 == 0:
+            builder.circle(x, y, size / 2, group, layer=layer)
+        else:
+            builder.line(x, y, x + size, y + size / 2, group, layer=layer)
+            if index % 4 == 0:
+                builder.line(x + size, y + size / 2, x, y + size, group, layer=layer)
+        if index % 9 == 0:
+            builder.insert(
+                "HEAD", x, y, group, box=(x - 1, y - 1, x + size + 1, y + size + 1), rotation=0.0
+            )
+    builder.text("NOTE", (10.0, 10.0, 30.0, 13.0), builder.group(), height=3.0)
+    table = builder.table()
+
+    def by_value(table: Any) -> list[symbols.Cluster]:
+        columns = table.select(
+            [
+                "kind",
+                "group",
+                "block",
+                "text",
+                "value",
+                "rotation",
+                "layer",
+                "color",
+                "minx",
+                "miny",
+                "maxx",
+                "maxy",
+            ]
+        ).to_pydict()
+        kinds = columns["kind"]
+        shape = {str(kind) for kind in symbols.SHAPE_KINDS}
+        found: list[symbols.Cluster] = []
+        in_insert: set[int] = set()
+        by_group: dict[int, list[int]] = {}
+        for row, kind in enumerate(kinds):
+            if kind in shape:
+                by_group.setdefault(columns["group"][row], []).append(row)
+        for row, kind in enumerate(kinds):
+            if kind != str(Kind.INSERT):
+                continue
+            parts = tuple(by_group.get(columns["group"][row], []))
+            if not parts:
+                continue
+            in_insert.update(parts)
+            box = symbols._box_of(columns, parts)
+            if symbols._symbol_sized(box):
+                found.append(
+                    symbols.Cluster(
+                        rows=parts,
+                        box=box,
+                        block=columns["block"][row],
+                        block_hash=columns["text"][row],
+                        rotation=columns["rotation"][row],
+                        scale=columns["value"][row],
+                    )
+                )
+        loose = [
+            row
+            for row, kind in enumerate(kinds)
+            if kind in shape
+            and row not in in_insert
+            and columns["minx"][row] is not None
+            and symbols._symbol_sized(symbols._box_of(columns, (row,)))
+        ]
+        for group in symbols._touching(columns, loose):
+            box = symbols._box_of(columns, group)
+            if symbols._symbol_sized(box):
+                found.append(symbols.Cluster(rows=tuple(group), box=box))
+        return found
+
+    expected = by_value(table)
+    found = symbols.candidates(table)
+
+    assert len(expected) > 50 and any(cluster.block for cluster in expected)
+    assert [(c.rows, c.block, c.block_hash, c.rotation, c.scale) for c in found] == [
+        (c.rows, c.block, c.block_hash, c.rotation, c.scale) for c in expected
+    ]
+    for got, want in zip(found, expected, strict=True):
+        assert all(math.isclose(a, b) for a, b in zip(got.box, want.box, strict=True))
