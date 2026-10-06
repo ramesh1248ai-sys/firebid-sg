@@ -27,12 +27,15 @@ from __future__ import annotations
 
 import io
 import math
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, cast
 
 import numpy as np
 import pyarrow as pa
+import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 # Bump when extraction changes what it produces: the stage cache is keyed on it, so every
@@ -95,19 +98,61 @@ _FIELDS: list[tuple[str, pa.DataType]] = [
 SCHEMA = pa.schema([pa.field(name, kind) for name, kind in _FIELDS])
 
 
+# Primitives are packed away this many at a time as they are collected. A real A0 plan has
+# two million of them, and held as Python values until the end they took over a gigabyte,
+# which with the table made from them was more than a parser job is allowed.
+PACK_EVERY = 50_000
+
+
 @dataclass
 class Builder:
     """Collects primitives during extraction, then freezes them into a table.
 
     Extraction is a per-object walk whatever the engine, so this is the one place a Python
     loop over primitives is expected. Everything downstream works on the columns.
+
+    The primitives collected are packed into the table's own form every `PACK_EVERY`, so
+    the memory in use is the table so far and one batch of Python values, not all of them.
     """
 
     method: Method
+    # The primitives not yet packed. `len(builder)` and `has(kind)` answer for all of them.
     columns: dict[str, list[Any]] = field(
         default_factory=lambda: {name: [] for name in SCHEMA.names}
     )
     next_group: int = 0
+    _packed: list[pa.RecordBatch] = field(default_factory=list, repr=False)
+    _packed_rows: int = 0
+    _kinds: set[str] = field(default_factory=set, repr=False)
+    _held: bool = field(default=False, repr=False)
+
+    def __len__(self) -> int:
+        return self._packed_rows + len(self.columns["kind"])
+
+    def has(self, kind: Kind) -> bool:
+        """Whether any primitive of this kind has been collected."""
+        return str(kind) in self._kinds
+
+    @contextmanager
+    def unpacked(self) -> Iterator[int]:
+        """Collect without packing for a while, for a caller that goes back over what it
+        has just added (a DXF viewport, which cuts its lines at its edge). Yields where in
+        `columns` its own primitives start."""
+        self._pack()
+        self._held = True
+        try:
+            yield len(self.columns["kind"])
+        finally:
+            self._held = False
+            self._pack()
+
+    def _pack(self) -> None:
+        rows = len(self.columns["kind"])
+        if not rows:
+            return
+        self._packed.append(pa.record_batch(self.columns, schema=SCHEMA))
+        self._packed_rows += rows
+        self.columns = {name: [] for name in SCHEMA.names}
 
     def group(self) -> int:
         self.next_group += 1
@@ -145,6 +190,9 @@ class Builder:
             raise TypeError(f"unknown primitive fields: {sorted(values)}")
         for name, value in row.items():
             self.columns[name].append(value)
+        self._kinds.add(row["kind"])
+        if not self._held and len(self.columns["kind"]) >= PACK_EVERY:
+            self._pack()
 
     def line(self, x0: float, y0: float, x1: float, y1: float, group: int, **style: Any) -> None:
         self._add(Kind.LINE, [x0, y0, x1, y1], group, **style)
@@ -264,7 +312,8 @@ class Builder:
             self._add(Kind.HATCH, points, group, closed=True, **style)
 
     def table(self) -> pa.Table:
-        return pa.table(self.columns, schema=SCHEMA)
+        self._pack()
+        return pa.Table.from_batches(self._packed, schema=SCHEMA)
 
 
 def arc_points(
@@ -309,8 +358,43 @@ def from_parquet(payload: bytes) -> pa.Table:
 
 
 def counts(table: pa.Table) -> dict[str, int]:
-    kinds = table.column("kind").to_pylist()
-    return {str(kind): kinds.count(str(kind)) for kind in Kind if str(kind) in kinds}
+    counted: Any = pc.value_counts(table.column("kind"))
+    found = {str(item["values"]): int(item["counts"]) for item in counted.to_pylist()}
+    return {str(kind): found[str(kind)] for kind in Kind if str(kind) in found}
+
+
+# A real A0 plan has two million primitives. A column read as a Python value a primitive is
+# tens of bytes each, a hundred megabytes a column; these read a column without doing that.
+
+
+def kind_mask(table: pa.Table, kinds: tuple[Kind, ...]) -> np.ndarray:
+    """Which rows are of these kinds, as a boolean array."""
+    wanted = pa.array([str(kind) for kind in kinds], type=table.schema.field("kind").type)
+    found: Any = pc.is_in(table.column("kind"), value_set=wanted)
+    mask: np.ndarray = found.to_numpy(zero_copy_only=False).astype(bool)
+    return mask
+
+
+def shared_values(column: Any) -> np.ndarray:
+    """A column of words (layers, kinds, block names) as an array of Python values in
+    which equal words are one object: a pointer a row, however many rows there are."""
+    whole = column.combine_chunks() if isinstance(column, pa.ChunkedArray) else column
+    if len(whole) == 0:
+        return np.empty(0, dtype=object)
+    encoded = whole.dictionary_encode()
+    words = np.empty(len(encoded.dictionary) + 1, dtype=object)
+    words[:-1] = encoded.dictionary.to_pylist()
+    words[-1] = None
+    at = encoded.indices.fill_null(len(encoded.dictionary)).to_numpy(zero_copy_only=False)
+    shared: np.ndarray = words[at]
+    return shared
+
+
+def numbers(column: Any) -> np.ndarray:
+    """A column of numbers as floats, with NaN where it has none."""
+    whole = column.combine_chunks() if isinstance(column, pa.ChunkedArray) else column
+    values: np.ndarray = pc.cast(whole, pa.float64()).to_numpy(zero_copy_only=False)
+    return values
 
 
 # --- Reading it back, vectorised -------------------------------------------------------------
@@ -342,21 +426,20 @@ def segments(
     table: pa.Table, kinds: tuple[Kind, ...] = (Kind.LINE, Kind.POLYLINE, Kind.ARC)
 ) -> Segments:
     """Explode lines, polylines and arcs into segments, without a Python loop per point."""
-    wanted = np.isin(
-        np.asarray(table.column("kind").to_pylist(), dtype=object), [str(kind) for kind in kinds]
-    )
-    rows = np.flatnonzero(wanted)
+    rows = np.flatnonzero(kind_mask(table, kinds))
     if rows.size == 0:
         empty = np.empty(0)
         return Segments(
             empty, empty, empty, empty, np.empty(0, dtype=object), np.empty(0, dtype=np.int64)
         )
-    picked = table.take(rows)
+    # Only the columns read below: a copy of every column of two million rows is a few
+    # hundred megabytes that nothing looks at.
+    picked = table.select(["points", "closed", "layer"]).take(rows)
     points = cast("pa.ListArray[Any]", picked.column("points").combine_chunks())
     flat = points.values.to_numpy(zero_copy_only=False)
     offsets = points.offsets.to_numpy()
     closed = picked.column("closed").to_numpy(zero_copy_only=False)
-    layers = np.asarray(picked.column("layer").to_pylist(), dtype=object)
+    layers = shared_values(picked.column("layer"))
 
     # Point i of the flat array starts a segment unless it is the last of its primitive.
     point_offsets = offsets // 2
@@ -389,8 +472,7 @@ def segments(
 
 def texts(table: pa.Table) -> list[dict[str, Any]]:
     """The text spans, as rows. Few enough per sheet that a list is the right shape."""
-    kinds = np.asarray(table.column("kind").to_pylist(), dtype=object)
-    rows = np.flatnonzero(kinds == str(Kind.TEXT))
+    rows = np.flatnonzero(kind_mask(table, (Kind.TEXT,)))
     picked = table.take(rows).select(
         [
             "text",

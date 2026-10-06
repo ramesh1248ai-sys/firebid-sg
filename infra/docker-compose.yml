@@ -209,6 +209,11 @@ services:
       FIREBID_WORKER_NAME: sandbox
       # Two sheet jobs at once (ADR-010), within the 2 CPU and 4 GiB below.
       FIREBID_WORKER_CONCURRENCY: "2"
+    # It comes back if it is killed. A tender with sheets heavy enough to take the pool past
+    # its memory once stopped it for good, and every sheet after it waited unread; the jobs
+    # it was running are queued again by the stalled-job check, and fail for good on their
+    # own after a few attempts rather than taking the pool down each time.
+    restart: unless-stopped
     networks:
       - sandbox
     user: "10001:10001"

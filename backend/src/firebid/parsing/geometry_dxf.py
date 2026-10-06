@@ -122,9 +122,10 @@ def _through_viewport(
     left, top = paper.to_sheet(cx - width / 2, cy + height / 2)
     right, bottom = paper.to_sheet(cx + width / 2, cy - height / 2)
     clip = (left, top, right, bottom)
-    before = len(builder.columns["kind"])
-    _entities(document.modelspace(), placement, builder)
-    _clip_from(builder, before, clip)
+    # The viewport's own primitives, kept unpacked while they are cut at its edge.
+    with builder.unpacked() as before:
+        _entities(document.modelspace(), placement, builder)
+        _clip_from(builder, before, clip)
     return {
         "kind": "viewport",
         "extent": list(clip),

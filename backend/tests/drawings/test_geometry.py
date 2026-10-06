@@ -218,3 +218,76 @@ class TestRasterText:
 
         assert "could not be read" in str(result["ocr_note"])
         assert geometry.texts(table_of(result)) == []
+
+
+@pytest.mark.req("NFR-01")
+class TestAHeavySheet:
+    """Found on a real tender: a plan of two million primitives took more memory to read
+    than a parser job is allowed, held as a Python value a cell until the end."""
+
+    def build(self, count: int) -> Builder:
+        builder = Builder(Method.PDF_VECTOR)
+        for index in range(count):
+            x = float(index % 500)
+            if index % 7 == 0:
+                builder.text(f"T{index}", (x, 1.0, x + 4.0, 3.0), builder.group(), height=2.0)
+            elif index % 5 == 0:
+                builder.circle(x, 5.0, 1.5, builder.group(), layer="FP-HEAD", color=0xFF0000)
+            else:
+                builder.line(x, 0.0, x + 1.0, float(index % 9), builder.group(), layer="A-WALL")
+        return builder
+
+    def test_primitives_are_packed_as_they_are_collected_and_the_table_is_the_same(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        whole = self.build(2_500).table()
+        monkeypatch.setattr(geometry, "PACK_EVERY", 400)
+
+        builder = self.build(2_500)
+        held = len(builder.columns["kind"])
+        packed = builder.table()
+
+        # Never more than one batch held as Python values, however many were collected.
+        assert held < 400 and len(builder) == 2_500
+        assert builder.has(Kind.TEXT) and builder.has(Kind.CIRCLE)
+        assert not builder.has(Kind.INSERT)
+        assert packed.num_rows == 2_500
+        assert packed.to_pylist() == whole.to_pylist()
+        assert geometry.from_parquet(geometry.to_parquet(packed)).to_pylist() == whole.to_pylist()
+
+    def test_a_caller_may_go_back_over_what_it_has_just_added(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(geometry, "PACK_EVERY", 10)
+        builder = self.build(25)
+
+        with builder.unpacked() as start:
+            for index in range(30):
+                builder.line(0.0, 0.0, 1.0, float(index), builder.group())
+            # As a DXF viewport cuts its own lines: all thirty are still there to change.
+            assert len(builder.columns["kind"]) - start == 30
+            builder.columns["layer"][start] = "CUT"
+
+        table = builder.table()
+        assert table.num_rows == 55
+        assert table.column("layer").to_pylist()[25] == "CUT"
+
+    def test_kinds_words_and_numbers_are_read_without_a_python_value_a_cell(self) -> None:
+        table = self.build(700).table()
+        kinds = table.column("kind").to_pylist()
+
+        mask = geometry.kind_mask(table, (Kind.LINE, Kind.CIRCLE))
+        layers = geometry.shared_values(table.column("layer"))
+        radii = geometry.numbers(table.column("radius"))
+
+        assert mask.tolist() == [kind in ("line", "circle") for kind in kinds]
+        assert layers.tolist() == table.column("layer").to_pylist()
+        # Equal words are one object, so a column costs a pointer a row.
+        assert len({id(word) for word in layers.tolist()}) == 3  # A-WALL, FP-HEAD, None
+        expected = table.column("radius").to_pylist()
+        assert [None if value != value else value for value in radii.tolist()] == expected
+        assert geometry.counts(table) == {
+            "line": kinds.count("line"),
+            "circle": kinds.count("circle"),
+            "text": kinds.count("text"),
+        }
