@@ -2152,3 +2152,11 @@ Entry template:
 - **Requirement IDs covered (test names):** NFR-01: `tests/drawings/test_geometry.py::TestAHeavySheet` (packed as collected, the same table; a caller may go back over what it added; kinds, words and numbers read the same); `tests/drawings/test_symbols.py::test_candidates_are_the_ones_a_value_a_cell_found`.
 - **Tests:** 1,531 non-database tests. The database suite runs in CI on this change.
 - **Found by the same run, not fixed here:** finishing a document matches every symbol instance of the bid again. With 148 one-sheet files and 448,000 instances that is 148 full passes: the pool's memory crept to its limit and one document was rejected when the database could not sort them. See the gap list.
+
+## Fix · Matching symbols on a tender of many files · 2026-10-06
+
+- **Summary:** finishing a document matched every symbol instance of the bid by reading every instance's shape as text. On the real set (148 one-sheet files, 448,199 instances, each shape several kilobytes) that was three gigabytes held in the parser pool, once a document: its memory crept to its limit, and one document was rejected when the database could not sort the rows ("unexpected end of tape").
+- **Fix (`services/symbols.match_instances`):** every instance is read once as a digest of its shape (`md5` of the text, worked out by the database), and a shape's own text only for the first instance of each shape, 2,000 shapes a statement (`READ_CHUNK`). Shapes are worked out in the order of their first instance, as before, so the matches and the groups of unexplained symbols are what they were.
+- **Measured on the real bid:** one pass over 448,199 instances (56,774 shapes) in 41 seconds, peak 576 MB.
+- **Requirement IDs covered (test names):** NFR-01: `tests/db/test_symbol_mapping.py::...::test_a_shape_s_text_is_read_once_a_shape_however_the_shapes_are_batched`; `test_matching_again_writes_nothing` (one statement reads every instance, as a digest).
+- **Not fixed:** it is still one pass a document, and a plan's furniture is still kept as candidate symbols (about 3,000 a sheet). See the gap list.

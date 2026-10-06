@@ -692,9 +692,15 @@ def match_instances(
     # in turn, a later copy of a shape could join a group that did not exist when the first
     # copy was read, so one shape was raised under two keys (131 shapes on that tender).
     # Now a shape is in one group, and the same instances give the same groups every time.
+    #
+    # A shape is read as a digest of its text, worked out by the database, and the text
+    # itself only for the first instance of each shape. A shape's text is several
+    # kilobytes: on a real tender of 450,000 instances reading every one's was three
+    # gigabytes held in this process, once for every document of the tender, and more
+    # than the database could sort.
     wanted = select(
         SymbolInstance.id,
-        cast(SymbolInstance.signature, Text),
+        func.md5(cast(SymbolInstance.signature, Text)),
         SymbolInstance.legend_entry_id,
         SymbolInstance.mapping_lineage_id,
         SymbolInstance.symbol_key,
@@ -714,14 +720,28 @@ def match_instances(
             .values(mapping_lineage_id=LegendEntry.mapping_lineage_id)
             .execution_options(synchronize_session=False)
         )
+    instances = session.execute(wanted.order_by(SymbolInstance.id)).all()
+    # Each shape's first instance, in ID order: the order the shapes are worked out in.
+    first: dict[str, int] = {}
+    for identity, shape, *_ in instances:
+        first.setdefault(shape, identity)
     by_shape: dict[str, Matched] = {}
+    shapes = list(first.items())
+    for start in range(0, len(shapes), READ_CHUNK):
+        part = shapes[start : start + READ_CHUNK]
+        texts = {
+            identity: signature
+            for identity, signature in session.execute(
+                select(SymbolInstance.id, cast(SymbolInstance.signature, Text)).where(
+                    SymbolInstance.id.in_([identity for _, identity in part])
+                )
+            )
+        }
+        for shape, identity in part:
+            by_shape[shape] = matched(Signature.from_json(json.loads(texts[identity])))
     changed: dict[Matched, list[int]] = {}
-    for identity, shape, entry_id, lineage, key, distance in session.execute(
-        wanted.order_by(SymbolInstance.id)
-    ):
-        now = by_shape.get(shape)
-        if now is None:
-            now = by_shape[shape] = matched(Signature.from_json(json.loads(shape)))
+    for identity, shape, entry_id, lineage, key, distance in instances:
+        now = by_shape[shape]
         if now != (entry_id, lineage, key, distance):
             changed.setdefault(now, []).append(identity)
     # Only what changed is written, an answer at a time: every instance now matched to one
@@ -747,6 +767,8 @@ def match_instances(
 Matched = tuple[uuid.UUID | None, uuid.UUID | None, str, float | None]
 # Instances written in one statement.
 WRITE_CHUNK = 20_000
+# Shapes whose text is read in one statement.
+READ_CHUNK = 2_000
 
 
 def link_instances(session: Session, entry: LegendEntry) -> int:
