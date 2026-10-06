@@ -72,16 +72,26 @@ gaps:
     action: >-
       Run the rest of the MOH set and a second consultant's drawings; a person confirms
       each sheet's side on the Design page meanwhile.
-  - gap: "A real design-intent tender has been taken to a design basis on four sheets of 148"
+  - gap: "A real design-intent tender has been taken to a design basis on 28 sheets of 148"
     cause: >-
-      The four MOH tenth-storey sheets now go from upload to a design basis on the stack:
-      each is read, Current, one plan view with its title, level and stated scale, and its
-      match line and side proposed. Two were laid out and exported. The other 144 sheets,
-      the basements and the helipad among them, and any other consultant's drawings, have
-      not been run.
+      Four tenth-storey sheets, then 24 from eight other levels of the MOH set. All 28 are
+      read and Current with the right number; 27 get a plan view, most with a scale the
+      sheet's own grid dimensions verify; their match lines and neighbours are found. Four
+      have been laid out and two exported. The other 120 sheets and any other consultant's
+      drawings have not been run.
     action: >-
       Run the whole set before the pilot, and a second consultant's drawings; fix what they
       show.
+  - gap: "The heaviest real sheets do not fit the parser sandbox's memory"
+    cause: >-
+      One sheet of the 28 (A03-06-03, nearly two million primitives) needs about 1.6 GB to
+      have its linework read, past the sandbox's 2 GiB address-space limit. It is now
+      recorded as a failed sheet, with why, and keeps its title block; before, it finished
+      as if read. Nothing can be measured or designed on it.
+    action: >-
+      Decide: raise the sandbox's memory limit (the container has 4 GiB for two jobs at
+      once), or have the extraction use less (it builds every primitive in Python lists
+      before writing them).
   - gap: "A real plan with no dimensions needs a person to calibrate its scale"
     cause: >-
       None of the MOH sheets carries a dimension, and the scale is printed under the view
@@ -177,7 +187,7 @@ recommendation: >-
   tenders, and no pilot has run and no turnaround baseline exists. Recommended: (1) fix CI
   billing and run the full pipeline on main; (2) decide D2 so the model routes can be
   measured and costed; (3) record the turnaround baseline and confirm the placeholder
-  figures; (4) run a whole real design-intent tender through the platform (four of its
+  figures; (4) run a whole real design-intent tender through the platform (28 of its
   148 sheets have been, to a design basis);
   (5) run the assisted-mode pilot on at least three live tenders and regenerate this report with `make exit-report-p2 LIVE=1`. Hold the gate
   review until that report shows the three criteria measured.

@@ -145,9 +145,14 @@ def parse_sheet(
     render_sheet(store, document, payload, sheet)
     lap("tiles")
     record: SheetGeometry | None = None
+    unread: str | None = None
     try:
         record = geometry_service.extract_sheet(session, store, document, sheet, payload)
     except SandboxFailure as failure:
+        # The sheet is still registered and its title block read, but nothing can be
+        # measured on it: that is a failed sheet, and it says so (found on a real tender,
+        # where a sheet too large for the sandbox finished as if it had been read).
+        unread = f"the sheet's linework could not be read: {failure.reason}"
         log.warning("geometry_failed", sheet_id=str(sheet.id), reason=failure.reason)
     lap("geometry")
     reading = title_blocks.reading_ahead(session, store, document, sheet, payload)
@@ -182,7 +187,7 @@ def parse_sheet(
     # 4. "Parsed", and whether it was the last, under the lock again: held only to the commit.
     lock_bid(session, sheet.bid_id)
     sheet.parsed_at = datetime.now(UTC)
-    sheet.parse_error = None
+    sheet.parse_error = unread[:2000] if unread else None
     session.flush()
     result.last = _queue_finish_if_last(session, sheet.document_id, user_id)
     log.info(
