@@ -2124,3 +2124,15 @@ Entry template:
 - **Requirement IDs covered (test names):** FR-VIS-05: `tests/drawings/test_views.py::TestTitlesOnARealSheet` (a sentence of the notes is not a title; a title in two pieces is read as one; the sheet is one plan with its title, scale and level; a level before its word).
 - **Tests:** 1,523 non-database tests pass. The database and frontend suites were not rerun: the change touches neither.
 - **Known gaps and follow-ups:** four sheets of 148, one consultant; a plan with no dimension still needs a person's calibration.
+
+## Trial and fix · 24 more sheets of the MOH set · 2026-10-06
+
+- **Summary:** three sheets from each of eight levels (B1, B3, the helipad, L1, L06, L15, L21, the upper roof) were run through the stack. All 24 were read and Current with the right sheet number at 0.97. Two defects were found and fixed; one cause is left for a decision.
+- **Defects found and fixed:**
+  - **A verified scale reported as conflicting (`drawings/scale.py`).** Nine sheets had 13 to 26 grid dimensions agreeing with the stated 1:100 and were blocked, because a few figures beside a line were taken for dimensions: single figures (a grid bubble's number) beside a short line, and a dimension paired with the wrong line. A figure under 10 mm is no longer a dimension. Where at least five dimensions agree with the stated scale and they are at least four fifths of the evidence, the scale is verified, and the reason says how many figures were set aside; all the evidence is kept. A plan drawn at another scale than it states is still a conflict.
+  - **A sheet that could not be read finished as if it had been (`services/parse_pipeline.py`).** `A03-06-03`, with nearly two million primitives, ran past the sandbox's memory. It was marked parsed, with no linework, no views and no failed sheet counted. It is now a failed sheet with the reason, and its title block is still read.
+- **Not fixed:** the memory itself. Reading that sheet's linework takes about 1.6 GB against a 2 GiB address-space limit. See the gap list.
+- **On the stack after the fixes:** the eleven other sheets of B1, B3, L1 and L06 are each one plan with a verified 1:100 and get a design basis with two or three match lines and the sheets they continue on; `A03-06-03` is shown as failed.
+- **Also seen, not acted on:** the helipad and upper roof sheets each get a schematic view beside their plan; levels 15 and 21, like level 10, carry no dimension and need a person's calibration.
+- **Requirement IDs covered (test names):** FR-VIS-05: `tests/drawings/test_views.py::TestFiguresThatAreNotDimensions`. NFR-01: `tests/db/test_parse_pipeline.py::TestFailure::test_a_sheet_whose_linework_could_not_be_read_says_so_and_keeps_its_title_block`.
+- **Tests:** 1,527 non-database tests; the parse pipeline's failure tests. The rest of the database suite was not rerun.

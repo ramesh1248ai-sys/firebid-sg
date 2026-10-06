@@ -288,3 +288,57 @@ class TestTitlesOnARealSheet:
         assert views.level_of("3RD FLOOR PLAN") == "L03"
         assert views.level_of("LEVEL 5 SPRINKLER LAYOUT PLAN") == "L05"
         assert views.level_of("21 STOREY TOWER") is None
+
+
+@pytest.mark.req("FR-VIS-05")
+class TestFiguresThatAreNotDimensions:
+    """Found on a real tender: basement plans with two dozen grid dimensions agreeing with
+    the stated scale were "conflicting", because a few figures beside a line (a grid
+    bubble's number, a dimension paired with the wrong line) were taken for dimensions."""
+
+    from firebid.drawings.scale import Evidence, Stated
+
+    STATED = Stated(100.0, False, "1 : 100")
+
+    def good(self, count: int) -> list[Any]:
+        return [scale.Evidence(8400.0, 84.0, "figure") for _ in range(count)]
+
+    def test_a_few_odd_figures_among_many_dimensions_are_set_aside_and_said_to_be(self) -> None:
+        odd = [scale.Evidence(8400.0, 3.0, "figure"), scale.Evidence(8400.0, 92.0, "figure")]
+
+        verdict = scale.verify(self.STATED, self.good(25) + odd)
+
+        assert verdict.status is ScaleStatus.VERIFIED
+        assert verdict.denominator == 100
+        assert verdict.reason == (
+            "25 dimension(s) agree with 1:100; 2 figure(s) beside a line do not and were set "
+            "aside as not dimensions"
+        )
+        assert len(verdict.evidence) == 27  # all of it is kept for a person to see
+
+    def test_too_few_agreeing_or_too_many_odd_is_still_a_conflict(self) -> None:
+        odd = [scale.Evidence(8400.0, 168.0, "figure")]
+
+        few = scale.verify(self.STATED, self.good(4) + odd)
+        split = scale.verify(self.STATED, self.good(6) + odd * 3)
+
+        assert few.status is ScaleStatus.CONFLICTING and few.denominator is None
+        assert split.status is ScaleStatus.CONFLICTING
+
+    def test_a_plan_drawn_at_another_scale_than_stated_is_a_conflict_however_many(self) -> None:
+        at_fifty = [scale.Evidence(8400.0, 168.0, "figure") for _ in range(30)]
+
+        assert scale.verify(self.STATED, at_fifty).status is ScaleStatus.CONFLICTING
+
+    def test_a_single_figure_beside_a_line_is_a_label_not_a_dimension(self) -> None:
+        builder = geometry.Builder(geometry.Method.PDF_VECTOR)
+        for index, figure in enumerate(("1", "2", "7")):
+            y = 20.0 + 10.0 * index
+            builder.line(10.0, y, 19.0, y, builder.group())
+            builder.text(figure, (13.5, y - 3.0, 15.5, y - 0.5), builder.group(), height=2.5)
+        builder.line(10.0, 100.0, 94.0, 100.0, builder.group())
+        builder.text("8400", (48.0, 96.0, 56.0, 98.5), builder.group(), height=2.5)
+
+        found = scale.evidence_in(builder.table(), (0.0, 0.0, 200.0, 200.0))
+
+        assert [item.value for item in found] == [8400.0]

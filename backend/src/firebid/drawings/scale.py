@@ -118,6 +118,17 @@ class Verdict:
         }
 
 
+# A figure beside a line is taken for a dimension. On a real plan some are not: a grid
+# bubble's number, a lot number, a figure beside the wrong line. Where at least this many
+# dimensions agree with the stated scale and they are at least this share of all the
+# evidence, the scale is verified and the rest are set aside, and said to be.
+MAJORITY_AT_LEAST = 5
+MAJORITY_SHARE = 0.8
+# A length under this many millimetres is not dimensioned on a drawing of a building: a
+# single figure beside a line is a label.
+SMALLEST_DIMENSION_MM = 10.0
+
+
 def same_scale(a: float, b: float) -> bool:
     largest = max(a, b)
     return largest > 0 and abs(a - b) / largest <= AGREEMENT
@@ -151,6 +162,17 @@ def verify(stated: Stated, evidence: list[Evidence]) -> Verdict:
     disagreeing = [
         item for item in evidence if not same_scale(item.denominator, stated.denominator)
     ]
+    agreeing = len(evidence) - len(disagreeing)
+    if disagreeing and agreeing >= MAJORITY_AT_LEAST and agreeing >= MAJORITY_SHARE * len(evidence):
+        return Verdict(
+            ScaleStatus.VERIFIED,
+            stated.denominator,
+            stated,
+            tuple(evidence),
+            f"{agreeing} dimension(s) agree with 1:{stated.denominator:.0f}; "
+            f"{len(disagreeing)} figure(s) beside a line do not and were set aside as not "
+            "dimensions",
+        )
     if disagreeing:
         implied = ", ".join(f"1:{item.denominator:.0f}" for item in disagreeing[:3])
         return Verdict(
@@ -240,8 +262,9 @@ def _paired_figures(table: pa.Table, extent: tuple[float, float, float, float]) 
         if candidates.size:
             best = near[candidates[np.argmin(across[candidates])]]
             value = float(match.group(1))
-            # A figure of nought is a level or a count beside a line, not a length along it.
-            if value > 0:
+            # A figure of nought, or a single figure, is a level, a count or a label beside
+            # a line, not a length along it.
+            if value >= SMALLEST_DIMENSION_MM:
                 found.append(Evidence(value, float(lengths[best]), "figure", (cx, cy)))
     return found
 

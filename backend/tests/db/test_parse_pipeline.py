@@ -242,6 +242,58 @@ class TestFailure:
         assert all(sheet.parse_error is None for sheet in sheets if sheet.id != broken)
         assert session.get(Document, document.id).state == "done"  # type: ignore[union-attr]
 
+    def test_a_sheet_whose_linework_could_not_be_read_says_so_and_keeps_its_title_block(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        three_sheet_pdf: bytes,
+        as_application_role: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Found on a real tender: a sheet too large for the sandbox's memory finished as if
+        # it had been read, with no linework, no views and nothing to say why.
+        from firebid.sandbox.runner import SandboxFailure
+        from firebid.services import geometry as geometry_service
+
+        document = upload(session, bid, store, three_sheet_pdf)
+        parse_document(cast(JobContext, None), document_id=str(document.id), user_id=str(user.id))
+        session.expire_all()
+        heavy = sheets_of(session, document)[1].id
+        real = geometry_service.extract_sheet
+
+        def too_large(
+            session: Session, store: Any, document: Any, sheet: Sheet, payload: Any
+        ) -> Any:
+            if sheet.id == heavy:
+                raise SandboxFailure(
+                    "memory", "the file could not be read: Unable to allocate output buffer."
+                )
+            return real(session, store, document, sheet, payload)
+
+        monkeypatch.setattr(geometry_service, "extract_sheet", too_large)
+        run_parse(session, document.id, user.id)
+
+        sheets = sheets_of(session, document)
+        unread = next(sheet for sheet in sheets if sheet.id == heavy)
+        assert unread.parsed_at is not None
+        assert unread.parse_error == (
+            "the sheet's linework could not be read: the file could not be read: "
+            "Unable to allocate output buffer."
+        )
+        assert all(sheet.parse_error is None for sheet in sheets if sheet.id != heavy)
+        # Its title block was still read: the sheet is in the register, and a person can see
+        # which drawing it is that could not be measured.
+        read = session.execute(
+            select(func.count()).select_from(SheetRevision).where(SheetRevision.sheet_id == heavy)
+        ).scalar_one()
+        assert read == 1
+        stored = session.execute(
+            select(func.count()).select_from(SheetGeometry).where(SheetGeometry.sheet_id == heavy)
+        ).scalar_one()
+        assert stored == 0
+
 
 class TestDetectionASheet:
     """Detection is a job a sheet, after the document's sheets are all read (ADR-010)."""
