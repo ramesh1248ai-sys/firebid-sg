@@ -210,6 +210,108 @@ describe("the tender documents page", () => {
     );
   });
 
+  // req: FR-DOC-01
+  it("lists a sheet that could not be read and offers to read it again", async () => {
+    let asked = false;
+    const calls = stubApi({
+      "/progress/stream": noStream,
+      "/progress": () =>
+        Response.json(
+          asked
+            ? progress({
+                counts: { received: 1, done: 2 },
+                finished: false,
+                sheets_parsed: 2,
+              })
+            : progress({
+                unread_sheets: [
+                  {
+                    id: SHEET,
+                    filename: "FP-L06-203.pdf",
+                    page: 1,
+                    reason:
+                      "the sheet's linework could not be read: the file needed more memory",
+                  },
+                ],
+                read_again: { documents: 1, sheets: 1, views: 0 },
+              }),
+        ),
+      "/sheets": () => Response.json([sheet()]),
+      "/documents/read-again": () => {
+        asked = true;
+        return Response.json({ documents: 1, sheets: 1, views: 0 });
+      },
+    });
+    renderAt(`/bids/${BID}/documents`);
+
+    // The drawing says "Ready"; the sheet inside it that failed is said all the same.
+    expect(
+      await screen.findByText("1 sheet could not be read"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("FP-L06-203.pdf")).toBeInTheDocument();
+    expect(screen.getByText(/needed more memory/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Reads again 1 drawing. Nothing that was read is lost."),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Read again" }));
+
+    await waitFor(() => {
+      expect(
+        calls.some(
+          (call) =>
+            call.method === "POST" &&
+            call.url.includes("/documents/read-again"),
+        ),
+      ).toBe(true);
+    });
+    // The progress is asked for again: the drawing is being read, and the offer is gone.
+    expect(
+      await screen.findByText("Reading the set: 2 of 3 sheets read…"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Read again" }),
+    ).not.toBeInTheDocument();
+  });
+
+  // req: FR-DOC-01
+  it("offers to find views again after the detector changed, and nothing when all is read", async () => {
+    stubApi({
+      "/progress/stream": noStream,
+      "/progress": () =>
+        Response.json(
+          progress({ read_again: { documents: 0, sheets: 0, views: 148 } }),
+        ),
+      "/sheets": () => Response.json([sheet()]),
+    });
+    const { unmount } = renderAt(`/bids/${BID}/documents`);
+
+    expect(
+      await screen.findByText(
+        "Reads again the views of 148 sheets found by an older version. Nothing that was read is lost.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/could not be read/)).not.toBeInTheDocument();
+    unmount();
+
+    stubApi({
+      "/progress/stream": noStream,
+      "/progress": () =>
+        Response.json(
+          progress({ read_again: { documents: 0, sheets: 0, views: 0 } }),
+        ),
+      "/sheets": () => Response.json([sheet()]),
+    });
+    renderAt(`/bids/${BID}/documents`);
+
+    expect(
+      await screen.findByText("3 sheets ready to open."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Read again" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("sends the chosen files and asks for the progress again", async () => {
     const calls = stubApi({
       "/progress/stream": noStream,

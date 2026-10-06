@@ -31,6 +31,7 @@ from firebid.api.deps import CurrentBid, DbSession
 from firebid.db.engine import session_scope
 from firebid.db.identity import acting_as
 from firebid.db.models.documents import Document, Sheet
+from firebid.services.parse_pipeline import to_read_again
 
 log = structlog.get_logger("firebid.progress")
 
@@ -54,6 +55,24 @@ class FailedDocument(BaseModel):
     reason: str | None
 
 
+class UnreadSheet(BaseModel):
+    """A sheet of a finished drawing that could not be read, and why."""
+
+    id: uuid.UUID
+    filename: str
+    page: int
+    reason: str
+
+
+class ReadAgain(BaseModel):
+    """What asking for the set to be read again would reach (`POST documents/read-again`)."""
+
+    documents: int = 0
+    sheets: int = 0
+    # Sheets whose views were found by an older version of the detector.
+    views: int = 0
+
+
 class Progress(BaseModel):
     """Where a bid's documents have got to. The counts always sum to `total`."""
 
@@ -64,6 +83,9 @@ class Progress(BaseModel):
     sheets_parsed: int = 0
     finished: bool
     failures: list[FailedDocument] = []
+    # A drawing can be `done` with a sheet in it unread: said here, or nobody would know.
+    unread_sheets: list[UnreadSheet] = []
+    read_again: ReadAgain = ReadAgain()
 
     @property
     def settled(self) -> int:
@@ -109,6 +131,18 @@ def read_progress(session: Session, bid_id: uuid.UUID) -> Progress:
         .all()
     ]
 
+    again = to_read_again(session, bid_id)
+    names = {document.id: document.filename for document in again.documents}
+    unread = [
+        UnreadSheet(
+            id=sheet.id,
+            filename=names.get(sheet.document_id, ""),
+            page=sheet.index_in_document + 1,
+            reason=sheet.parse_error or "",
+        )
+        for sheet in again.sheets[:200]
+    ]
+
     in_flight = counts["received"] + counts["processing"]
     return Progress(
         total=total,
@@ -119,6 +153,12 @@ def read_progress(session: Session, bid_id: uuid.UUID) -> Progress:
         # for hours, and the page should say so rather than spin.
         finished=total > 0 and in_flight == 0,
         failures=failures,
+        unread_sheets=unread,
+        read_again=ReadAgain(
+            documents=len(again.documents),
+            sheets=len(again.sheets),
+            views=len(again.stale_views),
+        ),
     )
 
 

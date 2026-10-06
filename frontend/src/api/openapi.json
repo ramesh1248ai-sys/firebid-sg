@@ -9845,6 +9845,14 @@
             "title": "Finished",
             "type": "boolean"
           },
+          "read_again": {
+            "$ref": "#/components/schemas/ReadAgain",
+            "default": {
+              "documents": 0,
+              "sheets": 0,
+              "views": 0
+            }
+          },
           "sheets": {
             "title": "Sheets",
             "type": "integer"
@@ -9857,6 +9865,14 @@
           "total": {
             "title": "Total",
             "type": "integer"
+          },
+          "unread_sheets": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/UnreadSheet"
+            },
+            "title": "Unread Sheets",
+            "type": "array"
           }
         },
         "required": [
@@ -11172,6 +11188,28 @@
           "retired_at"
         ],
         "title": "RateOut",
+        "type": "object"
+      },
+      "ReadAgain": {
+        "description": "What asking for the set to be read again would reach (`POST documents/read-again`).",
+        "properties": {
+          "documents": {
+            "default": 0,
+            "title": "Documents",
+            "type": "integer"
+          },
+          "sheets": {
+            "default": 0,
+            "title": "Sheets",
+            "type": "integer"
+          },
+          "views": {
+            "default": 0,
+            "title": "Views",
+            "type": "integer"
+          }
+        },
+        "title": "ReadAgain",
         "type": "object"
       },
       "ReadinessOut": {
@@ -13963,6 +14001,36 @@
           "sheet_ids"
         ],
         "title": "UnmappedOut",
+        "type": "object"
+      },
+      "UnreadSheet": {
+        "description": "A sheet of a finished drawing that could not be read, and why.",
+        "properties": {
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "page",
+          "reason"
+        ],
+        "title": "UnreadSheet",
         "type": "object"
       },
       "UploadReport": {
@@ -18646,6 +18714,59 @@
           }
         ],
         "summary": "Propose Origins",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/bids/{bid_id}/documents/read-again": {
+      "post": {
+        "description": "Read again what could not be read: sheets that failed, drawings refused after they\nwere scanned, and views found by an older detector (`progress.read_again` counts them).\n\nSafe to call repeatedly: what is queued is being read, so asking again finds nothing.",
+        "operationId": "read_again_bids__bid_id__documents_read_again_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Read Again Bids  Bid Id  Documents Read Again Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Read Again",
         "tags": [
           "documents"
         ]
