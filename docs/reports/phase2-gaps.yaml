@@ -82,16 +82,24 @@ gaps:
     action: >-
       Read the four again; read the design basis for the set; lay out one whole floor and
       compare its head count with the estimators'.
-  - gap: "Finishing a document matches every symbol of the bid again"
+  - gap: "Finishing a document still matches every symbol of the bid, though lightly now"
     cause: >-
-      Matching symbols to legend rows runs once a document over every symbol instance of
-      the bid. A tender sent as 148 one-sheet files has 448,000 instances, so it ran 148
-      times over all of them: the parser pool's memory crept to its limit, and one
-      document was rejected when the database could not sort them.
+      Matching symbols to legend rows runs once a document over every instance of the bid.
+      On the real set (148 one-sheet files, 448,000 instances) a pass held three gigabytes
+      and the database could not sort it; it now takes 41 seconds and 0.6 GB, reading a
+      digest of each shape and each distinct shape's text once. It is still a pass a
+      document: about a hundred minutes of matching for that set.
     action: >-
-      Match the instances of the document just read, and the whole bid only when its
-      legend rows changed. Then decide whether a plan's furniture should be kept as
-      candidate symbols at all (about 3,000 a sheet here).
+      Match only what a document changed: its own instances, and the rest only against
+      legend rows it added. That needs a stored digest of each instance's shape.
+  - gap: "A design-intent plan yields about 3,000 candidate symbols a sheet, most of them furniture"
+    cause: >-
+      Every small group of linework is kept as a candidate symbol, and four fifths of the
+      real set's 448,000 were matched to some legend row. The takeoff counts only confirmed
+      mappings, but the table is 3 GB for one tender and the matches are mostly false.
+    action: >-
+      Product owner and Senior Estimator: decide what a candidate must be (drawn in a
+      services colour or layer, or like a legend row) before it is kept.
   - gap: "The heaviest real sheet still takes 1.2 GB to find its symbols"
     cause: >-
       Reading a two-million-primitive sheet's linework fell from 1.6 GB to 0.6 GB and

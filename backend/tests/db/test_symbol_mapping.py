@@ -553,7 +553,62 @@ class TestMatchingATender:
             event.remove(engine, "before_cursor_execute", record)
 
         assert not [s for s in statements if s.lstrip().upper().startswith("UPDATE")]
-        assert sum("FROM symbol_instance" in s for s in statements) == 1
+        # Every instance is read once, as a digest of its shape; a shape's own text is read
+        # only for the first instance of each shape, a few statements for the whole bid.
+        reads = [s for s in statements if "FROM symbol_instance" in s]
+        every = [s for s in reads if "md5(" in s]
+        assert len(every) == 1 and "WHERE symbol_instance.bid_id" in every[0]
+        assert all("symbol_instance.id IN" in s for s in reads if s not in every)
+        assert len(reads) - 1 <= 2
+        assert self.state(session, bid) == before
+
+    @pytest.mark.req("NFR-01")
+    def test_a_shape_s_text_is_read_once_a_shape_however_the_shapes_are_batched(
+        self, session: Session, bid: Bid, store: MemoryObjectStore, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Found on a real tender of 450,000 instances: every instance's shape was read as
+        # text, three gigabytes of it, once for every document of the tender.
+        from sqlalchemy import event
+
+        from_consultant(session, bid, "Alpha Consultants")
+        tender(session, bid, store, fixtures.ALPHA)
+        consultant = service.consultant_of(session, bid.id)
+        service.match_instances(session, bid.id, consultant)
+        session.commit()
+        before = self.state(session, bid)
+        instances, shapes = session.execute(
+            text(
+                "SELECT count(*), count(DISTINCT signature::text) FROM symbol_instance "
+                "WHERE bid_id = :bid"
+            ),
+            {"bid": bid.id},
+        ).one()
+        assert instances > shapes > 3, "the plan draws each of several shapes many times"
+
+        session.execute(
+            text(
+                "UPDATE symbol_instance SET legend_entry_id = NULL, mapping_lineage_id = NULL,"
+                " match_distance = NULL, symbol_key = 'unset' WHERE bid_id = :bid"
+            ),
+            {"bid": bid.id},
+        )
+        monkeypatch.setattr(service, "READ_CHUNK", 3)
+        fetched: list[int] = []
+
+        def record(_conn: Any, _cursor: Any, statement: str, parameters: Any, *_rest: Any) -> None:
+            if "FROM symbol_instance" in statement and "symbol_instance.id IN" in statement:
+                fetched.append(len(parameters))
+
+        engine = session.get_bind()
+        event.listen(engine, "before_cursor_execute", record)
+        try:
+            service.match_instances(session, bid.id, consultant)
+            session.commit()
+        finally:
+            event.remove(engine, "before_cursor_execute", record)
+
+        # Three shapes a statement, every shape once, and the same matches as before.
+        assert sum(fetched) == shapes and max(fetched) <= 3
         assert self.state(session, bid) == before
 
     def test_matching_from_nothing_gives_what_was_matched_and_the_same_every_time(
