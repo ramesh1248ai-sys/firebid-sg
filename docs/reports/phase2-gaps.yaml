@@ -118,19 +118,17 @@ gaps:
       sheet on the same gridlines. A bid's views are checked when a document finishes or a
       view is calibrated; a bid read before this has its views found again by "Read again"
       on the Documents page.
-  - gap: "A real plan's grid names a place but is not shared between sheets, and 60 of 148 sheets have none"
+  - gap: "A real plan's grid names a place but is not shared between sheets"
     cause: >-
-      Gridlines drawn dashed, and a wing's at an angle, are now found: 88 of the 148 real
-      sheets have a grid and their points a grid reference (FR-VIS-07). Two limits remain.
-      A grid found from dashes gives no grid index, so detections on two real sheets are not
-      matched by grid (FR-VIS-08): the building has several grids that use the same labels,
-      and two places at one index would be counted once. And 60 sheets show only one way of
-      labelled gridlines (the lines that cross them are labelled on another sheet), which is
-      not a grid.
+      Gridlines drawn dashed, a wing's at an angle, and lines labelled with a letter and a
+      number are now found: 147 of the 148 real sheets have a grid and their points a grid
+      reference (FR-VIS-07), 67 of them a second grid for the wing. A grid found from dashes
+      gives no grid index, so detections on two real sheets are not matched by grid
+      (FR-VIS-08): the building has several grids, and two places at one index would be
+      counted once. One sheet (A03-B2-05) has none: its lettered lines run three ways.
     action: >-
-      Product owner and Senior Estimator: decide whether a grid square to the sheet may give
-      an index. For the 60 sheets, carry a gridline's label from the sheet that shows its
-      bubble to the sheets it runs on to, as the scale check carries a spacing.
+      Product owner and Senior Estimator: decide whether a real sheet's grid may give an
+      index, now that each block's lines are told apart by their labels.
   - gap: "A real sheet's DXF export is about 110 MB on disk"
     cause: >-
       A real A0 sheet has 1.5 million line segments. The export is now made by a job in

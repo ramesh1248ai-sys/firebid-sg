@@ -23,7 +23,9 @@ import pyarrow as pa
 
 from firebid.drawings.geometry import segments, texts
 
-LABEL = re.compile(r"^[A-Z]{1,2}'?$|^\d{1,3}'?$")
+# A gridline's label: letters (B, AC), a number (12), or a letter and a number (A12), which
+# a building with several blocks uses for the lines of one of them.
+LABEL = re.compile(r"^[A-Z]{1,2}'?$|^\d{1,3}'?$|^[A-Z]\d{1,2}'?$")
 # A bubble is between these diameters on paper.
 BUBBLE_MIN_MM, BUBBLE_MAX_MM = 4.0, 25.0
 # A grid line is at least this long, and within this angle of the page axes.
@@ -86,6 +88,9 @@ def _stored(line: GridLine) -> list[object]:
 class GridSystem:
     across: tuple[GridLine, ...]  # lines up the sheet, in label order
     up: tuple[GridLine, ...]  # lines across the sheet, in label order
+    # A second grid on the sheet with fewer lines: a wing's, beside the main block's. A
+    # point among its lines is named by them; elsewhere by the grid above.
+    local: GridSystem | None = None
 
     @property
     def one_grid(self) -> bool:
@@ -95,15 +100,20 @@ class GridSystem:
         the sheet (a building and its skewed wing). They name a place; they are not a
         coordinate system shared between sheets, so they give no index.
         """
-        return all(line.low is None for line in (*self.across, *self.up))
+        return self.local is None and all(line.low is None for line in (*self.across, *self.up))
 
     def as_json(self) -> dict[str, list[list[object]]]:
         """Label and position of each line. A line found dashed has its slope, its origin
-        and how far it is drawn after them."""
-        return {
+        and how far it is drawn after them. A second grid's lines are under `local_across`
+        and `local_up`."""
+        stored = {
             "across": [_stored(line) for line in self.across],
             "up": [_stored(line) for line in self.up],
         }
+        if self.local is not None:
+            stored["local_across"] = [_stored(line) for line in self.local.across]
+            stored["local_up"] = [_stored(line) for line in self.local.up]
+        return stored
 
     @classmethod
     def from_json(cls, data: dict[str, list[list[object]]]) -> GridSystem:
@@ -113,20 +123,27 @@ class GridSystem:
                 for row in rows
             )
 
-        return cls(lines("x", data.get("across", [])), lines("y", data.get("up", [])))
+        local = None
+        if data.get("local_across") and data.get("local_up"):
+            local = cls(lines("x", data["local_across"]), lines("y", data["local_up"]))
+        return cls(lines("x", data.get("across", [])), lines("y", data.get("up", [])), local)
 
     def reference(self, x: float, y: float, tolerance: float = 1.0) -> str | None:
         """`Grid B2` on an intersection, `Grid A1-B2` (en dash) in a bay, None off the grid.
 
-        Where both ways are lettered, or both numbered, the two labels are parted by a
-        stroke: `Grid AA/K`.
+        Letters one way and numbers the other are written together. Any other pair
+        of labels is parted by a stroke: `Grid AA/K`, `Grid AC/A4`.
         """
+        if self.local is not None:
+            named = self.local.reference(x, y, tolerance)
+            if named is not None:
+                return named
         across = _between(self.across, x, tolerance, y)
         up = _between(self.up, y, tolerance, x)
         if across is None or up is None:
             return None
         (left, right), (low, high) = across, up
-        stroke = "/" if left.rstrip("'").isdigit() == low.rstrip("'").isdigit() else ""
+        stroke = "" if {kind(left), kind(low)} == {"A", "1"} else "/"
         if left == right and low == high:
             return f"Grid {left}{stroke}{low}"
         return f"Grid {left}{stroke}{low}{BAY}{right}{stroke}{high}"
@@ -173,11 +190,26 @@ def _sorted(lines: tuple[GridLine, ...]) -> list[GridLine]:
 
 
 def ordinal(label: str) -> int:
-    """A label's place in its sequence: A and 1 are 1, B and 2 are 2, AA follows Z."""
+    """A label's place in its sequence: A and 1 are 1, B and 2 are 2, AA follows Z; A12 is
+    12 among the lines lettered A."""
     label = label.rstrip("'")
     if label.isdigit():
         return int(label)
-    return sum((ord(c) - 64) * 26**i for i, c in enumerate(reversed(label)))
+    if label.isalpha():
+        return sum((ord(c) - 64) * 26**i for i, c in enumerate(reversed(label)))
+    return int(label.lstrip("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+
+
+def kind(label: str) -> str:
+    """What sort of label this is: "A" for letters, "1" for a number, and the letter with
+    "1" for a letter and a number ("A1" for A4 and A12). The gridlines that run one way
+    are labelled one way."""
+    label = label.rstrip("'")
+    if label.isdigit():
+        return "1"
+    if label.isalpha():
+        return "A"
+    return label.rstrip("0123456789") + "1"
 
 
 def _between(
@@ -318,19 +350,26 @@ def _dashed(lines: Any, bubbles: list[tuple[str, float, float, float]]) -> GridS
     Only a bubble like those that stand in a row is a grid bubble: a sprinkler is a letter
     in a circle too, and a pipe runs through it.
     """
-    in_rows = {
-        str(mark[0])
-        for rows in (
-            _in_rows([(label, cx, cy, radius) for label, cx, cy, radius in bubbles]),
-            _in_rows([(label, cy, cx, radius) for label, cx, cy, radius in bubbles]),
-        )
-        for row in rows
-        for mark in row
+    # The bubbles that stand in rows, by label and place. By label alone a grid's "S" would
+    # bring in every sprinkler on the sheet, and the size taken would be a sprinkler's.
+    stood_across = {
+        (str(label), float(str(at)))
+        for row in _in_rows([(label, cx, cy, radius) for label, cx, cy, radius in bubbles])
+        for label, at in row
     }
-    sizes = [radius for label, _, _, radius in bubbles if label in in_rows]
-    if not sizes:
+    stood_up = {
+        (str(label), float(str(at)))
+        for row in _in_rows([(label, cy, cx, radius) for label, cx, cy, radius in bubbles])
+        for label, at in row
+    }
+    sizes = [
+        radius
+        for label, cx, cy, radius in bubbles
+        if (label, round(cx, 3)) in stood_across or (label, round(cy, 3)) in stood_up
+    ]
+    size = float(np.median(sizes)) if sizes else _commonest_size(bubbles)
+    if size is None:
         return None
-    size = float(np.median(sizes))
     long_enough = np.flatnonzero(lines.lengths >= DASH_MIN_MM)
     if long_enough.size == 0:
         return None
@@ -362,22 +401,54 @@ def _dashed(lines: Any, bubbles: list[tuple[str, float, float, float]]) -> GridS
     ]
 
     families = _families(single)
-    best: tuple[int, list[_Drawn], list[_Drawn]] | None = None
-    for index, first in enumerate(families):
-        for second in families[index + 1 :]:
-            apart = abs(_mean_angle(first) - _mean_angle(second))
-            if abs(apart - 90) > SQUARE_WITHIN_DEGREES:
-                continue
-            if best is None or len(first) + len(second) > best[0]:
-                best = (len(first) + len(second), first, second)
-    if best is None:
+    pairs = sorted(
+        (
+            (len(first) + len(second), index, other)
+            for index, first in enumerate(families)
+            for other, second in enumerate(families)
+            if index < other
+            and abs(abs(_mean_angle(first) - _mean_angle(second)) - 90) <= SQUARE_WITHIN_DEGREES
+        ),
+        key=lambda pair: (-pair[0], pair[1], pair[2]),
+    )
+    if not pairs:
         return None
-    _, first, second = best
+    _, first, second = pairs[0]
+    main = _grid_of(families[first], families[second])
+    # A second grid of the families the first left: the wing's, beside the main block's.
+    for _, third, fourth in pairs[1:]:
+        if not {third, fourth} & {first, second}:
+            return GridSystem(main.across, main.up, _grid_of(families[third], families[fourth]))
+    return main
+
+
+def _grid_of(first: list[_Drawn], second: list[_Drawn]) -> GridSystem:
+    """Two families square to each other as a grid: the one nearer upright is "across"."""
     if abs(_mean_angle(first) - 90) > abs(_mean_angle(second) - 90):
         first, second = second, first
     across = tuple(_sorted(tuple(_grid_line(line, "x") for line in first)))
     up = tuple(_sorted(tuple(_grid_line(line, "y") for line in second)))
     return GridSystem(across, up)
+
+
+def _commonest_size(bubbles: list[tuple[str, float, float, float]]) -> float | None:
+    """The size of a grid bubble where none stand in a clean row: the size at which the
+    most labels appear once each.
+
+    Found on a real plan: the bubbles of two grids along one edge of the sheet, a wing's
+    among the main block's, make one row whose labels are in no order. A gridline's label
+    is on the sheet once (twice, at most, for a bubble at each end); a symbol's is on it
+    wherever the symbol is drawn.
+    """
+    best: tuple[int, float] | None = None
+    for radius in sorted({bubble[3] for bubble in bubbles}):
+        labels = [
+            label for label, _, _, other in bubbles if math.isclose(other, radius, rel_tol=0.1)
+        ]
+        once = sum(1 for label in set(labels) if labels.count(label) <= 2)
+        if once >= 2 * MARKS_AT_LEAST and (best is None or once > best[0]):
+            best = (once, radius)
+    return None if best is None else best[1]
 
 
 @dataclass(frozen=True)
@@ -490,13 +561,13 @@ def _families(found: list[_Drawn]) -> list[list[_Drawn]]:
     """The lines that run one way and are labelled one way (letters, or numbers), where
     there are at least two and their labels follow their order across the sheet."""
     families: list[list[_Drawn]] = []
-    for numbered in (False, True):
-        kind = sorted(
-            (line for line in found if line.label.rstrip("'").isdigit() is numbered),
+    for labelled in sorted({kind(line.label) for line in found}):
+        alike = sorted(
+            (line for line in found if kind(line.label) == labelled),
             key=lambda line: line.angle,
         )
         groups: list[list[_Drawn]] = []
-        for line in kind:
+        for line in alike:
             if groups and line.angle - groups[-1][-1].angle <= SAME_WAY_DEGREES:
                 groups[-1].append(line)
             else:
@@ -593,14 +664,14 @@ def _in_rows(bubbles: list[tuple[str, float, float, float]]) -> list[list[list[o
     for line in lines:
         size = float(np.median([bubble[3] for bubble in line]))
         # Letters run one way across a building and numbers the other, so a row is of one
-        # kind: a bubble of the other that happens to stand on its line is not part of it.
-        for numbered in (False, True):
+        # kind of label: a bubble of another that happens to stand on its line is not part
+        # of it.
+        for labelled in sorted({kind(bubble[0]) for bubble in line}):
             ordered = sorted(
                 (
                     bubble
                     for bubble in line
-                    if math.isclose(bubble[3], size, rel_tol=0.1)
-                    and bubble[0].rstrip("'").isdigit() is numbered
+                    if math.isclose(bubble[3], size, rel_tol=0.1) and kind(bubble[0]) == labelled
                 ),
                 key=lambda item: item[1],
             )
