@@ -29,7 +29,8 @@ that matters the second time.
 **Read again** (`read_again`, a person's act): what failed is read once more, by the same
 jobs. A sheet that could not be read, and a drawing that was refused after it was scanned,
 go back through `parse.document`; views found by an older detector are found again by one
-`views.again` job, from the geometry already stored.
+`views.again` job, and symbols read by an older detector by one `symbols.again` job, both
+from the geometry already stored.
 """
 
 from __future__ import annotations
@@ -276,7 +277,7 @@ def finish(
     from firebid.jobs.tasks import detect_sheet_job
     from firebid.services import views
     from firebid.services.classification import classify_in_sandbox
-    from firebid.services.symbols import consultant_of, match_instances
+    from firebid.services.symbols import consultant_of, match_if_read
 
     sheets = list(
         session.execute(
@@ -287,7 +288,9 @@ def finish(
     # A sheet that only states its scale is checked against the grid of the sheets whose
     # scale is proved, whichever was read first: so across the bid, each time one finishes.
     regraded = views.check_against_grid(session, document.bid_id)
-    match_instances(session, document.bid_id, consultant_of(session, document.bid_id))
+    # Only if a sheet's symbols were read since the bid's were last matched: of a tender
+    # sent as many files that finish together, the first to finish matches for them all.
+    match_if_read(session, document.bid_id, consultant_of(session, document.bid_id))
     classify_in_sandbox(session, document, store.get(document.storage_key))
     for sheet in sheets:
         sheet.detected_at = None
@@ -496,10 +499,12 @@ class ToReadAgain:
     sheets: list[Sheet] = field(default_factory=list)
     # Sheets whose views were found by an older detector than this one.
     stale_views: list[uuid.UUID] = field(default_factory=list)
+    # Sheets whose symbols were read by an older detector than this one.
+    stale_symbols: list[uuid.UUID] = field(default_factory=list)
 
     @property
     def anything(self) -> bool:
-        return bool(self.documents or self.stale_views)
+        return bool(self.documents or self.stale_views or self.stale_symbols)
 
 
 def to_read_again(session: Session, bid_id: uuid.UUID) -> ToReadAgain:
@@ -511,7 +516,9 @@ def to_read_again(session: Session, bid_id: uuid.UUID) -> ToReadAgain:
     still being read, whose jobs are on their way.
     """
     from firebid.db.models.drawings import SheetView
+    from firebid.db.models.symbols import SymbolInstance
     from firebid.drawings import views as view_detection
+    from firebid.services import symbols as symbol_service
 
     found = ToReadAgain()
     found.sheets = list(
@@ -550,6 +557,33 @@ def to_read_again(session: Session, bid_id: uuid.UUID) -> ToReadAgain:
             .distinct()
         ).scalars()
     )
+    # A sheet says which detector read its symbols; one read before it said so is this
+    # detector's only if a symbol on it is. A sheet being read is left to its job.
+    this = symbol_service.DETECTOR_VERSION
+    by_this = (
+        select(SymbolInstance.id)
+        .where(
+            SymbolInstance.sheet_id == SheetGeometry.sheet_id,
+            SymbolInstance.detector_version == this,
+        )
+        .exists()
+    )
+    found.stale_symbols = list(
+        session.execute(
+            select(SheetGeometry.sheet_id)
+            .join(Sheet, Sheet.id == SheetGeometry.sheet_id)
+            .where(
+                SheetGeometry.bid_id == bid_id,
+                Sheet.parsed_at.is_not(None),
+                (
+                    SheetGeometry.symbols_version.is_not(None)
+                    & (SheetGeometry.symbols_version != this)
+                )
+                | (SheetGeometry.symbols_version.is_(None) & ~by_this),
+            )
+            .order_by(SheetGeometry.sheet_id)
+        ).scalars()
+    )
     return found
 
 
@@ -557,12 +591,12 @@ def read_again(session: Session, bid_id: uuid.UUID, actor: Actor) -> dict[str, i
     """Queue again what `to_read_again` finds, as the person who asked, and say who did.
 
     Safe to ask twice: a document queued again is being read, so the second asking does not
-    find it, and one job is waiting for the views.
+    find it, and one job is waiting for the views and one for the symbols.
     """
     from firebid.db.audit import record_event
     from firebid.db.models.core import Bid
     from firebid.jobs.enqueue import enqueue_once
-    from firebid.jobs.tasks import detect_views_again, parse_document
+    from firebid.jobs.tasks import detect_views_again, parse_document, read_symbols_again
 
     if actor.id is None:
         raise ValueError("reading again is a person's act")
@@ -594,10 +628,19 @@ def read_again(session: Session, bid_id: uuid.UUID, actor: Actor) -> dict[str, i
             bid_id=str(bid_id),
             user_id=str(user_id),
         )
+    if found.stale_symbols:
+        enqueue_once(
+            session,
+            read_symbols_again,
+            f"symbols.again:{bid_id}",
+            bid_id=str(bid_id),
+            user_id=str(user_id),
+        )
     counts = {
         "documents": len(found.documents),
         "sheets": len(found.sheets),
         "views": len(found.stale_views),
+        "symbols": len(found.stale_symbols),
     }
     if found.anything:
         organisation_id = session.execute(
@@ -661,6 +704,59 @@ def views_again(
         detecting=queued,
     )
     return {"sheets": done, "failed": failed, "regraded": len(regraded), "detecting": queued}
+
+
+def symbols_again(
+    session: Session, store: ObjectStore, bid_id: uuid.UUID, user_id: uuid.UUID | None
+) -> dict[str, int]:
+    """Read again the symbols an older detector read, from each sheet's stored geometry.
+
+    As `views_again`: a sheet at a time, each committed; a sheet that fails is left as it
+    was. Then the bid's symbols are matched once, and the sheets whose symbols changed are
+    detected again. A legend row's mapping is found again by its signature, so what a
+    person confirmed stands.
+    """
+    from firebid.jobs.enqueue import enqueue
+    from firebid.jobs.tasks import propose_symbol
+    from firebid.services import symbols as symbol_service
+
+    found = to_read_again(session, bid_id).stale_symbols
+    consultant = symbol_service.consultant_of(session, bid_id)
+    done = failed = 0
+    for sheet_id in found:
+        record = session.execute(
+            select(SheetGeometry)
+            .where(SheetGeometry.sheet_id == sheet_id)
+            .with_for_update(skip_locked=True)
+        ).scalar_one_or_none()
+        if record is None or record.symbols_version == symbol_service.DETECTOR_VERSION:
+            session.rollback()  # held by another of these jobs, or read by it already
+            continue
+        try:
+            shapes = _shapes(store, record)
+            if shapes is None or shapes[0]:
+                lock_bid(session, bid_id)  # legend rows propose mappings the bid shares
+            read = symbol_service.read_sheet(
+                session, store, record, consultant, match=False, shapes=shapes
+            )
+            for entry_id in read.awaiting_model:
+                enqueue(
+                    session,
+                    propose_symbol,
+                    entry_id=str(entry_id),
+                    user_id=str(user_id) if user_id else "",
+                )
+            session.commit()
+            done += 1
+        except Exception:
+            session.rollback()
+            failed += 1
+            log.exception("symbols_again_failed", sheet_id=str(sheet_id))
+    lock_bid(session, bid_id)
+    symbol_service.match_if_read(session, bid_id, consultant)
+    queued = detect_again(session, bid_id, user_id)["sheets"] if done else 0
+    log.info("symbols_read_again", bid_id=str(bid_id), sheets=done, failed=failed, detecting=queued)
+    return {"sheets": done, "failed": failed, "detecting": queued}
 
 
 # --- parse.complete --------------------------------------------------------------------------

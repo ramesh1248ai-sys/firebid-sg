@@ -36,7 +36,12 @@ type Progress = {
     reason: string;
   }[];
   // What asking for the set to be read again would reach.
-  read_again?: { documents: number; sheets: number; views: number };
+  read_again?: {
+    documents: number;
+    sheets: number;
+    views: number;
+    symbols?: number;
+  };
 };
 
 type Sheet = {
@@ -238,13 +243,21 @@ function ReadAgain({ bidId, progress }: { bidId: string; progress: Progress }) {
   const readAgain = useReadAgain(bidId);
   const unread = progress.unread_sheets ?? [];
   const reach = progress.read_again ?? { documents: 0, sheets: 0, views: 0 };
-  if (unread.length === 0 && reach.documents === 0 && reach.views === 0)
+  const symbols = reach.symbols ?? 0;
+  if (
+    unread.length === 0 &&
+    reach.documents === 0 &&
+    reach.views === 0 &&
+    symbols === 0
+  )
     return null;
 
   const parts = [
     reach.documents > 0 && counted(reach.documents, "drawing"),
     reach.views > 0 &&
       `the views of ${counted(reach.views, "sheet")} found by an older version`,
+    symbols > 0 &&
+      `the symbols of ${counted(symbols, "sheet")} read by an older version`,
   ].filter(Boolean);
 
   return (
@@ -260,9 +273,7 @@ function ReadAgain({ bidId, progress }: { bidId: string; progress: Progress }) {
             {unread.map((sheet) => (
               <li key={sheet.id} className="text-sm">
                 <span className="font-medium">{sheet.filename}</span>{" "}
-                <span className="text-muted-foreground">
-                  page {sheet.page}
-                </span>
+                <span className="text-muted-foreground">page {sheet.page}</span>
                 <p className="text-xs text-muted-foreground">{sheet.reason}</p>
               </li>
             ))}

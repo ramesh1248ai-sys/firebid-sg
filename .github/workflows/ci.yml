@@ -1,7 +1,10 @@
 name: CI
 
+# A pull request is checked as a pull request, and main when it is merged: a branch with a
+# pull request open was checked twice, once for each event.
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -12,9 +15,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    # A pull request that changes only the user's documentation (the manual, the quick
+    # start, the presentation) runs no tests: nothing built or tested reads those folders.
+    # The security scans run all the same (NFR-06). Anything else, and every push to main,
+    # is checked in full.
+    name: What changed
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          code=true
+          if [ -n "$BASE" ]; then
+            changed=$(git diff --name-only "$BASE"...HEAD)
+            if [ -n "$changed" ] && ! echo "$changed"                 | grep -qvE '^docs/(user|user-manual|presentation)/'; then
+              code=false
+            fi
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
   checks:
     name: Lint, types, unit tests, API client, coverage
     runs-on: ubuntu-24.04
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     # The suite takes 15 to 30 minutes on a hosted runner, by the runner, and grows with each
     # step: the same commit passed in one run and was cancelled in another at a limit of 20
     # (PRs #34 and #35) and again at 30 (PR #39).

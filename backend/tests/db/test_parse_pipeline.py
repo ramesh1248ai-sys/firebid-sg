@@ -32,6 +32,7 @@ from firebid.jobs.tasks import (
     detect_views_again,
     parse_document,
     parse_sheet,
+    read_symbols_again,
     retry_stalled_jobs,
 )
 from firebid.services import parse_pipeline
@@ -598,12 +599,17 @@ class TestReadAgain:
         (unread,) = progress.unread_sheets
         assert (unread.id, unread.filename, unread.page) == (heavy, "tender set.pdf", 2)
         assert "more memory" in unread.reason
-        assert progress.read_again.model_dump() == {"documents": 1, "sheets": 1, "views": 0}
+        assert progress.read_again.model_dump() == {
+            "documents": 1,
+            "sheets": 1,
+            "views": 0,
+            "symbols": 0,
+        }
 
         counts = parse_pipeline.read_again(session, bid.id, person(user))
         session.commit()
 
-        assert counts == {"documents": 1, "sheets": 1, "views": 0}
+        assert counts == {"documents": 1, "sheets": 1, "views": 0, "symbols": 0}
         sheet = session.get(Sheet, heavy)
         assert sheet is not None and sheet.parsed_at is None and sheet.parse_error is None
         assert session.get(Document, document.id).state == "received"  # type: ignore[union-attr]
@@ -621,6 +627,7 @@ class TestReadAgain:
             "documents": 0,
             "sheets": 0,
             "views": 0,
+            "symbols": 0,
         }
         assert len(queued(session, "parse.document")) == 1
 
@@ -638,7 +645,12 @@ class TestReadAgain:
         ).scalar_one_or_none(), "its linework is read now"
         after = read_progress(session, bid.id)
         assert after.finished and after.counts["done"] == 1
-        assert after.read_again.model_dump() == {"documents": 0, "sheets": 0, "views": 0}
+        assert after.read_again.model_dump() == {
+            "documents": 0,
+            "sheets": 0,
+            "views": 0,
+            "symbols": 0,
+        }
 
     def test_a_drawing_refused_when_it_was_finished_is_read_again_and_one_never_scanned_is_not(
         self,
@@ -666,7 +678,7 @@ class TestReadAgain:
         counts = parse_pipeline.read_again(session, bid.id, person(user))
         session.commit()
 
-        assert counts == {"documents": 1, "sheets": 0, "views": 0}
+        assert counts == {"documents": 1, "sheets": 0, "views": 0, "symbols": 0}
         session.execute(text("DELETE FROM procrastinate_jobs WHERE task_name = 'parse.document'"))
         session.commit()
         result = run_parse(session, document.id, user.id)
@@ -700,6 +712,7 @@ class TestReadAgain:
             "documents": 0,
             "sheets": 0,
             "views": 0,
+            "symbols": 0,
         }
 
     def test_views_found_by_an_older_detector_are_found_again_by_one_job(
@@ -720,13 +733,14 @@ class TestReadAgain:
             "documents": 0,
             "sheets": 0,
             "views": SHEETS,
+            "symbols": 0,
         }
 
         first = parse_pipeline.read_again(session, bid.id, person(user))
         second = parse_pipeline.read_again(session, bid.id, person(user))
         session.commit()
 
-        assert first == second == {"documents": 0, "sheets": 0, "views": SHEETS}
+        assert first == second == {"documents": 0, "sheets": 0, "views": SHEETS, "symbols": 0}
         assert queued(session, "views.again") == [
             {"bid_id": str(bid.id), "user_id": str(user.id)}
         ], "one job for the bid, however often it is asked"
@@ -748,3 +762,114 @@ class TestReadAgain:
         # Delivered twice: every sheet's views are this detector's, so none is found again.
         again = detect_views_again(cast(JobContext, None), bid_id=str(bid.id), user_id=str(user.id))
         assert again["sheets"] == 0
+
+    def test_symbols_read_by_an_older_detector_are_read_again_by_one_job(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        three_sheet_pdf: bytes,
+        as_application_role: None,
+    ) -> None:
+        from firebid.db.models.symbols import SymbolInstance
+        from firebid.services import symbols as symbol_service
+
+        document = upload(session, bid, store, three_sheet_pdf)
+        run_parse(session, document.id, user.id)
+        assert read_progress(session, bid.id).read_again.symbols == 0
+        before = session.execute(
+            select(func.count()).select_from(SymbolInstance).where(SymbolInstance.bid_id == bid.id)
+        ).scalar_one()
+        assert before > 0
+        session.execute(text("UPDATE sheet_geometry SET symbols_version = 'older'"))
+        session.execute(text("UPDATE symbol_instance SET detector_version = 'older'"))
+        session.commit()
+        assert read_progress(session, bid.id).read_again.symbols == SHEETS
+
+        first = parse_pipeline.read_again(session, bid.id, person(user))
+        second = parse_pipeline.read_again(session, bid.id, person(user))
+        session.commit()
+
+        assert first == second == {"documents": 0, "sheets": 0, "views": 0, "symbols": SHEETS}
+        assert queued(session, "symbols.again") == [
+            {"bid_id": str(bid.id), "user_id": str(user.id)}
+        ], "one job for the bid, however often it is asked"
+
+        result = read_symbols_again(
+            cast(JobContext, None), bid_id=str(bid.id), user_id=str(user.id)
+        )
+
+        assert (result["sheets"], result["failed"]) == (SHEETS, 0)
+        session.expire_all()
+        rows = session.execute(
+            select(SymbolInstance.detector_version, SymbolInstance.symbol_key).where(
+                SymbolInstance.bid_id == bid.id
+            )
+        ).all()
+        assert len(rows) == before
+        assert {version for version, _ in rows} == {symbol_service.DETECTOR_VERSION}
+        assert all(key != "unmatched" for _, key in rows), "matched once, after the last sheet"
+        records = session.execute(
+            select(SheetGeometry.symbols_version, SheetGeometry.symbols_matched).where(
+                SheetGeometry.bid_id == bid.id
+            )
+        ).all()
+        assert {tuple(record) for record in records} == {(symbol_service.DETECTOR_VERSION, True)}
+        assert read_progress(session, bid.id).read_again.symbols == 0
+        # Delivered twice: every sheet's symbols are this detector's, so none is read again.
+        again = read_symbols_again(cast(JobContext, None), bid_id=str(bid.id), user_id=str(user.id))
+        assert again["sheets"] == 0
+
+    def test_a_sheet_read_before_versions_were_kept_is_this_detector_s_if_a_symbol_on_it_is(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        three_sheet_pdf: bytes,
+        as_application_role: None,
+    ) -> None:
+        document = upload(session, bid, store, three_sheet_pdf)
+        run_parse(session, document.id, user.id)
+        session.execute(text("UPDATE sheet_geometry SET symbols_version = NULL"))
+        session.commit()
+
+        assert read_progress(session, bid.id).read_again.symbols == 0
+
+        session.execute(text("UPDATE symbol_instance SET detector_version = 'older'"))
+        session.commit()
+
+        assert read_progress(session, bid.id).read_again.symbols == SHEETS
+
+
+@pytest.mark.req("NFR-01")
+def test_a_document_that_finishes_with_nothing_new_to_match_does_not_match_the_bid_again(
+    session: Session,
+    bid: Bid,
+    user: AppUser,
+    store: MemoryObjectStore,
+    three_sheet_pdf: bytes,
+    as_application_role: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A tender sent as many files matched every symbol of the bid once a file. A document
+    whose sheets were matched already (by one that finished after they were read) does not."""
+    from firebid.jobs.tasks import parse_finish
+    from firebid.services import symbols as symbol_service
+
+    passes: list[uuid.UUID] = []
+    real = symbol_service.match_instances
+
+    def counted(session: Session, bid_id: uuid.UUID, *args: Any, **kwargs: Any) -> None:
+        passes.append(bid_id)
+        real(session, bid_id, *args, **kwargs)
+
+    monkeypatch.setattr(symbol_service, "match_instances", counted)
+    document = upload(session, bid, store, three_sheet_pdf)
+    run_parse(session, document.id, user.id)
+    assert passes == [bid.id], "its own sheets were read, so it matches"
+
+    parse_finish(cast(JobContext, None), document_id=str(document.id), user_id=str(user.id))
+
+    assert passes == [bid.id], "finished again with nothing read since: no pass"

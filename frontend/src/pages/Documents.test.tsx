@@ -312,6 +312,30 @@ describe("the tender documents page", () => {
     ).not.toBeInTheDocument();
   });
 
+  // req: FR-VIS-02
+  it("offers to read symbols again after the symbol detector changed", async () => {
+    stubApi({
+      "/progress/stream": noStream,
+      "/progress": () =>
+        Response.json(
+          progress({
+            read_again: { documents: 0, sheets: 0, views: 0, symbols: 148 },
+          }),
+        ),
+      "/sheets": () => Response.json([sheet()]),
+    });
+    renderAt(`/bids/${BID}/documents`);
+
+    expect(
+      await screen.findByText(
+        "Reads again the symbols of 148 sheets read by an older version. Nothing that was read is lost.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Read again" }),
+    ).toBeInTheDocument();
+  });
+
   it("sends the chosen files and asks for the progress again", async () => {
     const calls = stubApi({
       "/progress/stream": noStream,

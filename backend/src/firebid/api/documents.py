@@ -452,7 +452,8 @@ def read_again(
     principal: Annotated[Principal, require(Action.DOCUMENT_UPLOAD)],
 ) -> dict[str, int]:
     """Read again what could not be read: sheets that failed, drawings refused after they
-    were scanned, and views found by an older detector (`progress.read_again` counts them).
+    were scanned, and views and symbols found by an older detector (`progress.read_again`
+    counts them).
 
     Safe to call repeatedly: what is queued is being read, so asking again finds nothing.
     """

@@ -71,6 +71,8 @@ class ReadAgain(BaseModel):
     sheets: int = 0
     # Sheets whose views were found by an older version of the detector.
     views: int = 0
+    # Sheets whose symbols were read by an older version of the detector.
+    symbols: int = 0
 
 
 class Progress(BaseModel):
@@ -158,6 +160,7 @@ def read_progress(session: Session, bid_id: uuid.UUID) -> Progress:
             documents=len(again.documents),
             sheets=len(again.sheets),
             views=len(again.stale_views),
+            symbols=len(again.stale_symbols),
         ),
     )
 
