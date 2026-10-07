@@ -29,7 +29,7 @@ from firebid.drawings.scale import Stated, Verdict, evidence_in, parse_stated, v
 from firebid.drawings.title_block import Box, Span, locate
 
 # Bumped when detection changes, so every sheet's views are detected again.
-DETECTOR_VERSION = "2"
+DETECTOR_VERSION = "3"
 
 
 class ViewKind(StrEnum):
