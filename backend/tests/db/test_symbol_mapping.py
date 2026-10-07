@@ -654,3 +654,38 @@ class TestMatchingATender:
 
         assert keys_of_shape, "the plan draws symbols no legend explains"
         assert all(len(keys) == 1 for keys in keys_of_shape.values())
+
+
+@pytest.mark.req("FR-VIS-02")
+def test_a_proposal_made_before_letters_were_read_takes_its_row_s_letters(
+    session: Session, bid: Bid, store: MemoryObjectStore
+) -> None:
+    """A proposal stored without the letters in its symbol matches by shape alone, and so
+    claims every symbol of its shape. Reading its legend again gives it the row's letters,
+    once, as a new version."""
+    from firebid.db.models.drawings import SheetGeometry
+
+    from_consultant(session, bid, "Alpha Consultants")
+    read(session, bid, store, "FP-LEG-001", fixtures.legend_sheet(fixtures.ALPHA))
+    proposed = [m for m in service.current_mappings(session, bid.organisation_id)]
+    assert proposed and all(m.signature["letters"] is not None for m in proposed)
+    for mapping in proposed:  # as they were stored before letters were read
+        mapping.signature = {k: v for k, v in mapping.signature.items() if k != "letters"}
+    session.commit()
+
+    def read_again() -> list[SymbolMapping]:
+        record = session.execute(
+            select(SheetGeometry).where(SheetGeometry.bid_id == bid.id)
+        ).scalar_one()
+        service.read_sheet(session, store, record, service.consultant_of(session, bid.id))
+        session.commit()
+        return service.current_mappings(session, bid.organisation_id)
+
+    lettered = read_again()
+
+    assert {m.lineage_id for m in lettered} == {m.lineage_id for m in proposed}
+    assert all(m.version == 2 and m.state == "proposed" for m in lettered)
+    assert all(m.signature["letters"] is not None for m in lettered)
+    rows = mapping_rows(session)
+    assert all(m.version == 2 for m in read_again())
+    assert mapping_rows(session) == rows

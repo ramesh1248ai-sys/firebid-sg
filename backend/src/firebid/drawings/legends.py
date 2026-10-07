@@ -31,7 +31,7 @@ from typing import Any
 import pyarrow as pa
 
 from firebid.drawings.geometry import texts
-from firebid.drawings.symbols import Cluster, clusters, signature_of
+from firebid.drawings.symbols import Cluster, Letters, clusters, signature_of
 from firebid.drawings.title_block import Box, Span, locate
 
 HEADING = re.compile(
@@ -108,12 +108,13 @@ def line_sample(symbol: Cluster) -> bool:
 
 def _signed(table: pa.Table, legends: list[Legend]) -> list[Legend]:
     out = []
+    letters = Letters(table)
     for legend in legends:
         rows = []
         for row in legend.rows:
             if line_sample(row.symbol):
                 continue
-            signature = signature_of(table, row.symbol)
+            signature = signature_of(table, row.symbol, letters=letters)
             if signature is not None:
                 rows.append(
                     LegendRow(

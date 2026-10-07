@@ -102,18 +102,46 @@ gaps:
     action: >-
       Product owner and Senior Estimator: confirm the three rules, or say what else a
       candidate must be.
-  - gap: "Half a real tender's candidates match no legend row, and some of them are devices"
+  - gap: "A lettered device drawn to other proportions than its legend sample matches no row"
     cause: >-
-      Of the real set's 12,334 candidates, 6,312 match no legend row, in 613 groups, nearly
-      all drawn in the services' red. The largest were looked at by eye. One group of 528
-      on 59 sheets is a circle with an S in it, a detector by its look, which matches no
-      row because a filled box behind its letter is part of its shape. Others are pieces
-      of a device drawn as several shapes that do not touch (a square, a half circle, a
-      sounder's rays), so the device is matched by one piece or by none. The rest are pipe
-      fittings (elbows, tees, couplings) and valve assemblies, which no legend row shows.
+      The letters in a symbol are now part of what it is, so a box with FI in it is no
+      longer claimed by another box's row. But the real set draws its lettered boxes to fit
+      the plan: the legend's FI is 11 by 5.4 mm lying down, the plans' is 3.5 by 6 mm
+      standing up. Their letters agree and their shapes do not (0.13 apart; the tolerance
+      is 0.07), so about 170 FI, 100 SAP, 160 2SFH and 200 FS (which sit in a valve
+      assembly) match no row. They are raised as unexplained, under their letters.
     action: >-
-      Senior Estimator: say what the circled S is and whether fittings are counted. Then
-      either leave a letter's filled box out of a symbol's shape, and join the pieces of
+      Senior Estimator: say whether a box with a row's letters in it is that row's device
+      whatever its proportions. Then hold the shape to a looser tolerance when letters of
+      two characters or more agree.
+  - gap: "Whether the real set's ticked circle is its ceiling strobe is not confirmed"
+    cause: >-
+      1,812 circles of 4 mm with four ticks about them, on 60 sheets, are now matched to
+      "STROBE LIGHT (CEILING)", whose legend sample is drawn the same way at 2.8 mm. That
+      is three times the set's 536 smoke detectors, which is many for strobes.
+    action: >-
+      Senior Estimator: say what the ticked circle is before the row is confirmed.
+  - gap: "A proposal no legend row uses any more still claims symbols"
+    cause: >-
+      A proposed mapping is kept when a later reading of its legend no longer leads to it,
+      and symbols no row claims are then matched to it. On the real bid seven such
+      proposals, left by earlier readings and stored without letters, claim 1,172 symbols
+      by shape alone. Nothing is counted from a proposal, but they are listed under its
+      description.
+    action: >-
+      Decide whether a proposal with no legend row on any bid is withdrawn when its bid is
+      read again.
+  - gap: "Two thirds of a real tender's candidates match no legend row"
+    cause: >-
+      Of the real set's 12,088 candidates, 7,941 match no legend row or mapping, in 626
+      groups, nearly all drawn in the services' red. The largest were looked at by eye.
+      Some are pieces of a device drawn as several shapes that do not touch (a square, a
+      half circle, a sounder's rays), so the device is matched by one piece or by none.
+      Others are pipe fittings (elbows, tees, couplings) and valve assemblies, which no
+      legend row shows. The largest group, 1,585 on every sheet, is an empty box that a
+      lettered box's row claimed before letters were read.
+    action: >-
+      Senior Estimator: say whether fittings are counted. Then either join the pieces of
       one device, or name the groups by hand with "unlisted symbol".
   - gap: "The heaviest real sheet still takes 1.2 GB to find its symbols"
     cause: >-

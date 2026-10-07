@@ -565,3 +565,153 @@ class TestALeaderIsNoCandidate:
         builder.line(23.2, 49.0, 23.2, 53.0, group, color=BLACK)  # a bar across its back
 
         assert self.found(builder) == 1
+
+
+class TestTheBoxBehindALetter:
+    """A detector is a circle with an S in it; the S may be set on a filled box."""
+
+    def detector(self, *, backed: bool, lettered: bool = True, box: float = 1.0) -> Any:
+        builder = Builder(Method.PDF_VECTOR)
+        group = builder.group()
+        circle = geometry.arc_points(50.0, 50.0, 2.5, 0.0, 360.0, 18)
+        builder.polyline(circle, group, closed=True, color=RED)
+        if backed:
+            half_w, half_h = 0.9 * box, 2.0 * box
+            builder.hatch(
+                [
+                    50 - half_w, 50 - half_h, 50 + half_w, 50 - half_h,
+                    50 + half_w, 50 + half_h, 50 - half_w, 50 + half_h,
+                    50 - half_w, 50 - half_h,
+                ],
+                group,
+                color=RED,
+            )  # fmt: skip
+        if lettered:
+            builder.text("S", (49.2, 48.7, 50.8, 51.3), builder.group(), height=2.6)
+        return builder.table()
+
+    def signature(self, table: Any) -> symbols.Signature:
+        (found,) = symbols.clusters(table)
+        assert found.signature is not None
+        return found.signature
+
+    def test_a_symbol_is_the_same_with_and_without_the_box_behind_its_letter(self) -> None:
+        plain = self.signature(self.detector(backed=False))
+        backed = self.signature(self.detector(backed=True))
+
+        assert symbols.distance(plain.descriptor, backed.descriptor) == 0.0
+
+    def test_a_filled_box_with_no_letter_in_it_is_part_of_the_shape(self) -> None:
+        plain = self.signature(self.detector(backed=False))
+        boxed = self.signature(self.detector(backed=True, lettered=False))
+
+        assert symbols.distance(plain.descriptor, boxed.descriptor) > symbols.DEFAULT_TOLERANCE
+
+    def test_a_filled_box_much_larger_than_the_letter_is_part_of_the_shape(self) -> None:
+        plain = self.signature(self.detector(backed=False))
+        boxed = self.signature(self.detector(backed=True, box=1.7))
+
+        assert symbols.distance(plain.descriptor, boxed.descriptor) > symbols.DEFAULT_TOLERANCE
+
+    def test_the_box_is_left_out_when_the_letter_is_turned_with_a_skewed_wing(self) -> None:
+        builder = Builder(Method.PDF_VECTOR)
+        group = builder.group()
+        builder.polyline(
+            geometry.arc_points(50.0, 50.0, 2.5, 0.0, 360.0, 18), group, closed=True, color=RED
+        )
+        turn = math.radians(30.0)
+        corners = [(-0.9, -2.0), (0.9, -2.0), (0.9, 2.0), (-0.9, 2.0), (-0.9, -2.0)]
+        turned: list[float] = []
+        for x, y in corners:
+            turned += [
+                50 + x * math.cos(turn) - y * math.sin(turn),
+                50 + x * math.sin(turn) + y * math.cos(turn),
+            ]
+        builder.hatch(turned, group, color=RED)
+        builder.text("S", (48.55, 48.45, 51.45, 51.55), builder.group(), height=2.6)
+
+        backed = self.signature(builder.table())
+        plain = self.signature(self.detector(backed=False))
+
+        assert symbols.distance(plain.descriptor, backed.descriptor) == 0.0
+
+
+class TestTheLettersInASymbol:
+    """A smoke detector and a heat detector are the same circle: the S and the H tell them
+    apart, so the letters written in a symbol are part of what it is."""
+
+    def circle(self, letters: str | None, *, note: str | None = None) -> symbols.Signature:
+        builder = Builder(Method.PDF_VECTOR)
+        builder.polyline(
+            geometry.arc_points(50.0, 50.0, 2.5, 0.0, 360.0, 18),
+            builder.group(),
+            closed=True,
+            color=RED,
+        )
+        if letters:
+            builder.text(letters, (49.2, 48.7, 50.8, 51.3), builder.group(), height=2.6)
+        if note:  # written across the symbol, and far wider than it
+            builder.text(note, (46.0, 49.0, 70.0, 51.0), builder.group(), height=2.0)
+        (found,) = symbols.clusters(builder.table())
+        assert found.signature is not None
+        return found.signature
+
+    def test_a_signature_carries_what_is_written_in_the_symbol(self) -> None:
+        assert self.circle("S").letters == "S"
+        assert self.circle(" s ").letters == "S"
+        assert self.circle(None).letters == ""
+
+    def test_a_note_that_runs_across_the_symbol_is_not_its_letters(self) -> None:
+        assert self.circle(None, note="150 DIA SLEEVE").letters == ""
+        assert self.circle("S", note="150 DIA SLEEVE").letters == "S"
+
+    def test_letters_are_the_same_written_as_one_text_or_several_or_twice(self) -> None:
+        def box(*words: tuple[str, float]) -> str:
+            builder = Builder(Method.PDF_VECTOR)
+            builder.polyline(
+                [40.0, 48.0, 50.0, 48.0, 50.0, 52.0, 40.0, 52.0],
+                builder.group(),
+                closed=True,
+                color=RED,
+            )
+            for word, x in words:
+                builder.text(
+                    word, (x, 49.0, x + 1.5 * len(word), 51.0), builder.group(), height=2.0
+                )
+            (found,) = symbols.clusters(builder.table())
+            assert found.signature is not None
+            return str(found.signature.letters)
+
+        assert box(("2SFH", 42.0)) == "2FHS"
+        assert box(("S", 46.0), ("F", 43.0)) == box(("FS", 43.5)) == "FS"
+        assert box(("FS", 43.5), ("FS", 43.6)) == "FS"
+        assert box(("T/S", 43.0)) == "ST"
+
+    def test_the_same_shape_with_other_letters_is_another_symbol(self) -> None:
+        rows = symbols.Candidates([self.circle("H"), self.circle("S"), self.circle(None)])
+
+        assert symbols.best_match(self.circle("S"), rows) == symbols.Match(1, 0.0, "shape")
+        assert symbols.best_match(self.circle(None), rows) == symbols.Match(2, 0.0, "shape")
+        assert symbols.best_match(self.circle("T"), rows) is None
+        assert symbols.near_match(self.circle("T"), rows, 3.0) is None
+
+    def test_a_signature_stored_before_letters_were_read_matches_by_shape_alone(self) -> None:
+        stored = self.circle("S").as_json()
+        del stored["letters"]
+        before = symbols.Signature.from_json(stored)
+
+        assert before.letters is None
+        assert symbols.best_match(self.circle("H"), [before]) is not None
+        assert symbols.best_match(before, [self.circle("H")]) is not None
+
+    def test_the_letters_are_kept_when_a_signature_is_stored(self) -> None:
+        signature = self.circle("FS")
+
+        assert symbols.Signature.from_json(signature.as_json()).letters == "FS"
+
+    def test_candidates_added_one_by_one_keep_their_letters(self) -> None:
+        rows = symbols.Candidates()
+        for index in range(40):  # past the first block of rows, so the arrays have grown
+            rows.append(self.circle(f"L{index}"))
+
+        assert symbols.best_match(self.circle("L37"), rows) == symbols.Match(37, 0.0, "shape")
