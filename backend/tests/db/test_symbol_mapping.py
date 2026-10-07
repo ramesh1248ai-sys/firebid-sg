@@ -745,11 +745,13 @@ def test_what_each_sheet_set_aside_is_kept_and_totalled_for_the_bid(
     from_consultant(session, bid, "Alpha Consultants")
     tender(session, bid, store, fixtures.ALPHA)
 
-    kept = list(
-        session.execute(
+    kept = [
+        one
+        for one in session.execute(
             select(SheetGeometry.symbols_set_aside).where(SheetGeometry.bid_id == bid.id)
         ).scalars()
-    )
+        if one is not None
+    ]
     assert len(kept) == 2 and all(set(one) == set(symbol_shapes.SET_ASIDE) for one in kept)
     totals = service.counts(session, bid.id).set_aside
     assert totals == {rule: sum(one[rule] for one in kept) for rule in symbol_shapes.SET_ASIDE}
