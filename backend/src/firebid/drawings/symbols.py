@@ -34,6 +34,19 @@ Not every small cluster is a candidate. Three kinds are line work and never were
 
 A CAD block insert is always a candidate: somebody drew it as a symbol.
 
+And one thing drawn inside a symbol is not part of its shape: the **filled box behind a
+letter**. A detector is a circle with an S in it, and where the S is set on a filled box
+the box is the letter's, as the letter is: with it, 528 detectors of a real tender were
+unlike the plain circle of their legend row.
+
+The **letters** written inside a symbol are not part of its shape either, but they are part
+of what it is: a consultant draws a smoke detector and a heat detector as the same circle,
+and a flow switch and a control module as the same box, and tells them apart by the S, the
+H, the FS and the CM. A signature carries them, and two symbols whose letters differ are
+never the same symbol, however alike their shapes. On a real tender the row of the circle
+with an S claimed 1,803 circles with nothing in them, and every lettered box was matched
+to another box's row.
+
 Pure: geometry in, clusters and signatures out.
 """
 
@@ -47,6 +60,7 @@ from typing import Any
 
 import numpy as np
 import pyarrow as pa
+import pyarrow.compute as pc
 
 from firebid.drawings.geometry import (
     Kind,
@@ -72,6 +86,13 @@ STRAIGHT = 0.02
 # An arrowhead is a triangle whose shortest side is at most this share of its longest. A
 # real set's are 0.84 mm across and 3.2 mm long, 0.26; a check valve's triangle is near 1.
 ARROWHEAD = 0.4
+# A filled box is a text's backing when the text is inside it, give or take this, and the
+# box is no more than this many times the text's area. A real one is 1.7 times its letter.
+BACKING_PAD_MM = 0.3
+BACKING_TIMES = 4.0
+# The letters in a symbol are the texts wholly inside its box, give or take this.
+LETTERS_PAD_MM = 0.3
+LETTERS_MAX = 24
 # A grey: max(r, g, b) - min(r, g, b) at most this, as the base plan is told elsewhere.
 GREY_SPREAD = 40
 # ...and a screened one: every channel at least this. A real set's base plan is printed in
@@ -104,6 +125,10 @@ class Signature:
     # How the line work is spread around the centre, by direction (drawing convention:
     # counter-clockwise, y up). Not part of matching: it is how orientation is found.
     angles: tuple[float, ...] = ()
+    # What is written inside the symbol, its letters in alphabetical order ("S", "FS", "2FHS";
+    # "" for nothing). None when it was not read, as in a signature stored before letters
+    # were: such a one matches by shape alone.
+    letters: str | None = None
 
     def as_json(self) -> dict[str, Any]:
         return {
@@ -114,6 +139,7 @@ class Signature:
             "tolerance": self.tolerance,
             "descriptor": [round(value, 5) for value in self.descriptor],
             "angles": [round(value, 5) for value in self.angles],
+            "letters": self.letters,
         }
 
     @classmethod
@@ -126,6 +152,7 @@ class Signature:
             tolerance=float(data.get("tolerance") or DEFAULT_TOLERANCE),
             version=str(data.get("version") or SIGNATURE_VERSION),
             angles=tuple(float(value) for value in data.get("angles") or ()),
+            letters=data.get("letters"),
         )
 
 
@@ -214,6 +241,42 @@ class Sampler:
                 starts.append(np.column_stack([xs[:-1], ys[:-1]]))
                 ends.append(np.column_stack([xs[1:], ys[1:]]))
         return _evenly(np.vstack(starts), np.vstack(ends))
+
+
+class Letters:
+    """What is written inside a symbol, for the symbols of one sheet: its texts are sorted
+    once, and a symbol's are then looked up."""
+
+    def __init__(self, table: pa.Table) -> None:
+        rows = np.flatnonzero(kind_mask(table, (Kind.TEXT,)))
+        picked = table.take(rows)
+        minx = numbers(picked.column("minx"))
+        order = np.argsort(minx, kind="stable")
+        order = order[~np.isnan(minx[order])]
+        self._minx = minx[order]
+        self._miny, self._maxx, self._maxy = (
+            numbers(picked.column(name))[order] for name in ("miny", "maxx", "maxy")
+        )
+        self._words = picked.column("text").take(pa.array(order, type=pa.int64())).to_pylist()
+
+    def inside(self, box: tuple[float, float, float, float]) -> str:
+        """The letters and digits of the texts wholly inside `box`, upper case and in
+        alphabetical order: the same however the symbol is turned, whether "FS" was written
+        as one text or as an F and an S, and when it was drawn twice, one over the other."""
+        left, top = box[0] - LETTERS_PAD_MM, box[1] - LETTERS_PAD_MM
+        right, bottom = box[2] + LETTERS_PAD_MM, box[3] + LETTERS_PAD_MM
+        low = int(np.searchsorted(self._minx, left, side="left"))
+        high = int(np.searchsorted(self._minx, right, side="right"))
+        within = low + np.flatnonzero(
+            (self._maxx[low:high] <= right)
+            & (self._miny[low:high] >= top)
+            & (self._maxy[low:high] <= bottom)
+        )
+        words = {
+            "".join(letter for letter in (self._words[at] or "").upper() if letter.isalnum())
+            for at in within.tolist()
+        }
+        return "".join(sorted("".join(words)))[:LETTERS_MAX]
 
 
 def _evenly(first: np.ndarray, last: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -341,9 +404,13 @@ def orientation(instance: Signature, reference: Signature, margin: float = 0.08)
 
 
 def signature_of(
-    table: pa.Table, cluster: Cluster, sampler: Sampler | None = None
+    table: pa.Table,
+    cluster: Cluster,
+    sampler: Sampler | None = None,
+    letters: Letters | None = None,
 ) -> Signature | None:
-    """A symbol's signature. With a `sampler` of the sheet, for signing many of its symbols."""
+    """A symbol's signature. With a `sampler` and the `letters` of the sheet, for signing
+    many of its symbols."""
     points, directions = (
         sampler.sample(cluster.rows) if sampler is not None else sample(table, cluster.rows)
     )
@@ -352,7 +419,12 @@ def signature_of(
         return None
     descriptor, rms = described
     return Signature(
-        descriptor, rms, cluster.block, cluster.block_hash, angles=angular_profile(points)
+        descriptor,
+        rms,
+        cluster.block,
+        cluster.block_hash,
+        angles=angular_profile(points),
+        letters=(letters or Letters(table)).inside(cluster.box),
     )
 
 
@@ -380,6 +452,7 @@ def clusters(
     if found is None:
         found = candidates(table)
     sampler: Sampler | None = None
+    letters: Letters | None = None
     kept = []
     for cluster in found:
         cx, cy = cluster.centre
@@ -390,9 +463,9 @@ def clusters(
         if not signed:
             kept.append(cluster)
             continue
-        if sampler is None:
-            sampler = Sampler(table)
-        signature = signature_of(table, cluster, sampler)
+        if sampler is None or letters is None:
+            sampler, letters = Sampler(table), Letters(table)
+        signature = signature_of(table, cluster, sampler, letters)
         if signature is not None:
             kept.append(_with(cluster, signature))
     return kept
@@ -407,6 +480,7 @@ def candidates(table: pa.Table) -> list[Cluster]:
     columns = _Columns(table)
     kinds = columns["kind"]
     shape = np.isin(kinds, [str(kind) for kind in SHAPE_KINDS])
+    shape[_text_backings(table, columns)] = False
     found: list[Cluster] = []
 
     # A block insert's parts are the shapes of its group. Only a CAD file has inserts.
@@ -474,6 +548,61 @@ def screened(colour: int | None) -> bool:
 def _base_plan(method: str | None, colour: int | None) -> bool:
     """Screened line work of a PDF. A CAD file is not printed: its greys are layer colours."""
     return method != str(Method.CAD) and screened(colour)
+
+
+def _text_backings(table: pa.Table, columns: _Columns) -> list[int]:
+    """The filled boxes a text is set on: a rectangle, turned any way, around a text and little
+    larger than it. The rows, for leaving out of every symbol's shape."""
+    kinds = columns["kind"]
+    minx, miny = columns.array("minx"), columns.array("miny")
+    maxx, maxy = columns.array("maxx"), columns.array("maxy")
+    words = np.flatnonzero((kinds == str(Kind.TEXT)) & ~np.isnan(minx))
+    corners = pc.list_value_length(table.column("points")).to_numpy(zero_copy_only=False)
+    with np.errstate(invalid="ignore"):
+        boxes = np.flatnonzero(
+            (kinds == str(Kind.HATCH))
+            & np.isin(corners, (8, 10))
+            & (np.hypot(maxx - minx, maxy - miny) <= SYMBOL_MAX_MM * math.sqrt(2))
+        )
+    if words.size == 0 or boxes.size == 0:
+        return []
+    words = words[np.argsort(minx[words], kind="stable")]
+    lefts = minx[words]
+    out = []
+    for row in boxes.tolist():
+        left, top = minx[row] - BACKING_PAD_MM, miny[row] - BACKING_PAD_MM
+        right, bottom = maxx[row] + BACKING_PAD_MM, maxy[row] + BACKING_PAD_MM
+        within = words[np.searchsorted(lefts, left, side="left") : np.searchsorted(lefts, right)]
+        within = within[(maxx[within] <= right) & (miny[within] >= top) & (maxy[within] <= bottom)]
+        if within.size == 0:
+            continue
+        lettered = (maxx[within] - minx[within]) * (maxy[within] - miny[within])
+        area = _rectangle(table, row)
+        if area is not None and area <= BACKING_TIMES * float(lettered.max()):
+            out.append(row)
+    return out
+
+
+def _rectangle(table: pa.Table, row: int) -> float | None:
+    """The area of the rectangle a primitive's points draw, turned any way; None when they
+    draw something else."""
+    points = table.column("points")[row].as_py() or []
+    corners = list(zip(points[0::2], points[1::2], strict=False))
+    if len(corners) > 1 and math.dist(corners[0], corners[-1]) < 1e-6:
+        corners = corners[:-1]
+    if len(corners) != 4:
+        return None
+    sides = [math.dist(corners[index], corners[index - 3]) for index in range(4)]
+    across = math.dist(corners[0], corners[2]), math.dist(corners[1], corners[3])
+    slack = 0.02 * max(across)
+    # Opposite sides alike and both diagonals alike: a parallelogram with square corners.
+    if (
+        abs(sides[0] - sides[2]) > slack
+        or abs(sides[1] - sides[3]) > slack
+        or abs(across[0] - across[1]) > slack
+    ):
+        return None
+    return sides[0] * sides[1]
 
 
 def _arrowhead(points: list[float]) -> tuple[float, float] | None:
@@ -743,6 +872,9 @@ class Candidates:
         self._rows = np.zeros((max(len(signatures), 16), WIDTH))
         self._tolerances = np.zeros(self._rows.shape[0])
         self._hashes: dict[str, int] = {}
+        # Each candidate's letters as a number, the same for the same letters; -1: not read.
+        self._lettered = np.full(self._rows.shape[0], -1, dtype=np.int64)
+        self._letters: dict[str, int] = {}
         # Candidates with no descriptor never match by shape; ones of another width (an
         # older signature version) are compared one by one, and are always far.
         self._odd: list[int] = []
@@ -763,7 +895,10 @@ class Candidates:
         if index == self._rows.shape[0]:
             self._rows = np.vstack([self._rows, np.zeros_like(self._rows)])
             self._tolerances = np.concatenate([self._tolerances, np.zeros_like(self._tolerances)])
+            self._lettered = np.concatenate([self._lettered, np.full_like(self._lettered, -1)])
         self._tolerances[index] = signature.tolerance
+        if signature.letters is not None:
+            self._lettered[index] = self._letters.setdefault(signature.letters, len(self._letters))
         if len(signature.descriptor) == WIDTH:
             self._rows[index] = signature.descriptor
         else:
@@ -775,8 +910,8 @@ class Candidates:
         return self._hashes.get(block_hash)
 
     def gaps(self, signature: Signature) -> tuple[np.ndarray, np.ndarray]:
-        """Each candidate's `distance` from `signature` (NaN: no descriptor), and the
-        tolerance each pair is held to."""
+        """Each candidate's `distance` from `signature` (NaN: no descriptor, or other
+        letters written in it), and the tolerance each pair is held to."""
         count = len(self.signatures)
         tolerances = np.minimum(self._tolerances[:count], signature.tolerance)
         rows = self._rows[:count]
@@ -787,6 +922,12 @@ class Candidates:
             found = np.where(np.isnan(rows[:, 0]), np.nan, 1.0)
         for index in self._odd:
             found[index] = distance(signature.descriptor, self.signatures[index].descriptor)
+        if signature.letters is not None:
+            lettered = self._lettered[:count]
+            # -2: letters no candidate has, so unlike every candidate whose letters were read.
+            found[(lettered != -1) & (lettered != self._letters.get(signature.letters, -2))] = (
+                np.nan
+            )
         return found, tolerances
 
 
@@ -798,8 +939,9 @@ def best_match(signature: Signature, candidates: Candidates | list[Signature]) -
     """The candidate this signature is, if any: same block geometry first, then same shape.
 
     A block name alone is not enough: consultants reuse names. A name with a different hash
-    falls through to the shape comparison like any PDF symbol. Pass `Candidates` when
-    matching many signatures against the same list.
+    falls through to the shape comparison like any PDF symbol, and a shape is only the same
+    symbol when the same letters are written in it. Pass `Candidates` when matching many
+    signatures against the same list.
     """
     stacked = _as_candidates(candidates)
     if len(stacked) == 0:

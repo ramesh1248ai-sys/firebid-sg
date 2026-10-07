@@ -52,7 +52,7 @@ from firebid.storage.object_store import ObjectExists, ObjectStore
 
 log = structlog.get_logger("firebid.symbols")
 
-DETECTOR_VERSION = "3"
+DETECTOR_VERSION = "5"
 PNG = "image/png"
 
 # Legend entry statuses.
@@ -488,6 +488,19 @@ def _resolve(
             entry.mapping_lineage_id, entry.status = mapping.lineage_id, REUSED
             return
         if mapping.state == PROPOSED:
+            if Signature.from_json(mapping.signature).letters is None:
+                # Proposed before the letters in a symbol were read, so it matches by shape
+                # alone and claims every symbol of its shape. It takes this row's signature,
+                # letters and all, as a new version. A confirmed mapping is a person's
+                # decision and is left as it was confirmed.
+                mapping = _next_version(
+                    mapping,
+                    signature=signature.as_json(),
+                    change_note="signature read again, with the letters in the symbol",
+                )
+                session.add(mapping)
+                session.flush()
+                mappings[found.index] = mapping
             entry.mapping_lineage_id, entry.status = mapping.lineage_id, PROPOSED
             return
         # The same symbol described differently: changed, so a person looks again. The
@@ -796,12 +809,11 @@ def _unknown_key(signature: Signature, seen: tuple[symbols.Candidates, list[str]
     found = symbols.best_match(signature, shapes)
     if found is not None:
         return keys[found.index]
-    key = (
-        "shape:"
-        + hashlib.sha256(",".join(f"{v:.2f}" for v in signature.descriptor).encode()).hexdigest()[
-            :16
-        ]
-    )
+    # Two groups may be one shape with different letters in it: the letters are in the key.
+    named = ",".join(f"{v:.2f}" for v in signature.descriptor)
+    if signature.letters:
+        named += "|" + signature.letters
+    key = "shape:" + hashlib.sha256(named.encode()).hexdigest()[:16]
     shapes.append(signature)
     keys.append(key)
     return key
