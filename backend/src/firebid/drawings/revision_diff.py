@@ -136,7 +136,8 @@ def grid_lines(grid: dict[str, list[list[object]]] | None) -> GridLines | None:
     if not grid:
         return None
     return {
-        axis: {str(label): float(str(position)) for label, position in grid.get(axis, [])}
+        # A skewed line's slope and origin follow its position; its bubble's place is enough here.
+        axis: {str(row[0]): float(str(row[1])) for row in grid.get(axis, [])}
         for axis in ("across", "up")
     }
 
