@@ -59,6 +59,9 @@ class SheetGeometry(UuidPk, BidScoped, Base):
     # The symbol detector that last read this sheet (null: read before this was kept), and
     # whether the bid's symbols have been matched since it did.
     symbols_version: Mapped[str | None] = mapped_column(String(16))
+    # Shapes that detector did not take as candidate symbols, by rule: `base_plan`,
+    # `straight`, `leader`. Null on a sheet read before this was kept.
+    symbols_set_aside: Mapped[dict[str, int] | None] = mapped_column(JSONB)
     symbols_matched: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=true()
     )

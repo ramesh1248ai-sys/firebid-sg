@@ -52,7 +52,7 @@ from firebid.storage.object_store import ObjectExists, ObjectStore
 
 log = structlog.get_logger("firebid.symbols")
 
-DETECTOR_VERSION = "5"
+DETECTOR_VERSION = "6"
 PNG = "image/png"
 
 # Legend entry statuses.
@@ -405,7 +405,7 @@ def read_sheet(
     if shapes is None:
         table = geometry_service.load(store, record)
         shapes = _shapes_of(table, page)
-    found, placed = shapes
+    found, placed, set_aside = shapes
     outcome = SheetSymbols()
     if table is None and any(legend.rows for legend in found):
         table = geometry_service.load(store, record)  # each legend row is cropped from it
@@ -449,6 +449,7 @@ def read_sheet(
 
     outcome.instances = _record_instances(session, record, placed)
     record.symbols_version = DETECTOR_VERSION
+    record.symbols_set_aside = dict(set_aside)
     record.symbols_matched = False
     if match:
         match_instances(session, record.bid_id, consultant)
@@ -543,7 +544,9 @@ def _resolve(
     entry.status = AWAITING_MODEL
 
 
-Shapes = tuple[list[legends.Legend], list[symbols.Cluster]]
+# A sheet's legends, the symbols installed on it, and how many shapes were set aside by
+# each rule (`symbols.SET_ASIDE`).
+Shapes = tuple[list[legends.Legend], list[symbols.Cluster], dict[str, int]]
 
 
 def _shapes_of(table: Any, page: tuple[float, float, float, float]) -> Shapes:
@@ -553,13 +556,14 @@ def _shapes_of(table: Any, page: tuple[float, float, float, float]) -> Shapes:
     from firebid.drawings.views import _title_block_region
 
     # The shapes are found once: the legends and the installed symbols are both read from them.
-    shapes = symbols.candidates(table)
+    set_aside: dict[str, int] = {}
+    shapes = symbols.candidates(table, set_aside)
     found = legends.detect(table, page, shapes)
     excluded = [legend.box for legend in found]
     region = _title_block_region(texts(table), page)
     if region is not None:
         excluded.append((region.x0, region.y0, region.x1, region.y1))
-    return found, symbols.clusters(table, excluding=excluded, found=shapes)
+    return found, symbols.clusters(table, excluding=excluded, found=shapes), set_aside
 
 
 def sheet_shapes(parquet: bytes, page: tuple[float, float, float, float]) -> Shapes:
@@ -1020,6 +1024,8 @@ class Counts:
     counted: dict[str, Counted]
     unmapped: list[Unmapped]
     not_objects: int
+    # Shapes the detector did not take as candidate symbols, by rule, over the same sheets.
+    set_aside: dict[str, int] = field(default_factory=dict)
 
 
 def counts(session: Session, bid_id: uuid.UUID, *, current_only: bool = True) -> Counts:
@@ -1084,7 +1090,21 @@ def counts(session: Session, bid_id: uuid.UUID, *, current_only: bool = True) ->
         )
         group.instances += 1
         group.sheets.add(instance.sheet_id)
-    return Counts(counted, sorted(unmapped.values(), key=lambda u: -u.instances), not_objects)
+    aside = select(SheetGeometry.symbols_set_aside).where(
+        SheetGeometry.bid_id == bid_id, SheetGeometry.symbols_set_aside.is_not(None)
+    )
+    if current_only:
+        aside = aside.where(SheetGeometry.sheet_id.in_(sheet_ids))
+    set_aside: dict[str, int] = defaultdict(int)
+    for per_sheet in session.execute(aside).scalars():
+        for rule, count in (per_sheet or {}).items():
+            set_aside[rule] += int(count)
+    return Counts(
+        counted,
+        sorted(unmapped.values(), key=lambda u: -u.instances),
+        not_objects,
+        dict(set_aside),
+    )
 
 
 def unmapped_by_sheet(found: Counts) -> dict[uuid.UUID, int]:
