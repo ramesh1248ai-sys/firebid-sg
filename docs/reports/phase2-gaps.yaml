@@ -20,7 +20,8 @@ security_review:
   summary: >-
     Quotations, outcomes, submission snapshots and the KPI instrumentation were reviewed on
     4 Oct 2026 (`docs/reports/phase2-security-review.md`). Dependency and code scans
-    (pip-audit, npm audit, bandit) found nothing; semgrep, gitleaks and trivy were not run.
+    (pip-audit, npm audit, bandit) found nothing; semgrep, gitleaks and trivy have run in CI
+    on every pull request since 7 Oct 2026 and pass.
     The data inventory and the retention job now cover the Phase 2 entities: quotation file
     lines are cleared a year after a bid ends, and an outcome's competitor feedback is
     listed as personal data. No high or critical finding is open.
@@ -47,7 +48,7 @@ security_review:
       status: open
     - finding: semgrep, gitleaks and trivy have not run on the Phase 2 code
       severity: low
-      status: "open: `make security`, or restore CI"
+      status: closed on 7 Oct 2026 (the CI security job runs all three and passes)
 
 cost_review:
   summary: >-
@@ -72,26 +73,24 @@ gaps:
     action: >-
       Run the rest of the MOH set and a second consultant's drawings; a person confirms
       each sheet's side on the Design page meanwhile.
-  - gap: "The whole real set has been read once; its design basis has not been summarised"
+  - gap: "The whole real set has been read; its design basis has not been summarised"
     cause: >-
-      All 148 sheets of the MOH set were uploaded to one bid. Every sheet read is Current
-      with the right number, every readable sheet has a plan view, and about half have a
-      scale their own grid dimensions verify. Four sheets failed for memory before the fix
-      below and were not read again. The design basis and match lines across the whole set
-      were not tallied, and no other consultant's drawings have been run.
+      All 148 sheets of the MOH set are read on one bid, none with an error. Every sheet is
+      Current with the right number, every readable sheet has a plan view, and about half
+      have a scale their own grid dimensions verify. The design basis and match lines across
+      the whole set were not tallied, and no other consultant's drawings have been run.
     action: >-
-      Read the four again; read the design basis for the set; lay out one whole floor and
-      compare its head count with the estimators'.
-  - gap: "Finishing a document still matches every symbol of the bid, though lightly now"
+      Read the design basis for the set; lay out one whole floor and compare its head count
+      with the estimators'.
+  - gap: "A matching pass still reads every symbol of the bid"
     cause: >-
-      Matching symbols to legend rows runs once a document over every instance of the bid.
-      With straight strokes, leaders and the screened base plan no longer candidates, the
-      real set (148 one-sheet files) has 12,000 instances where it had 467,000, and a pass
-      takes 4 seconds where it took 41. It is still a pass a document: about ten minutes
-      of matching for that set, where it was a hundred.
+      A document that finishes now matches the bid's symbols only if a sheet's were read
+      since they were last matched, so of a tender sent as many files that finish together
+      most match nothing. A pass, when one runs, still reads every instance of the bid: 1
+      to 4 seconds on the real set's 12,000.
     action: >-
-      Match only what a document changed: its own instances, and the rest only against
-      legend rows it added. That needs a stored digest of each instance's shape.
+      None now. If a pass grows again, match only what was read, which needs a stored
+      digest of each instance's shape.
   - gap: "What a candidate symbol is was decided in the code, not by the estimators"
     cause: >-
       A straight stroke, a leader (an arrowhead and the strokes from its tip), and on a PDF
@@ -121,25 +120,20 @@ gaps:
       is three times the set's 536 smoke detectors, which is many for strobes.
     action: >-
       Senior Estimator: say what the ticked circle is before the row is confirmed.
-  - gap: "A proposal no legend row uses any more still claims symbols"
+  - gap: "A proposal no legend row leads to is still listed in the library"
     cause: >-
-      A proposed mapping is kept when a later reading of its legend no longer leads to it,
-      and symbols no row claims are then matched to it. On the real bid seven such
-      proposals, left by earlier readings and stored without letters, claim 1,172 symbols
-      by shape alone. Nothing is counted from a proposal, but they are listed under its
-      description.
+      Such a proposal no longer claims symbols (on the real bid seven of them claimed
+      1,172). It is still a row among the consultant's symbols, proposed for ever.
     action: >-
-      Decide whether a proposal with no legend row on any bid is withdrawn when its bid is
-      read again.
-  - gap: "Two thirds of a real tender's candidates match no legend row"
+      Decide whether it is withdrawn when its bid is read again.
+  - gap: "Three quarters of a real tender's candidates match no legend row"
     cause: >-
-      Of the real set's 12,088 candidates, 7,941 match no legend row or mapping, in 626
-      groups, nearly all drawn in the services' red. The largest were looked at by eye.
-      Some are pieces of a device drawn as several shapes that do not touch (a square, a
-      half circle, a sounder's rays), so the device is matched by one piece or by none.
+      Of the real set's 12,088 candidates, 9,113 match no legend row or confirmed mapping,
+      in 634 groups, nearly all drawn in the services' red. The largest were looked at by
+      eye. Some are pieces of a device drawn as several shapes that do not touch (a square,
+      a half circle, a sounder's rays), so the device is matched by one piece or by none.
       Others are pipe fittings (elbows, tees, couplings) and valve assemblies, which no
-      legend row shows. The largest group, 1,585 on every sheet, is an empty box that a
-      lettered box's row claimed before letters were read.
+      legend row shows. The largest group, 1,585 on every sheet, is an empty box.
     action: >-
       Senior Estimator: say whether fittings are counted. Then either join the pieces of
       one device, or name the groups by hand with "unlisted symbol".
@@ -180,13 +174,6 @@ gaps:
     action: >-
       Product owner: accept, or offer the DXF of the layout alone, to be laid over the
       consultant's own CAD file.
-  - gap: "CI has not run since P2-06: not on P2-07 to P2-09, the dependency refresh, the move to Python 3.14 or FR-DSN-05 and 06"
-    cause: >-
-      GitHub Actions refuses to start jobs: the account's payments have failed or its
-      spending limit is reached.
-    action: >-
-      Fix the billing; re-run CI on main. Until then the evidence is local: `make check`,
-      `make test-integration` and `make e2e` in the Dev Container.
   - gap: "The end-to-end tests do not open the Phase 2 pages"
     cause: >-
       The eleven end-to-end tests cover sign-in, the bid workspace, document intake and the
@@ -255,8 +242,8 @@ recommendation: >-
   the review pack and gates G3 and G4 work, and the submission is frozen and verifiable. The
   Phase 1 suites show no regression and the non-functional targets hold with the Phase 2
   workload. But none of the three exit criteria can be judged: they are measures of live
-  tenders, and no pilot has run and no turnaround baseline exists. Recommended: (1) fix CI
-  billing and run the full pipeline on main; (2) decide D2 so the model routes can be
+  tenders, and no pilot has run and no turnaround baseline exists. Recommended: (1) keep CI
+  green on main, where it has run again since 7 Oct 2026; (2) decide D2 so the model routes can be
   measured and costed; (3) record the turnaround baseline and confirm the placeholder
   figures; (4) make finishing a document scale with a tender sent as many files, then take
   a whole floor of the real set to a layout and compare it with the estimators' count;

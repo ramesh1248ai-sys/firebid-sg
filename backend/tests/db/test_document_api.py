@@ -284,10 +284,10 @@ def test_reading_again_is_for_those_who_may_send_documents(
 
     # Nothing has failed on this bid, so there is nothing to read again.
     assert answer.status_code == 200
-    assert answer.json() == {"documents": 0, "sheets": 0, "views": 0}
+    assert answer.json() == {"documents": 0, "sheets": 0, "views": 0, "symbols": 0}
     progress = sign_in(estimator_principal).get(f"/bids/{bid.id}/progress").json()
     assert progress["unread_sheets"] == []
-    assert progress["read_again"] == {"documents": 0, "sheets": 0, "views": 0}
+    assert progress["read_again"] == {"documents": 0, "sheets": 0, "views": 0, "symbols": 0}
 
 
 def parse_jobs(session: Session, document_id: str) -> list[dict[str, Any]]:

@@ -689,3 +689,47 @@ def test_a_proposal_made_before_letters_were_read_takes_its_row_s_letters(
     rows = mapping_rows(session)
     assert all(m.version == 2 for m in read_again())
     assert mapping_rows(session) == rows
+
+
+@pytest.mark.req("FR-VIS-02")
+def test_a_proposal_no_legend_row_leads_to_claims_no_symbol(
+    session: Session, bid: Bid, store: MemoryObjectStore
+) -> None:
+    """A proposal left behind by an earlier reading of a legend is nobody's to confirm, and
+    on a real tender seven of them claimed 1,172 symbols by shape alone. A confirmed mapping
+    needs no row: that is how a symbol no legend shows is named."""
+    from firebid.db.models.symbols import SymbolInstance
+
+    from_consultant(session, bid, "Alpha Consultants")
+    tender(session, bid, store, fixtures.ALPHA)
+    consultant = service.consultant_of(session, bid.id)
+
+    def matched_to_a_mapping_only() -> int:
+        service.match_instances(session, bid.id, consultant)
+        session.commit()
+        return int(
+            session.execute(
+                select(func.count())
+                .select_from(SymbolInstance)
+                .where(
+                    SymbolInstance.bid_id == bid.id,
+                    SymbolInstance.legend_entry_id.is_(None),
+                    SymbolInstance.mapping_lineage_id.is_not(None),
+                )
+            ).scalar_one()
+        )
+
+    assert matched_to_a_mapping_only() == 0, "every mapped symbol is matched through its row"
+    # The legends are gone (read again, and no longer found): their proposals are left.
+    session.execute(text("UPDATE symbol_instance SET legend_entry_id = NULL"))
+    session.execute(text("DELETE FROM legend_entry"))
+    session.commit()
+
+    assert matched_to_a_mapping_only() == 0, "a proposal with no row claims nothing"
+
+    for mapping in service.current_mappings(session, bid.organisation_id):
+        if mapping.state == "proposed" and mapping.object_type_key:
+            service.confirm(session, mapping.lineage_id, ESTIMATOR)
+    session.commit()
+
+    assert matched_to_a_mapping_only() > 0, "a confirmed mapping claims its symbols with no row"

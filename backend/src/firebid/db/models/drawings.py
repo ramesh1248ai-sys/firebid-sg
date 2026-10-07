@@ -21,6 +21,7 @@ from sqlalchemy import (
     Uuid,
     false,
     func,
+    true,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -55,6 +56,12 @@ class SheetGeometry(UuidPk, BidScoped, Base):
     # A digest of everything the sheet's detection was last made from. The same digest
     # again means the stored detections stand, and the sheet is not detected again.
     detection_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    # The symbol detector that last read this sheet (null: read before this was kept), and
+    # whether the bid's symbols have been matched since it did.
+    symbols_version: Mapped[str | None] = mapped_column(String(16))
+    symbols_matched: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=true()
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

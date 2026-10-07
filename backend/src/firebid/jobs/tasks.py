@@ -684,6 +684,26 @@ def detect_views_again(context: JobContext, bid_id: str, user_id: str) -> dict[s
         )
 
 
+@app.task(name="symbols.again", queue=PARSE_QUEUE, pass_context=True)
+def read_symbols_again(context: JobContext, bid_id: str, user_id: str) -> dict[str, int]:
+    """Read again the symbols an older detector read, across a bid (a person asked).
+
+    In the parser pool, as `views.again` is: it reads each sheet's stored geometry.
+    Idempotent: a sheet whose symbols this detector read is skipped.
+    """
+    import uuid as uuid_module
+
+    from firebid.db.identity import acting_as
+    from firebid.services import parse_pipeline
+    from firebid.storage.object_store import get_object_store
+
+    acting = uuid_module.UUID(user_id) if user_id else None
+    with acting_as(acting), session_scope() as session:
+        return parse_pipeline.symbols_again(
+            session, get_object_store(), uuid_module.UUID(bid_id), acting
+        )
+
+
 @app.task(name="design.layout", queue="default", pass_context=True)
 def lay_out_design(
     context: JobContext, bid_id: str, user_id: str, sheet_id: str = ""

@@ -448,6 +448,8 @@ def read_sheet(
             outcome.entries.append(entry)
 
     outcome.instances = _record_instances(session, record, placed)
+    record.symbols_version = DETECTOR_VERSION
+    record.symbols_matched = False
     if match:
         match_instances(session, record.bid_id, consultant)
     session.flush()
@@ -660,14 +662,30 @@ def match_instances(
     a mapping was added and the legend rows are what they were: an instance matched to a
     row matches it still, so reading it again changes nothing. On a real tender that is a
     seventh of the instances.
+
+    A proposal claims symbols only while some legend row leads to it. One left behind by an
+    earlier reading of a legend, which no row leads to now, is nobody's to confirm: on a
+    real tender seven of them claimed 1,172 symbols by shape alone.
     """
+    # The sheets read since the bid was last matched, as they stand now: a sheet recorded
+    # while this runs is not among them, and is matched by the next pass.
+    unmatched = list(
+        session.execute(
+            select(SheetGeometry.id).where(
+                SheetGeometry.bid_id == bid_id, SheetGeometry.symbols_matched.is_(False)
+            )
+        ).scalars()
+    )
     entries = list(
         session.execute(select(LegendEntry).where(LegendEntry.bid_id == bid_id)).scalars()
     )
     entry_signatures = symbols.Candidates([Signature.from_json(e.signature) for e in entries])
-    mappings = _usable_for(
-        current_mappings(session, consultant.organisation_id, consultant.key),
-        consultant.project_id,
+    mappings = _led_to(
+        session,
+        _usable_for(
+            current_mappings(session, consultant.organisation_id, consultant.key),
+            consultant.project_id,
+        ),
     )
     mapping_signatures = symbols.Candidates([Signature.from_json(m.signature) for m in mappings])
     unknown: tuple[symbols.Candidates, list[str]] = (symbols.Candidates(), [])
@@ -772,8 +790,49 @@ def match_instances(
                 )
                 .execution_options(synchronize_session=False)
             )
+    if unmatched and not beyond_legends_only:
+        session.execute(
+            update(SheetGeometry)
+            .where(SheetGeometry.id.in_(unmatched))
+            .values(symbols_matched=True)
+            .execution_options(synchronize_session=False)
+        )
     # Instances already loaded in this session are read again when next used.
     session.expire_all()
+
+
+def match_if_read(session: Session, bid_id: uuid.UUID, consultant: Consultant) -> bool:
+    """Match the bid's symbols if any sheet's were read since they were last matched.
+
+    For a document that finishes: every sheet read so far is matched by the first document
+    to finish after it, so of a tender sent as 148 files that finish together, most find
+    nothing left to match. Returns whether it matched.
+    """
+    waiting = session.execute(
+        select(SheetGeometry.id)
+        .where(SheetGeometry.bid_id == bid_id, SheetGeometry.symbols_matched.is_(False))
+        .limit(1)
+    ).first()
+    if waiting is None:
+        return False
+    match_instances(session, bid_id, consultant)
+    return True
+
+
+def _led_to(session: Session, mappings: list[SymbolMapping]) -> list[SymbolMapping]:
+    """The mappings an instance may be matched to: every confirmed one, and a proposal only
+    while a legend row leads to it."""
+    proposed = [m.lineage_id for m in mappings if m.state == PROPOSED]
+    if not proposed:
+        return mappings
+    led = set(
+        session.execute(
+            select(LegendEntry.mapping_lineage_id)
+            .where(LegendEntry.mapping_lineage_id.in_(proposed))
+            .distinct()
+        ).scalars()
+    )
+    return [m for m in mappings if m.state != PROPOSED or m.lineage_id in led]
 
 
 # What an instance is matched to: its legend row, its mapping's lineage, its key, how near.

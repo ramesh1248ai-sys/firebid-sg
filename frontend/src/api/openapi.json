@@ -9850,6 +9850,7 @@
             "default": {
               "documents": 0,
               "sheets": 0,
+              "symbols": 0,
               "views": 0
             }
           },
@@ -11201,6 +11202,11 @@
           "sheets": {
             "default": 0,
             "title": "Sheets",
+            "type": "integer"
+          },
+          "symbols": {
+            "default": 0,
+            "title": "Symbols",
             "type": "integer"
           },
           "views": {
@@ -18721,7 +18727,7 @@
     },
     "/bids/{bid_id}/documents/read-again": {
       "post": {
-        "description": "Read again what could not be read: sheets that failed, drawings refused after they\nwere scanned, and views found by an older detector (`progress.read_again` counts them).\n\nSafe to call repeatedly: what is queued is being read, so asking again finds nothing.",
+        "description": "Read again what could not be read: sheets that failed, drawings refused after they\nwere scanned, and views and symbols found by an older detector (`progress.read_again`\ncounts them).\n\nSafe to call repeatedly: what is queued is being read, so asking again finds nothing.",
         "operationId": "read_again_bids__bid_id__documents_read_again_post",
         "parameters": [
           {

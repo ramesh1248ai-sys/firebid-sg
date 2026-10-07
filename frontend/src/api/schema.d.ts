@@ -1146,7 +1146,8 @@ export interface paths {
         /**
          * Read Again
          * @description Read again what could not be read: sheets that failed, drawings refused after they
-         *     were scanned, and views found by an older detector (`progress.read_again` counts them).
+         *     were scanned, and views and symbols found by an older detector (`progress.read_again`
+         *     counts them).
          *
          *     Safe to call repeatedly: what is queued is being read, so asking again finds nothing.
          */
@@ -7227,6 +7228,7 @@ export interface components {
              * @default {
              *       "documents": 0,
              *       "sheets": 0,
+             *       "symbols": 0,
              *       "views": 0
              *     }
              */
@@ -7630,6 +7632,11 @@ export interface components {
              * @default 0
              */
             sheets: number;
+            /**
+             * Symbols
+             * @default 0
+             */
+            symbols: number;
             /**
              * Views
              * @default 0
