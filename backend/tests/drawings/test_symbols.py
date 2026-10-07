@@ -428,7 +428,9 @@ def test_candidates_are_the_ones_a_value_a_cell_found() -> None:
         ]
         for group in symbols._touching(columns, loose):
             box = symbols._box_of(columns, group)
-            if symbols._symbol_sized(box):
+            # One line by itself is a straight stroke, which is no candidate.
+            alone = len(group) == 1 and kinds[group[0]] == str(Kind.LINE)
+            if symbols._symbol_sized(box) and not alone:
                 found.append(symbols.Cluster(rows=tuple(group), box=box))
         return found
 
@@ -441,3 +443,70 @@ def test_candidates_are_the_ones_a_value_a_cell_found() -> None:
     ]
     for got, want in zip(found, expected, strict=True):
         assert all(math.isclose(a, b) for a, b in zip(got.box, want.box, strict=True))
+
+
+GREY, RED, BLACK = 0xD6D6D6, 0xFF0000, 0x000000
+
+
+def _drawn(method: Method, shapes: list[tuple[str, float, int]]) -> list[tuple[float, float]]:
+    """Where the candidates are on a sheet of these shapes: a kind, where along it, a pen."""
+    builder = Builder(method)
+    for kind, x, colour in shapes:
+        group = builder.group()
+        if kind == "stroke":  # one diagonal line: its box is as square as a symbol's
+            builder.line(x, 50.0, x + 4.0, 54.0, group, color=colour)
+        elif kind == "dashes":  # two strokes end to end along one line
+            builder.line(x, 50.0, x + 2.0, 51.0, group, color=colour)
+            builder.line(x + 2.2, 51.1, x + 4.2, 52.1, group, color=colour)
+        elif kind == "vee":
+            builder.line(x, 50.0, x + 2.0, 54.0, group, color=colour)
+            builder.line(x + 2.0, 54.0, x + 4.0, 50.0, group, color=colour)
+        elif kind == "circle":
+            builder.circle(x + 2.0, 52.0, 2.0, group, color=colour)
+    return [cluster.centre for cluster in symbols.candidates(builder.table())]
+
+
+class TestWhatACandidateIs:
+    def test_a_straight_stroke_is_no_candidate(self) -> None:
+        found = _drawn(
+            Method.PDF_VECTOR,
+            [("stroke", 20.0, RED), ("dashes", 60.0, RED), ("vee", 100.0, RED)],
+        )
+
+        assert [round(x) for x, _ in found] == [102]
+
+    def test_a_circle_is_a_candidate_though_it_has_no_ends(self) -> None:
+        assert len(_drawn(Method.PDF_VECTOR, [("circle", 20.0, BLACK)])) == 1
+
+    def test_the_screened_base_plan_of_a_pdf_is_no_candidate(self) -> None:
+        found = _drawn(
+            Method.PDF_VECTOR,
+            [
+                ("vee", 20.0, GREY),
+                ("vee", 60.0, RED),
+                ("vee", 100.0, BLACK),
+                ("circle", 140.0, GREY),
+            ],
+        )
+
+        assert [round(x) for x, _ in found] == [62, 102]
+
+    def test_a_cad_file_is_not_printed_so_its_grey_is_a_layer_colour(self) -> None:
+        assert len(_drawn(Method.CAD, [("vee", 20.0, GREY)])) == 1
+
+    @pytest.mark.parametrize(
+        ("colour", "is_screened"),
+        [
+            (0xD6D6D6, True),
+            (0xBBBBBB, True),
+            (0xEAEAEA, True),
+            (0x000000, False),  # the services' annotation
+            (0x404040, False),  # a dark grey pen
+            (0xFFFFFF, False),
+            (0xFF0000, False),
+            (0xFFBBBB, False),  # a tint is a colour
+            (-1, False),  # the source gave none
+        ],
+    )
+    def test_a_screened_colour_is_a_light_grey(self, colour: int, is_screened: bool) -> None:
+        assert symbols.screened(colour) is is_screened

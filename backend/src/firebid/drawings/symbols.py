@@ -21,6 +21,16 @@ same shape, 1 for shapes with nothing in common. A DXF block's descriptor is com
 same way from its exploded line work, which is how a PDF instance can match a mapping that
 was confirmed on a DXF legend.
 
+Not every small cluster is a candidate. Two kinds are line work and never were symbols:
+
+* a **straight stroke**: its descriptor is every straight stroke's, so one legend row whose
+  sample was a diagonal line claimed three quarters of a real tender's candidates;
+* a shape of the **base plan** on a PDF: the architect's plan is printed screened, in a
+  light grey, under the services in black and colour, and its furniture, doors and
+  fittings are nine tenths of the small shapes on a real sheet.
+
+A CAD block insert is always a candidate: somebody drew it as a symbol.
+
 Pure: geometry in, clusters and signatures out.
 """
 
@@ -35,7 +45,14 @@ from typing import Any
 import numpy as np
 import pyarrow as pa
 
-from firebid.drawings.geometry import Kind, kind_mask, numbers, segments, shared_values
+from firebid.drawings.geometry import (
+    Kind,
+    Method,
+    kind_mask,
+    numbers,
+    segments,
+    shared_values,
+)
 
 # Bump when signatures change: stored signatures and instances are recomputed.
 SIGNATURE_VERSION = "1"
@@ -45,6 +62,15 @@ SYMBOL_MAX_MM = 15.0
 SYMBOL_MIN_MM = 1.0
 # Primitives closer than this belong to one cluster.
 TOUCH_MM = 0.3
+# A cluster no wider than this share of its length, across its longest way, is a straight
+# stroke. Measured on a real sheet: its strokes are at 0.000 and its narrowest legend symbol
+# (a bell, two lines) at 0.5.
+STRAIGHT = 0.02
+# A grey: max(r, g, b) - min(r, g, b) at most this, as the base plan is told elsewhere.
+GREY_SPREAD = 40
+# ...and a screened one: every channel at least this. A real set's base plan is printed in
+# 0xBBBBBB to 0xEAEAEA; black, and a dark grey pen, are the services' own.
+SCREENED_FROM = 0x80
 SAMPLES = 200
 D2_BINS = np.linspace(0.0, 3.2, 17)
 RADIAL_BINS = np.linspace(0.0, 2.2, 12)
@@ -369,7 +395,8 @@ def clusters(
 def candidates(table: pa.Table) -> list[Cluster]:
     """Where every candidate symbol on the sheet is, unsigned and unfiltered.
 
-    Depends only on the sheet's geometry, so it is found once and shared.
+    Depends only on the sheet's geometry, so it is found once and shared. Straight strokes
+    and the screened base plan of a PDF are not candidates (see the module's notes).
     """
     columns = _Columns(table)
     kinds = columns["kind"]
@@ -410,11 +437,67 @@ def candidates(table: pa.Table) -> list[Cluster]:
         diagonal = np.hypot(maxx - minx, maxy - miny)
         sized = (diagonal >= SYMBOL_MIN_MM) & (diagonal <= SYMBOL_MAX_MM * math.sqrt(2))
     loose = np.flatnonzero(shape & ~in_insert & ~np.isnan(minx) & sized).tolist()
-    for group in _touching(columns, loose):
-        box = _box_of(columns, group)
-        if _symbol_sized(box):
-            found.append(Cluster(rows=tuple(group), box=box))
+    drawn = [
+        group
+        for group in _touching(columns, loose)
+        # One pen to a group, so its first row's is the group's.
+        if not _base_plan(columns["method"][group[0]], columns["color"][group[0]])
+    ]
+    boxes = [_box_of(columns, group) for group in drawn]
+    kept = [index for index, box in enumerate(boxes) if _symbol_sized(box)]
+    straight = _straight(table, [drawn[index] for index in kept], kinds)
+    for index, is_straight in zip(kept, straight.tolist(), strict=True):
+        if not is_straight:
+            found.append(Cluster(rows=tuple(drawn[index]), box=boxes[index]))
     return found
+
+
+def screened(colour: int | None) -> bool:
+    """A light grey: what a base plan is printed in under the services."""
+    if colour is None or colour < 0:
+        return False
+    red, green, blue = (colour >> 16) & 0xFF, (colour >> 8) & 0xFF, colour & 0xFF
+    low, high = min(red, green, blue), max(red, green, blue)
+    return high - low <= GREY_SPREAD and low >= SCREENED_FROM and low < 0xFF
+
+
+def _base_plan(method: str | None, colour: int | None) -> bool:
+    """Screened line work of a PDF. A CAD file is not printed: its greys are layer colours."""
+    return method != str(Method.CAD) and screened(colour)
+
+
+def _straight(table: pa.Table, groups: list[list[int]], kinds: np.ndarray) -> np.ndarray:
+    """Which groups are one straight stroke: every end of their line work on one line.
+
+    For all the groups at once: the spread of each group's segment ends along and across
+    its longest way, from their sums. A group with a circle in it is never straight.
+    """
+    straight = np.zeros(len(groups), dtype=bool)
+    if not groups:
+        return straight
+    rows = np.fromiter((row for group in groups for row in group), dtype=np.int64)
+    sizes = np.fromiter((len(group) for group in groups), dtype=np.int64, count=len(groups))
+    owner = np.repeat(np.arange(len(groups)), sizes)
+    lines = segments(table.take(rows), kinds=SAMPLED_KINDS)
+    if len(lines) == 0:
+        return straight
+    of = np.tile(owner[lines.row], 2)
+    xs, ys = np.concatenate([lines.x0, lines.x1]), np.concatenate([lines.y0, lines.y1])
+    count = np.bincount(of, minlength=len(groups)).astype(np.float64)
+    has = count > 0
+    safe = np.where(has, count, 1.0)
+    mean_x = np.bincount(of, weights=xs, minlength=len(groups)) / safe
+    mean_y = np.bincount(of, weights=ys, minlength=len(groups)) / safe
+    dx, dy = xs - mean_x[of], ys - mean_y[of]
+    xx = np.bincount(of, weights=dx * dx, minlength=len(groups)) / safe
+    yy = np.bincount(of, weights=dy * dy, minlength=len(groups)) / safe
+    xy = np.bincount(of, weights=dx * dy, minlength=len(groups)) / safe
+    middle, half = (xx + yy) / 2, np.hypot((xx - yy) / 2, xy)
+    along, across = middle + half, np.maximum(middle - half, 0.0)
+    straight = has & (along > 0) & (np.sqrt(across) <= STRAIGHT * np.sqrt(np.maximum(along, 1e-18)))
+    circles = kinds[rows] == str(Kind.CIRCLE)
+    straight[np.unique(owner[circles])] = False
+    return straight
 
 
 def _with(cluster: Cluster, signature: Signature) -> Cluster:
@@ -461,7 +544,7 @@ class _Columns:
     and numbers stay in their arrays.
     """
 
-    WORDS = ("kind", "block", "text", "layer")
+    WORDS = ("kind", "method", "block", "text", "layer")
     NUMBERS = ("group", "value", "rotation", "color", "minx", "miny", "maxx", "maxy")
 
     def __init__(self, table: pa.Table) -> None:
