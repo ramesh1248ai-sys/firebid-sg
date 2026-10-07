@@ -85,21 +85,24 @@ gaps:
   - gap: "Finishing a document still matches every symbol of the bid, though lightly now"
     cause: >-
       Matching symbols to legend rows runs once a document over every instance of the bid.
-      On the real set (148 one-sheet files, 448,000 instances) a pass held three gigabytes
-      and the database could not sort it; it now takes 41 seconds and 0.6 GB, reading a
-      digest of each shape and each distinct shape's text once. It is still a pass a
-      document: about a hundred minutes of matching for that set.
+      With straight strokes and the screened base plan no longer candidates, the real set
+      (148 one-sheet files) has 20,000 instances where it had 467,000, and a pass takes
+      6 seconds where it took 41. It is still a pass a document: about fifteen minutes of
+      matching for that set, where it was a hundred.
     action: >-
       Match only what a document changed: its own instances, and the rest only against
       legend rows it added. That needs a stored digest of each instance's shape.
-  - gap: "A design-intent plan yields about 3,000 candidate symbols a sheet, most of them furniture"
+  - gap: "What a candidate symbol is was decided in the code, not by the estimators"
     cause: >-
-      Every small group of linework is kept as a candidate symbol, and four fifths of the
-      real set's 448,000 were matched to some legend row. The takeoff counts only confirmed
-      mappings, but the table is 3 GB for one tender and the matches are mostly false.
+      A straight stroke, and on a PDF a shape printed in a light grey (the screened base
+      plan), are no longer candidate symbols: a real sheet has about 140 where it had
+      3,000. Nothing records what was set aside. A tender that shows existing services
+      screened, or prints its services in grey, would lose those symbols without a word.
+      Of the real set's 20,000 candidates, 14,000 match no legend row, in 800 groups: pipe
+      fittings, tags and arrowheads among them, and nobody has looked at which.
     action: >-
-      Product owner and Senior Estimator: decide what a candidate must be (drawn in a
-      services colour or layer, or like a legend row) before it is kept.
+      Product owner and Senior Estimator: confirm the two rules, or say what else a
+      candidate must be. Then look at the largest unexplained groups on one floor.
   - gap: "The heaviest real sheet still takes 1.2 GB to find its symbols"
     cause: >-
       Reading a two-million-primitive sheet's linework fell from 1.6 GB to 0.6 GB and
