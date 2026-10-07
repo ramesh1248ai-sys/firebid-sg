@@ -85,24 +85,36 @@ gaps:
   - gap: "Finishing a document still matches every symbol of the bid, though lightly now"
     cause: >-
       Matching symbols to legend rows runs once a document over every instance of the bid.
-      With straight strokes and the screened base plan no longer candidates, the real set
-      (148 one-sheet files) has 20,000 instances where it had 467,000, and a pass takes
-      6 seconds where it took 41. It is still a pass a document: about fifteen minutes of
-      matching for that set, where it was a hundred.
+      With straight strokes, leaders and the screened base plan no longer candidates, the
+      real set (148 one-sheet files) has 12,000 instances where it had 467,000, and a pass
+      takes 4 seconds where it took 41. It is still a pass a document: about ten minutes
+      of matching for that set, where it was a hundred.
     action: >-
       Match only what a document changed: its own instances, and the rest only against
       legend rows it added. That needs a stored digest of each instance's shape.
   - gap: "What a candidate symbol is was decided in the code, not by the estimators"
     cause: >-
-      A straight stroke, and on a PDF a shape printed in a light grey (the screened base
-      plan), are no longer candidate symbols: a real sheet has about 140 where it had
-      3,000. Nothing records what was set aside. A tender that shows existing services
-      screened, or prints its services in grey, would lose those symbols without a word.
-      Of the real set's 20,000 candidates, 14,000 match no legend row, in 800 groups: pipe
-      fittings, tags and arrowheads among them, and nobody has looked at which.
+      A straight stroke, a leader (an arrowhead and the strokes from its tip), and on a PDF
+      a shape printed in a light grey (the screened base plan) are no longer candidate
+      symbols: a real sheet has about 80 where it had 3,000. Nothing records what was set
+      aside. A tender that shows existing services screened, or prints its services in
+      grey, would lose those symbols without a word.
     action: >-
-      Product owner and Senior Estimator: confirm the two rules, or say what else a
-      candidate must be. Then look at the largest unexplained groups on one floor.
+      Product owner and Senior Estimator: confirm the three rules, or say what else a
+      candidate must be.
+  - gap: "Half a real tender's candidates match no legend row, and some of them are devices"
+    cause: >-
+      Of the real set's 12,334 candidates, 6,312 match no legend row, in 613 groups, nearly
+      all drawn in the services' red. The largest were looked at by eye. One group of 528
+      on 59 sheets is a circle with an S in it, a detector by its look, which matches no
+      row because a filled box behind its letter is part of its shape. Others are pieces
+      of a device drawn as several shapes that do not touch (a square, a half circle, a
+      sounder's rays), so the device is matched by one piece or by none. The rest are pipe
+      fittings (elbows, tees, couplings) and valve assemblies, which no legend row shows.
+    action: >-
+      Senior Estimator: say what the circled S is and whether fittings are counted. Then
+      either leave a letter's filled box out of a symbol's shape, and join the pieces of
+      one device, or name the groups by hand with "unlisted symbol".
   - gap: "The heaviest real sheet still takes 1.2 GB to find its symbols"
     cause: >-
       Reading a two-million-primitive sheet's linework fell from 1.6 GB to 0.6 GB and

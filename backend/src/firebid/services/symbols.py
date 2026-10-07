@@ -52,7 +52,7 @@ from firebid.storage.object_store import ObjectExists, ObjectStore
 
 log = structlog.get_logger("firebid.symbols")
 
-DETECTOR_VERSION = "2"
+DETECTOR_VERSION = "3"
 PNG = "image/png"
 
 # Legend entry statuses.

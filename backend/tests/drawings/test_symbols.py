@@ -510,3 +510,58 @@ class TestWhatACandidateIs:
     )
     def test_a_screened_colour_is_a_light_grey(self, colour: int, is_screened: bool) -> None:
         assert symbols.screened(colour) is is_screened
+
+
+def _head(builder: Builder, x: float, y: float, group: int, *, wide: float = 0.84) -> None:
+    """An arrowhead pointing left, its tip at (x, y), 3.2 mm long."""
+    builder.polyline(
+        [x, y, x + 3.2, y + wide / 2, x + 3.2, y - wide / 2, x, y], group, closed=True, color=BLACK
+    )
+
+
+class TestALeaderIsNoCandidate:
+    def found(self, builder: Builder) -> int:
+        return len(symbols.candidates(builder.table()))
+
+    def test_an_arrowhead_and_the_strokes_from_its_tip_to_a_note(self) -> None:
+        builder = Builder(Method.PDF_VECTOR)
+        group = builder.group()
+        _head(builder, 20.0, 50.0, group)
+        builder.line(20.0, 50.0, 28.0, 50.0, group, color=BLACK)
+        builder.line(28.0, 50.0, 28.0, 44.0, group, color=BLACK)
+
+        assert self.found(builder) == 0
+
+    def test_an_arrowhead_alone_and_one_drawn_twice_as_outline_and_fill(self) -> None:
+        builder = Builder(Method.PDF_VECTOR)
+        _head(builder, 20.0, 50.0, builder.group())
+        group = builder.group()
+        _head(builder, 60.0, 50.0, group)
+        _head(builder, 60.0, 50.0, group)
+
+        assert self.found(builder) == 0
+
+    def test_a_triangle_that_is_not_slender_is_a_symbol(self) -> None:
+        """A check valve is a triangle and a bar: its triangle is as wide as it is long."""
+        builder = Builder(Method.PDF_VECTOR)
+        group = builder.group()
+        _head(builder, 20.0, 50.0, group, wide=3.2)
+        builder.line(20.0, 48.0, 20.0, 52.0, group, color=BLACK)
+
+        assert self.found(builder) == 1
+
+    def test_an_arrowhead_with_anything_else_is_a_symbol(self) -> None:
+        builder = Builder(Method.PDF_VECTOR)
+        group = builder.group()
+        _head(builder, 20.0, 50.0, group)
+        builder.circle(19.0, 50.0, 1.0, group, color=BLACK)
+
+        assert self.found(builder) == 1
+
+    def test_strokes_that_do_not_start_at_the_tip_are_not_its_leader(self) -> None:
+        builder = Builder(Method.PDF_VECTOR)
+        group = builder.group()
+        _head(builder, 20.0, 50.0, group)
+        builder.line(23.2, 49.0, 23.2, 53.0, group, color=BLACK)  # a bar across its back
+
+        assert self.found(builder) == 1

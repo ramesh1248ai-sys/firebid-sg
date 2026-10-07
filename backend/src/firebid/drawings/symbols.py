@@ -21,13 +21,16 @@ same shape, 1 for shapes with nothing in common. A DXF block's descriptor is com
 same way from its exploded line work, which is how a PDF instance can match a mapping that
 was confirmed on a DXF legend.
 
-Not every small cluster is a candidate. Two kinds are line work and never were symbols:
+Not every small cluster is a candidate. Three kinds are line work and never were symbols:
 
 * a **straight stroke**: its descriptor is every straight stroke's, so one legend row whose
   sample was a diagonal line claimed three quarters of a real tender's candidates;
 * a shape of the **base plan** on a PDF: the architect's plan is printed screened, in a
   light grey, under the services in black and colour, and its furniture, doors and
-  fittings are nine tenths of the small shapes on a real sheet.
+  fittings are nine tenths of the small shapes on a real sheet;
+* a **leader**: an arrowhead, alone or with the straight strokes that run from its tip to
+  a note ("Ø150") or a dimension. On a real tender they were the largest groups of shapes
+  no legend explained, and a seventh of all its candidates.
 
 A CAD block insert is always a candidate: somebody drew it as a symbol.
 
@@ -66,6 +69,9 @@ TOUCH_MM = 0.3
 # stroke. Measured on a real sheet: its strokes are at 0.000 and its narrowest legend symbol
 # (a bell, two lines) at 0.5.
 STRAIGHT = 0.02
+# An arrowhead is a triangle whose shortest side is at most this share of its longest. A
+# real set's are 0.84 mm across and 3.2 mm long, 0.26; a check valve's triangle is near 1.
+ARROWHEAD = 0.4
 # A grey: max(r, g, b) - min(r, g, b) at most this, as the base plan is told elsewhere.
 GREY_SPREAD = 40
 # ...and a screened one: every channel at least this. A real set's base plan is printed in
@@ -395,8 +401,8 @@ def clusters(
 def candidates(table: pa.Table) -> list[Cluster]:
     """Where every candidate symbol on the sheet is, unsigned and unfiltered.
 
-    Depends only on the sheet's geometry, so it is found once and shared. Straight strokes
-    and the screened base plan of a PDF are not candidates (see the module's notes).
+    Depends only on the sheet's geometry, so it is found once and shared. Straight strokes,
+    leaders and the screened base plan of a PDF are not candidates (see the module's notes).
     """
     columns = _Columns(table)
     kinds = columns["kind"]
@@ -446,8 +452,12 @@ def candidates(table: pa.Table) -> list[Cluster]:
     boxes = [_box_of(columns, group) for group in drawn]
     kept = [index for index, box in enumerate(boxes) if _symbol_sized(box)]
     straight = _straight(table, [drawn[index] for index in kept], kinds)
-    for index, is_straight in zip(kept, straight.tolist(), strict=True):
-        if not is_straight:
+    kept = [
+        index for index, is_straight in zip(kept, straight.tolist(), strict=True) if not is_straight
+    ]
+    leaders = _leaders(table, [drawn[index] for index in kept], kinds)
+    for index, is_leader in zip(kept, leaders, strict=True):
+        if not is_leader:
             found.append(Cluster(rows=tuple(drawn[index]), box=boxes[index]))
     return found
 
@@ -464,6 +474,53 @@ def screened(colour: int | None) -> bool:
 def _base_plan(method: str | None, colour: int | None) -> bool:
     """Screened line work of a PDF. A CAD file is not printed: its greys are layer colours."""
     return method != str(Method.CAD) and screened(colour)
+
+
+def _arrowhead(points: list[float]) -> tuple[float, float] | None:
+    """The tip of the slender triangle these points draw, or None when they draw none."""
+    corners = list(zip(points[0::2], points[1::2], strict=False))
+    if len(corners) > 1 and math.dist(corners[0], corners[-1]) < 1e-6:
+        corners = corners[:-1]  # closed by coming back to its first point
+    if len(corners) != 3:
+        return None
+    sides = [math.dist(corners[index], corners[index - 2]) for index in range(3)]
+    shortest = min(range(3), key=sides.__getitem__)
+    if sides[shortest] <= 0 or sides[shortest] > ARROWHEAD * max(sides):
+        return None
+    # Side `index` joins corner `index` to the one after it: the tip is the third.
+    return corners[shortest - 1]
+
+
+def _leaders(table: pa.Table, groups: list[list[int]], kinds: np.ndarray) -> list[bool]:
+    """Which groups are a leader: arrowheads and straight strokes and nothing else, with a
+    stroke, when there is one, starting at an arrowhead's tip."""
+    if not groups:
+        return []
+    rows = [row for group in groups for row in group]
+    points = iter(table.column("points").take(pa.array(rows, type=pa.int64())).to_pylist())
+    out = []
+    for group in groups:
+        tips: list[tuple[float, float]] = []
+        ends: list[tuple[float, float]] = []
+        only = True
+        for row, drawn in zip(group, points, strict=False):
+            drawn = drawn or []
+            if kinds[row] == str(Kind.LINE) or (
+                kinds[row] == str(Kind.POLYLINE) and len(drawn) == 4
+            ):
+                ends += [(drawn[0], drawn[1]), (drawn[-2], drawn[-1])] if len(drawn) >= 4 else []
+                continue
+            tip = _arrowhead(drawn) if kinds[row] != str(Kind.CIRCLE) else None
+            if tip is None:
+                only = False
+            else:
+                tips.append(tip)
+        out.append(
+            only
+            and bool(tips)
+            and (not ends or any(math.dist(end, tip) <= TOUCH_MM for end in ends for tip in tips))
+        )
+    return out
 
 
 def _straight(table: pa.Table, groups: list[list[int]], kinds: np.ndarray) -> np.ndarray:
