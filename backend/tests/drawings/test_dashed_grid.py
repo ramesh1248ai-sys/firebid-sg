@@ -150,6 +150,19 @@ class TestDashedGridlines:
         assert grid is not None
         assert "S" not in [line.label for line in (*grid.across, *grid.up)]
 
+    def test_a_grid_with_a_line_s_is_found_among_sprinklers(self) -> None:
+        # Found on a real plan: gridlines R, S, T and U, and dozens of sprinklers, each an S
+        # in a small circle. The grid's bubbles were taken to be the size of a sprinkler,
+        # so none of them was looked at and the sheet had no grid.
+        builder = square_plan(across="R S T U")
+        for n in range(30):
+            bubble(builder, "S", 150.0 + 13.0 * n, 300.0 + 7.0 * (n % 5), radius=2.5)
+
+        grid = detected(builder)
+
+        assert grid is not None
+        assert [line.label for line in grid.across] == ["R", "S", "T", "U"]
+
     def test_one_way_of_gridlines_is_not_a_grid(self) -> None:
         # Found on a real plan: letters along the top, and the lines that cross them
         # labelled on another sheet.
@@ -235,6 +248,92 @@ class TestASkewedWing:
         # A point in the main block is past the ends of the wing's lines: it has no name
         # here, where before the fix a wing's lines were taken to run for ever.
         assert grid.reference(700.0, 400.0) is None
+
+    def test_a_wing_s_bubbles_among_the_main_block_s_along_one_edge_are_still_found(
+        self,
+    ) -> None:
+        # Found on a real plan: the wing's bubbles stand along the top edge among the main
+        # block's, so the edge is one row of bubbles in no order, and no row was a grid's.
+        builder = geometry.Builder(geometry.Method.PDF_VECTOR)
+        for n, label in enumerate(["AA", "AB", "AC", "AD", "AE"]):
+            gridline(builder, label, 260.0 + 84.0 * n, 21.0, 90.0, 700.0)
+        for n, label in enumerate(["R", "S", "T", "U"]):
+            gridline(builder, label, 470.0 + 110.0 * n, 22.0, 180.0 - 38.4, 500.0)
+        for n, label in enumerate(["1", "2", "3"]):
+            gridline(builder, label, 650.0 - 100.0 * n, 21.5 + 2.0 * n, 51.6, 300.0)
+        for n in range(30):
+            bubble(builder, "S", 150.0 + 13.0 * n, 400.0 + 7.0 * (n % 5), radius=2.5)
+        assert grids.marks(builder.table()) == {"across": [], "up": []}
+
+        grid = detected(builder)
+
+        assert grid is not None
+        assert [line.label for line in grid.across] == ["1", "2", "3"]
+        assert [line.label for line in grid.up] == ["R", "S", "T", "U"]
+
+    def test_a_sheet_with_a_main_block_and_a_wing_keeps_both_grids(self) -> None:
+        # Found on a real plan: the main block's grid has the more lines, and with it found
+        # the wing's was dropped. A point among the wing's lines is named by the wing's.
+        builder = geometry.Builder(geometry.Method.PDF_VECTOR)
+        wing(builder)
+        for n, label in enumerate(["AA", "AB", "AC", "AD", "AE"]):
+            gridline(builder, label, 100.0 + 84.0 * n, 20.0, 90.0, 800.0)
+        for n, label in enumerate(["A4", "A5", "A6", "A7", "A8", "A9"]):
+            gridline(builder, label, 900.0, 100.0 + 84.0 * n, 180.0, 880.0)
+
+        grid = detected(builder)
+
+        assert grid is not None and grid.local is not None
+        assert [line.label for line in grid.across] == ["AA", "AB", "AC", "AD", "AE"]
+        assert [line.label for line in grid.up] == ["A4", "A5", "A6", "A7", "A8", "A9"]
+        assert [line.label for line in grid.local.across] == ["1", "2", "3"]
+        assert [line.label for line in grid.local.up] == ["K", "L", "M", "N"]
+        # Among the wing's lines, the wing's names; the main block's lines run there too.
+        in_wing = grid.local.reference(160.0, 290.0)
+        assert in_wing is not None and in_wing.startswith("Grid 1K")
+        assert grid.reference(160.0, 290.0) == in_wing
+        # Clear of the wing, the main block's.
+        assert grid.reference(400.0, 150.0) == f"Grid AD/A4{grids.BAY}AE/A5"
+        assert not grid.one_grid and grid.index(400.0, 150.0) is None
+        assert grids.GridSystem.from_json(grid.as_json()) == grid
+        assert set(grid.as_json()) == {"across", "up", "local_across", "local_up"}
+
+    def test_lines_labelled_with_a_letter_and_a_number_are_gridlines(self) -> None:
+        # Found on a real tender: 60 of 148 sheets had no grid. Their lines down the sheet
+        # are AC, AD, AE and their lines across it A4, A5 ... A12, each in a bubble like any
+        # other, and a label of a letter and a number was not taken for a gridline's.
+        builder = square_plan(across="AC AD AE AF", up="A9 A10 A11 A12")
+
+        grid = detected(builder)
+
+        assert grid is not None
+        assert [line.label for line in grid.across] == ["AC", "AD", "AE", "AF"]
+        assert [line.label for line in grid.up] == ["A9", "A10", "A11", "A12"], "in number order"
+        assert grid.reference(184.0, 184.0) == "Grid AD/A10"
+        assert grid.reference(200.0, 200.0) == f"Grid AD/A10{grids.BAY}AE/A11"
+
+    def test_a_label_s_kind_and_place_in_its_sequence(self) -> None:
+        assert [grids.kind(label) for label in ("K", "AC", "7", "12'", "A4", "B12")] == [
+            "A",
+            "A",
+            "1",
+            "1",
+            "A1",
+            "B1",
+        ]
+        assert [grids.ordinal(label) for label in ("A4", "A12", "B12", "A4'")] == [4, 12, 12, 4]
+        # Lines lettered A are not in one row with lines lettered B.
+        rows = grids.marks(
+            geometry.Builder(geometry.Method.PDF_VECTOR).table(),
+            [
+                (label, 100.0 + 84.0 * n, 20.0, RADIUS)
+                for n, label in enumerate(["A1", "A2", "A3", "B4", "B5", "B6"])
+            ],
+        )["across"]
+        assert [[mark[0] for mark in row] for row in rows] == [
+            ["A1", "A2", "A3"],
+            ["B4", "B5", "B6"],
+        ]
 
     def test_both_lettered_or_both_numbered_the_labels_are_parted_by_a_stroke(self) -> None:
         letters = grids.GridSystem(
