@@ -2312,3 +2312,26 @@ Entry template:
 - **Effect:** stage 2 of TC-SYN-001 is now 21 of 21, and the package's score 98.0% on what is measured. One medium defect remains (the drawn reducer's outlet size), listed in `tests/db/test_golden_run.py`.
 - **Not done:** a sheet already read keeps the level it was given until it is read again. A title that names a level where the drawing number has none ("LEVEL 5 PLAN" on drawing `FP-201`) now gives no level from the title block; the view's own title still gives the view its level.
 - **Requirement IDs covered (test names):** FR-DOC-02: `tests/drawings/test_title_block.py::TestLayoutsTheGeneratorDoesNotDraw::test_a_title_that_begins_with_the_word_level_is_not_a_level_label`, `::test_a_title_that_begins_with_the_word_area_is_not_a_zone_label`, `::test_a_level_written_beside_its_label_in_one_span_is_still_read` (six wordings).
+
+## Test · TC-SYN-002 and TC-SYN-003 run against the platform · 2026-10-08
+
+- **Summary:** the other two synthetic packages are now compared with the platform on every build, stages 1 to 7, in `tests/db/test_golden_run.py`. Each case lists its known defects and its differences to settle exactly, as TC-SYN-001 does.
+- **Results:**
+
+  | Case | Score on what is measured | Defects | To settle | In the run and not in the reference |
+  |---|---|---|---|---|
+  | TC-SYN-001 | 98.0% | 1 medium | 6 (A1, A2) | 0 |
+  | TC-SYN-002 | 98.0% | 1 medium | 1 (B1) | 0 |
+  | TC-SYN-003 | 100.0% | 0 | 0 | 0 |
+
+  - **TC-SYN-002** has the defect TC-SYN-001 has: the drawn reducer is held as DN150 and its outlet size (100) is lost. Its one difference to settle is B1, which is A1 again: the platform gives every head a drop (24 x 450 mm = 10.8 m); the package, the pendents only (7.2 m).
+  - **TC-SYN-003** differs nowhere that is compared: 17 pieces of equipment once each, the pipe of three plans, and the derived risers, tees, elbows and hangers. C2 and C3 stay open: there the platform gives what the package's draft gives, which settles neither.
+- **No new platform defect was found.** Every other difference on the first run was in how the two sides name the same thing, and was put right there:
+  - *The package (TC-SYN-003):* the vertical pipe the riser rule gives was `"run": "rising main"`; it is `"run": "riser"`, the word the other two packages and the platform use. No quantity changed.
+  - *The comparison (`evals/golden.py`):* a reference that does not say which drawn pipe is main and which is branch (TC-SYN-003 names the system instead) is compared by size alone; an equal tee is the same tee as `150` or `150x150`.
+  - *The export (`evals/export_run.py`):* a specification or a workbook is no longer given a sheet count of 0.
+- **What the comparison does not see, so what "100%" does not say:**
+  - **Stages 8 to 12 of TC-SYN-002** (the specification's answers, the bill, the price, the risks, the review pack) are not compared, and are reported so.
+  - **Stage 7 compares item, size, run and quantity.** It does not compare an item's level, its system or its attributes. On the pump room tender the platform puts the breeching inlet on L01 and the hydrants on a level named SITE, where the package gives no level; and names the pump room's pipe as the wet rising main's (ambiguity C6). The pumps' flow, head and power are not compared here: `tests/db/test_systems_takeoff.py` holds them.
+  - **Document state at stage 1, for the specification and the client's bill, is the test's own.** The test calls the reading services directly; the parse job is what marks such a document done, and the fixture sets it as the job would. A drawing's state is the platform's.
+- **Requirement IDs covered (test names):** FR-LRN-01: `tests/db/test_golden_run.py::test_the_platform_s_stages_1_to_7_against_tc_syn_002`, `::test_the_platform_s_stages_1_to_7_against_tc_syn_003`; `tests/evals/test_golden_comparison.py::test_drawn_pipe_is_compared_by_size_alone_where_the_reference_names_no_run`, `::test_an_equal_tee_is_the_same_tee_however_its_size_is_written`.

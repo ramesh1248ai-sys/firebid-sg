@@ -100,5 +100,5 @@ settle against a recorded ambiguity, what the run has that the reference does no
 score over the dimensions that were measured. It exits non-zero on a critical or a high
 defect. A stage that is not compared is reported as not compared, never as passed.
 
-In CI the same comparison runs for TC-SYN-001 as a database test
-(`backend/tests/db/test_golden_run.py`), which lists every known difference.
+In CI the same comparison runs for the three synthetic packages as database tests
+(`backend/tests/db/test_golden_run.py`), which list every known difference, case by case.

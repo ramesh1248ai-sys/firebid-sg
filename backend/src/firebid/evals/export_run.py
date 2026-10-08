@@ -30,6 +30,7 @@ from firebid.evals.golden import Run
 from firebid.services import qto
 
 MEASURABLE = ("verified", "calibrated")
+DRAWINGS = ("pdf", "dxf")  # the kinds that are read sheet by sheet
 VERDICTS = {"nts": "not to scale"}
 PIPE_RUNS = ("main", "branch", "drop", "riser")
 SIZE = re.compile(r"\d+")
@@ -78,7 +79,8 @@ def _intake(session: Session, bid_id: uuid.UUID) -> dict[str, Any] | None:
                 "kind": document.kind,
                 "document_type": document.doc_type,
                 "state": document.state,
-                "sheets": len(sheets[document.id]),
+                # A specification or a workbook has no sheets to count.
+                **({"sheets": len(sheets[document.id])} if document.kind in DRAWINGS else {}),
             }
             for document in documents
         ],
