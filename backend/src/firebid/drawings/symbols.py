@@ -47,6 +47,12 @@ never the same symbol, however alike their shapes. On a real tender the row of t
 with an S claimed 1,803 circles with nothing in them, and every lettered box was matched
 to another box's row.
 
+Letters of two characters or more also say more than the outline around them. A consultant
+draws the box of an FI or an SAP to fit where it stands: lying down in the legend, standing
+up on the plan. So two symbols with the same two letters or more are held to a looser
+tolerance (`LETTERED_TOLERANCE`), and such a match says it was made by the letters. One
+letter is not enough: an S is in a circle and in a square.
+
 Pure: geometry in, clusters and signatures out.
 """
 
@@ -108,6 +114,11 @@ CIRCLE_SIDES = 64
 # Measured on the synthetic symbols: the same symbol, any placement, DXF or PDF, is within
 # 0.025 of itself; the closest two different symbols (gate and check valve) are 0.154 apart.
 DEFAULT_TOLERANCE = 0.07
+# ...and within this when the same letters, two or more, are written in both. Measured on a
+# real tender: a lettered box on a plan is 0.12 to 0.17 from its legend sample (the legend's
+# FI is 11 by 5.4 mm, the plans' 3.5 by 6), and a letter's box inside a valve assembly 0.3.
+LETTERED_TOLERANCE = 0.2
+LETTERED_FROM = 2
 
 SHAPE_KINDS = (Kind.LINE, Kind.POLYLINE, Kind.ARC, Kind.CIRCLE, Kind.HATCH)
 
@@ -471,11 +482,17 @@ def clusters(
     return kept
 
 
-def candidates(table: pa.Table) -> list[Cluster]:
+# The rules that set a shape aside, as `candidates` counts them.
+SET_ASIDE = ("base_plan", "straight", "leader")
+
+
+def candidates(table: pa.Table, set_aside: dict[str, int] | None = None) -> list[Cluster]:
     """Where every candidate symbol on the sheet is, unsigned and unfiltered.
 
     Depends only on the sheet's geometry, so it is found once and shared. Straight strokes,
-    leaders and the screened base plan of a PDF are not candidates (see the module's notes).
+    leaders and the screened base plan of a PDF are not candidates (see the module's notes):
+    how many of each were set aside is added to `set_aside`, when given, so that a sheet
+    whose services were taken for its base plan can be told.
     """
     columns = _Columns(table)
     kinds = columns["kind"]
@@ -517,22 +534,32 @@ def candidates(table: pa.Table) -> list[Cluster]:
         diagonal = np.hypot(maxx - minx, maxy - miny)
         sized = (diagonal >= SYMBOL_MIN_MM) & (diagonal <= SYMBOL_MAX_MM * math.sqrt(2))
     loose = np.flatnonzero(shape & ~in_insert & ~np.isnan(minx) & sized).tolist()
+    touching = _touching(columns, loose)
     drawn = [
         group
-        for group in _touching(columns, loose)
+        for group in touching
         # One pen to a group, so its first row's is the group's.
         if not _base_plan(columns["method"][group[0]], columns["color"][group[0]])
     ]
     boxes = [_box_of(columns, group) for group in drawn]
-    kept = [index for index, box in enumerate(boxes) if _symbol_sized(box)]
-    straight = _straight(table, [drawn[index] for index in kept], kinds)
+    sized_groups = [index for index, box in enumerate(boxes) if _symbol_sized(box)]
+    straight = _straight(table, [drawn[index] for index in sized_groups], kinds)
     kept = [
-        index for index, is_straight in zip(kept, straight.tolist(), strict=True) if not is_straight
+        index
+        for index, is_straight in zip(sized_groups, straight.tolist(), strict=True)
+        if not is_straight
     ]
     leaders = _leaders(table, [drawn[index] for index in kept], kinds)
     for index, is_leader in zip(kept, leaders, strict=True):
         if not is_leader:
             found.append(Cluster(rows=tuple(drawn[index]), box=boxes[index]))
+    if set_aside is not None:
+        for rule, count in zip(
+            SET_ASIDE,
+            (len(touching) - len(drawn), len(sized_groups) - len(kept), sum(leaders)),
+            strict=True,
+        ):
+            set_aside[rule] = set_aside.get(rule, 0) + int(count)
     return found
 
 
@@ -852,7 +879,7 @@ def _touching(columns: Any, rows: list[int]) -> list[list[int]]:
 class Match:
     index: int
     distance: float
-    how: str  # block_hash | block | shape
+    how: str  # block_hash | block | shape | letters (the looser tolerance of shared letters)
 
 
 WIDTH = (len(D2_BINS) - 1) + (len(RADIAL_BINS) - 1) + (len(TURN_BINS) - 1)
@@ -911,9 +938,13 @@ class Candidates:
 
     def gaps(self, signature: Signature) -> tuple[np.ndarray, np.ndarray]:
         """Each candidate's `distance` from `signature` (NaN: no descriptor, or other
-        letters written in it), and the tolerance each pair is held to."""
+        letters written in it), and the tolerance each pair is held to: the looser one
+        where both carry the same letters, two or more."""
         count = len(self.signatures)
         tolerances = np.minimum(self._tolerances[:count], signature.tolerance)
+        if signature.letters is not None and len(signature.letters) >= LETTERED_FROM:
+            same = self._lettered[:count] == self._letters.get(signature.letters, -2)
+            tolerances = np.where(same, np.maximum(tolerances, LETTERED_TOLERANCE), tolerances)
         rows = self._rows[:count]
         if len(signature.descriptor) == WIDTH:
             halves = 0.5 * np.abs(rows - np.asarray(signature.descriptor))
@@ -955,7 +986,8 @@ def best_match(signature: Signature, candidates: Candidates | list[Signature]) -
     if within.size == 0:
         return None
     index = int(within[np.argmin(gaps[within])])
-    return Match(index, float(gaps[index]), "shape")
+    strict = min(stacked[index].tolerance, signature.tolerance)
+    return Match(index, float(gaps[index]), "shape" if gaps[index] <= strict else "letters")
 
 
 def near_match(

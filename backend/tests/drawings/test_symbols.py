@@ -715,3 +715,87 @@ class TestTheLettersInASymbol:
             rows.append(self.circle(f"L{index}"))
 
         assert symbols.best_match(self.circle("L37"), rows) == symbols.Match(37, 0.0, "shape")
+
+
+class TestLettersOfTwoOrMore:
+    """A consultant draws a lettered box to fit where it stands: the letters say what it is
+    more than its proportions do."""
+
+    def box(self, letters: str | None, wide: float, high: float) -> symbols.Signature:
+        builder = Builder(Method.PDF_VECTOR)
+        builder.polyline(
+            [40.0, 40.0, 40.0 + wide, 40.0, 40.0 + wide, 40.0 + high, 40.0, 40.0 + high],
+            builder.group(),
+            closed=True,
+            color=RED,
+        )
+        if letters:
+            middle = 40.0 + wide / 2, 40.0 + high / 2
+            builder.text(
+                letters,
+                (middle[0] - 1.0, middle[1] - 0.8, middle[0] + 1.0, middle[1] + 0.8),
+                builder.group(),
+                height=1.6,
+            )
+        (found,) = symbols.clusters(builder.table())
+        assert found.signature is not None
+        return found.signature
+
+    def test_the_same_letters_in_a_box_of_other_proportions_is_the_same_symbol(self) -> None:
+        legend, plan = self.box("FI", 11.0, 5.4), self.box("FI", 3.5, 6.0)
+        apart = symbols.distance(legend.descriptor, plan.descriptor)
+        assert symbols.DEFAULT_TOLERANCE < apart <= symbols.LETTERED_TOLERANCE
+
+        found = symbols.best_match(plan, [legend])
+
+        assert found is not None and found.how == "letters"
+        assert found.distance == pytest.approx(apart)
+
+    def test_a_shape_within_the_ordinary_tolerance_is_matched_by_its_shape(self) -> None:
+        found = symbols.best_match(self.box("FI", 11.0, 5.4), [self.box("FI", 11.0, 5.4)])
+
+        assert found == symbols.Match(0, 0.0, "shape")
+
+    def test_no_letters_and_other_letters_are_held_to_the_ordinary_tolerance(self) -> None:
+        assert symbols.best_match(self.box(None, 3.5, 6.0), [self.box(None, 11.0, 5.4)]) is None
+        assert symbols.best_match(self.box("FI", 3.5, 6.0), [self.box("FS", 11.0, 5.4)]) is None
+        assert symbols.best_match(self.box("FI", 3.5, 6.0), [self.box(None, 11.0, 5.4)]) is None
+
+    def test_one_letter_is_not_enough(self) -> None:
+        assert symbols.best_match(self.box("S", 3.5, 6.0), [self.box("S", 11.0, 5.4)]) is None
+
+    def test_the_nearest_of_two_rows_with_the_same_letters_is_taken(self) -> None:
+        rows = [self.box("FI", 11.0, 5.4), self.box("FI", 3.6, 6.0)]
+
+        found = symbols.best_match(self.box("FI", 3.5, 6.0), rows)
+
+        assert found is not None and (found.index, found.how) == (1, "shape")
+
+
+def test_what_was_set_aside_is_counted_by_rule() -> None:
+    """A tender that prints its services in grey would lose them to the base-plan rule: the
+    count is how anyone would know."""
+    builder = Builder(Method.PDF_VECTOR)
+    builder.polyline(
+        geometry.arc_points(20.0, 20.0, 2.5, 0.0, 360.0, 18),
+        builder.group(),
+        closed=True,
+        color=RED,
+    )
+    for x in (40.0, 50.0):  # two shapes of the screened base plan
+        builder.polyline(
+            geometry.arc_points(x, 20.0, 2.0, 0.0, 360.0, 18),
+            builder.group(),
+            closed=True,
+            color=0xCCCCCC,
+        )
+    for y in (40.0, 45.0, 50.0):  # three straight strokes
+        builder.line(60.0, y, 66.0, y, builder.group(), color=RED)
+    _head(builder, 80.0, 20.0, builder.group())  # a leader: an arrowhead alone
+
+    set_aside: dict[str, int] = {"straight": 10}
+    found = symbols.candidates(builder.table(), set_aside)
+
+    assert len(found) == 1
+    assert set_aside == {"base_plan": 2, "straight": 13, "leader": 1}, "added to what it had"
+    assert symbols.candidates(builder.table()) == found

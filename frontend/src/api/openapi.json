@@ -3773,6 +3773,14 @@
             "title": "Not Objects",
             "type": "integer"
           },
+          "set_aside": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "default": {},
+            "title": "Set Aside",
+            "type": "object"
+          },
           "unmapped": {
             "items": {
               "$ref": "#/components/schemas/UnmappedOut"

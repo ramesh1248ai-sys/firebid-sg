@@ -99,6 +99,27 @@ describe("the symbols page", () => {
   );
 
   // req: FR-VIS-02
+  // req: FR-VIS-02
+  it("says how many shapes were not read as symbols, and by which rule", async () => {
+    stubApi({
+      "/symbols/legend": () => Response.json(LEGEND),
+      "/symbols/counts": () =>
+        Response.json({
+          ...COUNTS,
+          set_aside: { base_plan: 2700, straight: 240, leader: 0 },
+        }),
+      "/symbols/object-types": () => Response.json(CHOICES),
+    });
+    renderAt(`/bids/${BID}/symbols`);
+
+    expect(
+      await screen.findByText(
+        /Not read as symbols: 2,700 printed in light grey, as a base plan is; 240 straight strokes\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/leaders/)).not.toBeInTheDocument();
+  });
+
   it("lists every unmapped symbol with how often it appears, apart from the counts", async () => {
     stubApi({
       "/symbols/legend": () => Response.json(LEGEND),

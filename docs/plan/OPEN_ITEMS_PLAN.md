@@ -31,6 +31,14 @@ clean-up); see the build log entry "Open items, phase 1". B2 was done by skippin
 when no sheet was read, not by a separate job, because detection reads the matches and must
 run after them.
 
+Step 2 is done except for naming groups on the real bid, which is a person's act (build
+log entry "Open items, phase 2"). A1 step 1 recovered 417 lettered devices. A5 records and
+shows what was set aside; its per-bid switch waits for the rules to be confirmed. The A3
+measurement ruled out joining shapes by distance: there is no gap that separates a device's
+pieces from its neighbours. A4 found that the workbench shows no picture of an unnamed
+group, which has to be fixed before 578 groups can be named. "Read again" was run on the
+real bid through the job: 148 sheets in 17 min 45 s, none failed.
+
 ## 2. Group A: symbol matching on real drawings
 
 State on the real bid today: 2,975 candidates match a legend row, 1,172 match only a stale

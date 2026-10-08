@@ -733,3 +733,25 @@ def test_a_proposal_no_legend_row_leads_to_claims_no_symbol(
     session.commit()
 
     assert matched_to_a_mapping_only() > 0, "a confirmed mapping claims its symbols with no row"
+
+
+@pytest.mark.req("FR-VIS-02")
+def test_what_each_sheet_set_aside_is_kept_and_totalled_for_the_bid(
+    session: Session, bid: Bid, store: MemoryObjectStore
+) -> None:
+    from firebid.db.models.drawings import SheetGeometry
+    from firebid.drawings import symbols as symbol_shapes
+
+    from_consultant(session, bid, "Alpha Consultants")
+    tender(session, bid, store, fixtures.ALPHA)
+
+    kept = [
+        one
+        for one in session.execute(
+            select(SheetGeometry.symbols_set_aside).where(SheetGeometry.bid_id == bid.id)
+        ).scalars()
+        if one is not None
+    ]
+    assert len(kept) == 2 and all(set(one) == set(symbol_shapes.SET_ASIDE) for one in kept)
+    totals = service.counts(session, bid.id).set_aside
+    assert totals == {rule: sum(one[rule] for one in kept) for rule in symbol_shapes.SET_ASIDE}

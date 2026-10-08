@@ -104,6 +104,7 @@ export function SymbolsPage() {
       </div>
 
       {counts.data && <CountsPanel counts={counts.data} />}
+      {counts.data && <SetAside counts={counts.data} />}
 
       <div className="space-y-2">
         <h2 className="text-lg font-medium">Legend</h2>
@@ -141,6 +142,33 @@ export function SymbolsPage() {
         )}
       </div>
     </section>
+  );
+}
+
+const SET_ASIDE: [string, string][] = [
+  ["base_plan", "printed in light grey, as a base plan is"],
+  ["straight", "straight strokes"],
+  ["leader", "leaders (an arrowhead and its line)"],
+];
+
+/**
+ * What the reader did not take as a symbol, and why: said so that a tender which prints its
+ * services in grey, and so loses them to the base plan, does not lose them without a word.
+ */
+function SetAside({ counts }: { counts: Counts }) {
+  const parts = SET_ASIDE.map(
+    ([rule, words]) => [counts.set_aside?.[rule] ?? 0, words] as const,
+  ).filter(([count]) => count > 0);
+  if (parts.length === 0) return null;
+  return (
+    <p className="text-sm text-muted-foreground">
+      Not read as symbols:{" "}
+      {parts
+        .map(([count, words]) => `${count.toLocaleString("en-SG")} ${words}`)
+        .join("; ")}
+      . If this tender draws its services in light grey, they are among the
+      first.
+    </p>
   );
 }
 

@@ -94,25 +94,25 @@ gaps:
   - gap: "What a candidate symbol is was decided in the code, not by the estimators"
     cause: >-
       A straight stroke, a leader (an arrowhead and the strokes from its tip), and on a PDF
-      a shape printed in a light grey (the screened base plan) are no longer candidate
-      symbols: a real sheet has about 80 where it had 3,000. Nothing records what was set
-      aside. A tender that shows existing services screened, or prints its services in
-      grey, would lose those symbols without a word.
+      a shape printed in a light grey (the screened base plan) are not candidate symbols.
+      How many each rule set aside is now kept for each sheet and said on the Symbols page:
+      on the real set 494,875 of the base plan, 49,579 straight strokes and 9,195 leaders,
+      against 12,088 candidates. A tender that prints its services in grey would still lose
+      them; the count is how a person would notice. Nothing turns a rule off for a bid.
     action: >-
       Product owner and Senior Estimator: confirm the three rules, or say what else a
-      candidate must be.
-  - gap: "A lettered device drawn to other proportions than its legend sample matches no row"
+      candidate must be, and whether a bid needs a switch for services printed in grey.
+  - gap: "A lettered device inside an assembly matches no row"
     cause: >-
-      The letters in a symbol are now part of what it is, so a box with FI in it is no
-      longer claimed by another box's row. But the real set draws its lettered boxes to fit
-      the plan: the legend's FI is 11 by 5.4 mm lying down, the plans' is 3.5 by 6 mm
-      standing up. Their letters agree and their shapes do not (0.13 apart; the tolerance
-      is 0.07), so about 170 FI, 100 SAP, 160 2SFH and 200 FS (which sit in a valve
-      assembly) match no row. They are raised as unexplained, under their letters.
+      Two symbols with the same letters, two or more, are now held to a looser tolerance
+      (0.2 where it is 0.07), because a consultant draws a lettered box to fit where it
+      stands: on the real set that matched 172 FI, 103 SAP and 142 2SFH to their rows.
+      About 200 FS are left: the letters sit in a box inside a valve assembly, so the shape
+      found is the assembly, not the box. The looser tolerance is a rule made in the code.
     action: >-
-      Senior Estimator: say whether a box with a row's letters in it is that row's device
-      whatever its proportions. Then hold the shape to a looser tolerance when letters of
-      two characters or more agree.
+      Senior Estimator: confirm that a box with a row's letters in it is that row's device.
+      If the flow switches are to be counted from symbols, find a row's letters on the plan
+      first and take the closed shape around them.
   - gap: "Whether the real set's ticked circle is its ceiling strobe is not confirmed"
     cause: >-
       1,812 circles of 4 mm with four ticks about them, on 60 sheets, are now matched to
@@ -126,17 +126,30 @@ gaps:
       1,172). It is still a row among the consultant's symbols, proposed for ever.
     action: >-
       Decide whether it is withdrawn when its bid is read again.
-  - gap: "Three quarters of a real tender's candidates match no legend row"
+  - gap: "Seven tenths of a real tender's candidates match no legend row"
     cause: >-
-      Of the real set's 12,088 candidates, 9,113 match no legend row or confirmed mapping,
-      in 634 groups, nearly all drawn in the services' red. The largest were looked at by
-      eye. Some are pieces of a device drawn as several shapes that do not touch (a square,
-      a half circle, a sounder's rays), so the device is matched by one piece or by none.
-      Others are pipe fittings (elbows, tees, couplings) and valve assemblies, which no
-      legend row shows. The largest group, 1,585 on every sheet, is an empty box.
+      Of the real set's 12,088 candidates, 8,693 match no legend row or confirmed mapping,
+      in 578 groups, nearly all drawn in the services' red. Most are pipe fittings (elbows,
+      tees, couplings) and valve assemblies, which no legend row shows; the largest group,
+      1,585 on every sheet, is an empty box. A person names such a group in the workbench
+      ("Symbols nobody has named"), but is shown no picture of it, only a count: with 578
+      groups that cannot be done.
     action: >-
-      Senior Estimator: say whether fittings are counted. Then either join the pieces of
-      one device, or name the groups by hand with "unlisted symbol".
+      Senior Estimator: say whether fittings are counted. Show a picture of each unnamed
+      group where it is named.
+  - gap: "A device drawn as pieces that do not touch is matched by one piece"
+    cause: >-
+      Measured on the real set. In its legend 3 of 16 rows are a piece of what is drawn in
+      their cell: the wall strobe (1.6 by 0.8 mm of 3.6 by 3.0), the ceiling strobe (its
+      ticks are left out) and the air compressor; the bell is nearly so. On five plans, of
+      1,353 candidates 567 have another shape of their colour within 0.3 mm that is not
+      part of them, 197 between 0.3 and 1 mm, 61 between 1 and 2 and 169 between 2 and 5:
+      there is no gap at which a device's pieces end and its neighbours begin, so joining
+      shapes by how near they are would join devices to the fittings beside them.
+    action: >-
+      Do not join by distance. After the first real count on one floor shows which devices
+      are missed, take a legend row's sample to be everything in its cell and look for that
+      on the plans.
   - gap: "The heaviest real sheet still takes 1.2 GB to find its symbols"
     cause: >-
       Reading a two-million-primitive sheet's linework fell from 1.6 GB to 0.6 GB and

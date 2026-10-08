@@ -5353,6 +5353,13 @@ export interface components {
             counted: components["schemas"]["CountedOut"][];
             /** Not Objects */
             not_objects: number;
+            /**
+             * Set Aside
+             * @default {}
+             */
+            set_aside: {
+                [key: string]: number;
+            };
             /** Unmapped */
             unmapped: components["schemas"]["UnmappedOut"][];
         };

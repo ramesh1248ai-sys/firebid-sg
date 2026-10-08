@@ -79,6 +79,10 @@ class CountsOut(BaseModel):
     counted: list[CountedOut]
     unmapped: list[UnmappedOut]
     not_objects: int
+    # Shapes not taken as candidate symbols, by rule: `base_plan` (printed in a light grey,
+    # as an architect's plan is under the services), `straight` (a straight stroke) and
+    # `leader` (an arrowhead and the strokes from its tip). Empty on a bid read before this.
+    set_aside: dict[str, int] = {}
 
 
 class ObjectTypeChoice(BaseModel):
@@ -196,6 +200,7 @@ def symbol_counts(context: CurrentBid, session: DbSession) -> CountsOut:
             for group in found.unmapped
         ],
         not_objects=found.not_objects,
+        set_aside=found.set_aside,
     )
 
 
