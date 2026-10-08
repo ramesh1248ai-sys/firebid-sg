@@ -231,15 +231,22 @@ the ticked circle, match lines between sheets and the skewed wing.
 | Estimator workbook and importer (final takeoff, client BOQ) | Exists |
 | Synthetic suites and the regression gate | Exist |
 | Truth for stages 5 to 7 and 9 in `firebid/evals/schema.py` | Exists |
-| Truth for stages 1 to 4, 8 and 10 to 12 | **To add to the schema** |
-| `golden.json` reader and the staged comparison (types A to E) | **To build** as a `firebid-eval` suite |
-| Export of a bid's stage outputs in the same shape | **To build** (`firebid-eval export-run`) |
-| Defect classification and the weighted score in the report | **To build** |
-| Semantic comparison (rubric, optional model judge) | **To build**; a model judge waits on decision D2 |
+| Truth for stages 1 to 4, 8 and 10 to 12 | Held in each package's `golden.json`, read by `firebid.evals.golden` |
+| `golden.json` reader and the staged comparison | Built for exact, tolerance and completeness (A, C, E) on stages 1 to 7: `firebid-eval golden`. **To build:** stages 8 to 12, instance positions |
+| Export of a bid's stage outputs in the same shape | Built for stages 1 to 7: `firebid-eval export-run --bid`. **To build:** stages 8 to 12 |
+| Defect classification and the weighted score in the report | Built. The score is over the dimensions measured so far (85% of the weights) and says so. **To build:** linking a difference to the earlier one that caused it |
+| Semantic comparison (rubric, optional model judge) | **To build**; a model judge waits on decision D2. Until then wording is compared after normalising case and spacing only |
+| Evidence comparison (type D) | **To build** |
+| The platform run against a package in CI | TC-SYN-001, as a database test (`tests/db/test_golden_run.py`). **To build:** TC-SYN-002 and TC-SYN-003 |
 | The brief for drafting a package | Added with this version |
 
 Build order: the schema and exporter first, then exact, tolerance and completeness
-comparison on TC-SYN-001, then evidence, then semantic.
+comparison on TC-SYN-001 (done, 2026-10-08), then the other two synthetic packages and
+stages 8 to 12, then evidence, then semantic.
+
+A difference on something a package records as an ambiguity is reported as **to settle**,
+with the ambiguity's ID, and is neither a defect nor a pass. For that the package marks
+the expected value with the ambiguity (`"ambiguity": "A1"` in `golden.json`).
 
 ## 12. Roles
 

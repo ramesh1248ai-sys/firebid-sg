@@ -137,7 +137,7 @@
             "sheet": "FP-L05-301",
             "views": [
               {
-                "kind": "plan",
+                "kind": "enlarged plan",
                 "title": "ENLARGED PLAN - RISER AREA",
                 "scale": "1:50",
                 "scale_verdict": "verified",
@@ -772,7 +772,8 @@
                   9500.0
                 ]
               }
-            ]
+            ],
+            "ambiguity": "A2"
           },
           {
             "sheet": "FP-SCH-001",

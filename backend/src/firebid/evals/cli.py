@@ -15,6 +15,8 @@
     firebid-eval exit      --out ../docs/reports/phase1-exit.md   the Phase 1 exit report
     firebid-eval exit-p2   --out ../docs/reports/phase2-exit.md   the Phase 2 exit report
     firebid-eval corrections --out corrections.jsonl     people's corrections (FR-REV-06)
+    firebid-eval export-run --bid <id> --out run.json    a bid's stage outputs (FR-LRN-01)
+    firebid-eval golden    --case TC-SYN-001 --run run.json   a run against its golden package
 
 `import` and `compare` write nothing and exit non-zero when they are unhappy, which is what
 makes them usable in CI.
@@ -180,7 +182,22 @@ def main(argv: list[str] | None = None) -> int:
     exit_p2.add_argument("--gaps", type=Path, default=Path("../docs/reports/phase2-gaps.yaml"))
     exit_p2.add_argument("--out", type=Path, default=Path("../docs/reports/phase2-exit.md"))
 
+    export = commands.add_parser("export-run", help="write a bid's stage outputs")
+    export.add_argument("--bid", required=True, help="the bid's UUID")
+    export.add_argument("--out", type=Path, required=True)
+
+    against = commands.add_parser("golden", help="compare a run with a golden reference package")
+    against.add_argument("--case", required=True, help="the test case ID, e.g. TC-SYN-001")
+    against.add_argument("--run", type=Path, required=True, help="a file from export-run")
+    against.add_argument("--report", type=Path, default=None)
+
     arguments = parser.parse_args(argv)
+
+    if arguments.command == "export-run":
+        return _run_export(arguments)
+
+    if arguments.command == "golden":
+        return _run_golden(arguments)
 
     if arguments.command == "exit-p2":
         return _run_exit_p2(arguments)
@@ -501,6 +518,48 @@ def _run_exit_p2(arguments: argparse.Namespace) -> int:
     arguments.out.write_text(p2_exit.report(inputs, curated), encoding="utf-8", newline="\n")
     print(f"wrote {arguments.out}")
     return 0
+
+
+def _run_export(arguments: argparse.Namespace) -> int:
+    """A bid's stage outputs as the golden packages lay them out. Read on the service role;
+    the file holds the bid's quantities, so it is confidential like the bid (guardrail 8)."""
+    import json
+    import uuid
+
+    from firebid.db.engine import service_session_scope
+    from firebid.evals import export_run
+
+    bid = uuid.UUID(arguments.bid)
+    with service_session_scope() as session:
+        run = export_run.export(session, bid)
+    arguments.out.parent.mkdir(parents=True, exist_ok=True)
+    arguments.out.write_text(
+        json.dumps({"bid": str(bid), "stages": run}, indent=2), encoding="utf-8", newline="\n"
+    )
+    print(f"wrote stages {', '.join(run) or 'none'} to {arguments.out}")
+    return 0
+
+
+def _run_golden(arguments: argparse.Namespace) -> int:
+    """A run against its package. Non-zero when there is a critical or a high defect."""
+    from firebid.evals import golden
+
+    folders = [arguments.root / "golden" / kind / arguments.case for kind in ("synthetic", "real")]
+    folder = next((one for one in folders if (one / "golden.json").exists()), None)
+    if folder is None:
+        print(f"no golden reference package {arguments.case} under {arguments.root}/golden")
+        return 1
+    package = golden.load(folder)
+    result = golden.compare(package, golden.load_run(arguments.run))
+    text = golden.report(result, golden.score(result))
+    if arguments.report is not None:
+        arguments.report.parent.mkdir(parents=True, exist_ok=True)
+        arguments.report.write_text(text, encoding="utf-8", newline="\n")
+        print(f"wrote {arguments.report}")
+    else:
+        print(text)
+    defects = result.defects()
+    return 1 if defects["CRITICAL"] or defects["HIGH"] else 0
 
 
 def _run_corrections(out: Path) -> int:
