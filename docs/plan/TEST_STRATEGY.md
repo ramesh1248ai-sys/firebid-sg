@@ -204,9 +204,22 @@ The first packages, in the order to make them:
 | Test case | Input | Reference made by | Stages | Status |
 | --- | --- | --- | --- | --- |
 | TC-SYN-001 | The synthetic three-sheet sprinkler tender the end-to-end test uses | The fixture generator's own truth, which is independent by construction | 1 to 7 | Drafted in `eval/golden/synthetic/TC-SYN-001/`; not verified by a person; six ambiguities to settle |
-| TC-SYN-002 | The synthetic Phase 2 tender (pump room, floor, site plan, riser) with specification, client BOQ and rates | The generators' truth | 1 to 12 | Fixtures exist; package to write |
+| TC-SYN-002 | The synthetic basement car park plan with its specification, client BOQ, rate list and productivity list | The generators' truth and the fixtures' stated answers; stages 7 and 9 to 12 worked out by hand from the rules | 1 to 12 | Drafted in `eval/golden/synthetic/TC-SYN-002/`; not verified by a person; eleven ambiguities to settle |
+| TC-SYN-003 | The synthetic Phase 2 systems tender (pump room, floor, site plan, riser schematic) | The generators' truth | 1 to 7 | Fixtures exist; package to write |
 | TC-MOH-L10 | Level 10 of the real MOH set (four sheets) | Estimators' count in the workbook; legend and register by an estimator | 1 to 7 | Needs the estimators' counts |
 | TC-REAL-nn | The D3 spread: at least four consultants, three scanned sets, three with a superseded revision, three with enlarged plans | The data owner's estimators | As the tender allows | Waits on D3 |
+
+TC-SYN-002 was first planned as the pump room tender taken through all twelve stages. The
+fixtures do not allow that: the synthetic specification, client BOQ, rate list and
+productivity list were all written for the sprinkler installation, and nothing bills or
+prices a pump. So the case is split. TC-SYN-002 takes the sprinkler installation, as a
+basement car park, through stages 1 to 12; TC-SYN-003 takes the pump room tender through
+stages 1 to 7. Equipment at stages 8 to 12 has no synthetic case until fixtures are
+written for it.
+
+A case that reaches stages 8 to 12 also fixes its **scenario**: what people have and have
+not decided before each stage (which proposals are verified, which rates confirmed, what
+was entered). Without it the later stages have no single expected answer.
 
 Each real package also names what it is there to catch: for TC-MOH-L10, lettered devices,
 the ticked circle, match lines between sheets and the skewed wing.

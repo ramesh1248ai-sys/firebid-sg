@@ -1,0 +1,51 @@
+{
+  "test_case_id": "TC-SYN-002",
+  "kind": "synthetic",
+  "inputs": [
+    {
+      "filename": "FP-B1-201.dxf",
+      "generator": "firebid.evals.synthetic_qto.car_park_plan('FP-B1-201', firebid.evals.synthetic_spec.CAR_PARK_NOTES)",
+      "written_by": "firebid.evals.synthetic.write_dxf"
+    },
+    {
+      "filename": "Particular Specification Fire Protection.docx",
+      "generator": "firebid.evals.synthetic_spec.specification_docx(clauses=with_risks())"
+    },
+    {
+      "filename": "Bill of Quantities - Fire Sprinkler.xlsx",
+      "generator": "firebid.evals.synthetic_boq.client_boq().payload"
+    },
+    {
+      "filename": "rates.xlsx",
+      "generator": "firebid.evals.synthetic_rates.rate_list()",
+      "what": "the organisation's rate library, not a tender document"
+    },
+    {
+      "filename": "productivity.xlsx",
+      "generator": "firebid.evals.synthetic_labour.productivity_list()",
+      "what": "the organisation's productivity library, not a tender document"
+    }
+  ],
+  "inputs_note": "The files are generated, not stored. A written DXF, Word document or workbook is not byte-identical from one run to the next (each carries its own stamps), so the inputs are named by generator and commit, not by checksum.",
+  "generator_commit": "b265365dc7955e46fa6e57e00ae922f1c2e03dd6",
+  "business_rules": [
+    "backend/config/measurement_rules.yaml (version 1 of each rule, all 'to be confirmed')",
+    "backend/config/boq.yaml and boq_templates.yaml (the default conventions and the company standard template)",
+    "backend/config/pricing.yaml (GST)",
+    "backend/config/labour.yaml (the 2025 rate table; multipliers)",
+    "backend/config/risk.yaml and scope_matrix.yaml"
+  ],
+  "bid_details": {
+    "consultant": "ALPHA CONSULTANTS PTE LTD",
+    "project": "PROPOSED COMMERCIAL DEVELOPMENT AT MARINA BAY",
+    "priced_on": "2026-10-04",
+    "submission_deadline": "2026-10-15",
+    "tender_validity_days": 90,
+    "margin": "8% of cost, entered by the Senior Estimator"
+  },
+  "drafted_on": "2026-10-08",
+  "drafted_by": "Claude (Opus 5.5); see package.md part 10",
+  "verified_by": null,
+  "verified_on": null,
+  "data_owner": null
+}
