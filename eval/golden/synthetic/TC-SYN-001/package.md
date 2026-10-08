@@ -85,7 +85,7 @@ Consultant: ALPHA CONSULTANTS PTE LTD. Project: PROPOSED COMMERCIAL DEVELOPMENT 
 | Sheet | View | Kind | Scale | Verdict | Proved by | Measurable |
 | --- | --- | --- | --- | --- | --- | --- |
 | FP-L05-201 | LEVEL 5 SPRINKLER LAYOUT PLAN | plan | 1:100 | verified | its own dimensions | yes |
-| FP-L05-301 | ENLARGED PLAN - RISER AREA | plan | 1:50 | verified | the grid shared with FP-L05-201 | yes (ambiguity A2) |
+| FP-L05-301 | ENLARGED PLAN - RISER AREA | enlarged plan | 1:50 | verified | the grid shared with FP-L05-201 | yes (ambiguity A2) |
 | FP-SCH-001 | SPRINKLER RISER SCHEMATIC | schematic | NTS | not to scale | | no |
 
 - **Validation rules:** one view on each sheet; a measurable view has a scale; a sheet
@@ -162,7 +162,7 @@ FP-L05-301 shows the riser, both valves and the pendents at (3,000 and 6,000) ×
 | Sheet | DN150 | DN100 | DN50 | How |
 | --- | ---: | ---: | ---: | --- |
 | FP-L05-201 | 8,050 | 8,250 | 72,000 | 350 + 200 + 7,500; 8,250; 6 × 12,000 |
-| FP-L05-301 | 4,300 | 0 | 13,000 | 350 + 200 + 3,750; none shown; 2 × 6,500 |
+| FP-L05-301 | 4,300 | 0 | 13,000 | 350 + 200 + 3,750; none shown; 2 × 6,500. Measured only if its scale is proved (A2) |
 | FP-SCH-001 | not measured | | | not to scale |
 
 - **Evidence:** each size is the annotation written on or along its run.
