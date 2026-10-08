@@ -1,0 +1,40 @@
+{
+  "test_case_id": "TC-SYN-003",
+  "kind": "synthetic",
+  "inputs": [
+    {
+      "filename": "FP-B1-101.dxf",
+      "generator": "firebid.evals.synthetic_systems.pump_room()",
+      "written_by": "firebid.evals.synthetic.write_dxf"
+    },
+    {
+      "filename": "FP-L03-401.dxf",
+      "generator": "firebid.evals.synthetic_systems.floor_plan()",
+      "written_by": "firebid.evals.synthetic.write_dxf"
+    },
+    {
+      "filename": "FP-SITE-001.dxf",
+      "generator": "firebid.evals.synthetic_systems.site_plan()",
+      "written_by": "firebid.evals.synthetic.write_dxf"
+    },
+    {
+      "filename": "FP-SCH-002.dxf",
+      "generator": "firebid.evals.synthetic_systems.riser_schematic()",
+      "written_by": "firebid.evals.synthetic.write_dxf"
+    }
+  ],
+  "inputs_note": "The files are generated, not stored. A written DXF is not byte-identical from one run to the next (the file carries its own stamps), so the inputs are named by generator and commit, not by checksum.",
+  "generator_commit": "ab1b4b3751f32501e335cb931be1117c41419402",
+  "business_rules": [
+    "backend/config/measurement_rules.yaml (version 1 of each rule, all 'to be confirmed')"
+  ],
+  "bid_details": {
+    "consultant": "DELTA M&E CONSULTANTS PTE LTD",
+    "project": "PROPOSED COMMERCIAL DEVELOPMENT AT MARINA BAY"
+  },
+  "drafted_on": "2026-10-08",
+  "drafted_by": "Claude (Opus 5.5); see package.md part 10",
+  "verified_by": null,
+  "verified_on": null,
+  "data_owner": null
+}
