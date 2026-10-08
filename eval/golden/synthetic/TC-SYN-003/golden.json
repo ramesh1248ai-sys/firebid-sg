@@ -1,0 +1,1462 @@
+{
+  "test_case_id": "TC-SYN-003",
+  "title": "Synthetic Phase 2 systems tender: a fire pump room, a typical floor, a site hydrant plan and a riser schematic",
+  "status": "draft: not verified by a person",
+  "units": "millimetres in the building's own coordinates (the DXF model space); lengths in mm unless a field says m",
+  "business_rules_used": {
+    "hanger_default_spacing_mm": [
+      {
+        "up_to_dn": 50,
+        "spacing_mm": 3000
+      },
+      {
+        "up_to_dn": 100,
+        "spacing_mm": 4000
+      },
+      {
+        "up_to_dn": 999,
+        "spacing_mm": 4500
+      }
+    ],
+    "hanger_excluded_systems": [
+      "hydrant"
+    ],
+    "riser_length_defaults": {
+      "floor_to_floor_mm": 4000,
+      "levels_served": 1
+    }
+  },
+  "stages": [
+    {
+      "stage_id": "STG-001",
+      "stage_name": "Document intake",
+      "comparison_type": "EXACT",
+      "expected_output": {
+        "documents": [
+          {
+            "filename": "FP-B1-101.dxf",
+            "kind": "dxf",
+            "state": "done",
+            "sheets": 1
+          },
+          {
+            "filename": "FP-L03-401.dxf",
+            "kind": "dxf",
+            "state": "done",
+            "sheets": 1
+          },
+          {
+            "filename": "FP-SITE-001.dxf",
+            "kind": "dxf",
+            "state": "done",
+            "sheets": 1
+          },
+          {
+            "filename": "FP-SCH-002.dxf",
+            "kind": "dxf",
+            "state": "done",
+            "sheets": 1
+          }
+        ],
+        "sheets_total": 4,
+        "refused": [],
+        "unread_sheets": []
+      },
+      "mandatory_fields": [
+        "filename",
+        "kind",
+        "state",
+        "sheets"
+      ],
+      "allowed_variations": [
+        "the order of documents"
+      ],
+      "tolerance": null,
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-002",
+      "stage_name": "Title blocks and registers",
+      "comparison_type": "EXACT",
+      "expected_output": {
+        "consultant": "DELTA M&E CONSULTANTS PTE LTD",
+        "project": "PROPOSED COMMERCIAL DEVELOPMENT AT MARINA BAY",
+        "sheets": [
+          {
+            "drawing_number": "FP-B1-101",
+            "title": "FIRE PUMP ROOM LAYOUT PLAN",
+            "revision": "R01",
+            "date": "2026-05-01",
+            "stated_scale": "1:100",
+            "level": "B1",
+            "status": "current"
+          },
+          {
+            "drawing_number": "FP-L03-401",
+            "title": "LEVEL 3 WET RISER AND HOSE REEL LAYOUT PLAN",
+            "revision": "R01",
+            "date": "2026-05-01",
+            "stated_scale": "1:100",
+            "level": "L03",
+            "status": "current"
+          },
+          {
+            "drawing_number": "FP-SITE-001",
+            "title": "SITE PLAN - EXTERNAL HYDRANT LAYOUT",
+            "revision": "R01",
+            "date": "2026-05-01",
+            "stated_scale": "1:100",
+            "level": null,
+            "status": "current"
+          },
+          {
+            "drawing_number": "FP-SCH-002",
+            "title": "FIRE PROTECTION RISER SCHEMATIC",
+            "revision": "R01",
+            "date": "2026-05-01",
+            "stated_scale": "NTS",
+            "level": null,
+            "status": "current"
+          }
+        ],
+        "superseded": []
+      },
+      "mandatory_fields": [
+        "drawing_number",
+        "revision",
+        "status"
+      ],
+      "allowed_variations": [
+        "the date shown as 01/05/2026 or 01.05.2026",
+        "the site plan's level as none, SITE or EXTERNAL",
+        "no level, or the levels the schematic names, for FP-SCH-002"
+      ],
+      "tolerance": null,
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-003",
+      "stage_name": "Views and scale",
+      "comparison_type": "EXACT",
+      "expected_output": {
+        "grid": {
+          "across_mm": {
+            "A": 500.0,
+            "B": 6500.0,
+            "C": 12500.0,
+            "D": 18500.0,
+            "E": 24500.0
+          },
+          "up_mm": {
+            "1": 500.0,
+            "2": 6500.0,
+            "3": 12500.0,
+            "4": 18500.0
+          },
+          "spacing_mm": 6000
+        },
+        "sheets": [
+          {
+            "sheet": "FP-B1-101",
+            "views": [
+              {
+                "kind": "plan",
+                "title": "FIRE PUMP ROOM LAYOUT PLAN",
+                "scale": "1:100",
+                "scale_verdict": "verified",
+                "verified_by": "its own dimensions",
+                "measurable": true
+              }
+            ]
+          },
+          {
+            "sheet": "FP-L03-401",
+            "views": [
+              {
+                "kind": "plan",
+                "title": "LEVEL 3 WET RISER AND HOSE REEL LAYOUT PLAN",
+                "scale": "1:100",
+                "scale_verdict": "verified",
+                "verified_by": "its own dimensions",
+                "measurable": true
+              }
+            ]
+          },
+          {
+            "sheet": "FP-SITE-001",
+            "views": [
+              {
+                "kind": "plan",
+                "title": "SITE PLAN - EXTERNAL HYDRANT LAYOUT",
+                "scale": "1:100",
+                "scale_verdict": "verified",
+                "verified_by": "its own dimensions",
+                "measurable": true
+              }
+            ]
+          },
+          {
+            "sheet": "FP-SCH-002",
+            "views": [
+              {
+                "kind": "schematic",
+                "title": "FIRE PROTECTION RISER SCHEMATIC",
+                "scale": "NTS",
+                "scale_verdict": "not to scale",
+                "measurable": false
+              }
+            ]
+          }
+        ],
+        "schedules": [
+          {
+            "sheet": "FP-B1-101",
+            "heading": "FIRE PUMP SCHEDULE",
+            "columns": [
+              "TAG",
+              "DESCRIPTION",
+              "DUTY",
+              "FLOW (L/S)",
+              "HEAD (M)",
+              "POWER (KW)"
+            ],
+            "rows": 3,
+            "is_a_view": false
+          }
+        ],
+        "level_schedule": {
+          "sheet": "FP-SCH-002",
+          "levels": [
+            {
+              "level": "L01",
+              "ffl_m": "+0.000"
+            },
+            {
+              "level": "L02",
+              "ffl_m": "+4.500"
+            },
+            {
+              "level": "L03",
+              "ffl_m": "+9.000"
+            },
+            {
+              "level": "L04",
+              "ffl_m": "+13.500"
+            },
+            {
+              "level": "L05",
+              "ffl_m": "+18.000"
+            },
+            {
+              "level": "ROOF",
+              "ffl_m": "+22.500"
+            }
+          ],
+          "floor_to_floor_mm": {
+            "L01": 4500,
+            "L02": 4500,
+            "L03": 4500,
+            "L04": 4500,
+            "L05": 4500
+          },
+          "note": "read from a sheet that is not to scale: its text is still evidence"
+        }
+      },
+      "mandatory_fields": [
+        "kind",
+        "scale",
+        "measurable"
+      ],
+      "allowed_variations": [
+        "a view's extent, within 5 mm on paper"
+      ],
+      "tolerance": {
+        "view_extent_paper_mm": 5
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-004",
+      "stage_name": "Legends and symbols",
+      "comparison_type": "COMPLETENESS",
+      "expected_output": {
+        "legend_sheets": [
+          "FP-B1-101",
+          "FP-L03-401",
+          "FP-SITE-001"
+        ],
+        "heading": "LEGEND",
+        "rows": [
+          {
+            "ordinal": 0,
+            "block": "EQ-FP",
+            "description": "FIRE PUMP",
+            "letters": "",
+            "object_type": "fire_pump",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 1,
+            "block": "EQ-JP",
+            "description": "JOCKEY PUMP",
+            "letters": "",
+            "object_type": "jockey_pump",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 2,
+            "block": "EQ-PC",
+            "description": "PUMP CONTROL PANEL",
+            "letters": "",
+            "object_type": "pump_controller",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 3,
+            "block": "EQ-TK",
+            "description": "FIRE WATER TANK",
+            "letters": "",
+            "object_type": "fire_water_tank",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 4,
+            "block": "EQ-BI",
+            "description": "BREECHING INLET",
+            "letters": "",
+            "object_type": "breeching_inlet",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 5,
+            "block": "EQ-LV",
+            "description": "LANDING VALVE",
+            "letters": "",
+            "object_type": "landing_valve",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 6,
+            "block": "EQ-FH",
+            "description": "PILLAR HYDRANT",
+            "letters": "",
+            "object_type": "hydrant",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 7,
+            "block": "EQ-HR",
+            "description": "HOSE REEL",
+            "letters": "",
+            "object_type": "hose_reel",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 8,
+            "block": "EQ-TH",
+            "description": "TEST HEADER",
+            "letters": "",
+            "object_type": "test_header",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 9,
+            "block": "VS-DP",
+            "description": "DRY PIPE VALVE SET",
+            "letters": "",
+            "object_type": "dry_pipe_valve_set",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 10,
+            "block": "VS-PA",
+            "description": "PRE-ACTION VALVE SET",
+            "letters": "",
+            "object_type": "pre_action_valve_set",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 11,
+            "block": "VS-DL",
+            "description": "DELUGE VALVE SET",
+            "letters": "",
+            "object_type": "deluge_valve_set",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 12,
+            "block": "EQ-AC",
+            "description": "AIR COMPRESSOR",
+            "letters": "",
+            "object_type": "air_compressor",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 13,
+            "block": "RSR-W",
+            "description": "WET RISING MAIN",
+            "letters": "",
+            "object_type": "pipe",
+            "counted_as": "length"
+          }
+        ],
+        "the_same_legend_on_each_sheet": true,
+        "sheets_without_a_legend": [
+          "FP-SCH-002"
+        ],
+        "in_the_legend_and_not_installed": [],
+        "symbols_no_legend_explains": []
+      },
+      "mandatory_fields": [
+        "description",
+        "object_type"
+      ],
+      "allowed_variations": [
+        "the legend held once for the consultant or once for each sheet, with the same rows",
+        "a row's state as proposed or confirmed: the object type is what is compared"
+      ],
+      "tolerance": null,
+      "minimum_confidence": null,
+      "severity_if_incorrect": "CRITICAL"
+    },
+    {
+      "stage_id": "STG-005",
+      "stage_name": "Object detection",
+      "comparison_type": "TOLERANCE",
+      "expected_output": {
+        "sheets": [
+          {
+            "sheet": "FP-B1-101",
+            "counts": {
+              "air_compressor": 1,
+              "deluge_valve_set": 1,
+              "dry_pipe_valve_set": 1,
+              "fire_pump": 2,
+              "fire_water_tank": 1,
+              "jockey_pump": 1,
+              "pre_action_valve_set": 1,
+              "pump_controller": 1,
+              "test_header": 1
+            },
+            "tags": {
+              "AC-01": "air_compressor",
+              "FP-01": "fire_pump",
+              "FP-02": "fire_pump",
+              "JP-01": "jockey_pump",
+              "PC-01": "pump_controller",
+              "TH-01": "test_header",
+              "TK-01": "fire_water_tank"
+            },
+            "not_counted": [
+              {
+                "block": "RSR-W",
+                "object_type": "pipe",
+                "x_mm": 14000.0,
+                "y_mm": 3000.0,
+                "reason": "the rising main is pipe, not a counted object"
+              }
+            ],
+            "instances": [
+              {
+                "object_type": "fire_water_tank",
+                "block": "EQ-TK",
+                "x_mm": 2000.0,
+                "y_mm": 9000.0,
+                "tag": "TK-01",
+                "grid": "A-B/2-3"
+              },
+              {
+                "object_type": "fire_pump",
+                "block": "EQ-FP",
+                "x_mm": 5000.0,
+                "y_mm": 6000.0,
+                "tag": "FP-01",
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "fire_pump",
+                "block": "EQ-FP",
+                "x_mm": 8000.0,
+                "y_mm": 6000.0,
+                "tag": "FP-02",
+                "grid": "B-C/1-2"
+              },
+              {
+                "object_type": "jockey_pump",
+                "block": "EQ-JP",
+                "x_mm": 11000.0,
+                "y_mm": 6000.0,
+                "tag": "JP-01",
+                "grid": "B-C/1-2"
+              },
+              {
+                "object_type": "pump_controller",
+                "block": "EQ-PC",
+                "x_mm": 14000.0,
+                "y_mm": 8000.0,
+                "tag": "PC-01",
+                "grid": "C-D/2-3"
+              },
+              {
+                "object_type": "test_header",
+                "block": "EQ-TH",
+                "x_mm": 17000.0,
+                "y_mm": 6000.0,
+                "tag": "TH-01",
+                "grid": "C-D/1-2"
+              },
+              {
+                "object_type": "dry_pipe_valve_set",
+                "block": "VS-DP",
+                "x_mm": 17000.0,
+                "y_mm": 9000.0,
+                "grid": "C-D/2-3"
+              },
+              {
+                "object_type": "air_compressor",
+                "block": "EQ-AC",
+                "x_mm": 19000.0,
+                "y_mm": 9000.0,
+                "tag": "AC-01",
+                "grid": "D-E/2-3"
+              },
+              {
+                "object_type": "pre_action_valve_set",
+                "block": "VS-PA",
+                "x_mm": 17000.0,
+                "y_mm": 11000.0,
+                "grid": "C-D/2-3"
+              },
+              {
+                "object_type": "deluge_valve_set",
+                "block": "VS-DL",
+                "x_mm": 17000.0,
+                "y_mm": 13000.0,
+                "grid": "C-D/3-4"
+              }
+            ]
+          },
+          {
+            "sheet": "FP-L03-401",
+            "counts": {
+              "hose_reel": 2,
+              "landing_valve": 1
+            },
+            "tags": {
+              "HR-31": "hose_reel",
+              "HR-32": "hose_reel",
+              "LV-03": "landing_valve"
+            },
+            "not_counted": [
+              {
+                "block": "RSR-W",
+                "object_type": "pipe",
+                "x_mm": 1000.0,
+                "y_mm": 3000.0,
+                "reason": "the rising main is pipe, not a counted object"
+              }
+            ],
+            "instances": [
+              {
+                "object_type": "landing_valve",
+                "block": "EQ-LV",
+                "x_mm": 4000.0,
+                "y_mm": 3000.0,
+                "tag": "LV-03",
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "hose_reel",
+                "block": "EQ-HR",
+                "x_mm": 6000.0,
+                "y_mm": 9000.0,
+                "tag": "HR-31",
+                "grid": "A-B/2-3"
+              },
+              {
+                "object_type": "hose_reel",
+                "block": "EQ-HR",
+                "x_mm": 15000.0,
+                "y_mm": 9000.0,
+                "tag": "HR-32",
+                "grid": "C-D/2-3"
+              }
+            ]
+          },
+          {
+            "sheet": "FP-SITE-001",
+            "counts": {
+              "hydrant": 3
+            },
+            "tags": {
+              "FH-1": "hydrant",
+              "FH-2": "hydrant",
+              "FH-3": "hydrant"
+            },
+            "not_counted": [],
+            "instances": [
+              {
+                "object_type": "hydrant",
+                "block": "EQ-FH",
+                "x_mm": 4000.0,
+                "y_mm": 6000.0,
+                "tag": "FH-1",
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "hydrant",
+                "block": "EQ-FH",
+                "x_mm": 10000.0,
+                "y_mm": 6000.0,
+                "tag": "FH-2",
+                "grid": "B-C/1-2"
+              },
+              {
+                "object_type": "hydrant",
+                "block": "EQ-FH",
+                "x_mm": 16000.0,
+                "y_mm": 6000.0,
+                "tag": "FH-3",
+                "grid": "C-D/1-2"
+              }
+            ]
+          },
+          {
+            "sheet": "FP-SCH-002",
+            "counts": {
+              "breeching_inlet": 1,
+              "fire_pump": 2,
+              "hose_reel": 5,
+              "landing_valve": 5
+            },
+            "tags": {
+              "BI-01": "breeching_inlet",
+              "FP-01": "fire_pump",
+              "FP-02": "fire_pump"
+            },
+            "not_counted": [],
+            "instances": [
+              {
+                "object_type": "breeching_inlet",
+                "block": "EQ-BI",
+                "x_mm": 3000.0,
+                "y_mm": 5000.0,
+                "tag": "BI-01"
+              },
+              {
+                "object_type": "landing_valve",
+                "block": "EQ-LV",
+                "x_mm": 3000.0,
+                "y_mm": 7000.0
+              },
+              {
+                "object_type": "hose_reel",
+                "block": "EQ-HR",
+                "x_mm": 5000.0,
+                "y_mm": 7000.0
+              },
+              {
+                "object_type": "landing_valve",
+                "block": "EQ-LV",
+                "x_mm": 3000.0,
+                "y_mm": 9200.0
+              },
+              {
+                "object_type": "hose_reel",
+                "block": "EQ-HR",
+                "x_mm": 5000.0,
+                "y_mm": 9200.0
+              },
+              {
+                "object_type": "landing_valve",
+                "block": "EQ-LV",
+                "x_mm": 3000.0,
+                "y_mm": 11400.0
+              },
+              {
+                "object_type": "hose_reel",
+                "block": "EQ-HR",
+                "x_mm": 5000.0,
+                "y_mm": 11400.0
+              },
+              {
+                "object_type": "landing_valve",
+                "block": "EQ-LV",
+                "x_mm": 3000.0,
+                "y_mm": 13600.0
+              },
+              {
+                "object_type": "hose_reel",
+                "block": "EQ-HR",
+                "x_mm": 5000.0,
+                "y_mm": 13600.0
+              },
+              {
+                "object_type": "landing_valve",
+                "block": "EQ-LV",
+                "x_mm": 3000.0,
+                "y_mm": 15800.0
+              },
+              {
+                "object_type": "hose_reel",
+                "block": "EQ-HR",
+                "x_mm": 5000.0,
+                "y_mm": 15800.0
+              },
+              {
+                "object_type": "fire_pump",
+                "block": "EQ-FP",
+                "x_mm": 14000.0,
+                "y_mm": 12000.0,
+                "tag": "FP-01"
+              },
+              {
+                "object_type": "fire_pump",
+                "block": "EQ-FP",
+                "x_mm": 16000.0,
+                "y_mm": 12000.0,
+                "tag": "FP-02"
+              }
+            ]
+          }
+        ]
+      },
+      "mandatory_fields": [
+        "sheet",
+        "counts"
+      ],
+      "allowed_variations": [
+        "an instance's position within 250 mm",
+        "an untagged valve set with no tag"
+      ],
+      "tolerance": {
+        "count": 0,
+        "position_mm": 250
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "CRITICAL"
+    },
+    {
+      "stage_id": "STG-006",
+      "stage_name": "Pipe network",
+      "comparison_type": "TOLERANCE",
+      "expected_output": {
+        "sheets": [
+          {
+            "sheet": "FP-B1-101",
+            "measured": true,
+            "length_mm_by_dn": {
+              "200": 11500.0,
+              "150": 19800.0,
+              "50": 2750.0
+            },
+            "runs": [
+              {
+                "dn": 200,
+                "from_mm": [
+                  2250.0,
+                  9000.0
+                ],
+                "to_mm": [
+                  11000.0,
+                  9000.0
+                ]
+              },
+              {
+                "dn": 200,
+                "from_mm": [
+                  11000.0,
+                  9000.0
+                ],
+                "to_mm": [
+                  11000.0,
+                  6250.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  5000.0,
+                  9000.0
+                ],
+                "to_mm": [
+                  5000.0,
+                  6250.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  8000.0,
+                  9000.0
+                ],
+                "to_mm": [
+                  8000.0,
+                  6250.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  5000.0,
+                  5750.0
+                ],
+                "to_mm": [
+                  5000.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  5000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  13800.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  8000.0,
+                  5750.0
+                ],
+                "to_mm": [
+                  8000.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  11000.0,
+                  5750.0
+                ],
+                "to_mm": [
+                  11000.0,
+                  3000.0
+                ]
+              }
+            ],
+            "system": "fire pump suction and discharge, to the rising main"
+          },
+          {
+            "sheet": "FP-L03-401",
+            "measured": true,
+            "length_mm_by_dn": {
+              "100": 2550.0
+            },
+            "runs": [
+              {
+                "dn": 100,
+                "from_mm": [
+                  1200.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  3750.0,
+                  3000.0
+                ]
+              }
+            ],
+            "system": "wet rising main"
+          },
+          {
+            "sheet": "FP-SITE-001",
+            "measured": true,
+            "length_mm_by_dn": {
+              "150": 26250.0
+            },
+            "runs": [
+              {
+                "dn": 150,
+                "from_mm": [
+                  1000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  19000.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  4000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  4000.0,
+                  5750.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  10000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  10000.0,
+                  5750.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  16000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  16000.0,
+                  5750.0
+                ]
+              }
+            ],
+            "system": "hydrant"
+          },
+          {
+            "sheet": "FP-SCH-002",
+            "measured": false,
+            "length_mm_by_dn": {},
+            "runs": []
+          }
+        ],
+        "sizes_read_from": "the annotation DN200, DN150, DN100 or DN50 written on or along each run",
+        "exceptions": [
+          "FP-SCH-002 is not to scale: its rising main line is not measured"
+        ]
+      },
+      "mandatory_fields": [
+        "sheet",
+        "length_mm_by_dn"
+      ],
+      "allowed_variations": [
+        "a run measured to the centre of the pump, tank, riser or hydrant symbol it meets, where the drawing stops at the symbol's edge: up to 250 mm more at each such end (C4)",
+        "the name of a system, where the pipe is put with the right equipment (C6)"
+      ],
+      "tolerance": {
+        "length_percent": 5
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-007",
+      "stage_name": "Takeoff",
+      "comparison_type": "TOLERANCE",
+      "expected_output": {
+        "duplicates": [
+          {
+            "sheet": "FP-SCH-002",
+            "repeats": "FP-B1-101",
+            "what": "fire pumps FP-01 and FP-02, by their tags",
+            "counted_from": "FP-B1-101"
+          },
+          {
+            "sheet": "FP-SCH-002",
+            "repeats": "FP-L03-401",
+            "what": "the landing valve and hose reel of level L03",
+            "counted_from": "FP-L03-401"
+          },
+          {
+            "sheet": "FP-SCH-002",
+            "repeats": "no sheet of the tender",
+            "what": "the landing valves and hose reels of L01, L02, L04 and L05",
+            "counted_from": "nowhere: see C1",
+            "ambiguity": "C1"
+          }
+        ],
+        "counted_once": {
+          "air_compressor": 1,
+          "breeching_inlet": 1,
+          "deluge_valve_set": 1,
+          "dry_pipe_valve_set": 1,
+          "fire_pump": 2,
+          "fire_water_tank": 1,
+          "hose_reel": 2,
+          "hydrant": 3,
+          "jockey_pump": 1,
+          "landing_valve": 1,
+          "pre_action_valve_set": 1,
+          "pump_controller": 1,
+          "test_header": 1
+        },
+        "equipment": [
+          {
+            "item": "fire_water_tank",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-B1-101",
+            "level": "B1",
+            "tag": "TK-01"
+          },
+          {
+            "item": "fire_pump",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-B1-101",
+            "level": "B1",
+            "tag": "FP-01",
+            "attributes": {
+              "duty": "duty",
+              "driver": "electric",
+              "flow_l_min": "2850",
+              "head_m": "80",
+              "power_kw": "75"
+            },
+            "attributes_from": "the row \"FP-01 | ELECTRIC FIRE PUMP | DUTY | 47.5 | 80 | 75\" of the FIRE PUMP SCHEDULE on FP-B1-101"
+          },
+          {
+            "item": "fire_pump",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-B1-101",
+            "level": "B1",
+            "tag": "FP-02",
+            "attributes": {
+              "duty": "standby",
+              "driver": "diesel",
+              "flow_l_min": "2850",
+              "head_m": "80",
+              "power_kw": "75"
+            },
+            "attributes_from": "the row \"FP-02 | DIESEL FIRE PUMP | STANDBY | 47.5 | 80 | 75\" of the FIRE PUMP SCHEDULE on FP-B1-101"
+          },
+          {
+            "item": "jockey_pump",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-B1-101",
+            "level": "B1",
+            "tag": "JP-01",
+            "attributes": {
+              "flow_l_min": "90",
+              "head_m": "85",
+              "power_kw": "4"
+            },
+            "attributes_from": "the row \"JP-01 | JOCKEY PUMP | - | 1.5 | 85 | 4\" of the FIRE PUMP SCHEDULE on FP-B1-101"
+          },
+          {
+            "item": "pump_controller",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-B1-101",
+            "level": "B1",
+            "tag": "PC-01"
+          },
+          {
+            "item": "test_header",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-B1-101",
+            "level": "B1",
+            "tag": "TH-01"
+          },
+          {
+            "item": "dry_pipe_valve_set",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-B1-101",
+            "level": "B1"
+          },
+          {
+            "item": "air_compressor",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-B1-101",
+            "level": "B1",
+            "tag": "AC-01"
+          },
+          {
+            "item": "pre_action_valve_set",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-B1-101",
+            "level": "B1"
+          },
+          {
+            "item": "deluge_valve_set",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-B1-101",
+            "level": "B1"
+          },
+          {
+            "item": "landing_valve",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-L03-401",
+            "level": "L03",
+            "tag": "LV-03",
+            "dn": 100
+          },
+          {
+            "item": "hose_reel",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-L03-401",
+            "level": "L03",
+            "tag": "HR-31"
+          },
+          {
+            "item": "hose_reel",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-L03-401",
+            "level": "L03",
+            "tag": "HR-32"
+          },
+          {
+            "item": "hydrant",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-SITE-001",
+            "level": null,
+            "tag": "FH-1"
+          },
+          {
+            "item": "hydrant",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-SITE-001",
+            "level": null,
+            "tag": "FH-2"
+          },
+          {
+            "item": "hydrant",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-SITE-001",
+            "level": null,
+            "tag": "FH-3"
+          },
+          {
+            "item": "breeching_inlet",
+            "quantity": 1,
+            "unit": "no",
+            "sheet": "FP-SCH-002",
+            "level": null,
+            "tag": "BI-01",
+            "why_from_the_schematic": "it is on no plan"
+          }
+        ],
+        "pipe": [
+          {
+            "item": "pipe",
+            "dn": 200,
+            "quantity": 11.5,
+            "unit": "m",
+            "sheet": "FP-B1-101",
+            "level": "B1",
+            "system": "fire pump suction and discharge, to the rising main"
+          },
+          {
+            "item": "pipe",
+            "dn": 150,
+            "quantity": 19.8,
+            "unit": "m",
+            "sheet": "FP-B1-101",
+            "level": "B1",
+            "system": "fire pump suction and discharge, to the rising main"
+          },
+          {
+            "item": "pipe",
+            "dn": 50,
+            "quantity": 2.75,
+            "unit": "m",
+            "sheet": "FP-B1-101",
+            "level": "B1",
+            "system": "fire pump suction and discharge, to the rising main"
+          },
+          {
+            "item": "pipe",
+            "dn": 100,
+            "quantity": 2.55,
+            "unit": "m",
+            "sheet": "FP-L03-401",
+            "level": "L03",
+            "system": "wet rising main"
+          },
+          {
+            "item": "pipe",
+            "dn": 150,
+            "quantity": 26.25,
+            "unit": "m",
+            "sheet": "FP-SITE-001",
+            "level": null,
+            "system": "hydrant"
+          }
+        ],
+        "derived_items": [
+          {
+            "item": "pipe",
+            "dn": 100,
+            "run": "rising main",
+            "quantity": 4.5,
+            "unit": "m",
+            "level": "L03",
+            "rule": "riser_length",
+            "calculation": "4500 mm x 1 level",
+            "evidence": "L03 FFL +9.000 and L04 FFL +13.500 on FP-SCH-002",
+            "ambiguity": "C2"
+          },
+          {
+            "item": "pipe",
+            "dn": 150,
+            "run": "rising main",
+            "quantity": 4.0,
+            "unit": "m",
+            "level": "B1",
+            "rule": "riser_length",
+            "calculation": "4000 mm x 1 level",
+            "evidence": "the rule's default: the level schedule does not name B1",
+            "ambiguity": "C2"
+          },
+          {
+            "item": "fitting",
+            "fitting": "tee",
+            "dn": "200x150",
+            "quantity": 2,
+            "unit": "no",
+            "level": "B1",
+            "rule": "fitting_tee",
+            "calculation": "the fire pump spurs at x = 5000 and 8000 leave the DN200 suction header",
+            "ambiguity": "C3"
+          },
+          {
+            "item": "fitting",
+            "fitting": "tee",
+            "dn": "150x150",
+            "quantity": 1,
+            "unit": "no",
+            "level": "B1",
+            "rule": "fitting_tee",
+            "calculation": "the standby pump joins the discharge header at x = 8000",
+            "ambiguity": "C3"
+          },
+          {
+            "item": "fitting",
+            "fitting": "tee",
+            "dn": "150x50",
+            "quantity": 1,
+            "unit": "no",
+            "level": "B1",
+            "rule": "fitting_tee",
+            "calculation": "the jockey pump joins the discharge header at x = 11000",
+            "ambiguity": "C3"
+          },
+          {
+            "item": "fitting",
+            "fitting": "elbow",
+            "dn": "200",
+            "quantity": 1,
+            "unit": "no",
+            "level": "B1",
+            "rule": "fitting_elbow",
+            "calculation": "the suction header turns down to the jockey pump at (11000, 9000)",
+            "ambiguity": "C3"
+          },
+          {
+            "item": "fitting",
+            "fitting": "elbow",
+            "dn": "150",
+            "quantity": 1,
+            "unit": "no",
+            "level": "B1",
+            "rule": "fitting_elbow",
+            "calculation": "the duty pump's discharge turns into the header at (5000, 3000)",
+            "ambiguity": "C3"
+          },
+          {
+            "item": "fitting",
+            "fitting": "tee",
+            "dn": "150x150",
+            "quantity": 3,
+            "unit": "no",
+            "level": null,
+            "rule": "fitting_tee",
+            "calculation": "the hydrant spurs at x = 4000, 10000 and 16000 leave the DN150 main",
+            "ambiguity": "C3"
+          },
+          {
+            "item": "hanger",
+            "dn": 200,
+            "quantity": 3,
+            "unit": "no",
+            "level": "B1",
+            "rule": "hanger_spacing",
+            "calculation": "ceil(11500 / 4500)",
+            "spacing_source": "company default: there is no specification"
+          },
+          {
+            "item": "hanger",
+            "dn": 150,
+            "quantity": 5,
+            "unit": "no",
+            "level": "B1",
+            "rule": "hanger_spacing",
+            "calculation": "ceil(19800 / 4500)",
+            "spacing_source": "company default: there is no specification"
+          },
+          {
+            "item": "hanger",
+            "dn": 50,
+            "quantity": 1,
+            "unit": "no",
+            "level": "B1",
+            "rule": "hanger_spacing",
+            "calculation": "ceil(2750 / 3000)",
+            "spacing_source": "company default: there is no specification"
+          },
+          {
+            "item": "hanger",
+            "dn": 100,
+            "quantity": 1,
+            "unit": "no",
+            "level": "L03",
+            "rule": "hanger_spacing",
+            "calculation": "ceil(2550 / 4000)",
+            "spacing_source": "company default: there is no specification"
+          }
+        ],
+        "not_expected": [
+          {
+            "item": "hanger",
+            "where": "FP-SITE-001",
+            "why": "the hydrant main is buried: the rule leaves the hydrant system out"
+          },
+          {
+            "item": "sprinkler drop",
+            "why": "there is no sprinkler"
+          },
+          {
+            "item": "seismic restraint",
+            "why": "no specification requires it"
+          },
+          {
+            "item": "pipe to the valve sets, the test header or the pump control panel",
+            "why": "none is drawn"
+          },
+          {
+            "item": "fitting",
+            "fitting": "reducer",
+            "why": "sizes change only at tees"
+          }
+        ],
+        "status_of_every_derived_item": "to be confirmed (the rules are seeded defaults)"
+      },
+      "mandatory_fields": [
+        "item",
+        "quantity",
+        "unit"
+      ],
+      "allowed_variations": [
+        "pipe lengths within 5%",
+        "an item's description wording",
+        "a pump's flow as 47.5 L/s or as 2850 L/min, where the schedule row is cited",
+        "the derived fittings, until C3 is settled: report differences, not defects"
+      ],
+      "tolerance": {
+        "count": 0,
+        "length_percent": 5
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "CRITICAL"
+    }
+  ],
+  "final_output": {
+    "expected_result": {
+      "scope": "stages 1 to 7: the takeoff. There is no specification, client bill or rate for this tender",
+      "counted_once": {
+        "air_compressor": 1,
+        "breeching_inlet": 1,
+        "deluge_valve_set": 1,
+        "dry_pipe_valve_set": 1,
+        "fire_pump": 2,
+        "fire_water_tank": 1,
+        "hose_reel": 2,
+        "hydrant": 3,
+        "jockey_pump": 1,
+        "landing_valve": 1,
+        "pre_action_valve_set": 1,
+        "pump_controller": 1,
+        "test_header": 1
+      },
+      "pipe_m_by_sheet_and_dn_drawn": {
+        "FP-B1-101": {
+          "200": 11.5,
+          "150": 19.8,
+          "50": 2.75
+        },
+        "FP-L03-401": {
+          "100": 2.55
+        },
+        "FP-SITE-001": {
+          "150": 26.25
+        }
+      },
+      "sum_of_the_sheets_before_duplicates": {
+        "fire_pump": 4,
+        "hose_reel": 7,
+        "landing_valve": 6
+      },
+      "pump_schedule": [
+        {
+          "tag": "FP-01",
+          "description": "ELECTRIC FIRE PUMP",
+          "duty": "duty",
+          "driver": "electric",
+          "flow_l_s": "47.5",
+          "flow_l_min": "2850",
+          "head_m": "80",
+          "power_kw": "75",
+          "evidence": "the row \"FP-01 | ELECTRIC FIRE PUMP | DUTY | 47.5 | 80 | 75\" of the FIRE PUMP SCHEDULE on FP-B1-101"
+        },
+        {
+          "tag": "FP-02",
+          "description": "DIESEL FIRE PUMP",
+          "duty": "standby",
+          "driver": "diesel",
+          "flow_l_s": "47.5",
+          "flow_l_min": "2850",
+          "head_m": "80",
+          "power_kw": "75",
+          "evidence": "the row \"FP-02 | DIESEL FIRE PUMP | STANDBY | 47.5 | 80 | 75\" of the FIRE PUMP SCHEDULE on FP-B1-101"
+        },
+        {
+          "tag": "JP-01",
+          "description": "JOCKEY PUMP",
+          "duty": null,
+          "driver": null,
+          "flow_l_s": "1.5",
+          "flow_l_min": "90",
+          "head_m": "85",
+          "power_kw": "4",
+          "evidence": "the row \"JP-01 | JOCKEY PUMP | - | 1.5 | 85 | 4\" of the FIRE PUMP SCHEDULE on FP-B1-101"
+        }
+      ]
+    },
+    "mandatory_fields": [
+      "counted_once",
+      "pipe_m_by_sheet_and_dn_drawn"
+    ],
+    "allowed_variations": [
+      "pipe lengths within 5%"
+    ]
+  },
+  "ambiguities": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6",
+    "C7"
+  ]
+}

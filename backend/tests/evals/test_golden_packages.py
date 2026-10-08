@@ -20,6 +20,7 @@ import yaml
 from firebid.evals import synthetic_boq, synthetic_labour, synthetic_rates
 from firebid.evals import synthetic_qto as q
 from firebid.evals import synthetic_spec as spec
+from firebid.evals import synthetic_systems as systems
 from firebid.evals.synthetic_network import NETWORK, TYPES
 
 pytestmark = pytest.mark.req("FR-LRN-01")
@@ -314,3 +315,92 @@ class TestTcSyn002:
         assert used["labour_multipliers"] == {
             one["key"]: str(one["value"]) for one in labour["multipliers"]["conditions"]
         }
+
+
+class TestTcSyn003:
+    """The pump room, the typical floor, the site plan and the riser schematic."""
+
+    @staticmethod
+    def truths() -> dict[str, systems.SheetTruth]:
+        return {truth.number: truth for _, truth in systems.tender()}
+
+    def test_its_counts_tags_and_pipe_are_what_the_generator_draws(self) -> None:
+        golden = package("TC-SYN-003")
+        objects = {one["sheet"]: one for one in stage(golden, "STG-005")["sheets"]}
+        pipes = {one["sheet"]: one for one in stage(golden, "STG-006")["sheets"]}
+        truths = self.truths()
+
+        assert set(objects) == set(pipes) == set(truths)
+        for number, truth in truths.items():
+            assert objects[number]["counts"] == truth.counts
+            assert objects[number]["tags"] == truth.tags
+            listed: dict[str, int] = {}
+            for one in objects[number]["instances"]:
+                listed[one["object_type"]] = listed.get(one["object_type"], 0) + 1
+                if "tag" in one:
+                    assert truth.tags[one["tag"]] == one["object_type"]
+            assert listed == truth.counts
+            assert pipes[number]["measured"] is truth.measured
+            assert pipes[number]["length_mm_by_dn"] == {
+                str(dn): length for dn, length in truth.lengths.items()
+            }
+            drawn: dict[str, float] = {}
+            for run in pipes[number]["runs"]:
+                (x0, y0), (x1, y1) = run["from_mm"], run["to_mm"]
+                drawn[str(run["dn"])] = drawn.get(str(run["dn"]), 0.0) + math.hypot(
+                    x1 - x0, y1 - y0
+                )
+            assert drawn == pytest.approx(pipes[number]["length_mm_by_dn"])
+
+    def test_its_legend_schedule_and_levels_are_the_consultant_s(self) -> None:
+        golden = package("TC-SYN-003")
+        views = stage(golden, "STG-003")
+
+        assert [
+            (row["block"], row["description"], row["object_type"])
+            for row in stage(golden, "STG-004")["rows"]
+        ] == [(s.block, s.description, s.object_type) for s in systems.DELTA.symbols]
+        assert [
+            (row["tag"], row["description"], row["flow_l_s"], row["head_m"], row["power_kw"])
+            for row in golden["final_output"]["expected_result"]["pump_schedule"]
+        ] == [(row[0], row[1], *row[3:]) for row in systems.SCHEDULE_ROWS]
+        assert [(one["level"], one["ffl_m"]) for one in views["level_schedule"]["levels"]] == [
+            *systems.LEVELS,
+            systems.ROOF,
+        ]
+        assert views["level_schedule"]["floor_to_floor_mm"]["L03"] == systems.FLOOR_TO_FLOOR_L03
+
+    def test_its_takeoff_counts_each_piece_of_equipment_once(self) -> None:
+        golden = package("TC-SYN-003")
+        truths = self.truths()
+        takeoff = stage(golden, "STG-007")
+        on_plans: dict[str, int] = {}
+        every: dict[str, int] = {}
+        for truth in truths.values():
+            for kind, count in truth.counts.items():
+                every[kind] = every.get(kind, 0) + count
+                if truth.measured:
+                    on_plans[kind] = on_plans.get(kind, 0) + count
+        # What only the schematic shows is counted from it; what a plan shows is not.
+        only = {k: v for k, v in truths[systems.SCHEMATIC].counts.items() if k not in on_plans}
+
+        assert takeoff["counted_once"] == {**on_plans, **only}
+        listed: dict[str, int] = {}
+        for item in takeoff["equipment"]:
+            listed[item["item"]] = listed.get(item["item"], 0) + item["quantity"]
+        assert listed == takeoff["counted_once"]
+        final = golden["final_output"]["expected_result"]
+        assert final["counted_once"] == takeoff["counted_once"]
+        # The trap the case is there to catch: the sheets added together are more.
+        assert final["sum_of_the_sheets_before_duplicates"] == {
+            kind: count for kind, count in every.items() if count != takeoff["counted_once"][kind]
+        }
+
+    def test_the_rules_it_was_worked_out_with_are_still_the_configured_ones(self) -> None:
+        used = package("TC-SYN-003")["business_rules_used"]
+        loaded = yaml.safe_load((CONFIG / "measurement_rules.yaml").read_text(encoding="utf-8"))
+        rules = {rule["key"]: rule["definition"] for rule in loaded["rules"]}
+
+        assert used["hanger_default_spacing_mm"] == rules["hanger_spacing"]["default_spacing_mm"]
+        assert used["hanger_excluded_systems"] == rules["hanger_spacing"]["exclude_systems"]
+        assert used["riser_length_defaults"] == rules["riser_length"]["defaults"]

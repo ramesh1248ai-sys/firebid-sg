@@ -205,7 +205,7 @@ The first packages, in the order to make them:
 | --- | --- | --- | --- | --- |
 | TC-SYN-001 | The synthetic three-sheet sprinkler tender the end-to-end test uses | The fixture generator's own truth, which is independent by construction | 1 to 7 | Drafted in `eval/golden/synthetic/TC-SYN-001/`; not verified by a person; six ambiguities to settle |
 | TC-SYN-002 | The synthetic basement car park plan with its specification, client BOQ, rate list and productivity list | The generators' truth and the fixtures' stated answers; stages 7 and 9 to 12 worked out by hand from the rules | 1 to 12 | Drafted in `eval/golden/synthetic/TC-SYN-002/`; not verified by a person; eleven ambiguities to settle |
-| TC-SYN-003 | The synthetic Phase 2 systems tender (pump room, floor, site plan, riser schematic) | The generators' truth | 1 to 7 | Fixtures exist; package to write |
+| TC-SYN-003 | The synthetic Phase 2 systems tender (pump room, floor, site plan, riser schematic) | The generators' truth | 1 to 7 | Drafted in `eval/golden/synthetic/TC-SYN-003/`; not verified by a person; seven ambiguities to settle |
 | TC-MOH-L10 | Level 10 of the real MOH set (four sheets) | Estimators' count in the workbook; legend and register by an estimator | 1 to 7 | Needs the estimators' counts |
 | TC-REAL-nn | The D3 spread: at least four consultants, three scanned sets, three with a superseded revision, three with enlarged plans | The data owner's estimators | As the tender allows | Waits on D3 |
 
