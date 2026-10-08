@@ -1,0 +1,2867 @@
+{
+  "test_case_id": "TC-SYN-002",
+  "title": "Synthetic basement car park sprinkler tender: one plan, a specification, the client's bill, a rate list and a productivity list",
+  "status": "draft: not verified by a person",
+  "units": "millimetres in the building's own coordinates (the DXF model space); lengths in mm unless a field says m; money in SGD as text, exact to the cent",
+  "scenario": {
+    "priced_on": "2026-10-04",
+    "submission_deadline": "2026-10-15",
+    "tender_validity_days": 90,
+    "tender_validity_ends": "2027-01-13",
+    "measurement_conventions": {
+      "pipe_measurement": "net_centreline",
+      "fittings": "enumerated",
+      "hangers": "deemed_included",
+      "drops": "measured_by_rule"
+    },
+    "what_people_have_done": [
+      "confirmed each of the eight legend rows as the legend describes it",
+      "verified every takeoff item as proposed; G1 approved by the Senior Estimator",
+      "built the company bill from the verified takeoff",
+      "imported the rate list and the productivity list; priced the bill by rule",
+      "entered a margin of 8% on cost (Senior Estimator)"
+    ],
+    "what_people_have_not_done": [
+      "verified any specification attribute, obligation or issue: all are proposals",
+      "confirmed any proposed rate match",
+      "confirmed any labour multiplier",
+      "resolved any checklist item, treated any risk, or issued any clarification",
+      "carried the client's provisional sums into the bill",
+      "decided G2, G3 or G4; nothing is frozen or submitted"
+    ]
+  },
+  "business_rules_used": {
+    "drop_length_defaults": {
+      "branch_elevation_mm": 3300,
+      "ceiling_height_mm": 2800,
+      "sprinkler_setting_mm": 50
+    },
+    "riser_length_defaults": {
+      "floor_to_floor_mm": 4000,
+      "levels_served": 1
+    },
+    "hanger_default_spacing_mm": [
+      {
+        "up_to_dn": 50,
+        "spacing_mm": 3000
+      },
+      {
+        "up_to_dn": 100,
+        "spacing_mm": 4000
+      },
+      {
+        "up_to_dn": 999,
+        "spacing_mm": 4500
+      }
+    ],
+    "allowance_percent": {
+      "pipe": 5,
+      "fitting": 0,
+      "sprinkler": 0,
+      "valve": 0,
+      "device": 0,
+      "equipment": 0,
+      "support": 0
+    },
+    "variance_threshold_percent": 5,
+    "gst_percent": 9,
+    "labour_rate_table": {
+      "effective_from": "2025-01-01",
+      "productive_hours_per_month": 208,
+      "overtime": {
+        "share_percent": 10,
+        "premium": 1.5
+      },
+      "supervision": {
+        "ratio": 8,
+        "grade": "supervisor"
+      },
+      "insurance_percent": 2.0,
+      "grades": {
+        "skilled": {
+          "label": "Skilled worker",
+          "wage": 2600,
+          "levy": 500,
+          "accommodation": 450,
+          "transport": 120
+        },
+        "general": {
+          "label": "General worker",
+          "wage": 1800,
+          "levy": 700,
+          "accommodation": 450,
+          "transport": 120
+        },
+        "supervisor": {
+          "label": "Supervisor",
+          "wage": 4200,
+          "levy": 0,
+          "accommodation": 0,
+          "transport": 200
+        }
+      },
+      "trades": {
+        "pipefitter": {
+          "label": "Pipefitter",
+          "crew": {
+            "skilled": 50,
+            "general": 50
+          }
+        },
+        "sprinkler_fitter": {
+          "label": "Sprinkler fitter",
+          "crew": {
+            "skilled": 60,
+            "general": 40
+          }
+        }
+      }
+    },
+    "labour_multipliers": {
+      "access_difficult": "1.15",
+      "mep_congestion": "1.2",
+      "basement": "1.1",
+      "occupied_building": "1.25",
+      "night_work": "1.2",
+      "high_rise": "1.1"
+    }
+  },
+  "stages": [
+    {
+      "stage_id": "STG-001",
+      "stage_name": "Document intake",
+      "comparison_type": "EXACT",
+      "expected_output": {
+        "documents": [
+          {
+            "filename": "FP-B1-201.dxf",
+            "kind": "dxf",
+            "document_type": "drawing",
+            "state": "done",
+            "sheets": 1
+          },
+          {
+            "filename": "Particular Specification Fire Protection.docx",
+            "kind": "docx",
+            "document_type": "specification",
+            "state": "done",
+            "clauses": 44
+          },
+          {
+            "filename": "Bill of Quantities - Fire Sprinkler.xlsx",
+            "kind": "xlsx",
+            "document_type": "boq",
+            "state": "done",
+            "sheets_read": [
+              "Bill 1 - Sprinklers"
+            ],
+            "sheets_not_read": [
+              {
+                "sheet": "Summary",
+                "why": "a collection of totals: no measured lines"
+              },
+              {
+                "sheet": "Lists",
+                "why": "hidden; the unit list behind a data validation"
+              }
+            ]
+          }
+        ],
+        "library_imports": [
+          {
+            "filename": "rates.xlsx",
+            "what": "rate library",
+            "entries": 10,
+            "refused": 0
+          },
+          {
+            "filename": "productivity.xlsx",
+            "what": "productivity library",
+            "entries": 8,
+            "refused": 0
+          }
+        ],
+        "sheets_total": 1,
+        "refused": [],
+        "unread_sheets": []
+      },
+      "mandatory_fields": [
+        "filename",
+        "document_type",
+        "state"
+      ],
+      "allowed_variations": [
+        "the order of documents",
+        "the specification's clause count where a heading with no text is or is not held as a clause (see STG-008)"
+      ],
+      "tolerance": null,
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-002",
+      "stage_name": "Title blocks and registers",
+      "comparison_type": "EXACT",
+      "expected_output": {
+        "consultant": "ALPHA CONSULTANTS PTE LTD",
+        "project": "PROPOSED COMMERCIAL DEVELOPMENT AT MARINA BAY",
+        "sheets": [
+          {
+            "drawing_number": "FP-B1-201",
+            "title": "BASEMENT 1 CAR PARK SPRINKLER LAYOUT PLAN",
+            "revision": "R01",
+            "date": "2026-05-01",
+            "stated_scale": "1:100",
+            "level": "B1",
+            "status": "current"
+          }
+        ],
+        "superseded": [],
+        "specification": {
+          "title": "PARTICULAR SPECIFICATION FOR FIRE PROTECTION SERVICES",
+          "revision": "Rev B",
+          "status": "current"
+        }
+      },
+      "mandatory_fields": [
+        "drawing_number",
+        "revision",
+        "status",
+        "level"
+      ],
+      "allowed_variations": [
+        "the date shown as 01/05/2026 or 01.05.2026",
+        "the level shown as BASEMENT 1 where the code B1 is also held"
+      ],
+      "tolerance": null,
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-003",
+      "stage_name": "Views and scale",
+      "comparison_type": "EXACT",
+      "expected_output": {
+        "grid": {
+          "across_mm": {
+            "A": 500.0,
+            "B": 6500.0,
+            "C": 12500.0,
+            "D": 18500.0,
+            "E": 24500.0
+          },
+          "up_mm": {
+            "1": 500.0,
+            "2": 6500.0,
+            "3": 12500.0,
+            "4": 18500.0
+          },
+          "spacing_mm": 6000
+        },
+        "sheets": [
+          {
+            "sheet": "FP-B1-201",
+            "views": [
+              {
+                "kind": "plan",
+                "title": "BASEMENT 1 CAR PARK SPRINKLER LAYOUT PLAN",
+                "scale": "1:100",
+                "scale_verdict": "verified",
+                "verified_by": "its own dimensions",
+                "measurable": true
+              }
+            ]
+          }
+        ],
+        "general_notes": [
+          "ALL SPRINKLER PIPEWORK TO BE BLACK STEEL",
+          "PIPES DN65 AND ABOVE: WELDED JOINTS"
+        ]
+      },
+      "mandatory_fields": [
+        "kind",
+        "scale",
+        "measurable"
+      ],
+      "allowed_variations": [
+        "a view's extent, within 5 mm on paper"
+      ],
+      "tolerance": {
+        "view_extent_paper_mm": 5
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-004",
+      "stage_name": "Legends and symbols",
+      "comparison_type": "COMPLETENESS",
+      "expected_output": {
+        "heading": "LEGEND",
+        "rows": [
+          {
+            "ordinal": 0,
+            "block": "SPK-PEND",
+            "description": "PENDENT SPRINKLER",
+            "letters": "",
+            "object_type": "sprinkler_pendent",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 1,
+            "block": "SPK-UP",
+            "description": "SPRINKLER - UP TYPE",
+            "letters": "",
+            "object_type": "sprinkler_upright",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 2,
+            "block": "SPK-SW",
+            "description": "SIDEWALL SPRINKLER",
+            "letters": "",
+            "object_type": "sprinkler_sidewall",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 3,
+            "block": "VLV-GATE",
+            "description": "GATE VALVE",
+            "letters": "",
+            "object_type": "gate_valve",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 4,
+            "block": "VLV-CHK",
+            "description": "NON-RETURN VALVE",
+            "letters": "",
+            "object_type": "check_valve",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 5,
+            "block": "DEV-FS",
+            "description": "FLOW SWITCH",
+            "letters": "",
+            "object_type": "flow_switch",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 6,
+            "block": "FTG-RED",
+            "description": "REDUCER",
+            "letters": "",
+            "object_type": "fitting",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 7,
+            "block": "RSR",
+            "description": "SPRINKLER RISER",
+            "letters": "",
+            "object_type": "pipe",
+            "counted_as": "length"
+          }
+        ],
+        "in_the_legend_and_not_installed": [
+          "FLOW SWITCH"
+        ],
+        "symbols_no_legend_explains": [],
+        "legend_sheet": "FP-B1-201",
+        "sheets_without_a_legend": []
+      },
+      "mandatory_fields": [
+        "description",
+        "object_type"
+      ],
+      "allowed_variations": [
+        "REDUCER mapped to object type `fitting` with or without the attribute fitting=reducer",
+        "a row's state as proposed or confirmed: the object type is what is compared"
+      ],
+      "tolerance": null,
+      "minimum_confidence": null,
+      "severity_if_incorrect": "CRITICAL"
+    },
+    {
+      "stage_id": "STG-005",
+      "stage_name": "Object detection",
+      "comparison_type": "TOLERANCE",
+      "expected_output": {
+        "sheets": [
+          {
+            "sheet": "FP-B1-201",
+            "counts": {
+              "check_valve": 1,
+              "fitting": 1,
+              "gate_valve": 1,
+              "sprinkler_pendent": 16,
+              "sprinkler_sidewall": 4,
+              "sprinkler_upright": 4
+            },
+            "not_counted": [
+              {
+                "block": "RSR",
+                "object_type": "pipe",
+                "reason": "the riser is pipe, not a counted object"
+              }
+            ],
+            "instances": [
+              {
+                "object_type": "gate_valve",
+                "block": "VLV-GATE",
+                "x_mm": 1800.0,
+                "y_mm": 3000.0,
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "check_valve",
+                "block": "VLV-CHK",
+                "x_mm": 2500.0,
+                "y_mm": 3000.0,
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "fitting",
+                "block": "FTG-RED",
+                "x_mm": 10500.0,
+                "y_mm": 3000.0,
+                "grid": "B-C/1-2"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 3000.0,
+                "y_mm": 6000.0,
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 3000.0,
+                "y_mm": 9000.0,
+                "grid": "A-B/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 3000.0,
+                "y_mm": 12000.0,
+                "grid": "A-B/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 3000.0,
+                "y_mm": 15000.0,
+                "grid": "A-B/3-4"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 6000.0,
+                "y_mm": 6000.0,
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 6000.0,
+                "y_mm": 9000.0,
+                "grid": "A-B/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 6000.0,
+                "y_mm": 12000.0,
+                "grid": "A-B/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 6000.0,
+                "y_mm": 15000.0,
+                "grid": "A-B/3-4"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 9000.0,
+                "y_mm": 6000.0,
+                "grid": "B-C/1-2"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 9000.0,
+                "y_mm": 9000.0,
+                "grid": "B-C/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 9000.0,
+                "y_mm": 12000.0,
+                "grid": "B-C/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 9000.0,
+                "y_mm": 15000.0,
+                "grid": "B-C/3-4"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 12000.0,
+                "y_mm": 6000.0,
+                "grid": "B-C/1-2"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 12000.0,
+                "y_mm": 9000.0,
+                "grid": "B-C/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 12000.0,
+                "y_mm": 12000.0,
+                "grid": "B-C/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 12000.0,
+                "y_mm": 15000.0,
+                "grid": "B-C/3-4"
+              },
+              {
+                "object_type": "sprinkler_upright",
+                "block": "SPK-UP",
+                "x_mm": 15000.0,
+                "y_mm": 6000.0,
+                "grid": "C-D/1-2"
+              },
+              {
+                "object_type": "sprinkler_upright",
+                "block": "SPK-UP",
+                "x_mm": 15000.0,
+                "y_mm": 9000.0,
+                "grid": "C-D/2-3"
+              },
+              {
+                "object_type": "sprinkler_upright",
+                "block": "SPK-UP",
+                "x_mm": 15000.0,
+                "y_mm": 12000.0,
+                "grid": "C-D/2-3"
+              },
+              {
+                "object_type": "sprinkler_upright",
+                "block": "SPK-UP",
+                "x_mm": 15000.0,
+                "y_mm": 15000.0,
+                "grid": "C-D/3-4"
+              },
+              {
+                "object_type": "sprinkler_sidewall",
+                "block": "SPK-SW",
+                "x_mm": 18000.0,
+                "y_mm": 6000.0,
+                "grid": "C-D/1-2"
+              },
+              {
+                "object_type": "sprinkler_sidewall",
+                "block": "SPK-SW",
+                "x_mm": 18000.0,
+                "y_mm": 9000.0,
+                "grid": "C-D/2-3"
+              },
+              {
+                "object_type": "sprinkler_sidewall",
+                "block": "SPK-SW",
+                "x_mm": 18000.0,
+                "y_mm": 12000.0,
+                "grid": "C-D/2-3"
+              },
+              {
+                "object_type": "sprinkler_sidewall",
+                "block": "SPK-SW",
+                "x_mm": 18000.0,
+                "y_mm": 15000.0,
+                "grid": "C-D/3-4"
+              }
+            ]
+          }
+        ]
+      },
+      "mandatory_fields": [
+        "sheet",
+        "counts"
+      ],
+      "allowed_variations": [
+        "an instance's position within 250 mm"
+      ],
+      "tolerance": {
+        "count": 0,
+        "position_mm": 250
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "CRITICAL"
+    },
+    {
+      "stage_id": "STG-006",
+      "stage_name": "Pipe network",
+      "comparison_type": "TOLERANCE",
+      "expected_output": {
+        "sheets": [
+          {
+            "sheet": "FP-B1-201",
+            "measured": true,
+            "length_mm_by_dn": {
+              "150": 8050.0,
+              "100": 8250.0,
+              "50": 72000.0
+            },
+            "runs": [
+              {
+                "dn": 150,
+                "from_mm": [
+                  1200.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  1550.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  2050.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  2250.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  2750.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  10250.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 100,
+                "from_mm": [
+                  10750.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  19000.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  3000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  3000.0,
+                  15000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  6000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  6000.0,
+                  15000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  9000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  9000.0,
+                  15000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  12000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  12000.0,
+                  15000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  15000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  15000.0,
+                  15000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  18000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  18000.0,
+                  15000.0
+                ]
+              }
+            ]
+          }
+        ],
+        "sizes_read_from": {
+          "150": "the annotation \"150Ø\" on the main",
+          "100": "the annotation \"DN100\" on the main, east of the reducer",
+          "50": "the annotation \"DN50\" along each branch"
+        },
+        "exceptions": []
+      },
+      "mandatory_fields": [
+        "sheet",
+        "length_mm_by_dn"
+      ],
+      "allowed_variations": [
+        "the main measured through each valve and the reducer (the bid's convention): DN150 then reads 9,050 to 9,500 mm and DN100 up to 8,500 mm; see B2"
+      ],
+      "tolerance": {
+        "length_percent": 5
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-007",
+      "stage_name": "Takeoff",
+      "comparison_type": "TOLERANCE",
+      "expected_output": {
+        "level": "B1",
+        "duplicates": [],
+        "drawn_items": [
+          {
+            "item": "sprinkler_pendent",
+            "quantity": 16,
+            "unit": "no"
+          },
+          {
+            "item": "sprinkler_upright",
+            "quantity": 4,
+            "unit": "no"
+          },
+          {
+            "item": "sprinkler_sidewall",
+            "quantity": 4,
+            "unit": "no"
+          },
+          {
+            "item": "gate_valve",
+            "dn": 150,
+            "quantity": 1,
+            "unit": "no"
+          },
+          {
+            "item": "check_valve",
+            "dn": 150,
+            "quantity": 1,
+            "unit": "no"
+          },
+          {
+            "item": "fitting",
+            "fitting": "reducer",
+            "dn": "150x100",
+            "quantity": 1,
+            "unit": "no"
+          },
+          {
+            "item": "pipe",
+            "dn": 150,
+            "run": "main",
+            "quantity": 8.05,
+            "unit": "m"
+          },
+          {
+            "item": "pipe",
+            "dn": 100,
+            "run": "main",
+            "quantity": 8.25,
+            "unit": "m"
+          },
+          {
+            "item": "pipe",
+            "dn": 50,
+            "run": "branch",
+            "quantity": 72.0,
+            "unit": "m"
+          }
+        ],
+        "derived_items": [
+          {
+            "item": "pipe",
+            "dn": 25,
+            "run": "drop",
+            "quantity": 7.2,
+            "unit": "m",
+            "rule": "drop_length",
+            "calculation": "16 pendent heads x (3300 - 2800 - 50) mm = 16 x 450 mm",
+            "evidence": "no ceiling height is stated on the sheet: every input is the rule's default",
+            "ambiguity": "B1"
+          },
+          {
+            "item": "pipe",
+            "dn": 150,
+            "run": "riser",
+            "quantity": 4.0,
+            "unit": "m",
+            "rule": "riser_length",
+            "calculation": "4000 mm floor to floor x 1 level served",
+            "ambiguity": "B3"
+          },
+          {
+            "item": "fitting",
+            "fitting": "tee",
+            "dn": "150x50",
+            "quantity": 3,
+            "unit": "no",
+            "rule": "fitting_tee",
+            "calculation": "branches at x = 3000, 6000 and 9000 leave the DN150 main"
+          },
+          {
+            "item": "fitting",
+            "fitting": "tee",
+            "dn": "100x50",
+            "quantity": 3,
+            "unit": "no",
+            "rule": "fitting_tee",
+            "calculation": "branches at x = 12000, 15000 and 18000 leave the DN100 main, which runs on to 19000"
+          },
+          {
+            "item": "hanger",
+            "dn": 50,
+            "quantity": 24,
+            "unit": "no",
+            "rule": "hanger_spacing",
+            "calculation": "ceil(72000 / 3000)",
+            "spacing_source": "company default: the specification has no supports clause"
+          },
+          {
+            "item": "hanger",
+            "dn": 100,
+            "quantity": 3,
+            "unit": "no",
+            "rule": "hanger_spacing",
+            "calculation": "ceil(8250 / 4000)",
+            "spacing_source": "company default: the specification has no supports clause"
+          },
+          {
+            "item": "hanger",
+            "dn": 150,
+            "quantity": 2,
+            "unit": "no",
+            "rule": "hanger_spacing",
+            "calculation": "ceil(8050 / 4500)",
+            "spacing_source": "company default: the specification has no supports clause"
+          }
+        ],
+        "attributes": {
+          "expected": "not specified, for every pipe material, class, joining method and every sprinkler K-factor, temperature, response and finish",
+          "why": "the drawing's symbols state none, and no specification attribute has been verified by a person",
+          "a_defect_if": "a takeoff item carries a specification value (black steel, grooved, K80, chrome ...) while that attribute is still a proposal"
+        },
+        "not_expected": [
+          {
+            "item": "fitting",
+            "fitting": "reducer",
+            "why": "drawn, so not derived again"
+          },
+          {
+            "item": "fitting",
+            "fitting": "elbow",
+            "why": "no change of direction on plan",
+            "ambiguity": "B4"
+          },
+          {
+            "item": "grooved coupling",
+            "why": "clause 2.1.2 says grooved for 65 mm and above, but it is not verified, and the drawing's note says welded: nothing is derived from a proposal"
+          },
+          {
+            "item": "seismic restraint",
+            "why": "no clause requires it"
+          },
+          {
+            "item": "flow_switch",
+            "why": "in the legend and in the client's bill; installed nowhere on the drawing"
+          },
+          {
+            "item": "test header",
+            "why": "required by clause 7.6; not drawn. It is an issue at stage 8, not a takeoff item"
+          }
+        ],
+        "status_of_every_derived_item": "to be confirmed (the rules are seeded defaults)"
+      },
+      "mandatory_fields": [
+        "item",
+        "quantity",
+        "unit"
+      ],
+      "allowed_variations": [
+        "pipe lengths within 5%",
+        "an item's description wording",
+        "sprinkler drops of 10.8 m if every head, not only the pendents, is given one (B1): a difference to settle, not a defect, until B1 is decided"
+      ],
+      "tolerance": {
+        "count": 0,
+        "length_percent": 5
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "CRITICAL"
+    },
+    {
+      "stage_id": "STG-008",
+      "stage_name": "Specification",
+      "comparison_type": "COMPLETENESS",
+      "expected_output": {
+        "clauses": [
+          {
+            "number": "1",
+            "heading": "GENERAL",
+            "has_text": false
+          },
+          {
+            "number": "1.1",
+            "heading": "Scope",
+            "has_text": true
+          },
+          {
+            "number": "1.2",
+            "heading": "Standards",
+            "has_text": true
+          },
+          {
+            "number": "2",
+            "heading": "AUTOMATIC SPRINKLER SYSTEM",
+            "has_text": false
+          },
+          {
+            "number": "2.1",
+            "heading": "Pipework",
+            "has_text": false
+          },
+          {
+            "number": "2.1.1",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "2.1.2",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "2.1.3",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "2.2",
+            "heading": "Sprinklers",
+            "has_text": false
+          },
+          {
+            "number": "2.2.1",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "2.2.2",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "2.2.3",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "2.4",
+            "heading": "Valves",
+            "has_text": true
+          },
+          {
+            "number": "3",
+            "heading": "HOSE REEL SYSTEM",
+            "has_text": false
+          },
+          {
+            "number": "3.1",
+            "heading": "Pipework",
+            "has_text": true
+          },
+          {
+            "number": "4",
+            "heading": "FIRE HYDRANT SYSTEM",
+            "has_text": false
+          },
+          {
+            "number": "4.1",
+            "heading": "Pipework",
+            "has_text": true
+          },
+          {
+            "number": "5",
+            "heading": "LOW VOLTAGE ELECTRICAL INSTALLATION",
+            "has_text": false
+          },
+          {
+            "number": "5.1",
+            "heading": "Cables",
+            "has_text": true
+          },
+          {
+            "number": "6",
+            "heading": "FIRE PROTECTION SERVICES - TESTING, COMMISSIONING AND HANDOVER",
+            "has_text": false
+          },
+          {
+            "number": "6.1",
+            "heading": "Testing",
+            "has_text": true
+          },
+          {
+            "number": "6.2",
+            "heading": "Painting and identification",
+            "has_text": true
+          },
+          {
+            "number": "6.3",
+            "heading": "Commissioning",
+            "has_text": true
+          },
+          {
+            "number": "6.4",
+            "heading": "Warranty and maintenance",
+            "has_text": true
+          },
+          {
+            "number": "6.5",
+            "heading": "Spares and training",
+            "has_text": true
+          },
+          {
+            "number": "6.6",
+            "heading": "Submittals",
+            "has_text": true
+          },
+          {
+            "number": "6.7",
+            "heading": "Authority",
+            "has_text": true
+          },
+          {
+            "number": "6.8",
+            "heading": "Makes",
+            "has_text": true
+          },
+          {
+            "number": "7",
+            "heading": "FIRE PROTECTION SERVICES - SCOPE AND INTERFACES",
+            "has_text": false
+          },
+          {
+            "number": "7.1",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "7.2",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "7.3",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "7.4",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "7.5",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "7.6",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "7.7",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "7.8",
+            "heading": "",
+            "has_text": true
+          },
+          {
+            "number": "8",
+            "heading": "FIRE PROTECTION SERVICES - DESIGN AND SITE CONDITIONS",
+            "has_text": false
+          },
+          {
+            "number": "8.1",
+            "heading": "Design",
+            "has_text": true
+          },
+          {
+            "number": "8.2",
+            "heading": "Calculations",
+            "has_text": true
+          },
+          {
+            "number": "8.3",
+            "heading": "Qualified Person",
+            "has_text": true
+          },
+          {
+            "number": "8.4",
+            "heading": "Working hours",
+            "has_text": true
+          },
+          {
+            "number": "8.5",
+            "heading": "Occupation",
+            "has_text": true
+          },
+          {
+            "number": "8.6",
+            "heading": "Existing systems",
+            "has_text": true
+          }
+        ],
+        "sections_that_are_fire_protection": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "6",
+          "7",
+          "8"
+        ],
+        "sections_that_are_not": [
+          {
+            "section": "5",
+            "heading": "LOW VOLTAGE ELECTRICAL INSTALLATION",
+            "expected": "nothing is extracted from clause 5.1"
+          }
+        ],
+        "attributes": [
+          {
+            "system": "sprinkler",
+            "attribute": "pipe_material",
+            "value": "black_steel",
+            "clause": "2.1.1",
+            "dn_min": null,
+            "dn_max": 50,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "pipe_standard",
+            "value": "BS EN 10255",
+            "clause": "2.1.1",
+            "dn_min": null,
+            "dn_max": 50,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "pipe_class",
+            "value": "Heavy",
+            "clause": "2.1.1",
+            "dn_min": null,
+            "dn_max": 50,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "pipe_material",
+            "value": "black_steel",
+            "clause": "2.1.1",
+            "dn_min": 65,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "pipe_standard",
+            "value": "ASTM A53 Grade B",
+            "clause": "2.1.1",
+            "dn_min": 65,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "pipe_class",
+            "value": "Schedule 40",
+            "clause": "2.1.1",
+            "dn_min": 65,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "joining_method",
+            "value": "threaded",
+            "clause": "2.1.2",
+            "dn_min": null,
+            "dn_max": 50,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "joining_method",
+            "value": "grooved",
+            "clause": "2.1.2",
+            "dn_min": 65,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "pipe_material",
+            "value": "galvanised_steel",
+            "clause": "2.1.3",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": "basement car park",
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "sprinkler_type",
+            "value": "pendent",
+            "clause": "2.2.1",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "response",
+            "value": "quick",
+            "clause": "2.2.1",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "k_factor",
+            "value": "80",
+            "clause": "2.2.1",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "temperature_rating_c",
+            "value": "68",
+            "clause": "2.2.1",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "finish",
+            "value": "chrome",
+            "clause": "2.2.1",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "sprinkler_type",
+            "value": "sidewall",
+            "clause": "2.2.2",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "response",
+            "value": "quick",
+            "clause": "2.2.2",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "k_factor",
+            "value": "80",
+            "clause": "2.2.2",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "temperature_rating_c",
+            "value": "68",
+            "clause": "2.2.2",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "finish",
+            "value": "white",
+            "clause": "2.2.2",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "approved_make",
+            "value": "Tyco",
+            "clause": "2.2.3",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "approved_make",
+            "value": "Viking",
+            "clause": "2.2.3",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "sprinkler",
+            "attribute": "approved_make",
+            "value": "Reliable",
+            "clause": "2.2.3",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "hose_reel",
+            "attribute": "pipe_material",
+            "value": "galvanised_steel",
+            "clause": "3.1",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "hose_reel",
+            "attribute": "pipe_standard",
+            "value": "BS EN 10255",
+            "clause": "3.1",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "hose_reel",
+            "attribute": "pipe_class",
+            "value": "Medium",
+            "clause": "3.1",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "hose_reel",
+            "attribute": "joining_method",
+            "value": "threaded",
+            "clause": "3.1",
+            "dn_min": null,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "hydrant",
+            "attribute": "pipe_material",
+            "value": "ductile_iron",
+            "clause": "4.1",
+            "dn_min": 100,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "hydrant",
+            "attribute": "pipe_standard",
+            "value": "BS EN 545",
+            "clause": "4.1",
+            "dn_min": 100,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          },
+          {
+            "system": "hydrant",
+            "attribute": "joining_method",
+            "value": "flanged",
+            "clause": "4.1",
+            "dn_min": 100,
+            "dn_max": null,
+            "condition": null,
+            "state": "proposed"
+          }
+        ],
+        "obligations": [
+          {
+            "category": "testing",
+            "clause": "6.1",
+            "quantities": {
+              "pressure": 14,
+              "pressure_unit": "bar",
+              "duration_hours": 2
+            },
+            "state": "proposed"
+          },
+          {
+            "category": "flushing",
+            "clause": "6.1",
+            "quantities": {},
+            "state": "proposed"
+          },
+          {
+            "category": "painting",
+            "clause": "6.2",
+            "quantities": {
+              "coats": 2
+            },
+            "state": "proposed"
+          },
+          {
+            "category": "identification",
+            "clause": "6.2",
+            "quantities": {},
+            "state": "proposed"
+          },
+          {
+            "category": "commissioning",
+            "clause": "6.3",
+            "quantities": {},
+            "state": "proposed"
+          },
+          {
+            "category": "warranty",
+            "clause": "6.4",
+            "quantities": {
+              "period_months": 12
+            },
+            "state": "proposed"
+          },
+          {
+            "category": "defects_liability",
+            "clause": "6.4",
+            "quantities": {
+              "period_months": 12
+            },
+            "state": "proposed"
+          },
+          {
+            "category": "maintenance",
+            "clause": "6.4",
+            "quantities": {
+              "period_months": 12
+            },
+            "state": "proposed"
+          },
+          {
+            "category": "spares",
+            "clause": "6.5",
+            "quantities": {
+              "count": 2,
+              "count_of": "sets"
+            },
+            "state": "proposed"
+          },
+          {
+            "category": "training",
+            "clause": "6.5",
+            "quantities": {
+              "period_days": 2
+            },
+            "state": "proposed"
+          },
+          {
+            "category": "submittals",
+            "clause": "6.6",
+            "quantities": {
+              "period_weeks": 4
+            },
+            "state": "proposed"
+          },
+          {
+            "category": "authority",
+            "clause": "6.7",
+            "quantities": {},
+            "state": "proposed"
+          },
+          {
+            "category": "approved_makes",
+            "clause": "6.8",
+            "quantities": {},
+            "state": "proposed"
+          }
+        ],
+        "issues": [
+          {
+            "rule": "conflict:pipe_material",
+            "clause": "2.1.3",
+            "about": "pipe_material",
+            "sheet": "FP-B1-201",
+            "state": "open"
+          },
+          {
+            "rule": "conflict:joining_method",
+            "clause": "2.1.2",
+            "about": "joining_method",
+            "sheet": "FP-B1-201",
+            "state": "open"
+          },
+          {
+            "rule": "missing_from_drawings",
+            "clause": "7.6",
+            "about": "test_header",
+            "sheet": "FP-B1-201",
+            "state": "open"
+          },
+          {
+            "rule": "missing_from_specification",
+            "clause": null,
+            "about": "sprinkler_upright",
+            "sheet": "FP-B1-201",
+            "state": "open"
+          },
+          {
+            "rule": "ambiguous_clause",
+            "clause": "7.7",
+            "about": "where required",
+            "sheet": "FP-B1-201",
+            "state": "open"
+          },
+          {
+            "rule": "ambiguous_clause",
+            "clause": "7.8",
+            "about": "or equal",
+            "sheet": "FP-B1-201",
+            "state": "open"
+          }
+        ],
+        "issue_evidence": {
+          "conflict:pipe_material": "clause 2.1.3 (galvanised in the basement car park) against the note \"ALL SPRINKLER PIPEWORK TO BE BLACK STEEL\" on FP-B1-201 R01",
+          "conflict:joining_method": "clause 2.1.2 (65 mm and above grooved) against the note \"PIPES DN65 AND ABOVE: WELDED JOINTS\" on FP-B1-201 R01",
+          "missing_from_drawings": "clause 7.6 requires a flow test header; FP-B1-201 R01 shows none",
+          "missing_from_specification": "FP-B1-201 R01 shows 4 upright sprinklers; no clause mentions an upright sprinkler",
+          "ambiguous_clause 7.7": "\"where required\"",
+          "ambiguous_clause 7.8": "\"or equal\""
+        },
+        "scope_matrix": {
+          "systems": [
+            "sprinkler",
+            "hose_reel",
+            "hydrant"
+          ],
+          "interfaces_for_each_system": [
+            {
+              "key": "power_supply",
+              "status": "by_others",
+              "clause": "7.1"
+            },
+            {
+              "key": "water_supply",
+              "status": "included",
+              "clause": "7.2"
+            },
+            {
+              "key": "builders_works",
+              "status": "excluded",
+              "clause": "7.3"
+            },
+            {
+              "key": "ceiling_access",
+              "status": "unclear",
+              "clause": "7.4"
+            },
+            {
+              "key": "painting",
+              "status": "included",
+              "clause": "6.2"
+            },
+            {
+              "key": "fire_alarm_interface",
+              "status": "by_others",
+              "clause": "7.5"
+            },
+            {
+              "key": "fire_stopping",
+              "status": "included",
+              "clause": "7.7"
+            },
+            {
+              "key": "drainage",
+              "status": "unclear",
+              "clause": null
+            }
+          ]
+        }
+      },
+      "mandatory_fields": [
+        "category",
+        "clause",
+        "rule",
+        "status"
+      ],
+      "allowed_variations": [
+        "an obligation's or an issue's wording",
+        "an attribute's value in other words with the same meaning (screwed for threaded, roll-grooved for grooved)",
+        "further rows for the hydrant system only (excavation), as unclear"
+      ],
+      "tolerance": null,
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-009",
+      "stage_name": "Bill of quantities",
+      "comparison_type": "EXACT",
+      "expected_output": {
+        "our_bill": {
+          "section": "FIRE SPRINKLER INSTALLATION",
+          "template": "company_standard, version 1",
+          "lines": [
+            {
+              "line": "heads_pendent",
+              "group": "Sprinkler heads",
+              "description": "Pendent sprinkler head",
+              "unit": "nr",
+              "quantity": 16.0,
+              "allowance_percent": 0,
+              "level": "B1"
+            },
+            {
+              "line": "heads_upright",
+              "group": "Sprinkler heads",
+              "description": "Upright sprinkler head",
+              "unit": "nr",
+              "quantity": 4.0,
+              "allowance_percent": 0,
+              "level": "B1"
+            },
+            {
+              "line": "heads_sidewall",
+              "group": "Sprinkler heads",
+              "description": "Sidewall sprinkler head",
+              "unit": "nr",
+              "quantity": 4.0,
+              "allowance_percent": 0,
+              "level": "B1"
+            },
+            {
+              "line": "pipe_150_main",
+              "group": "Pipework",
+              "description": "150 mm pipe (main)",
+              "unit": "m",
+              "quantity": 8.05,
+              "allowance_percent": 5
+            },
+            {
+              "line": "pipe_100_main",
+              "group": "Pipework",
+              "description": "100 mm pipe (main)",
+              "unit": "m",
+              "quantity": 8.25,
+              "allowance_percent": 5
+            },
+            {
+              "line": "pipe_50_branch",
+              "group": "Pipework",
+              "description": "50 mm pipe (branch)",
+              "unit": "m",
+              "quantity": 72.0,
+              "allowance_percent": 5
+            },
+            {
+              "line": "pipe_25_drop",
+              "group": "Pipework",
+              "description": "25 mm pipe (sprinkler drop)",
+              "unit": "m",
+              "quantity": 7.2,
+              "allowance_percent": 5
+            },
+            {
+              "line": "pipe_150_riser",
+              "group": "Pipework",
+              "description": "150 mm pipe (riser)",
+              "unit": "m",
+              "quantity": 4.0,
+              "allowance_percent": 5
+            },
+            {
+              "line": "reducer_150",
+              "group": "Fittings",
+              "description": "Reducer, 150 mm (drawn)",
+              "unit": "nr",
+              "quantity": 1.0,
+              "allowance_percent": 0
+            },
+            {
+              "line": "tee_150x50",
+              "group": "Fittings",
+              "description": "Tee, DN150xDN50 (rule-derived)",
+              "unit": "nr",
+              "quantity": 3.0,
+              "allowance_percent": 0
+            },
+            {
+              "line": "tee_100x50",
+              "group": "Fittings",
+              "description": "Tee, DN100xDN50 (rule-derived)",
+              "unit": "nr",
+              "quantity": 3.0,
+              "allowance_percent": 0
+            },
+            {
+              "line": "gate_valve_150",
+              "group": "Valves and ancillaries",
+              "description": "150 mm gate valve",
+              "unit": "nr",
+              "quantity": 1.0,
+              "allowance_percent": 0
+            },
+            {
+              "line": "check_valve_150",
+              "group": "Valves and ancillaries",
+              "description": "150 mm check valve",
+              "unit": "nr",
+              "quantity": 1.0,
+              "allowance_percent": 0
+            },
+            {
+              "line": "hanger_50",
+              "group": "Hangers and supports",
+              "description": "Pipe hanger, DN50 (rule-derived)",
+              "unit": "nr",
+              "quantity": 24.0,
+              "allowance_percent": 0
+            },
+            {
+              "line": "hanger_100",
+              "group": "Hangers and supports",
+              "description": "Pipe hanger, DN100 (rule-derived)",
+              "unit": "nr",
+              "quantity": 3.0,
+              "allowance_percent": 0
+            },
+            {
+              "line": "hanger_150",
+              "group": "Hangers and supports",
+              "description": "Pipe hanger, DN150 (rule-derived)",
+              "unit": "nr",
+              "quantity": 2.0,
+              "allowance_percent": 0
+            }
+          ]
+        },
+        "client_bill": {
+          "sheet": "Bill 1 - Sprinklers",
+          "header_row": 7,
+          "lines": [
+            {
+              "item": "A1",
+              "section": "A SPRINKLER HEADS",
+              "description": "Pendent sprinkler head, quick response, K80, 68°C, chrome",
+              "unit": "nr",
+              "client_quantity": 16.0,
+              "maps_to": "heads_pendent",
+              "generator_says": "Sprinkler, pendent",
+              "measured_quantity": 16.0,
+              "difference": 0.0,
+              "variance_percent": 0.0,
+              "flagged": false
+            },
+            {
+              "item": "A2",
+              "section": "A SPRINKLER HEADS",
+              "description": "Upright sprinkler head, quick response, K80, 68°C",
+              "unit": "nr",
+              "client_quantity": 4.0,
+              "maps_to": "heads_upright",
+              "generator_says": "Sprinkler, upright",
+              "measured_quantity": 4.0,
+              "difference": 0.0,
+              "variance_percent": 0.0,
+              "flagged": false
+            },
+            {
+              "item": "A3",
+              "section": "A SPRINKLER HEADS",
+              "description": "Horizontal sidewall sprinkler head, K80, 68°C, white",
+              "unit": "nr",
+              "client_quantity": 4.0,
+              "maps_to": "heads_sidewall",
+              "generator_says": "Sprinkler, sidewall",
+              "measured_quantity": 4.0,
+              "difference": 0.0,
+              "variance_percent": 0.0,
+              "flagged": false
+            },
+            {
+              "item": "B1",
+              "section": "B PIPEWORK (black steel to BS EN 10255 medium grade, including hangers)",
+              "description": "150 mm diameter pipe, grooved joints",
+              "unit": "m",
+              "client_quantity": 8.0,
+              "maps_to": "pipe_150_main",
+              "generator_says": "Pipe, DN150, main",
+              "measured_quantity": 8.05,
+              "difference": 0.05,
+              "variance_percent": 0.6,
+              "flagged": false
+            },
+            {
+              "item": "B2",
+              "section": "B PIPEWORK (black steel to BS EN 10255 medium grade, including hangers)",
+              "description": "100 mm diameter pipe, grooved joints",
+              "unit": "m",
+              "client_quantity": 8.25,
+              "maps_to": "pipe_100_main",
+              "generator_says": "Pipe, DN100, main",
+              "measured_quantity": 8.25,
+              "difference": 0.0,
+              "variance_percent": 0.0,
+              "flagged": false
+            },
+            {
+              "item": "B3",
+              "section": "B PIPEWORK (black steel to BS EN 10255 medium grade, including hangers)",
+              "description": "50 mm diameter pipe, screwed joints",
+              "unit": "m",
+              "client_quantity": 70.0,
+              "maps_to": "pipe_50_branch",
+              "generator_says": "Pipe, DN50, branch",
+              "measured_quantity": 72.0,
+              "difference": 2.0,
+              "variance_percent": 2.9,
+              "flagged": false
+            },
+            {
+              "item": "B4",
+              "section": "B PIPEWORK (black steel to BS EN 10255 medium grade, including hangers)",
+              "description": "25 mm diameter sprinkler drop, screwed joints",
+              "unit": "m",
+              "client_quantity": 12.0,
+              "maps_to": "pipe_25_drop",
+              "generator_says": "Sprinkler drop, DN25 (vertical, not drawn)",
+              "measured_quantity": 7.2,
+              "difference": -4.8,
+              "variance_percent": -40.0,
+              "flagged": true
+            },
+            {
+              "item": "B5",
+              "section": "B PIPEWORK (black steel to BS EN 10255 medium grade, including hangers)",
+              "description": "150 mm diameter riser",
+              "unit": "m",
+              "client_quantity": 4.0,
+              "maps_to": "pipe_150_riser",
+              "generator_says": "Riser, DN150 (vertical, not drawn)",
+              "measured_quantity": 4.0,
+              "difference": 0.0,
+              "variance_percent": 0.0,
+              "flagged": false
+            },
+            {
+              "item": "C1",
+              "section": "C VALVES AND ANCILLARIES",
+              "description": "150 mm gate valve, flanged, with monitored supervisory switch",
+              "unit": "nr",
+              "client_quantity": 1.0,
+              "maps_to": "gate_valve_150",
+              "generator_says": "Gate valve, DN150",
+              "measured_quantity": 1.0,
+              "difference": 0.0,
+              "variance_percent": 0.0,
+              "flagged": false
+            },
+            {
+              "item": "C2",
+              "section": "C VALVES AND ANCILLARIES",
+              "description": "150 mm check valve, grooved",
+              "unit": "nr",
+              "client_quantity": 1.0,
+              "maps_to": "check_valve_150",
+              "generator_says": "Check valve, DN150",
+              "measured_quantity": 1.0,
+              "difference": 0.0,
+              "variance_percent": 0.0,
+              "flagged": false
+            },
+            {
+              "item": "C3",
+              "section": "C VALVES AND ANCILLARIES",
+              "description": "Flow switch, 150 mm, with retard",
+              "unit": "nr",
+              "client_quantity": 1.0,
+              "maps_to": null,
+              "generator_says": null,
+              "measured_quantity": 0,
+              "flagged": true,
+              "expected": "nothing measured: no flow switch is installed on the drawing"
+            },
+            {
+              "item": "C4",
+              "section": "C VALVES AND ANCILLARIES",
+              "description": "150 x 100 mm concentric reducer",
+              "unit": "nr",
+              "client_quantity": 1.0,
+              "maps_to": "reducer_150",
+              "generator_says": "Fitting, DN150 (fitting reducer)",
+              "measured_quantity": 1.0,
+              "difference": 0.0,
+              "variance_percent": 0.0,
+              "flagged": false
+            },
+            {
+              "item": "D1",
+              "section": "D PROVISIONAL SUMS",
+              "description": "Allow for testing and commissioning",
+              "unit": "sum",
+              "client_quantity": null,
+              "maps_to": null,
+              "generator_says": null,
+              "kind": "provisional sum",
+              "client_amount": "5000",
+              "flagged": false,
+              "expected": "not mapped to a measured item; shown for a person to carry as an allowance"
+            },
+            {
+              "item": "D2",
+              "section": "D PROVISIONAL SUMS",
+              "description": "Allow for liaison with SCDF and attendance at inspections",
+              "unit": "sum",
+              "client_quantity": null,
+              "maps_to": null,
+              "generator_says": null,
+              "kind": "provisional sum",
+              "client_amount": "3000",
+              "flagged": false,
+              "expected": "not mapped to a measured item; shown for a person to carry as an allowance"
+            }
+          ]
+        },
+        "in_ours_and_not_in_the_client_s": [
+          "tee_150x50",
+          "tee_100x50",
+          "hanger_50",
+          "hanger_100",
+          "hanger_150"
+        ],
+        "variance_rule": "measured less client, as a percentage of the client's quantity to one decimal place; flagged beyond 5% either way",
+        "flagged": [
+          "B4",
+          "C3"
+        ]
+      },
+      "mandatory_fields": [
+        "item",
+        "maps_to",
+        "client_quantity",
+        "measured_quantity",
+        "flagged"
+      ],
+      "allowed_variations": [
+        "the wording and the numbering of our lines",
+        "a line's quantity to three decimal places",
+        "hanger lines left out of the bill where the convention has hangers deemed included (B7)"
+      ],
+      "tolerance": {
+        "quantity_percent": 5
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-010",
+      "stage_name": "Pricing and labour",
+      "comparison_type": "EXACT",
+      "expected_output": {
+        "lines": [
+          {
+            "line": "heads_pendent",
+            "group": "Sprinkler heads",
+            "description": "Pendent sprinkler head",
+            "unit": "nr",
+            "quantity": 16.0,
+            "allowance_percent": 0,
+            "price_status": "priced",
+            "unit_rate": "38.50",
+            "amount": "616.00",
+            "rate_source": "company standard CS-2026",
+            "rate_valid_until": "2027-12-31",
+            "warnings": [],
+            "labour": {
+              "hours_per_unit": "0.4",
+              "productivity_entry": "Pendent sprinkler",
+              "productivity_source": "company standard: PS-2026",
+              "trade": "sprinkler_fitter",
+              "hours": "6.40",
+              "hourly_rate": "20.0786",
+              "cost": "128.50"
+            }
+          },
+          {
+            "line": "heads_upright",
+            "group": "Sprinkler heads",
+            "description": "Upright sprinkler head",
+            "unit": "nr",
+            "quantity": 4.0,
+            "allowance_percent": 0,
+            "price_status": "priced",
+            "unit_rate": "38.50",
+            "amount": "154.00",
+            "rate_source": "company standard CS-2026",
+            "rate_valid_until": "2027-12-31",
+            "warnings": [],
+            "labour": {
+              "hours_per_unit": "0.5",
+              "productivity_entry": "Sprinkler, any other type",
+              "productivity_source": "estimator judgement: Sam Senior",
+              "trade": "sprinkler_fitter",
+              "hours": "2.00",
+              "hourly_rate": "20.0786",
+              "cost": "40.16"
+            }
+          },
+          {
+            "line": "heads_sidewall",
+            "group": "Sprinkler heads",
+            "description": "Sidewall sprinkler head",
+            "unit": "nr",
+            "quantity": 4.0,
+            "allowance_percent": 0,
+            "price_status": "priced",
+            "unit_rate": "52.00",
+            "amount": "208.00",
+            "rate_source": "company standard CS-2026",
+            "rate_valid_until": "2027-12-31",
+            "warnings": [],
+            "labour": {
+              "hours_per_unit": "0.5",
+              "productivity_entry": "Sprinkler, any other type",
+              "productivity_source": "estimator judgement: Sam Senior",
+              "trade": "sprinkler_fitter",
+              "hours": "2.00",
+              "hourly_rate": "20.0786",
+              "cost": "40.16"
+            }
+          },
+          {
+            "line": "pipe_150_main",
+            "group": "Pipework",
+            "description": "150 mm pipe (main)",
+            "unit": "m",
+            "quantity": 8.05,
+            "allowance_percent": 5,
+            "price_status": "priced",
+            "unit_rate": "68.20",
+            "amount": "549.01",
+            "rate_source": "quotation Q-2026-1001",
+            "rate_valid_until": "2026-10-31",
+            "warnings": [
+              "ends_before_tender_validity"
+            ],
+            "labour": {
+              "hours_per_unit": "0.62",
+              "productivity_entry": "Steel pipe DN150",
+              "productivity_source": "historical project: Tampines Hub (2025)",
+              "trade": "pipefitter",
+              "hours": "4.99",
+              "hourly_rate": "19.7632",
+              "cost": "98.62"
+            }
+          },
+          {
+            "line": "pipe_100_main",
+            "group": "Pipework",
+            "description": "100 mm pipe (main)",
+            "unit": "m",
+            "quantity": 8.25,
+            "allowance_percent": 5,
+            "price_status": "priced",
+            "unit_rate": "45.60",
+            "amount": "376.20",
+            "rate_source": "PO PO-889",
+            "rate_valid_until": "2026-06-30",
+            "warnings": [
+              "expired",
+              "ends_before_tender_validity"
+            ],
+            "labour": {
+              "hours_per_unit": "0.45",
+              "productivity_entry": "Steel pipe DN100",
+              "productivity_source": "company standard: PS-2026",
+              "trade": "pipefitter",
+              "hours": "3.71",
+              "hourly_rate": "19.7632",
+              "cost": "73.32"
+            }
+          },
+          {
+            "line": "pipe_50_branch",
+            "group": "Pipework",
+            "description": "50 mm pipe (branch)",
+            "unit": "m",
+            "quantity": 72.0,
+            "allowance_percent": 5,
+            "price_status": "priced",
+            "unit_rate": "21.35",
+            "amount": "1537.20",
+            "rate_source": "company standard CS-2026",
+            "rate_valid_until": "2027-12-31",
+            "warnings": [],
+            "labour": {
+              "hours_per_unit": "0.3",
+              "productivity_entry": "Steel pipe DN50",
+              "productivity_source": "company standard: PS-2026",
+              "trade": "pipefitter",
+              "hours": "21.60",
+              "hourly_rate": "19.7632",
+              "cost": "426.89"
+            }
+          },
+          {
+            "line": "pipe_25_drop",
+            "group": "Pipework",
+            "description": "25 mm pipe (sprinkler drop)",
+            "unit": "m",
+            "quantity": 7.2,
+            "allowance_percent": 5,
+            "price_status": "priced",
+            "unit_rate": "12.10",
+            "amount": "87.12",
+            "rate_source": "company standard CS-2026",
+            "rate_valid_until": "2027-12-31",
+            "warnings": [],
+            "labour": {
+              "hours_per_unit": "0.35",
+              "productivity_entry": "Steel pipe, any size",
+              "productivity_source": "company standard: PS-2026",
+              "trade": "pipefitter",
+              "hours": "2.52",
+              "hourly_rate": "19.7632",
+              "cost": "49.80"
+            }
+          },
+          {
+            "line": "pipe_150_riser",
+            "group": "Pipework",
+            "description": "150 mm pipe (riser)",
+            "unit": "m",
+            "quantity": 4.0,
+            "allowance_percent": 5,
+            "price_status": "priced",
+            "unit_rate": "68.20",
+            "amount": "272.80",
+            "rate_source": "quotation Q-2026-1001",
+            "rate_valid_until": "2026-10-31",
+            "warnings": [
+              "ends_before_tender_validity"
+            ],
+            "labour": {
+              "hours_per_unit": "0.62",
+              "productivity_entry": "Steel pipe DN150",
+              "productivity_source": "historical project: Tampines Hub (2025)",
+              "trade": "pipefitter",
+              "hours": "2.48",
+              "hourly_rate": "19.7632",
+              "cost": "49.01"
+            }
+          },
+          {
+            "line": "reducer_150",
+            "group": "Fittings",
+            "description": "Reducer, 150 mm (drawn)",
+            "unit": "nr",
+            "quantity": 1.0,
+            "allowance_percent": 0,
+            "price_status": "priced",
+            "unit_rate": "64.00",
+            "amount": "64.00",
+            "rate_source": "company standard CS-2026",
+            "rate_valid_until": "2027-12-31",
+            "warnings": [],
+            "labour": {
+              "hours_per_unit": "0.25",
+              "productivity_entry": "Fitting, any",
+              "productivity_source": "company standard: PS-2026",
+              "trade": "pipefitter",
+              "hours": "0.25",
+              "hourly_rate": "19.7632",
+              "cost": "4.94"
+            }
+          },
+          {
+            "line": "tee_150x50",
+            "group": "Fittings",
+            "description": "Tee, DN150xDN50 (rule-derived)",
+            "unit": "nr",
+            "quantity": 3.0,
+            "allowance_percent": 0,
+            "price_status": "unpriced",
+            "unit_rate": null,
+            "amount": null,
+            "labour": {
+              "hours_per_unit": "0.25",
+              "productivity_entry": "Fitting, any",
+              "productivity_source": "company standard: PS-2026",
+              "trade": "pipefitter",
+              "hours": "0.75",
+              "hourly_rate": "19.7632",
+              "cost": "14.82"
+            }
+          },
+          {
+            "line": "tee_100x50",
+            "group": "Fittings",
+            "description": "Tee, DN100xDN50 (rule-derived)",
+            "unit": "nr",
+            "quantity": 3.0,
+            "allowance_percent": 0,
+            "price_status": "proposed",
+            "unit_rate": null,
+            "amount": null,
+            "proposed_rate": {
+              "rate": "41.80",
+              "source": "quotation Q-2026-1003",
+              "why_not_applied": "the entry names the brand Victaulic; the line names none"
+            },
+            "labour": {
+              "hours_per_unit": "0.25",
+              "productivity_entry": "Fitting, any",
+              "productivity_source": "company standard: PS-2026",
+              "trade": "pipefitter",
+              "hours": "0.75",
+              "hourly_rate": "19.7632",
+              "cost": "14.82"
+            }
+          },
+          {
+            "line": "gate_valve_150",
+            "group": "Valves and ancillaries",
+            "description": "150 mm gate valve",
+            "unit": "nr",
+            "quantity": 1.0,
+            "allowance_percent": 0,
+            "price_status": "priced",
+            "unit_rate": "890.00",
+            "amount": "890.00",
+            "rate_source": "quotation Q-2026-1002",
+            "rate_valid_until": "2027-06-30",
+            "warnings": [],
+            "labour": {
+              "hours_per_unit": "3.5",
+              "productivity_entry": "Gate valve assembly DN150",
+              "productivity_source": "company standard: PS-2026",
+              "trade": "pipefitter",
+              "hours": "3.50",
+              "hourly_rate": "19.7632",
+              "cost": "69.17"
+            }
+          },
+          {
+            "line": "check_valve_150",
+            "group": "Valves and ancillaries",
+            "description": "150 mm check valve",
+            "unit": "nr",
+            "quantity": 1.0,
+            "allowance_percent": 0,
+            "price_status": "unpriced",
+            "unit_rate": null,
+            "amount": null,
+            "labour": null
+          },
+          {
+            "line": "hanger_50",
+            "group": "Hangers and supports",
+            "description": "Pipe hanger, DN50 (rule-derived)",
+            "unit": "nr",
+            "quantity": 24.0,
+            "allowance_percent": 0,
+            "price_status": "unpriced",
+            "unit_rate": null,
+            "amount": null,
+            "labour": null
+          },
+          {
+            "line": "hanger_100",
+            "group": "Hangers and supports",
+            "description": "Pipe hanger, DN100 (rule-derived)",
+            "unit": "nr",
+            "quantity": 3.0,
+            "allowance_percent": 0,
+            "price_status": "unpriced",
+            "unit_rate": null,
+            "amount": null,
+            "labour": null
+          },
+          {
+            "line": "hanger_150",
+            "group": "Hangers and supports",
+            "description": "Pipe hanger, DN150 (rule-derived)",
+            "unit": "nr",
+            "quantity": 2.0,
+            "allowance_percent": 0,
+            "price_status": "unpriced",
+            "unit_rate": null,
+            "amount": null,
+            "labour": null
+          }
+        ],
+        "labour_rates": {
+          "table": "Company labour rate table 2025 (to be confirmed), from 2025-01-01",
+          "supervisor_hourly": "22.5672",
+          "grades": {
+            "skilled": {
+              "lines": {
+                "wage": "12.5000",
+                "levy": "2.4038",
+                "accommodation": "2.1635",
+                "transport": "0.5769",
+                "insurance": "0.2500",
+                "overtime": "0.6250",
+                "supervision": "2.8209"
+              },
+              "hourly": "21.3401"
+            },
+            "general": {
+              "lines": {
+                "wage": "8.6538",
+                "levy": "3.3654",
+                "accommodation": "2.1635",
+                "transport": "0.5769",
+                "insurance": "0.1731",
+                "overtime": "0.4327",
+                "supervision": "2.8209"
+              },
+              "hourly": "18.1863"
+            }
+          },
+          "trades": {
+            "pipefitter": "19.7632",
+            "sprinkler_fitter": "20.0786"
+          },
+          "rounding": "each line of a grade's hourly cost to four decimal places, half up; hours and money to two"
+        },
+        "labour": {
+          "hours": "50.95",
+          "cost": "1010.21",
+          "lines_without_hours": [
+            "check_valve_150",
+            "hanger_50",
+            "hanger_100",
+            "hanger_150"
+          ],
+          "multipliers_applied": []
+        },
+        "build_up": {
+          "materials": "3800.33",
+          "fittings": "64.00",
+          "valves": "890.00",
+          "equipment": "0.00",
+          "wastage": "141.12",
+          "labour": "1010.21",
+          "direct": "5905.66",
+          "cost": "5905.66",
+          "margin": {
+            "basis": "8% of cost",
+            "entered_by": "the Senior Estimator",
+            "amount": "472.45"
+          },
+          "not_set": [
+            "supervision",
+            "access_equipment",
+            "testing_commissioning",
+            "transport",
+            "subcontract",
+            "site_overheads",
+            "preliminaries",
+            "insurance",
+            "bonds",
+            "contingency"
+          ],
+          "total_excluding_gst": "6378.11",
+          "gst_percent": 9,
+          "gst": "574.03",
+          "total_including_gst": "6952.14"
+        },
+        "unpriced_lines": [
+          "tee_150x50",
+          "tee_100x50",
+          "check_valve_150",
+          "hanger_50",
+          "hanger_100",
+          "hanger_150"
+        ],
+        "if_every_head_takes_a_drop": {
+          "materials": "3843.89",
+          "wastage": "143.29",
+          "labour": "1035.11",
+          "labour_hours": "52.21",
+          "direct": "5976.29",
+          "margin": "478.10",
+          "total_excluding_gst": "6454.39",
+          "gst": "580.90",
+          "total_including_gst": "7035.29"
+        }
+      },
+      "mandatory_fields": [
+        "line",
+        "price_status",
+        "unit_rate",
+        "amount",
+        "rate_source"
+      ],
+      "allowed_variations": [
+        "a labour cost one cent either side, from the order of rounding",
+        "the figures under if_every_head_takes_a_drop, until B1 is decided"
+      ],
+      "tolerance": {
+        "money": 0,
+        "labour_hours_percent": 2
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "CRITICAL"
+    },
+    {
+      "stage_id": "STG-011",
+      "stage_name": "Clarifications, risks and qualifications",
+      "comparison_type": "COMPLETENESS",
+      "expected_output": {
+        "clarification_candidates": [
+          {
+            "from": "specification issue",
+            "about": "pipe_material",
+            "rule": "conflict:pipe_material",
+            "clause": "2.1.3",
+            "sheet": "FP-B1-201",
+            "needs_the_design_manager": true
+          },
+          {
+            "from": "specification issue",
+            "about": "joining_method",
+            "rule": "conflict:joining_method",
+            "clause": "2.1.2",
+            "sheet": "FP-B1-201",
+            "needs_the_design_manager": true
+          },
+          {
+            "from": "specification issue",
+            "about": "test_header",
+            "rule": "missing_from_drawings",
+            "clause": "7.6",
+            "sheet": "FP-B1-201"
+          },
+          {
+            "from": "specification issue",
+            "about": "sprinkler_upright",
+            "rule": "missing_from_specification",
+            "clause": null,
+            "sheet": "FP-B1-201"
+          },
+          {
+            "from": "specification issue",
+            "about": "where required",
+            "rule": "ambiguous_clause",
+            "clause": "7.7",
+            "sheet": "FP-B1-201"
+          },
+          {
+            "from": "specification issue",
+            "about": "or equal",
+            "rule": "ambiguous_clause",
+            "clause": "7.8",
+            "sheet": "FP-B1-201"
+          },
+          {
+            "from": "bill variance",
+            "client_item": "B4",
+            "about": "25 mm diameter sprinkler drop, screwed joints",
+            "client_quantity": 12.0,
+            "measured_quantity": 7.2
+          },
+          {
+            "from": "bill variance",
+            "client_item": "C3",
+            "about": "Flow switch, 150 mm, with retard",
+            "client_quantity": 1.0,
+            "measured_quantity": 0
+          }
+        ],
+        "checklist": {
+          "system": "sprinkler",
+          "items": [
+            {
+              "key": "pumps",
+              "status": "open",
+              "why": "no clause and no takeoff item settles it"
+            },
+            {
+              "key": "tanks",
+              "status": "open",
+              "why": "no clause and no takeoff item settles it"
+            },
+            {
+              "key": "breeching_inlets",
+              "status": "open",
+              "why": "no clause and no takeoff item settles it"
+            },
+            {
+              "key": "hydraulic_calculations",
+              "status": "included",
+              "evidence": "clause 6.6"
+            },
+            {
+              "key": "shop_drawings",
+              "status": "included",
+              "evidence": "clause 6.6"
+            },
+            {
+              "key": "testing_commissioning",
+              "status": "included",
+              "evidence": "clauses 6.1 and 6.3"
+            },
+            {
+              "key": "authority_fsc",
+              "status": "included",
+              "evidence": "clause 6.7"
+            },
+            {
+              "key": "builders_works",
+              "status": "excluded",
+              "evidence": "clause 7.3"
+            },
+            {
+              "key": "power_supply",
+              "status": "by_others",
+              "evidence": "clause 7.1"
+            }
+          ],
+          "decided_by_a_person": 0
+        },
+        "risks": [
+          {
+            "kind": "design_and_build",
+            "family": "design responsibility",
+            "clauses": [
+              "8.1"
+            ],
+            "proposed_treatment": "qualify",
+            "impact": "not computed: for a person to enter"
+          },
+          {
+            "kind": "shop_drawings",
+            "family": "design responsibility",
+            "clauses": [
+              "6.6"
+            ],
+            "proposed_treatment": "price",
+            "impact": "not computed: for a person to enter"
+          },
+          {
+            "kind": "hydraulic_calculations",
+            "family": "design responsibility",
+            "clauses": [
+              "6.6",
+              "8.2"
+            ],
+            "proposed_treatment": "price",
+            "impact": "not computed: for a person to enter"
+          },
+          {
+            "kind": "qp_engagement",
+            "family": "design responsibility",
+            "clauses": [
+              "8.3"
+            ],
+            "proposed_treatment": "price",
+            "impact": "not computed: for a person to enter"
+          },
+          {
+            "kind": "night_work",
+            "family": "execution",
+            "clauses": [
+              "8.4"
+            ],
+            "proposed_treatment": "price",
+            "impact": {
+              "multiplier": "night_work",
+              "factor": "1.2",
+              "hours": "10.19",
+              "cost": "202.04",
+              "on": "50.95 man-hours, SGD 1010.21"
+            }
+          },
+          {
+            "kind": "occupied_building",
+            "family": "execution",
+            "clauses": [
+              "8.5"
+            ],
+            "proposed_treatment": "price",
+            "impact": {
+              "multiplier": "occupied_building",
+              "factor": "1.25",
+              "hours": "12.74",
+              "cost": "252.55",
+              "on": "50.95 man-hours, SGD 1010.21"
+            }
+          },
+          {
+            "kind": "shutdown",
+            "family": "execution",
+            "clauses": [
+              "8.6"
+            ],
+            "proposed_treatment": "price",
+            "impact": "not computed: no labour multiplier describes it"
+          },
+          {
+            "kind": "basement",
+            "family": "execution",
+            "evidence": "level B1 of FP-B1-201",
+            "proposed_treatment": "price",
+            "impact": {
+              "multiplier": "basement",
+              "factor": "1.1",
+              "hours": "5.10",
+              "cost": "101.02",
+              "on": "50.95 man-hours, SGD 1010.21"
+            },
+            "ambiguity": "B10"
+          }
+        ],
+        "risks_not_expected": [
+          {
+            "kind": "work_at_height",
+            "why": "no ceiling height above 3000 mm is stated"
+          },
+          {
+            "kind": "high_rise",
+            "why": "one level"
+          },
+          {
+            "kind": "congested_ceilings",
+            "why": "no clause or note says so"
+          },
+          {
+            "kind": "access",
+            "why": "no clause or note says so"
+          }
+        ],
+        "qualifications": {
+          "measurement_conventions": [
+            "Pipework is measured net along the centreline, through fittings and valves; no allowance for waste is included in the quantities.",
+            "Fittings are enumerated separately; where not drawn, they are derived by rule and so identified.",
+            "Hangers and supports are deemed included in the rates for pipework.",
+            "Sprinkler drops are measured by rule from the stated ceiling and main heights."
+          ],
+          "proposed_only_after": "a risk is treated as 'qualify' by a person: none is yet, so no qualification is proposed from a risk"
+        }
+      },
+      "mandatory_fields": [
+        "kind",
+        "clauses",
+        "key",
+        "status"
+      ],
+      "allowed_variations": [
+        "wording",
+        "two candidates about one subject grouped into one clarification",
+        "an impact within 2%"
+      ],
+      "tolerance": {
+        "impact_percent": 2
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-012",
+      "stage_name": "Review pack and submission",
+      "comparison_type": "EXACT",
+      "expected_output": {
+        "figures": {
+          "priced_bill": "4754.33",
+          "direct": "5905.66",
+          "total_excluding_gst": "6378.11",
+          "gst": "574.03",
+          "total_including_gst": "6952.14"
+        },
+        "unpriced_lines": 6,
+        "open_items": {
+          "specification_issues": 6,
+          "checklist_items_open": 3,
+          "risks_untreated": 8,
+          "bill_variances_flagged": 2,
+          "rate_warnings": 3
+        },
+        "gates": {
+          "G1": "approved",
+          "G2": "not decided",
+          "G3": "not decided",
+          "G4": "not decided"
+        },
+        "ready_for_g3": false,
+        "why_not_ready_for_g3": [
+          "G2 is not approved",
+          "three checklist items are open",
+          "eight risks are untreated"
+        ],
+        "submission": "none: nothing is frozen"
+      },
+      "mandatory_fields": [
+        "figures",
+        "gates",
+        "ready_for_g3"
+      ],
+      "allowed_variations": [
+        "the pack's sections in another order"
+      ],
+      "tolerance": {
+        "money": 0
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "CRITICAL"
+    }
+  ],
+  "final_output": {
+    "expected_result": {
+      "scope": "stages 1 to 12, to an estimate under review. Gates G2 to G4 and the frozen submission are not exercised",
+      "counted_once": {
+        "check_valve": 1,
+        "gate_valve": 1,
+        "sprinkler_pendent": 16,
+        "sprinkler_sidewall": 4,
+        "sprinkler_upright": 4,
+        "fitting_reducer": 1
+      },
+      "sprinklers_total": 24,
+      "pipe_m_by_dn_drawn": {
+        "150": 8.05,
+        "100": 8.25,
+        "50": 72.0
+      },
+      "total_excluding_gst": "6378.11",
+      "gst": "574.03",
+      "total_including_gst": "6952.14",
+      "unpriced_lines": 6,
+      "gates": {
+        "G1": "approved",
+        "G2": "not decided",
+        "G3": "not decided",
+        "G4": "not decided"
+      }
+    },
+    "mandatory_fields": [
+      "counted_once",
+      "total_excluding_gst",
+      "total_including_gst",
+      "gates"
+    ],
+    "allowed_variations": [
+      "pipe lengths within 5%",
+      "the totals under STG-010's if_every_head_takes_a_drop, until B1 is decided"
+    ]
+  },
+  "ambiguities": [
+    "B1",
+    "B2",
+    "B3",
+    "B4",
+    "B5",
+    "B6",
+    "B7",
+    "B8",
+    "B9",
+    "B10",
+    "B11"
+  ]
+}
