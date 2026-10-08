@@ -1,0 +1,1037 @@
+{
+  "test_case_id": "TC-SYN-001",
+  "title": "Synthetic sprinkler tender: a general arrangement, an enlarged plan and a riser schematic",
+  "status": "draft: not verified by a person",
+  "units": "millimetres in the building's own coordinates (the DXF model space); lengths in mm",
+  "stages": [
+    {
+      "stage_id": "STG-001",
+      "stage_name": "Document intake",
+      "comparison_type": "EXACT",
+      "expected_output": {
+        "documents": [
+          {
+            "filename": "FP-L05-201.dxf",
+            "kind": "dxf",
+            "state": "done",
+            "sheets": 1
+          },
+          {
+            "filename": "FP-L05-301.dxf",
+            "kind": "dxf",
+            "state": "done",
+            "sheets": 1
+          },
+          {
+            "filename": "FP-SCH-001.dxf",
+            "kind": "dxf",
+            "state": "done",
+            "sheets": 1
+          }
+        ],
+        "sheets_total": 3,
+        "refused": [],
+        "unread_sheets": []
+      },
+      "mandatory_fields": [
+        "filename",
+        "kind",
+        "state",
+        "sheets"
+      ],
+      "allowed_variations": [
+        "the order of documents"
+      ],
+      "tolerance": null,
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-002",
+      "stage_name": "Title blocks and registers",
+      "comparison_type": "EXACT",
+      "expected_output": {
+        "consultant": "ALPHA CONSULTANTS PTE LTD",
+        "project": "PROPOSED COMMERCIAL DEVELOPMENT AT MARINA BAY",
+        "sheets": [
+          {
+            "drawing_number": "FP-L05-201",
+            "title": "LEVEL 5 SPRINKLER LAYOUT PLAN",
+            "revision": "R01",
+            "date": "2026-05-01",
+            "stated_scale": "1:100",
+            "level": "L05",
+            "status": "current"
+          },
+          {
+            "drawing_number": "FP-L05-301",
+            "title": "ENLARGED PLAN - RISER AREA",
+            "revision": "R01",
+            "date": "2026-05-01",
+            "stated_scale": "1:50",
+            "level": "L05",
+            "status": "current"
+          },
+          {
+            "drawing_number": "FP-SCH-001",
+            "title": "SPRINKLER RISER SCHEMATIC",
+            "revision": "R01",
+            "date": "2026-05-01",
+            "stated_scale": "NTS",
+            "level": null,
+            "status": "current"
+          }
+        ],
+        "superseded": []
+      },
+      "mandatory_fields": [
+        "drawing_number",
+        "revision",
+        "status"
+      ],
+      "allowed_variations": [
+        "the date shown as 01/05/2026 or 01.05.2026",
+        "the level of FP-L05-201 given as its title's words (\"LEVEL 5 ...\") where the register shows them, provided the level code L05 is also held",
+        "no level, or the levels the schematic names (L03, L04, L05), for FP-SCH-001"
+      ],
+      "tolerance": null,
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-003",
+      "stage_name": "Views and scale",
+      "comparison_type": "EXACT",
+      "expected_output": {
+        "grid": {
+          "across_mm": {
+            "A": 500.0,
+            "B": 6500.0,
+            "C": 12500.0,
+            "D": 18500.0,
+            "E": 24500.0
+          },
+          "up_mm": {
+            "1": 500.0,
+            "2": 6500.0,
+            "3": 12500.0,
+            "4": 18500.0
+          },
+          "spacing_mm": 6000
+        },
+        "sheets": [
+          {
+            "sheet": "FP-L05-201",
+            "views": [
+              {
+                "kind": "plan",
+                "title": "LEVEL 5 SPRINKLER LAYOUT PLAN",
+                "scale": "1:100",
+                "scale_verdict": "verified",
+                "verified_by": "its own dimensions",
+                "measurable": true
+              }
+            ]
+          },
+          {
+            "sheet": "FP-L05-301",
+            "views": [
+              {
+                "kind": "plan",
+                "title": "ENLARGED PLAN - RISER AREA",
+                "scale": "1:50",
+                "scale_verdict": "verified",
+                "verified_by": "the grid it shares with FP-L05-201 (lines 1, 2 and 3)",
+                "measurable": true,
+                "ambiguity": "A2"
+              }
+            ]
+          },
+          {
+            "sheet": "FP-SCH-001",
+            "views": [
+              {
+                "kind": "schematic",
+                "title": "SPRINKLER RISER SCHEMATIC",
+                "scale": "NTS",
+                "scale_verdict": "not to scale",
+                "measurable": false
+              }
+            ]
+          }
+        ]
+      },
+      "mandatory_fields": [
+        "kind",
+        "scale",
+        "measurable"
+      ],
+      "allowed_variations": [
+        "a view's extent, within 5 mm on paper"
+      ],
+      "tolerance": {
+        "view_extent_paper_mm": 5
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-004",
+      "stage_name": "Legends and symbols",
+      "comparison_type": "COMPLETENESS",
+      "expected_output": {
+        "legend_sheet": "FP-L05-201",
+        "heading": "LEGEND",
+        "rows": [
+          {
+            "ordinal": 0,
+            "block": "SPK-PEND",
+            "description": "PENDENT SPRINKLER",
+            "letters": "",
+            "object_type": "sprinkler_pendent",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 1,
+            "block": "SPK-UP",
+            "description": "SPRINKLER - UP TYPE",
+            "letters": "",
+            "object_type": "sprinkler_upright",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 2,
+            "block": "SPK-SW",
+            "description": "SIDEWALL SPRINKLER",
+            "letters": "",
+            "object_type": "sprinkler_sidewall",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 3,
+            "block": "VLV-GATE",
+            "description": "GATE VALVE",
+            "letters": "",
+            "object_type": "gate_valve",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 4,
+            "block": "VLV-CHK",
+            "description": "NON-RETURN VALVE",
+            "letters": "",
+            "object_type": "check_valve",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 5,
+            "block": "DEV-FS",
+            "description": "FLOW SWITCH",
+            "letters": "",
+            "object_type": "flow_switch",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 6,
+            "block": "FTG-RED",
+            "description": "REDUCER",
+            "letters": "",
+            "object_type": "fitting",
+            "counted_as": "count"
+          },
+          {
+            "ordinal": 7,
+            "block": "RSR",
+            "description": "SPRINKLER RISER",
+            "letters": "",
+            "object_type": "pipe",
+            "counted_as": "length"
+          }
+        ],
+        "sheets_without_a_legend": [
+          "FP-L05-301",
+          "FP-SCH-001"
+        ],
+        "in_the_legend_and_not_installed": [
+          "FLOW SWITCH"
+        ],
+        "symbols_no_legend_explains": []
+      },
+      "mandatory_fields": [
+        "description",
+        "object_type"
+      ],
+      "allowed_variations": [
+        "REDUCER mapped to object type `fitting` with or without the attribute fitting=reducer",
+        "a row's state as proposed or confirmed: the object type is what is compared"
+      ],
+      "tolerance": null,
+      "minimum_confidence": null,
+      "severity_if_incorrect": "CRITICAL"
+    },
+    {
+      "stage_id": "STG-005",
+      "stage_name": "Object detection",
+      "comparison_type": "TOLERANCE",
+      "expected_output": {
+        "sheets": [
+          {
+            "sheet": "FP-L05-201",
+            "counts": {
+              "check_valve": 1,
+              "fitting": 1,
+              "gate_valve": 1,
+              "sprinkler_pendent": 16,
+              "sprinkler_sidewall": 4,
+              "sprinkler_upright": 4
+            },
+            "not_counted": [
+              {
+                "block": "RSR",
+                "object_type": "pipe",
+                "reason": "the riser is pipe, not a counted object"
+              }
+            ],
+            "instances": [
+              {
+                "object_type": "gate_valve",
+                "block": "VLV-GATE",
+                "x_mm": 1800.0,
+                "y_mm": 3000.0,
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "check_valve",
+                "block": "VLV-CHK",
+                "x_mm": 2500.0,
+                "y_mm": 3000.0,
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "fitting",
+                "block": "FTG-RED",
+                "x_mm": 10500.0,
+                "y_mm": 3000.0,
+                "grid": "B-C/1-2"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 3000.0,
+                "y_mm": 6000.0,
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 3000.0,
+                "y_mm": 9000.0,
+                "grid": "A-B/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 3000.0,
+                "y_mm": 12000.0,
+                "grid": "A-B/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 3000.0,
+                "y_mm": 15000.0,
+                "grid": "A-B/3-4"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 6000.0,
+                "y_mm": 6000.0,
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 6000.0,
+                "y_mm": 9000.0,
+                "grid": "A-B/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 6000.0,
+                "y_mm": 12000.0,
+                "grid": "A-B/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 6000.0,
+                "y_mm": 15000.0,
+                "grid": "A-B/3-4"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 9000.0,
+                "y_mm": 6000.0,
+                "grid": "B-C/1-2"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 9000.0,
+                "y_mm": 9000.0,
+                "grid": "B-C/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 9000.0,
+                "y_mm": 12000.0,
+                "grid": "B-C/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 9000.0,
+                "y_mm": 15000.0,
+                "grid": "B-C/3-4"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 12000.0,
+                "y_mm": 6000.0,
+                "grid": "B-C/1-2"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 12000.0,
+                "y_mm": 9000.0,
+                "grid": "B-C/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 12000.0,
+                "y_mm": 12000.0,
+                "grid": "B-C/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 12000.0,
+                "y_mm": 15000.0,
+                "grid": "B-C/3-4"
+              },
+              {
+                "object_type": "sprinkler_upright",
+                "block": "SPK-UP",
+                "x_mm": 15000.0,
+                "y_mm": 6000.0,
+                "grid": "C-D/1-2"
+              },
+              {
+                "object_type": "sprinkler_upright",
+                "block": "SPK-UP",
+                "x_mm": 15000.0,
+                "y_mm": 9000.0,
+                "grid": "C-D/2-3"
+              },
+              {
+                "object_type": "sprinkler_upright",
+                "block": "SPK-UP",
+                "x_mm": 15000.0,
+                "y_mm": 12000.0,
+                "grid": "C-D/2-3"
+              },
+              {
+                "object_type": "sprinkler_upright",
+                "block": "SPK-UP",
+                "x_mm": 15000.0,
+                "y_mm": 15000.0,
+                "grid": "C-D/3-4"
+              },
+              {
+                "object_type": "sprinkler_sidewall",
+                "block": "SPK-SW",
+                "x_mm": 18000.0,
+                "y_mm": 6000.0,
+                "grid": "C-D/1-2"
+              },
+              {
+                "object_type": "sprinkler_sidewall",
+                "block": "SPK-SW",
+                "x_mm": 18000.0,
+                "y_mm": 9000.0,
+                "grid": "C-D/2-3"
+              },
+              {
+                "object_type": "sprinkler_sidewall",
+                "block": "SPK-SW",
+                "x_mm": 18000.0,
+                "y_mm": 12000.0,
+                "grid": "C-D/2-3"
+              },
+              {
+                "object_type": "sprinkler_sidewall",
+                "block": "SPK-SW",
+                "x_mm": 18000.0,
+                "y_mm": 15000.0,
+                "grid": "C-D/3-4"
+              }
+            ]
+          },
+          {
+            "sheet": "FP-L05-301",
+            "counts": {
+              "check_valve": 1,
+              "gate_valve": 1,
+              "sprinkler_pendent": 4
+            },
+            "not_counted": [
+              {
+                "block": "RSR",
+                "object_type": "pipe",
+                "reason": "the riser is pipe, not a counted object"
+              }
+            ],
+            "instances": [
+              {
+                "object_type": "gate_valve",
+                "block": "VLV-GATE",
+                "x_mm": 1800.0,
+                "y_mm": 3000.0,
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "check_valve",
+                "block": "VLV-CHK",
+                "x_mm": 2500.0,
+                "y_mm": 3000.0,
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 3000.0,
+                "y_mm": 6000.0,
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 3000.0,
+                "y_mm": 9000.0,
+                "grid": "A-B/2-3"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 6000.0,
+                "y_mm": 6000.0,
+                "grid": "A-B/1-2"
+              },
+              {
+                "object_type": "sprinkler_pendent",
+                "block": "SPK-PEND",
+                "x_mm": 6000.0,
+                "y_mm": 9000.0,
+                "grid": "A-B/2-3"
+              }
+            ]
+          },
+          {
+            "sheet": "FP-SCH-001",
+            "counts": {
+              "check_valve": 1,
+              "gate_valve": 1
+            },
+            "not_counted": [],
+            "instances": [
+              {
+                "object_type": "gate_valve",
+                "block": "VLV-GATE",
+                "x_mm": 3000.0,
+                "y_mm": 4000.0
+              },
+              {
+                "object_type": "check_valve",
+                "block": "VLV-CHK",
+                "x_mm": 3000.0,
+                "y_mm": 6000.0
+              }
+            ]
+          }
+        ]
+      },
+      "mandatory_fields": [
+        "sheet",
+        "counts"
+      ],
+      "allowed_variations": [
+        "an instance's position within 250 mm in the building (a symbol's radius)",
+        "the eight legend examples on FP-L05-201 are not instances and must not be counted"
+      ],
+      "tolerance": {
+        "count": 0,
+        "position_mm": 250
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "CRITICAL"
+    },
+    {
+      "stage_id": "STG-006",
+      "stage_name": "Pipe network",
+      "comparison_type": "TOLERANCE",
+      "expected_output": {
+        "sheets": [
+          {
+            "sheet": "FP-L05-201",
+            "measured": true,
+            "length_mm_by_dn": {
+              "150": 8050.0,
+              "100": 8250.0,
+              "50": 72000.0
+            },
+            "runs": [
+              {
+                "dn": 150,
+                "from_mm": [
+                  1200.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  1550.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  2050.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  2250.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  2750.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  10250.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 100,
+                "from_mm": [
+                  10750.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  19000.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  3000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  3000.0,
+                  15000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  6000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  6000.0,
+                  15000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  9000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  9000.0,
+                  15000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  12000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  12000.0,
+                  15000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  15000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  15000.0,
+                  15000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  18000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  18000.0,
+                  15000.0
+                ]
+              }
+            ]
+          },
+          {
+            "sheet": "FP-L05-301",
+            "measured": true,
+            "length_mm_by_dn": {
+              "150": 4300.0,
+              "50": 13000.0
+            },
+            "runs": [
+              {
+                "dn": 150,
+                "from_mm": [
+                  1200.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  1550.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  2050.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  2250.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 150,
+                "from_mm": [
+                  2750.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  6500.0,
+                  3000.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  3000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  3000.0,
+                  9500.0
+                ]
+              },
+              {
+                "dn": 50,
+                "from_mm": [
+                  6000.0,
+                  3000.0
+                ],
+                "to_mm": [
+                  6000.0,
+                  9500.0
+                ]
+              }
+            ]
+          },
+          {
+            "sheet": "FP-SCH-001",
+            "measured": false,
+            "length_mm_by_dn": {},
+            "runs": []
+          }
+        ],
+        "sizes_read_from": {
+          "150": "the annotation \"150Ø\" on the main",
+          "100": "the annotation \"DN100\" on the main, east of the reducer",
+          "50": "the annotation \"DN50\" along each branch"
+        },
+        "exceptions": [
+          "FP-SCH-001 is not to scale: its pipe is not measured",
+          "FP-L05-301 shows no DN100: the main there is all DN150"
+        ]
+      },
+      "mandatory_fields": [
+        "sheet",
+        "length_mm_by_dn"
+      ],
+      "allowed_variations": [
+        "the main measured through each valve and the reducer (the bid's convention): DN150 then reads 9,050 to 9,500 mm and DN100 up to 8,500 mm on FP-L05-201; see A6"
+      ],
+      "tolerance": {
+        "length_percent": 5
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "HIGH"
+    },
+    {
+      "stage_id": "STG-007",
+      "stage_name": "Takeoff",
+      "comparison_type": "TOLERANCE",
+      "expected_output": {
+        "duplicates": [
+          {
+            "sheet": "FP-L05-301",
+            "repeats": "FP-L05-201",
+            "what": "4 pendent sprinklers, the gate valve, the check valve, the riser, 4,300 mm of DN150 and 13,000 mm of DN50",
+            "counted_from": "FP-L05-201"
+          },
+          {
+            "sheet": "FP-SCH-001",
+            "repeats": "FP-L05-201",
+            "what": "the gate valve and the check valve",
+            "counted_from": "FP-L05-201"
+          }
+        ],
+        "drawn_items": [
+          {
+            "item": "sprinkler_pendent",
+            "quantity": 16,
+            "unit": "no"
+          },
+          {
+            "item": "sprinkler_upright",
+            "quantity": 4,
+            "unit": "no"
+          },
+          {
+            "item": "sprinkler_sidewall",
+            "quantity": 4,
+            "unit": "no"
+          },
+          {
+            "item": "gate_valve",
+            "dn": 150,
+            "quantity": 1,
+            "unit": "no"
+          },
+          {
+            "item": "check_valve",
+            "dn": 150,
+            "quantity": 1,
+            "unit": "no"
+          },
+          {
+            "item": "fitting",
+            "fitting": "reducer",
+            "dn": "150x100",
+            "quantity": 1,
+            "unit": "no"
+          },
+          {
+            "item": "pipe",
+            "dn": 150,
+            "run": "main",
+            "quantity": 8.05,
+            "unit": "m"
+          },
+          {
+            "item": "pipe",
+            "dn": 100,
+            "run": "main",
+            "quantity": 8.25,
+            "unit": "m"
+          },
+          {
+            "item": "pipe",
+            "dn": 50,
+            "run": "branch",
+            "quantity": 72.0,
+            "unit": "m"
+          }
+        ],
+        "derived_items": [
+          {
+            "item": "pipe",
+            "dn": 25,
+            "run": "drop",
+            "quantity": 8.0,
+            "unit": "m",
+            "rule": "drop_length",
+            "calculation": "16 pendent heads x (3300 - 2750 - 50) mm = 16 x 500 mm",
+            "evidence": "\"CEILING HEIGHT 2750\" on FP-L05-201; rule defaults for the rest",
+            "ambiguity": "A1"
+          },
+          {
+            "item": "pipe",
+            "dn": 150,
+            "run": "riser",
+            "quantity": 4.0,
+            "unit": "m",
+            "rule": "riser_length",
+            "calculation": "4000 mm floor to floor x 1 level served",
+            "ambiguity": "A3"
+          },
+          {
+            "item": "fitting",
+            "fitting": "tee",
+            "dn": "150x50",
+            "quantity": 3,
+            "unit": "no",
+            "rule": "fitting_tee",
+            "calculation": "branches at x = 3000, 6000 and 9000 leave the DN150 main"
+          },
+          {
+            "item": "fitting",
+            "fitting": "tee",
+            "dn": "100x50",
+            "quantity": 3,
+            "unit": "no",
+            "rule": "fitting_tee",
+            "calculation": "branches at x = 12000, 15000 and 18000 leave the DN100 main, which runs on to 19000"
+          },
+          {
+            "item": "hanger",
+            "dn": 50,
+            "quantity": 24,
+            "unit": "no",
+            "rule": "hanger_spacing",
+            "calculation": "ceil(72000 / 3000)"
+          },
+          {
+            "item": "hanger",
+            "dn": 100,
+            "quantity": 3,
+            "unit": "no",
+            "rule": "hanger_spacing",
+            "calculation": "ceil(8250 / 4000)"
+          },
+          {
+            "item": "hanger",
+            "dn": 150,
+            "quantity": 2,
+            "unit": "no",
+            "rule": "hanger_spacing",
+            "calculation": "ceil(8050 / 4500)"
+          }
+        ],
+        "not_expected": [
+          {
+            "item": "fitting",
+            "fitting": "reducer",
+            "why": "drawn, so not derived again"
+          },
+          {
+            "item": "fitting",
+            "fitting": "elbow",
+            "why": "no change of direction on plan",
+            "ambiguity": "A4"
+          },
+          {
+            "item": "grooved coupling",
+            "why": "nothing says the pipework is grooved"
+          },
+          {
+            "item": "seismic restraint",
+            "why": "no specification requires it"
+          },
+          {
+            "item": "flow_switch",
+            "why": "in the legend, installed nowhere"
+          },
+          {
+            "item": "pipe allowance",
+            "why": "quantities are net at takeoff",
+            "ambiguity": "A5"
+          }
+        ],
+        "status_of_every_derived_item": "to be confirmed (the rules are seeded defaults)"
+      },
+      "mandatory_fields": [
+        "item",
+        "quantity",
+        "unit"
+      ],
+      "allowed_variations": [
+        "pipe lengths within 5%",
+        "an item's description wording",
+        "sprinkler drops of 12.0 m if every head, not only the pendents, is given one (A1): report as a difference to settle, not as a defect, until A1 is decided"
+      ],
+      "tolerance": {
+        "count": 0,
+        "length_percent": 5
+      },
+      "minimum_confidence": null,
+      "severity_if_incorrect": "CRITICAL"
+    }
+  ],
+  "final_output": {
+    "expected_result": {
+      "scope": "stages 1 to 7: the takeoff. Specification, bill, pricing and review are not in this case",
+      "counted_once": {
+        "sprinkler_pendent": 16,
+        "sprinkler_upright": 4,
+        "sprinkler_sidewall": 4,
+        "gate_valve": 1,
+        "check_valve": 1,
+        "fitting_reducer": 1
+      },
+      "pipe_m_by_dn_drawn": {
+        "150": 8.05,
+        "100": 8.25,
+        "50": 72.0
+      },
+      "sprinklers_total": 24,
+      "sum_of_the_sheets_before_duplicates": {
+        "sprinkler_pendent": 20,
+        "gate_valve": 3,
+        "check_valve": 3
+      }
+    },
+    "mandatory_fields": [
+      "counted_once",
+      "pipe_m_by_dn_drawn"
+    ],
+    "allowed_variations": [
+      "pipe lengths within 5%"
+    ]
+  },
+  "ambiguities": [
+    "A1",
+    "A2",
+    "A3",
+    "A4",
+    "A5",
+    "A6"
+  ]
+}
