@@ -150,6 +150,49 @@ class TestLayoutsTheGeneratorDoesNotDraw:
         assert reading.value(Field.REVISION) == "P02"
         assert reading.value(Field.SCALE) == "1:200@A1"
 
+    def test_a_title_that_begins_with_the_word_level_is_not_a_level_label(self) -> None:
+        # Found by the golden comparison on TC-SYN-001: the level was read as
+        # "5 SPRINKLER LAYOUT PLAN".
+        spans = [
+            span("DRAWING TITLE", 640, 548, 2),
+            span("LEVEL 5 SPRINKLER LAYOUT PLAN", 640, 552),
+            span("DWG NO: FP-L05-201", 640, 560),
+            span("REV: R01", 640, 566),
+        ]
+
+        reading = read(spans, PAGE)
+
+        assert reading.value(Field.LEVEL) == "L05"  # from the drawing number
+        assert reading.value(Field.TITLE) == "LEVEL 5 SPRINKLER LAYOUT PLAN"
+
+    def test_a_title_that_begins_with_the_word_area_is_not_a_zone_label(self) -> None:
+        spans = [
+            span("AREA OF REFUGE SPRINKLER LAYOUT", 640, 552),
+            span("DWG NO: FP-L05-ZA-201", 640, 560),
+        ]
+
+        reading = read(spans, PAGE)
+
+        assert reading.value(Field.ZONE) == "ZA"  # from the drawing number
+
+    @pytest.mark.parametrize(
+        ("words", "level"),
+        [
+            ("LEVEL: 5", "5"),
+            ("LEVEL B1", "B1"),
+            ("STOREY 12", "12"),
+            ("FLOOR: ROOF", "ROOF"),
+            ("LEVEL: BASEMENT 1", "BASEMENT 1"),
+            ("LEVEL 5 TO 7", "5 TO 7"),
+        ],
+    )
+    def test_a_level_written_beside_its_label_in_one_span_is_still_read(
+        self, words: str, level: str
+    ) -> None:
+        spans = [span(words, 640, 552), span("DWG NO: FP-201", 640, 560)]
+
+        assert read(spans, PAGE).value(Field.LEVEL) == level
+
     def test_a_value_beside_its_label_on_the_same_line_is_read(self) -> None:
         spans = [span("DRAWING NO.", 620, 560, 2), span("FP-RF-001", 650, 559.5, 3)]
 

@@ -29,9 +29,6 @@ PACKAGES = Path(__file__).resolve().parents[3] / "eval" / "golden" / "synthetic"
 # Open on 2026-10-08. Each is the platform's to fix or the package's to correct against the
 # drawing, and is in the build log.
 KNOWN_DEFECTS = {
-    # The level is read from the title "LEVEL 5 SPRINKLER LAYOUT PLAN" as everything after
-    # the word LEVEL. The drawing number gives L05.
-    ("STG-002", "fp-l05-201 / level", "MEDIUM"),
     # The drawn reducer is held at the size of the pipe it sits on; its outlet size (100)
     # is not held.
     ("STG-007", "fitting / reducer / no / size", "MEDIUM"),

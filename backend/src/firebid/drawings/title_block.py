@@ -104,6 +104,16 @@ SCALE = re.compile(
 )
 LEVEL_IN_NUMBER = re.compile(r"(?:^|[-_])(L\d{1,2}|B\d{1,2}|RF|GF|UR|MZ)(?=[-_]|$)")
 ZONE_IN_NUMBER = re.compile(r"(?:^|[-_])(Z[A-Z0-9]{1,2})(?=[-_]|$)")
+# What a level or a zone written after its label in the same run of text looks like: a
+# number or short code, a level's name, or a few of them ("5", "B1", "BASEMENT 1", "5 TO 7").
+_LEVEL_WORD = (
+    r"\d{1,2}[A-Z]?|[A-Z]{1,2}\d{1,2}|ROOF|RF|GROUND|GF|BASEMENT|MEZZANINE|MZ|PODIUM|"
+    r"UPPER|LOWER|TO|AND|&|-"
+)
+INLINE_CODES: dict[Field, re.Pattern[str]] = {
+    Field.LEVEL: re.compile(rf"(?:{_LEVEL_WORD})(?:\s+(?:{_LEVEL_WORD})){{0,3}}", re.I),
+    Field.ZONE: re.compile(r"[A-Z0-9]{1,3}(?:\s+[A-Z0-9]{1,3})?", re.I),
+}
 
 # Discipline from the drawing number's prefix. Longest prefix wins, so `FPS` beats `FP`.
 DISCIPLINES: dict[str, str] = {
@@ -276,7 +286,12 @@ def _inline(span: Span) -> tuple[Field, str] | None:
     for name, pattern in LABELS.items():
         match = re.match(rf"^\s*({pattern.pattern})\s*[:.#]?\s+(?P<value>\S.*)$", span.clean, re.I)
         if match:
-            return name, match.group("value").strip()
+            value = match.group("value").strip()
+            # LEVEL, FLOOR and AREA also begin titles ("LEVEL 5 SPRINKLER LAYOUT PLAN").
+            # Only what reads as a level or a zone is one; the rest is not a label at all.
+            if name in INLINE_CODES and not INLINE_CODES[name].fullmatch(value):
+                return None
+            return name, value
     return None
 
 
