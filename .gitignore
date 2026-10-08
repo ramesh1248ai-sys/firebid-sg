@@ -42,6 +42,7 @@ reports/req-coverage.*
 # hides its own diff. Real tender data never comes near the repository.
 eval/templates/*.xlsx
 eval/truth/
+eval/golden/real/
 eval/data/
 eval/results/
 eval/synthetic/
