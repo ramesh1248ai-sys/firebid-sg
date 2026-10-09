@@ -6250,6 +6250,11 @@ export interface components {
         LabourLineOut: {
             /** Baseline Hours */
             baseline_hours: string | null;
+            /**
+             * By Level
+             * @default []
+             */
+            by_level: components["schemas"]["PortionOut"][];
             /** Cost */
             cost: string | null;
             /** Description */
@@ -7144,6 +7149,25 @@ export interface components {
             tolerable_error_percent: number;
             /** Version */
             version: number;
+        };
+        /**
+         * PortionOut
+         * @description The part of a line on one level: a line billed for the building is worked level by
+         *     level, and each level carries its own multipliers.
+         */
+        PortionOut: {
+            /** Baseline Hours */
+            baseline_hours: string;
+            /** Factor */
+            factor: string;
+            /** Hours */
+            hours: string;
+            /** Level */
+            level: string | null;
+            /** Multipliers */
+            multipliers: string[];
+            /** Quantity */
+            quantity: string;
         };
         /** PresignOut */
         PresignOut: {

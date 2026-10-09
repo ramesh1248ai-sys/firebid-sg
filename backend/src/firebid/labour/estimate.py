@@ -46,6 +46,18 @@ class Portion:
     quantity: Decimal
     baseline_hours: Decimal
     multipliers: tuple[Applied, ...]
+    factor: Decimal = Decimal(1)
+    hours: Decimal = Decimal("0.00")
+
+    def as_json(self) -> dict[str, Any]:
+        return {
+            "level": self.level,
+            "quantity": str(self.quantity),
+            "baseline_hours": str(self.baseline_hours),
+            "multipliers": [m.key for m in self.multipliers],
+            "factor": str(self.factor),
+            "hours": str(self.hours),
+        }
 
 
 @dataclass(frozen=True)
@@ -82,6 +94,7 @@ class LabourLine:
             "hourly_rate": str(self.rate.hourly) if self.rate else None,
             "cost": str(self.cost.amount) if self.cost is not None else None,
             "reason": self.reason,
+            "by_level": [part.as_json() for part in self.portions],
         }
 
 
@@ -114,11 +127,18 @@ def line_hours(
     worked = baseline * factor
     portions: tuple[Portion, ...] = ()
     if by_level:
-        portions = tuple(
-            Portion(level, quantity, _hours(quantity * entry.hours), tuple(carried))
-            for level, quantity, carried in by_level
-        )
         factors = [_factor(carried) for _, _, carried in by_level]
+        portions = tuple(
+            Portion(
+                level,
+                quantity,
+                _hours(quantity * entry.hours),
+                tuple(carried),
+                each,
+                _hours(quantity * entry.hours * each),
+            )
+            for (level, quantity, carried), each in zip(by_level, factors, strict=True)
+        )
         worked = sum(
             (q * entry.hours * f for (_, q, _), f in zip(by_level, factors, strict=True)),
             Decimal(0),

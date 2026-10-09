@@ -6626,6 +6626,14 @@
             ],
             "title": "Baseline Hours"
           },
+          "by_level": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PortionOut"
+            },
+            "title": "By Level",
+            "type": "array"
+          },
           "cost": {
             "anyOf": [
               {
@@ -9643,6 +9651,59 @@
           "set_at"
         ],
         "title": "PolicyOut",
+        "type": "object"
+      },
+      "PortionOut": {
+        "description": "The part of a line on one level: a line billed for the building is worked level by\nlevel, and each level carries its own multipliers.",
+        "properties": {
+          "baseline_hours": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Baseline Hours",
+            "type": "string"
+          },
+          "factor": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Factor",
+            "type": "string"
+          },
+          "hours": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hours",
+            "type": "string"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "multipliers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Multipliers",
+            "type": "array"
+          },
+          "quantity": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "quantity",
+          "baseline_hours",
+          "multipliers",
+          "factor",
+          "hours"
+        ],
+        "title": "PortionOut",
         "type": "object"
       },
       "PresignOut": {

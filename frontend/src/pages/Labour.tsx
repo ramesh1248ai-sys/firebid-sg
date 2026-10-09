@@ -165,6 +165,7 @@ function LabourRow({ line }: { line: Line }) {
             </div>
           </div>
         ))}
+        <ByLevel line={line} />
       </td>
       <td className="py-1 pr-3 text-right">{hours(line.hours)}</td>
       <td className="py-1 pr-3 text-right">
@@ -175,6 +176,27 @@ function LabourRow({ line }: { line: Line }) {
       </td>
       <td className="py-1 text-right">{line.cost ?? "–"}</td>
     </tr>
+  );
+}
+
+/** A line billed for the building, level by level: where its hours and its factor come from. */
+function ByLevel({ line }: { line: Line }) {
+  const parts = line.by_level ?? [];
+  const [only] = parts;
+  if (only === undefined) return null;
+  if (parts.length === 1) {
+    return <div className="text-muted-foreground">all on {only.level ?? "no level"}</div>;
+  }
+  return (
+    <div className="mt-1 text-muted-foreground" data-testid={`by-level-${line.line_id}`}>
+      Overall × {Number(line.factor).toFixed(4)}, by level:
+      {parts.map((part) => (
+        <div key={part.level ?? "none"}>
+          {part.level ?? "no level"}: {Number(part.quantity)} {line.unit},{" "}
+          {hours(part.baseline_hours)} h × {Number(part.factor).toFixed(2)} = {hours(part.hours)} h
+        </div>
+      ))}
+    </div>
   );
 }
 

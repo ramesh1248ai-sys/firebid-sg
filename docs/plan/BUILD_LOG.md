@@ -2401,3 +2401,11 @@ Entry template:
 - **TC-SYN-003 gains ambiguity C8:** whether a site plan, and what is taken off from it, has a level. The package still expects none, and records SITE as the other reading at stages 2 and 7, so the four differences are to settle and a third value would be a defect. The package was not changed to agree with the platform. One level difference stays a defect for a person: the breeching inlet on L01.
 - **Not done:** a site plan already read keeps no level in the register until it is read again. A drawing number with SITE or EXT as a part that is not a level (a project code) would now be given that level: none is known, and the title block's own LEVEL cell still wins.
 - **Requirement IDs covered (test names):** FR-DOC-02: `tests/drawings/test_title_block.py::TestLayoutsTheGeneratorDoesNotDraw::test_a_site_plan_is_registered_on_the_level_its_items_are_taken_off_on` (two numbers); FR-LRN-01: `tests/db/test_golden_run.py::test_the_platform_s_stages_1_to_7_against_tc_syn_003`.
+
+## Change · The labour page shows a line's hours level by level · 2026-10-09
+
+- **Summary:** since the labour fix above, a line billed for the building is worked level by level, but the page and the API showed only the line's blended factor (for example 1.2667). Both now show where it comes from.
+- **API (`GET /bids/{id}/labour`):** each line has `by_level`: for each level, the quantity, the baseline hours, the keys of the multipliers that level carries, its factor and its hours. It is empty for a line that is of one place (its own level, or no level). The field is new and has a default, so nothing that reads the old shape breaks. The API client is regenerated.
+- **Page (`frontend/src/pages/Labour.tsx`):** under a line's multipliers, "all on B1" where every part of it is on one level, or the overall factor and one row a level ("B1: 40 m, 12.00 h × 1.10 = 13.20 h").
+- **Not done:** the split is shown and cannot be edited. The labour workbook export is unchanged.
+- **Requirement IDs covered (test names):** FR-LAB-02: `tests/labour/test_labour.py::TestHours::test_a_line_rolled_up_over_the_building_is_worked_level_by_level` (the `by_level` rows), `frontend/src/pages/Labour.test.tsx` ("shows a line billed for the building level by level, with each level's factor").
