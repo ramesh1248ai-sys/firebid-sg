@@ -340,8 +340,30 @@ golden = {
         "mandatory_fields": ["counted_once", "pipe_m_by_sheet_and_dn_drawn"],
         "allowed_variations": ["pipe lengths within 5%"],
     },
-    "ambiguities": [f"C{n}" for n in range(1, 8)],
+    "ambiguities": [f"C{n}" for n in range(1, 9)],
 }
+
+# --- The other reading of C8 (what a site plan draws is on a level named SITE) ---------------
+# Keyed by the label the comparison gives each fact (`firebid.evals.golden`). A run that
+# gives the expected value passes; one that gives this value is to settle with C8; one that
+# gives neither has a defect.
+OTHER_READING = {
+    "STG-002": {f"{fx.SITE.lower()} / level": "SITE"},
+    "STG-007": {
+        "hydrant / no / level": "site",
+        "pipe / DN150 / m / level": "b1, site",
+        "fitting / tee / DN150x150 / no / level": "b1, site",
+    },
+}
+for one in golden["stages"]:
+    if one["stage_id"] in OTHER_READING:
+        one["expected_output"]["alternatives"] = [
+            {
+                "ambiguity": "C8",
+                "reading": "the site plan, and what is taken off from it, is on a level named SITE",
+                "values": OTHER_READING[one["stage_id"]],
+            }
+        ]
 
 manifest = {
     "test_case_id": "TC-SYN-003",

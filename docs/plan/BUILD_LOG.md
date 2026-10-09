@@ -2391,3 +2391,13 @@ Entry template:
 - **No count, length or derived quantity changed**: TC-SYN-003's stage 7 is 52 of 56, the four being levels.
 - **Not done:** a kind of item on two levels is compared by the set of levels, not by the quantity on each. Systems and attributes at stage 7 are still not compared.
 - **Requirement IDs covered (test names):** FR-LRN-01: `tests/evals/test_golden_comparison.py::TestLevelsAtTheTakeoff` (an item on another level; an item the reference gives no level; a level stated once for the takeoff; a missing item reported once), `tests/db/test_golden_run.py` (the three cases).
+
+## Fix · A site plan's sheet is registered on the level its items are taken off on · 2026-10-09
+
+- **Found by:** the level comparison above, on TC-SYN-003: the takeoff put the site plan's hydrants, main and tees on a level named SITE, while the register gave the sheet FP-SITE-001 no level.
+- **Cause:** two rules read a level from a drawing number. The title block reader's knew L, B, RF, GF, UR and MZ; the takeoff's (P2-01) knew L, B, RF, SITE and EXT. A sheet numbered SITE or EXT had no level in the register and one at the takeoff. The other way round did no harm, because the takeoff takes the register's level first.
+- **Fix:** one rule, in `drawings/title_block.py`, with every code of both; `qto/model.py` uses it. The register now gives FP-SITE-001 the level SITE.
+- **Why SITE was kept and not dropped:** a takeoff item with no level fails the evidence check that G1 waits on (`location.level`), which is why P2-01 named it.
+- **TC-SYN-003 gains ambiguity C8:** whether a site plan, and what is taken off from it, has a level. The package still expects none, and records SITE as the other reading at stages 2 and 7, so the four differences are to settle and a third value would be a defect. The package was not changed to agree with the platform. One level difference stays a defect for a person: the breeching inlet on L01.
+- **Not done:** a site plan already read keeps no level in the register until it is read again. A drawing number with SITE or EXT as a part that is not a level (a project code) would now be given that level: none is known, and the title block's own LEVEL cell still wins.
+- **Requirement IDs covered (test names):** FR-DOC-02: `tests/drawings/test_title_block.py::TestLayoutsTheGeneratorDoesNotDraw::test_a_site_plan_is_registered_on_the_level_its_items_are_taken_off_on` (two numbers); FR-LRN-01: `tests/db/test_golden_run.py::test_the_platform_s_stages_1_to_7_against_tc_syn_003`.

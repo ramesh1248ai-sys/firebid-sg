@@ -24,7 +24,7 @@
     }
   ],
   "inputs_note": "The files are generated, not stored. A written DXF is not byte-identical from one run to the next (the file carries its own stamps), so the inputs are named by generator and commit, not by checksum.",
-  "generator_commit": "ab1b4b3751f32501e335cb931be1117c41419402",
+  "generator_commit": "b569f45d0d59caa452a07c22307efdb4d267ba27",
   "business_rules": [
     "backend/config/measurement_rules.yaml (version 1 of each rule, all 'to be confirmed')"
   ],
