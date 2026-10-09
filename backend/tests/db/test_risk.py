@@ -250,6 +250,25 @@ class TestExecution:
         ]
         assert all(row.evidence for row in found.values())
 
+    @pytest.mark.req("FR-RSK-04")
+    def test_a_level_s_risk_reaches_the_labour_on_that_level_in_lines_billed_for_the_building(
+        self, session: Session, risk_bid: tuple[Bid, Team]
+    ) -> None:
+        bid, team = risk_bid
+        found = by_key(service.find(session, bid, team.estimator))
+        estimate = labour.estimate(session, bid, TODAY)
+        worked = [line for line in estimate.lines if line.baseline_hours is not None]
+
+        impact = found["execution:basement"].impact
+
+        # Only the heads are billed by level; the pipe, fittings and valves are one line each
+        # for the building. All of this bid is on B1, so the basement reaches all its labour.
+        assert any(line.line.level is None for line in worked)
+        assert f"over {len(worked)} bill line(s) on B1" in str(impact["basis"])
+        assert Decimal(str(impact["hours"])) == (estimate.baseline_hours * Decimal("0.1")).quantize(
+            Decimal("0.01")
+        )
+
     def test_a_risk_no_longer_found_is_marked_and_kept(
         self, session: Session, risk_bid: tuple[Bid, Team]
     ) -> None:

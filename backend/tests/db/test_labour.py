@@ -257,13 +257,25 @@ class TestEstimate:
         assert line.rate.trade == "sprinkler_fitter"
         assert line.cost.amount == (line.hours * line.rate.hourly).quantize(Decimal("0.01"))
 
-        # Pipework is billed for the building: the bid's multiplier, not a level's.
+        # Pipework is billed for the building and worked level by level, from the takeoff
+        # items behind each line. All of it here is on the heads' level, so it carries that
+        # level's multiplier with the bid's.
         pipes = [
             item
             for item in found.lines
             if item.entry is not None and item.entry.type == "pipe" and item.line.level is None
         ]
-        assert pipes and all([m.key for m in item.multipliers] == ["night_work"] for item in pipes)
+        assert pipes and all(
+            [m.key for m in item.multipliers] == ["height_4_5m_to_6m", "night_work"]
+            for item in pipes
+        )
+        for item in pipes:
+            assert item.entry is not None
+            assert [part.level for part in item.portions] == [heads.level]
+            assert item.portions[0].quantity == item.line.quantity
+            assert item.hours == (
+                item.line.quantity * item.entry.hours * Decimal("1.25") * Decimal("1.20")
+            ).quantize(Decimal("0.01"))
 
         # No entry, no hours: listed, not guessed.
         assert lines[str(valve.id)].hours is None

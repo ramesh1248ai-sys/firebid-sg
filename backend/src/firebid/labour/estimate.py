@@ -8,6 +8,7 @@ is worked at. A line with no library entry has no hours: it is listed, not guess
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
@@ -36,6 +37,18 @@ class BillLine:
 
 
 @dataclass(frozen=True)
+class Portion:
+    """The part of a line that is on one level. A line the bill rolls up over the building
+    has one for each level its takeoff items are on, so that a level's multiplier reaches
+    the labour on that level and no other."""
+
+    level: str | None
+    quantity: Decimal
+    baseline_hours: Decimal
+    multipliers: tuple[Applied, ...]
+
+
+@dataclass(frozen=True)
 class LabourLine:
     line: BillLine
     entry: Entry | None
@@ -46,6 +59,8 @@ class LabourLine:
     rate: TradeRate | None
     cost: Money | None
     reason: str = ""  # why there are no hours
+    # Empty for a line that is of one place: its own level, or no level at all.
+    portions: tuple[Portion, ...] = ()
 
     def as_json(self) -> dict[str, Any]:
         return {
@@ -70,19 +85,54 @@ class LabourLine:
         }
 
 
+def _factor(applied: Sequence[Applied]) -> Decimal:
+    factor = Decimal(1)
+    for multiplier in applied:
+        factor *= multiplier.value
+    return factor
+
+
 def line_hours(
-    line: BillLine, entry: Entry | None, applied: list[Applied], rate: TradeRate | None
+    line: BillLine,
+    entry: Entry | None,
+    applied: Sequence[Applied],
+    rate: TradeRate | None,
+    by_level: Sequence[tuple[str | None, Decimal, Sequence[Applied]]] | None = None,
 ) -> LabourLine:
-    """One line: baseline hours, the multipliers one by one, the hours, and the cost."""
+    """One line: baseline hours, the multipliers one by one, the hours, and the cost.
+
+    `by_level` is for a line rolled up over the building: the quantity on each level, with
+    the multipliers that level carries. The line's hours are then the sum of its levels',
+    and its factor what they come to over the baseline.
+    """
     if entry is None:
         return LabourLine(
             line, None, None, (), Decimal(1), None, None, None, "no productivity entry"
         )
     baseline = line.quantity * entry.hours
-    factor = Decimal(1)
-    for multiplier in applied:
-        factor *= multiplier.value
-    hours = _hours(baseline * factor)
+    factor = _factor(applied)
+    worked = baseline * factor
+    portions: tuple[Portion, ...] = ()
+    if by_level:
+        portions = tuple(
+            Portion(level, quantity, _hours(quantity * entry.hours), tuple(carried))
+            for level, quantity, carried in by_level
+        )
+        factors = [_factor(carried) for _, _, carried in by_level]
+        worked = sum(
+            (q * entry.hours * f for (_, q, _), f in zip(by_level, factors, strict=True)),
+            Decimal(0),
+        )
+        seen: dict[str, Applied] = {}
+        for _, _, carried in by_level:
+            for multiplier in carried:
+                seen.setdefault(multiplier.key, multiplier)
+        applied = list(seen.values())
+        if len(set(factors)) == 1:
+            factor = factors[0]
+        else:
+            factor = (worked / baseline).quantize(Decimal("0.0001")) if baseline else Decimal(1)
+    hours = _hours(worked)
     cost = Money((hours * rate.hourly).quantize(CENT, ROUND_HALF_UP)) if rate else None
     return LabourLine(
         line=line,
@@ -94,6 +144,7 @@ def line_hours(
         rate=rate,
         cost=cost,
         reason="" if rate else f"no labour rate for the trade {entry.trade}",
+        portions=portions,
     )
 
 
