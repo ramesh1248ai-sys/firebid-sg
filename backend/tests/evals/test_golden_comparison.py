@@ -252,6 +252,71 @@ def test_an_equal_tee_is_the_same_tee_however_its_size_is_written() -> None:
     assert golden.compare(package, run).differences == []
 
 
+class TestLevelsAtTheTakeoff:
+    @pytest.fixture(scope="class")
+    def systems(self) -> golden.Package:
+        return golden.load(PACKAGES / "TC-SYN-003")
+
+    def test_an_item_on_another_level_is_a_high_defect_of_its_level_alone(
+        self, systems: golden.Package
+    ) -> None:
+        run = the_reference_s_own(systems)
+        for item in run["STG-007"]["equipment"]:
+            if item["item"] == "landing_valve":
+                item["level"] = "L04"
+
+        assert defects(golden.compare(systems, run)) == [
+            ("STG-007", "landing_valve / DN100 / no / level", "wrong", "HIGH")
+        ]
+
+    def test_an_item_the_reference_gives_no_level_is_to_have_none(
+        self, systems: golden.Package
+    ) -> None:
+        run = the_reference_s_own(systems)
+        for item in run["STG-007"]["equipment"]:
+            if item["item"] == "hydrant":
+                item["level"] = "SITE"
+
+        (found,) = golden.compare(systems, run).differences
+
+        assert (found.what, found.expected, found.actual) == (
+            "hydrant / no / level",
+            "no level",
+            "site",
+        )
+
+    def test_a_level_stated_once_for_the_takeoff_is_every_item_s(
+        self, package: golden.Package
+    ) -> None:
+        run = the_reference_s_own(package)
+        assert run["STG-007"].pop("level") == "L05"
+        for part in ("drawn_items", "derived_items"):
+            for item in run["STG-007"][part]:
+                item["level"] = "L05"
+
+        assert golden.compare(package, run).differences == []
+
+        run["STG-007"]["derived_items"][0]["level"] = "L06"
+        (found,) = golden.compare(package, run).differences
+        assert found.what.endswith("/ level") and found.classification == "HIGH"
+
+    def test_a_missing_item_is_reported_once_and_not_for_its_level_too(
+        self, systems: golden.Package
+    ) -> None:
+        run = the_reference_s_own(systems)
+        run["STG-007"]["equipment"] = [
+            item for item in run["STG-007"]["equipment"] if item["item"] != "test_header"
+        ]
+        run["STG-007"]["equipment"].append(
+            {"item": "flow_switch", "quantity": 1, "unit": "no", "level": "B1"}
+        )
+
+        assert [(d.what, d.kind) for d in golden.compare(systems, run).differences] == [
+            ("test_header / no", "missing"),
+            ("flow_switch / no", "extra"),
+        ]
+
+
 class TestTheLaterStages:
     """Stages 8 to 12, on TC-SYN-002: the specification, the bills, the price, the risks and
     the review pack."""
