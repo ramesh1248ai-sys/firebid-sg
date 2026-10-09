@@ -1,9 +1,9 @@
 """A run's stage outputs against a Golden Reference Work Product Package (FR-LRN-01).
 
 `docs/plan/TEST_STRATEGY.md` says what a package is and how it is compared. This is the
-comparison: exact (type A), tolerance (C) and completeness (E), for stages 1 to 7. Semantic
-(B) and evidence (D) comparison, and stages 8 to 12, are not built: what is not compared is
-reported as not compared, never as passed.
+comparison: exact (type A), tolerance (C) and completeness (E), for stages 1 to 12. Semantic
+(B) and evidence (D) comparison are not built: what is not compared is reported as not
+compared, never as passed.
 
 A **run** is a bid's stage outputs in the package's own shape: stage ID to that stage's
 `expected_output` layout (`firebid-eval export-run` writes one from a bid). Each side is
@@ -18,7 +18,9 @@ The facts are then set against each other:
 
 A difference takes its stage's severity unless the fact is a lesser one (a title's wording,
 a date). A difference on something the package records as an ambiguity is **to settle**:
-shown with the ambiguity's ID, and neither a defect nor a pass.
+shown with the ambiguity's ID, and neither a defect nor a pass. Where the package also
+records what the other reading of the ambiguity gives (`alternatives` in a stage's expected
+output), only that value is to settle: a third value is a defect.
 
 Pure: a package and a run in; differences, a score and a report out.
 """
@@ -26,7 +28,7 @@ Pure: a package and a run in; differences, a score and a report out.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal
 
@@ -57,7 +59,7 @@ DIMENSION_LABELS = {
 }
 NOT_BUILT = {
     "evidence": "evidence comparison (type D) is not built",
-    "final_output": "stage 12 is not compared yet",
+    "final_output": "stage 12 was not compared",
 }
 
 
@@ -114,8 +116,12 @@ class Fact:
     dimension: str
     # None: exact. Otherwise the percentage either way a number may differ by.
     tolerance_percent: float | None = None
+    # Or the amount either way: a cent, from the order of rounding.
+    tolerance_absolute: float | None = None
     severity: Severity | None = None  # None: the stage's own
     ambiguity: str | None = None
+    # What the other reading of the ambiguity gives, where the package records it.
+    alternatives: tuple[Any, ...] = ()
     # For an item that has a size: the size, and what the item is without it. The same item
     # at another size is one difference (its size), not one item missing and another extra.
     size: str | None = None
@@ -296,6 +302,240 @@ def _takeoff(out: dict[str, Any], stage: Stage) -> list[Fact]:
     ]
 
 
+def _amount(value: Any) -> float | None:
+    number = _number(value)
+    return None if number is None else round(number, 2)
+
+
+def _listed(values: Any) -> str:
+    return ", ".join(sorted(str(value) for value in values or []))
+
+
+def _specification(out: dict[str, Any], _: Stage) -> list[Fact]:
+    facts = [Fact(("clauses",), len(out.get("clauses", [])), "data_extraction")]
+    for one in out.get("attributes", []):
+        sizes = (one.get("dn_min"), one.get("dn_max"))
+        facts.append(
+            Fact(
+                (
+                    "attribute",
+                    str(one.get("system")),
+                    str(one.get("attribute")),
+                    _text(one.get("value")),
+                    f"clause {one.get('clause')}",
+                    f"DN {sizes[0] or ''} to {sizes[1] or ''}" if any(sizes) else "",
+                ),
+                one.get("state"),
+                "data_extraction",
+            )
+        )
+    for one in out.get("obligations", []):
+        facts.append(
+            Fact(
+                ("obligation", str(one.get("category")), f"clause {one.get('clause')}"),
+                json.dumps(one.get("quantities") or {}, sort_keys=True),
+                "data_extraction",
+            )
+        )
+    for one in out.get("issues", []):
+        clause = one.get("clause")
+        facts.append(
+            Fact(
+                ("issue", str(one.get("rule")), f"clause {clause}" if clause else "no clause"),
+                one.get("state"),
+                "business_rule",
+            )
+        )
+    matrix = out.get("scope_matrix", {})
+    rows = matrix.get("rows") or [
+        {"system": system, **interface}
+        for system in matrix.get("systems", [])
+        for interface in matrix.get("interfaces_for_each_system", [])
+    ]
+    for row in rows:
+        facts.append(
+            Fact(
+                ("scope", str(row.get("system")), str(row.get("key"))),
+                row.get("status"),
+                "business_rule",
+            )
+        )
+    return facts
+
+
+def _bill(out: dict[str, Any], stage: Stage) -> list[Fact]:
+    percent = (stage.tolerance or {}).get("quantity_percent", 5.0)
+    facts = []
+    for line in out.get("our_bill", {}).get("lines", []):
+        where = ("line", str(line.get("line")))
+        measured = line.get("unit") == "m"
+        facts.append(
+            Fact(
+                (*where, "quantity"),
+                line.get("quantity"),
+                "calculation",
+                tolerance_percent=percent if measured else None,
+                ambiguity=line.get("ambiguity"),
+            )
+        )
+        for name in ("unit", "allowance_percent"):
+            if name in line:
+                facts.append(Fact((*where, name), line[name], "intermediate_work_product"))
+    for row in out.get("client_bill", {}).get("lines", []):
+        where = ("client", str(row.get("item")))
+        for name, dimension in (
+            ("client_quantity", "data_extraction"),
+            ("maps_to", "business_rule"),
+            ("measured_quantity", "calculation"),
+            ("variance_percent", "calculation"),
+            ("flagged", "business_rule"),
+        ):
+            if name in row:
+                facts.append(Fact((*where, name), row[name], dimension))
+    facts += [
+        Fact(("in ours and not in the client's", str(name)), True, "business_rule")
+        for name in out.get("in_ours_and_not_in_the_client_s", [])
+    ]
+    return facts
+
+
+def _pricing(out: dict[str, Any], stage: Stage) -> list[Fact]:
+    hours_percent = (stage.tolerance or {}).get("labour_hours_percent", 2.0)
+    facts = []
+    for line in out.get("lines", []):
+        where = ("line", str(line.get("line")))
+        facts.append(Fact((*where, "price_status"), line.get("price_status"), "business_rule"))
+        for name in ("unit_rate", "amount"):
+            facts.append(Fact((*where, name), _amount(line.get(name)), "calculation"))
+        if "warnings" in line:
+            facts.append(Fact((*where, "warnings"), _listed(line["warnings"]), "business_rule"))
+        labour = line.get("labour") or {}
+        facts.append(
+            Fact(
+                (*where, "labour hours"),
+                _amount(labour.get("hours")),
+                "calculation",
+                tolerance_percent=hours_percent,
+            )
+        )
+        facts.append(
+            Fact(
+                (*where, "labour cost"),
+                _amount(labour.get("cost")),
+                "calculation",
+                tolerance_absolute=0.01,
+            )
+        )
+    labour = out.get("labour", {})
+    if labour:
+        facts += [
+            Fact(
+                ("labour", "hours"),
+                _amount(labour.get("hours")),
+                "calculation",
+                tolerance_percent=hours_percent,
+            ),
+            Fact(
+                ("labour", "cost"),
+                _amount(labour.get("cost")),
+                "calculation",
+                tolerance_absolute=0.01,
+            ),
+            Fact(
+                ("labour", "lines without hours"),
+                _listed(labour.get("lines_without_hours")),
+                "business_rule",
+            ),
+        ]
+    built = out.get("build_up", {})
+    for name, value in built.items():
+        if name == "not_set":
+            facts.append(Fact(("build-up", "not set"), _listed(value), "completeness"))
+        elif name == "margin":
+            amount = value.get("amount") if isinstance(value, dict) else value
+            facts.append(Fact(("build-up", "margin"), _amount(amount), "calculation"))
+        elif name != "gst_percent" or value is not None:
+            facts.append(Fact(("build-up", name), _amount(value), "calculation"))
+    if "unpriced_lines" in out:
+        facts.append(Fact(("unpriced lines",), _listed(out["unpriced_lines"]), "business_rule"))
+    return facts
+
+
+def _risks(out: dict[str, Any], stage: Stage) -> list[Fact]:
+    percent = (stage.tolerance or {}).get("impact_percent", 2.0)
+    facts = []
+    for one in out.get("clarification_candidates", []):
+        if one.get("rule"):
+            clause = one.get("clause")
+            about = f"{one['rule']}, " + (f"clause {clause}" if clause else "no clause")
+        else:
+            about = str(one.get("client_item") or one.get("our_line") or one.get("ref"))
+        facts.append(Fact(("candidate", str(one.get("from")), about), True, "completeness"))
+    checklist = out.get("checklist", {})
+    for item in checklist.get("items", []):
+        system = str(item.get("system") or checklist.get("system"))
+        facts.append(
+            Fact(("checklist", system, str(item.get("key"))), item.get("status"), "business_rule")
+        )
+    if "decided_by_a_person" in checklist:
+        facts.append(
+            Fact(
+                ("checklist", "decided by a person"),
+                checklist["decided_by_a_person"],
+                "business_rule",
+            )
+        )
+    for risk in out.get("risks", []):
+        where = ("risk", str(risk.get("kind")))
+        facts.append(
+            Fact((*where, "proposed treatment"), risk.get("proposed_treatment"), "business_rule")
+        )
+        impact = risk.get("impact")
+        if isinstance(impact, dict):
+            for name in ("hours", "cost"):
+                facts.append(
+                    Fact(
+                        (*where, f"impact {name}"),
+                        _amount(impact.get(name)),
+                        "calculation",
+                        tolerance_percent=percent,
+                        ambiguity=risk.get("ambiguity"),
+                    )
+                )
+        else:
+            # "not computed", whatever reason follows it.
+            computed = str(impact or "").partition(":")[0].strip()
+            facts.append(
+                Fact((*where, "impact"), computed, "calculation", ambiguity=risk.get("ambiguity"))
+            )
+    conventions = out.get("qualifications", {}).get("measurement_conventions")
+    if conventions is not None:
+        facts.append(
+            Fact(("qualifications", "measurement conventions"), len(conventions), "completeness")
+        )
+    return facts
+
+
+def _review(out: dict[str, Any], _: Stage) -> list[Fact]:
+    facts = [
+        Fact(("figure", name), _amount(value), "final_output")
+        for name, value in out.get("figures", {}).items()
+    ]
+    if "unpriced_lines" in out:
+        facts.append(Fact(("unpriced lines",), out["unpriced_lines"], "final_output"))
+    facts += [
+        Fact(("open", name), value, "final_output", severity="HIGH")
+        for name, value in out.get("open_items", {}).items()
+    ]
+    facts += [
+        Fact(("gate", gate), status, "final_output")
+        for gate, status in out.get("gates", {}).items()
+    ]
+    if "ready_for_g3" in out:
+        facts.append(Fact(("ready for G3",), out["ready_for_g3"], "final_output"))
+    return facts
+
+
 EXTRACTORS = {
     "STG-001": _intake,
     "STG-002": _register,
@@ -304,6 +544,11 @@ EXTRACTORS = {
     "STG-005": _objects,
     "STG-006": _pipe,
     "STG-007": _takeoff,
+    "STG-008": _specification,
+    "STG-009": _bill,
+    "STG-010": _pricing,
+    "STG-011": _risks,
+    "STG-012": _review,
 }
 
 
@@ -320,6 +565,8 @@ class Difference:
     classification: str  # a severity, or "TO SETTLE", or "FOR REVIEW"
     dimension: str
     ambiguity: str | None = None
+    # The run gives what the other reading of the ambiguity gives.
+    other_reading: bool = False
 
     @property
     def is_defect(self) -> bool:
@@ -369,10 +616,15 @@ class Result:
 
 
 def _same(expected: Fact, actual: Any) -> bool:
+    if expected.tolerance_absolute is not None:
+        want, got = _number(expected.value), _number(actual)
+        if want is None or got is None:
+            return want is None and got is None
+        return abs(got - want) <= expected.tolerance_absolute + 1e-9
     if expected.tolerance_percent is not None:
         want, got = _number(expected.value), _number(actual)
         if want is None or got is None:
-            return False
+            return want is None and got is None and expected.value == actual
         if want == 0:
             return got == 0
         return abs(got - want) / abs(want) * 100 <= expected.tolerance_percent
@@ -409,6 +661,23 @@ def _resized(
     }
 
 
+def _other_readings(stage: Stage, expected: dict[tuple[str, ...], Fact]) -> None:
+    """Mark the facts the package gives another value for under an ambiguity
+    (`alternatives`: the ambiguity, and each fact's label to its other value)."""
+    labels = {fact.label(): key for key, fact in expected.items()}
+    for other in stage.expected_output.get("alternatives", []):
+        for label, value in other.get("values", {}).items():
+            key = labels.get(label)
+            if key is None:
+                raise ValueError(f"{stage.stage_id}: no expected value is labelled {label!r}")
+            fact = expected[key]
+            expected[key] = replace(
+                fact,
+                ambiguity=str(other["ambiguity"]),
+                alternatives=(*fact.alternatives, value),
+            )
+
+
 def compare(package: Package, run: Run) -> Result:
     stages = []
     for stage in package.stages:
@@ -436,6 +705,7 @@ def compare(package: Package, run: Run) -> Result:
         result = StageResult(stage.stage_id, stage.stage_name, "compared")
         expected = {fact.key: fact for fact in extract(stage.expected_output, stage)}
         actual = {fact.key: fact for fact in extract(run[stage.stage_id], stage)}
+        _other_readings(stage, expected)
         resized = _resized(expected, actual)
         for other, fact in resized.values():
             measured = fact.tolerance_percent is not None
@@ -462,6 +732,11 @@ def compare(package: Package, run: Run) -> Result:
                 result.outcomes.append((fact.dimension, True))
                 continue
             settle = fact.ambiguity is not None
+            reading = found is not None and any(
+                _same(replace(fact, value=value), found.value) for value in fact.alternatives
+            )
+            if fact.alternatives and not reading:
+                settle = False  # neither reading of the ambiguity gives this
             # Something missing is a failure of completeness, whatever it is of. A
             # difference on an ambiguity is not scored either way.
             dimension = "completeness" if found is None else fact.dimension
@@ -476,7 +751,8 @@ def compare(package: Package, run: Run) -> Result:
                     None if found is None else found.value,
                     "TO SETTLE" if settle else (fact.severity or stage.severity_if_incorrect),
                     dimension,
-                    fact.ambiguity,
+                    fact.ambiguity if settle else None,
+                    reading,
                 )
             )
         for key, fact in actual.items():
@@ -636,16 +912,20 @@ def report(result: Result, scored: Score) -> str:
             "|---|---|---|---|---|---|",
         ]
         for one in sorted(found, key=lambda d: (order.get(d.classification, 9), d.stage_id)):
-            klass = one.classification + (f" ({one.ambiguity})" if one.ambiguity else "")
+            klass = one.classification + (
+                f" ({one.ambiguity}{': the other reading' if one.other_reading else ''})"
+                if one.ambiguity
+                else ""
+            )
             lines.append(
                 f"| {one.stage_id} | {one.what} | {one.kind} | {_shown(one.expected)} | "
                 f"{_shown(one.actual)} | {klass} |"
             )
     lines += [
         "",
-        "> Compared: exact, tolerance and completeness, on stages 1 to 7. Not compared: "
-        "wording (semantic), evidence, positions, and stages 8 to 12. A stage that was not "
-        "compared has not passed.",
+        "> Compared: exact, tolerance and completeness, on stages 1 to 12. Not compared: "
+        "wording (semantic), evidence and positions. A stage that was not compared has not "
+        "passed.",
         "",
     ]
     return "\n".join(lines)

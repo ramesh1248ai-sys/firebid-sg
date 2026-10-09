@@ -57,11 +57,9 @@ def test_every_committed_package_is_read_and_agrees_with_itself(folder: str) -> 
     result = golden.compare(package, run)
 
     assert result.differences == []
-    assert [s.status for s in result.stages if s.stage_id in COMPARED] == ["compared"] * 7
-    assert all(s.checks > 0 for s in result.stages if s.status == "compared")
-    # Stages 8 to 12 are not compared, and say so: they have not passed.
-    later = [s for s in result.stages if s.stage_id not in COMPARED]
-    assert all(s.status == "not compared" and s.checks == 0 for s in later)
+    # Every stage the package has is compared, and none passes on no checks at all.
+    assert [s.status for s in result.stages] == ["compared"] * len(package.stages)
+    assert all(s.checks > 0 for s in result.stages)
 
 
 def test_a_run_that_gives_the_reference_scores_full_marks_on_what_was_measured(
@@ -252,6 +250,107 @@ def test_an_equal_tee_is_the_same_tee_however_its_size_is_written() -> None:
             item["dn"] = 150
 
     assert golden.compare(package, run).differences == []
+
+
+class TestTheLaterStages:
+    """Stages 8 to 12, on TC-SYN-002: the specification, the bills, the price, the risks and
+    the review pack."""
+
+    @pytest.fixture(scope="class")
+    def priced(self) -> golden.Package:
+        return golden.load(PACKAGES / "TC-SYN-002")
+
+    @staticmethod
+    def own(package: golden.Package) -> golden.Run:
+        return {s.stage_id: copy.deepcopy(s.expected_output) for s in package.stages}
+
+    def test_a_wrong_total_is_critical_and_first_shows_where_it_is_made(
+        self, priced: golden.Package
+    ) -> None:
+        run = self.own(priced)
+        run["STG-010"]["build_up"]["total_excluding_gst"] = "6400.00"
+        run["STG-012"]["figures"]["total_excluding_gst"] = "6400.00"
+
+        result = golden.compare(priced, run)
+
+        assert defects(result) == [
+            ("STG-010", "build-up / total_excluding_gst", "wrong", "CRITICAL"),
+            ("STG-012", "figure / total_excluding_gst", "wrong", "CRITICAL"),
+        ]
+        assert result.first_stage_that_differs() == "STG-010"
+
+    def test_the_other_reading_of_an_ambiguity_is_to_settle_and_a_third_value_a_defect(
+        self, priced: golden.Package
+    ) -> None:
+        other = self.own(priced)
+        other["STG-012"]["figures"]["total_including_gst"] = "7035.29"
+        third = self.own(priced)
+        third["STG-012"]["figures"]["total_including_gst"] = "7000.00"
+
+        settled = golden.compare(priced, other).differences
+        wrong = golden.compare(priced, third)
+
+        assert [(d.classification, d.ambiguity, d.other_reading) for d in settled] == [
+            ("TO SETTLE", "B1", True)
+        ]
+        assert defects(wrong) == [("STG-012", "figure / total_including_gst", "wrong", "CRITICAL")]
+        assert "B1: the other reading" in golden.report(
+            golden.compare(priced, other), golden.score(golden.compare(priced, other))
+        )
+
+    def test_a_labour_cost_may_be_a_cent_out_and_no_more(self, priced: golden.Package) -> None:
+        def with_cost(cost: str) -> golden.Result:
+            run = self.own(priced)
+            (line,) = [x for x in run["STG-010"]["lines"] if x["line"] == "heads_pendent"]
+            line["labour"]["cost"] = cost
+            return golden.compare(priced, run)
+
+        assert with_cost("128.51").differences == []
+        assert defects(with_cost("128.52")) == [
+            ("STG-010", "line / heads_pendent / labour cost", "wrong", "CRITICAL")
+        ]
+
+    def test_a_bill_line_is_known_by_what_it_is_of_not_by_its_wording(
+        self, priced: golden.Package
+    ) -> None:
+        run = self.own(priced)
+        for line in run["STG-009"]["our_bill"]["lines"]:
+            line["description"] = "worded otherwise"
+        run["STG-009"]["our_bill"]["lines"].reverse()
+
+        assert golden.compare(priced, run).differences == []
+
+    def test_an_issue_or_a_risk_the_run_does_not_have_is_missing(
+        self, priced: golden.Package
+    ) -> None:
+        run = self.own(priced)
+        run["STG-008"]["issues"] = run["STG-008"]["issues"][1:]
+        run["STG-011"]["risks"] = [r for r in run["STG-011"]["risks"] if r["kind"] != "shutdown"]
+
+        found = defects(golden.compare(priced, run))
+
+        assert (
+            "STG-008",
+            "issue / conflict:pipe_material / clause 2.1.3",
+            "missing",
+            "HIGH",
+        ) in found
+        assert ("STG-011", "risk / shutdown / proposed treatment", "missing", "HIGH") in found
+
+    def test_an_alternative_for_a_value_the_package_does_not_have_is_refused(
+        self, priced: golden.Package
+    ) -> None:
+        stages = []
+        for stage in priced.stages:
+            if stage.stage_id == "STG-012":
+                output = copy.deepcopy(stage.expected_output)
+                output["alternatives"][0]["values"]["figure / no such figure"] = 1.0
+                stage = stage.model_copy(update={"expected_output": output})
+            stages.append(stage)
+        broken = priced.model_copy(update={"stages": tuple(stages)})
+
+        with pytest.raises(ValueError, match="no expected value is labelled"):
+            golden.compare(broken, self.own(priced))
 
 
 class TestCommand:

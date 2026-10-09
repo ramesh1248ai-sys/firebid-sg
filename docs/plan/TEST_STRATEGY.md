@@ -232,17 +232,18 @@ the ticked circle, match lines between sheets and the skewed wing.
 | Synthetic suites and the regression gate | Exist |
 | Truth for stages 5 to 7 and 9 in `firebid/evals/schema.py` | Exists |
 | Truth for stages 1 to 4, 8 and 10 to 12 | Held in each package's `golden.json`, read by `firebid.evals.golden` |
-| `golden.json` reader and the staged comparison | Built for exact, tolerance and completeness (A, C, E) on stages 1 to 7: `firebid-eval golden`. **To build:** stages 8 to 12, instance positions |
-| Export of a bid's stage outputs in the same shape | Built for stages 1 to 7: `firebid-eval export-run --bid`. **To build:** stages 8 to 12 |
-| Defect classification and the weighted score in the report | Built. The score is over the dimensions measured so far (85% of the weights) and says so. **To build:** linking a difference to the earlier one that caused it |
+| `golden.json` reader and the staged comparison | Built for exact, tolerance and completeness (A, C, E) on stages 1 to 12: `firebid-eval golden`. **To build:** instance positions; a level, a system and an attribute at stage 7 |
+| Export of a bid's stage outputs in the same shape | Built for stages 1 to 12: `firebid-eval export-run --bid` |
+| Defect classification and the weighted score in the report | Built. The score is over the dimensions measured (90% of the weights where stage 12 is compared; evidence is not) and says so. **To build:** linking a difference to the earlier one that caused it |
 | Semantic comparison (rubric, optional model judge) | **To build**; a model judge waits on decision D2. Until then wording is compared after normalising case and spacing only |
 | Evidence comparison (type D) | **To build** |
-| The platform run against a package in CI | All three synthetic packages, stages 1 to 7, as database tests (`tests/db/test_golden_run.py`). TC-SYN-002's stages 8 to 12 are reported as not compared |
+| The platform run against a package in CI | All three synthetic packages, as database tests (`tests/db/test_golden_run.py`): TC-SYN-001 and TC-SYN-003 on stages 1 to 7, TC-SYN-002 on all twelve |
 | The brief for drafting a package | Added with this version |
 
 Build order: the schema and exporter first, then exact, tolerance and completeness
 comparison on TC-SYN-001 (done, 2026-10-08), then the other two synthetic packages (done
-for stages 1 to 7, 2026-10-08) and stages 8 to 12, then evidence, then semantic.
+for stages 1 to 7, 2026-10-08) and stages 8 to 12 (done, 2026-10-09), then evidence, then
+semantic.
 
 Two rules of the stage 7 comparison came from running the pump room tender. A reference
 that does not say which of its drawn pipe is main and which is branch is compared by size
@@ -251,6 +252,18 @@ alone. An equal tee is the same tee written as `150` or as `150x150`.
 A difference on something a package records as an ambiguity is reported as **to settle**,
 with the ambiguity's ID, and is neither a defect nor a pass. For that the package marks
 the expected value with the ambiguity (`"ambiguity": "A1"` in `golden.json`).
+
+An ambiguity early in the pipeline changes figures at every stage after it: whether every
+head takes a drop changes the bill, the price and the totals. Left as it is, that would
+put every later money figure to settle, and a wrong price would hide among them. So a
+package may record what the **other reading** gives, in a stage's `alternatives`: the
+ambiguity, and for each affected value (by the label the comparison gives it) its other
+value. A run that gives the expected value passes; one that gives the other value is to
+settle, marked as the other reading; one that gives neither has a defect.
+
+At stages 9 and 10 a bill line is named by what it is of (`heads_pendent`,
+`pipe_150_main`, `tee_150x50`, `hanger_50`), from the takeoff items behind it, so two
+bills that word or number their lines differently still compare.
 
 ## 12. Roles
 
