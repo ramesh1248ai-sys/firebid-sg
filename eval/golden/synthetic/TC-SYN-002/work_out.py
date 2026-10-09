@@ -428,7 +428,7 @@ OURS = {
     "Riser, DN150 (vertical, not drawn)": "pipe_150_riser",
     "Gate valve, DN150": "gate_valve_150",
     "Check valve, DN150": "check_valve_150",
-    "Fitting, DN150 (fitting reducer)": "reducer_150",
+    "Fitting, DN150xDN100 (fitting reducer)": "reducer_150",
 }
 ours_quantity = {line["line"]: D(str(line["quantity"])) for line in bill}
 limit = D(str(boq_rules["variance_threshold_percent"]))

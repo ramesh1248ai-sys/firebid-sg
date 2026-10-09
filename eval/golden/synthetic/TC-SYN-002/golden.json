@@ -1993,7 +1993,7 @@
               "unit": "nr",
               "client_quantity": 1.0,
               "maps_to": "reducer_150",
-              "generator_says": "Fitting, DN150 (fitting reducer)",
+              "generator_says": "Fitting, DN150xDN100 (fitting reducer)",
               "measured_quantity": 1.0,
               "difference": 0.0,
               "variance_percent": 0.0,

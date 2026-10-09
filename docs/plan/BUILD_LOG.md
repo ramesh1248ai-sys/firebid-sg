@@ -2335,3 +2335,15 @@ Entry template:
   - **Stage 7 compares item, size, run and quantity.** It does not compare an item's level, its system or its attributes. On the pump room tender the platform puts the breeching inlet on L01 and the hydrants on a level named SITE, where the package gives no level; and names the pump room's pipe as the wet rising main's (ambiguity C6). The pumps' flow, head and power are not compared here: `tests/db/test_systems_takeoff.py` holds them.
   - **Document state at stage 1, for the specification and the client's bill, is the test's own.** The test calls the reading services directly; the parse job is what marks such a document done, and the fixture sets it as the job would. A drawing's state is the platform's.
 - **Requirement IDs covered (test names):** FR-LRN-01: `tests/db/test_golden_run.py::test_the_platform_s_stages_1_to_7_against_tc_syn_002`, `::test_the_platform_s_stages_1_to_7_against_tc_syn_003`; `tests/evals/test_golden_comparison.py::test_drawn_pipe_is_compared_by_size_alone_where_the_reference_names_no_run`, `::test_an_equal_tee_is_the_same_tee_however_its_size_is_written`.
+
+## Fix · A drawn reducer keeps both of its sizes · 2026-10-09
+
+- **Found by:** the golden comparison on TC-SYN-001 and TC-SYN-002, as a medium defect at stage 7: the reducer drawn between the DN150 and the DN100 main was taken off as DN150.
+- **Cause:** takeoff gave a valve or a drawn fitting one size, the largest of the runs ending at it. That is right for a valve; a reducer has two.
+- **Fix (`qto/generate.py`):** a drawn fitting that is a reducer, with runs of exactly two sizes ending at it, keeps the smaller as `outlet_diameter_mm` (source: drawing) beside `nominal_diameter_mm`. Its description is `Fitting, DN150xDN100 (fitting reducer)`. `evals/export_run.py` gives its size as `150x100`. The bill's truth in `evals/synthetic_boq.py` and TC-SYN-002's record of the generator's description follow the new wording.
+- **Effect:** stage 7 of TC-SYN-001 and of TC-SYN-002 has no defect. No known defect is open on any of the three synthetic packages at stages 1 to 7 (`KNOWN_DEFECTS` in `tests/db/test_golden_run.py` is empty); the differences to settle (A1, A2, B1) are unchanged.
+- **Not done:**
+  - **The bill and the price still read the larger size.** The company bill line is still "Reducer, 150 mm" (`config/boq_templates.yaml`) and the rate is still found at DN150. TC-SYN-002 expects both as they are; whether a reducer is billed and priced as 150 x 100 is an estimator's convention to settle, with the rate library.
+  - **A bid taken off before this fix** gets a new reducer item at its next recompute (the attributes are part of the item's key): the old one is superseded, and a verification on it does not carry over.
+  - **A reducer with one size, or more than two, at it** is as before: one size, the largest.
+- **Requirement IDs covered (test names):** FR-QTO-05: `tests/qto/test_generation.py::TestCounts::test_valves_and_drawn_fittings_by_type_with_their_size`; FR-LRN-01: `tests/db/test_golden_run.py` (the three cases, with no known defect).

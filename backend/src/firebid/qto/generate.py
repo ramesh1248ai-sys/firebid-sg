@@ -180,9 +180,9 @@ def _confidence(members: list[Detection | Run]) -> float:
     return round(min(m.confidence for m in members), 4) if members else 0.0
 
 
-def dn_at(detection: Detection, runs: list[Run]) -> int | None:
-    """The size of the pipe a valve or fitting sits on: a run ending at it, same sheet."""
-    sizes = [
+def sizes_at(detection: Detection, runs: list[Run]) -> list[int]:
+    """The sizes of the runs that end at a valve or fitting on its sheet, largest first."""
+    sizes = {
         run.dn
         for run in runs
         if run.at.sheet_id == detection.at.sheet_id
@@ -191,8 +191,14 @@ def dn_at(detection: Detection, runs: list[Run]) -> int | None:
             abs(p[0] - detection.x) < 0.01 and abs(p[1] - detection.y) < 0.01
             for p in (run.points[0], run.points[-1])
         )
-    ]
-    return max(sizes) if sizes else None
+    }
+    return sorted(sizes, reverse=True)
+
+
+def dn_at(detection: Detection, runs: list[Run]) -> int | None:
+    """The size of the pipe a valve or fitting sits on: the largest run ending at it."""
+    sizes = sizes_at(detection, runs)
+    return sizes[0] if sizes else None
 
 
 def generate(
@@ -236,14 +242,17 @@ def generate(
         elif detection.category == "equipment":
             attributes = _equipment(detection, dn_at(detection, runs), schedules)
         else:
-            dn = dn_at(detection, runs)
+            sizes = sizes_at(detection, runs)
             attributes = {
                 "nominal_diameter_mm": (
-                    {"value": str(dn), "source": "drawing"}
-                    if dn
+                    {"value": str(sizes[0]), "source": "drawing"}
+                    if sizes
                     else {"value": NOT_SPECIFIED, "source": NOT_SPECIFIED}
                 )
             }
+            if detection.attributes.get("fitting") == "reducer" and len(sizes) == 2:
+                # A reducer has two sizes: the pipe it is on, and the pipe it reduces to.
+                attributes["outlet_diameter_mm"] = {"value": str(sizes[1]), "source": "drawing"}
             if detection.attributes.get("fitting"):
                 attributes["fitting"] = {
                     "value": str(detection.attributes["fitting"]),
@@ -649,10 +658,13 @@ def _describe(object_type: str, attributes: dict[str, dict[str, Any]]) -> str:
         NOT_SPECIFIED
     ):
         name += f", DN{attributes['nominal_diameter_mm']['value']}"
+        if "outlet_diameter_mm" in attributes:
+            name += f"xDN{attributes['outlet_diameter_mm']['value']}"
     stated = [
         f"{key.replace('_', ' ')} {value['value']}"
         for key, value in attributes.items()
-        if key != "nominal_diameter_mm" and value["value"] != NOT_SPECIFIED
+        if key not in ("nominal_diameter_mm", "outlet_diameter_mm")
+        and value["value"] != NOT_SPECIFIED
     ]
     return f"{name} ({', '.join(stated)})" if stated else name
 

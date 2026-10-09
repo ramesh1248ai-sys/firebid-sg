@@ -40,7 +40,12 @@ class TestCounts:
 
         assert items["Gate valve, DN150"].net_quantity == 1
         assert items["Check valve, DN150"].net_quantity == 1
-        assert items["Fitting, DN150 (fitting reducer)"].net_quantity == 1
+        reducer = items["Fitting, DN150xDN100 (fitting reducer)"]
+        assert reducer.net_quantity == 1
+        # Both of its sizes, from the pipe drawn either side of it.
+        assert reducer.attributes["nominal_diameter_mm"] == {"value": "150", "source": "drawing"}
+        assert reducer.attributes["outlet_diameter_mm"] == {"value": "100", "source": "drawing"}
+        assert "outlet_diameter_mm" not in items["Gate valve, DN150"].attributes
 
     def test_each_attribute_records_its_source(self, general: Tender) -> None:
         items = by_description(general.items())
