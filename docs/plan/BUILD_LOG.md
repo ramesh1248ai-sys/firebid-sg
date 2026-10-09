@@ -2347,3 +2347,26 @@ Entry template:
   - **A bid taken off before this fix** gets a new reducer item at its next recompute (the attributes are part of the item's key): the old one is superseded, and a verification on it does not carry over.
   - **A reducer with one size, or more than two, at it** is as before: one size, the largest.
 - **Requirement IDs covered (test names):** FR-QTO-05: `tests/qto/test_generation.py::TestCounts::test_valves_and_drawn_fittings_by_type_with_their_size`; FR-LRN-01: `tests/db/test_golden_run.py` (the three cases, with no known defect).
+
+## Test · The comparison taken to stages 8 to 12 · 2026-10-09
+
+- **Summary:** the export and the comparison now cover all twelve stages, and TC-SYN-002 is run through them on every build: the specification as read, the company bill and the client's against it, the price and the labour, the clarification candidates, checklist and risks, and the review pack's figures and gates.
+- **Built:**
+  - `evals/export_commercial.py`: stages 8 to 12 of a bid in the package's shape, called by `evals/export_run.py`. It reads what is stored, and asks for the build-up, the labour estimate and the review pack as the platform's own pages do.
+  - `evals/golden.py`: the facts of stages 8 to 12; a tolerance of an amount (a cent on a labour cost) beside the tolerance of a percentage; and the **other reading** of an ambiguity (below).
+  - A bill line is named by what it is of (`heads_pendent`, `pipe_150_main`, `tee_150x50`), from the takeoff items behind it, so wording and numbering do not matter. TC-SYN-002's reducer line is now `reducer_150x100`.
+- **The other reading of an ambiguity.** B1 (does every head take a drop?) changes every money figure after the takeoff. Marked only as ambiguous, all of them would be "to settle", and a wrong price would hide there. TC-SYN-002 now records, stage by stage, what the other reading gives (`alternatives`, worked out by `work_out.py` as the rest is). A run that gives that value is to settle; one that gives neither value has a defect.
+- **Result, TC-SYN-002 (`tests/db/test_golden_run.py`), 377 scored checks:** 98.8% on the 90% of the weights measured. Stages 1 to 9 pass on every scored check.
+  - **The price agrees to the cent.** On the other reading of B1 the platform gives exactly what the package worked out by hand: SGD 6,454.39 before GST, 7,035.29 with it; 52.21 man-hours, SGD 1,035.11 of labour; every line's rate, amount, warnings and hours. 26 differences are to settle with B1 and all 26 are the other reading. The package's own figure (6,378.11) is what the pendents-only reading gives.
+  - **Three defects by class, none shown to be the platform's:**
+    1. *Critical, the test's own:* the tee whose only rate names a brand is "proposed" in the package and "unpriced" in the run. The platform leaves that proposal to the model, and the test runs none.
+    2. *High, for a person:* open checklist items, 9 against 3. The platform builds the checklist for the hose reel and hydrant systems the specification has sections for; the package, for the sprinkler system that is drawn.
+    3. *High, for a person:* flagged bill variances, 7 against 2. The platform flags the five lines the client's bill has no item for; the package counts the client's two lines.
+  - **To settle with B10:** the basement factor. The platform applies it to the bill lines that carry level B1, which are the three lines of heads (10.40 h, SGD 20.88); the package applies it to all the labour (SGD 101.02). The pipe, fitting and valve lines of the bill carry no level, though all of it is on B1: likely the platform's to fix, and not decided here.
+  - **In the run and not in the package (33):** two obligations section 8 repeats from section 6; the hydrant excavation row; a clarification candidate for each of the five lines the client's bill lacks and each of the seven unclear scope rows; and the 18 checklist rows of the two systems not drawn. Each is listed in the test.
+- **Not done:**
+  - **Wording is not compared** (semantic, type B): an issue's title, a clarification's text, a qualification's text. Nor is evidence (type D): which clause or sheet a finding cites, beyond a clause number in its key.
+  - **At stage 8 an attribute's or obligation's state, and at stage 10 a rate's source and validity date, are exported and not compared.** Labour rates by grade are not exported.
+  - **Only TC-SYN-002 has stages 8 to 12.** Equipment has no case there (TC-SYN-003 stops at stage 7).
+  - **The scenario is the test's.** People's steps (verifying the takeoff, G1, the margin) are done by the fixture as the scenario states them, not through the API.
+- **Requirement IDs covered (test names):** FR-LRN-01: `tests/db/test_golden_run.py::test_the_platform_s_twelve_stages_against_tc_syn_002`; `tests/evals/test_golden_comparison.py::TestTheLaterStages` (a wrong total is critical where it is made; the other reading is to settle and a third value a defect; a labour cost a cent out; a bill line known by what it is of; a missing issue or risk; an alternative for a value the package does not have is refused), `::test_every_committed_package_is_read_and_agrees_with_itself`.

@@ -184,7 +184,7 @@ LINES = [
         ("pipe", "150"),
     ),
     (
-        "reducer_150",
+        "reducer_150x100",
         "Fittings",
         "Reducer, 150 mm (drawn)",
         "nr",
@@ -412,7 +412,7 @@ def priced_lines(drop_quantity: Decimal) -> tuple[list[dict], dict]:
 
 
 bill, figures = priced_lines(drop_m)
-_, figures_all_heads = priced_lines(drop_all_m)
+bill_all_heads, figures_all_heads = priced_lines(drop_all_m)
 labour_cost = D(figures["labour"])
 labour_hours = D(figures["labour_hours"])
 
@@ -428,7 +428,7 @@ OURS = {
     "Riser, DN150 (vertical, not drawn)": "pipe_150_riser",
     "Gate valve, DN150": "gate_valve_150",
     "Check valve, DN150": "check_valve_150",
-    "Fitting, DN150xDN100 (fitting reducer)": "reducer_150",
+    "Fitting, DN150xDN100 (fitting reducer)": "reducer_150x100",
 }
 ours_quantity = {line["line"]: D(str(line["quantity"])) for line in bill}
 limit = D(str(boq_rules["variance_threshold_percent"]))
@@ -1302,6 +1302,66 @@ golden = {
     },
     "ambiguities": [f"B{n}" for n in range(1, 12)],
 }
+
+# --- The other reading of B1 (every head takes a drop), for the comparison -------------------
+# Each value is keyed by the label the comparison gives the fact (`firebid.evals.golden`).
+# A run that gives the expected value passes; one that gives this value is to settle with
+# B1; one that gives neither has a defect.
+(drop_all_heads,) = [line for line in bill_all_heads if line["line"] == "pipe_25_drop"]
+(client_drop,) = [row for row in client_lines if row["item"] == "B4"]
+client_drop_quantity = D(str(client_drop["client_quantity"]))
+all_heads_hours = D(figures_all_heads["labour_hours"])
+all_heads_cost = D(figures_all_heads["labour"])
+OTHER_READING = {
+    "STG-009": {
+        "line / pipe_25_drop / quantity": float(drop_all_m),
+        "client / B4 / measured_quantity": float(drop_all_m),
+        "client / B4 / variance_percent": float(
+            ((drop_all_m - client_drop_quantity) / client_drop_quantity * 100).quantize(D("0.1"))
+        ),
+    },
+    "STG-010": {
+        "line / pipe_25_drop / amount": float(drop_all_heads["amount"]),
+        "line / pipe_25_drop / labour hours": float(drop_all_heads["labour"]["hours"]),
+        "line / pipe_25_drop / labour cost": float(drop_all_heads["labour"]["cost"]),
+        "labour / hours": float(all_heads_hours),
+        "labour / cost": float(all_heads_cost),
+        **{
+            f"build-up / {name}": float(figures_all_heads[name])
+            for name in (
+                "materials",
+                "wastage",
+                "labour",
+                "direct",
+                "cost",
+                "margin",
+                "total_excluding_gst",
+                "gst",
+                "total_including_gst",
+            )
+        },
+    },
+    "STG-011": {
+        f"risk / {key} / impact {name}": float(
+            cents((all_heads_hours if name == "hours" else all_heads_cost) * (multipliers[key] - 1))
+        )
+        for key in ("night_work", "occupied_building")
+        for name in ("hours", "cost")
+    },
+    "STG-012": {
+        f"figure / {name}": float(figures_all_heads[name])
+        for name in ("priced_bill", "direct", "total_excluding_gst", "gst", "total_including_gst")
+    },
+}
+for one in golden["stages"]:
+    if one["stage_id"] in OTHER_READING:
+        one["expected_output"]["alternatives"] = [
+            {
+                "ambiguity": "B1",
+                "reading": "every head takes a drop, not the pendents only",
+                "values": OTHER_READING[one["stage_id"]],
+            }
+        ]
 
 manifest = {
     "test_case_id": "TC-SYN-002",

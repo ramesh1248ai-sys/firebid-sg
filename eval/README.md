@@ -93,8 +93,9 @@ uv run firebid-eval --root ../eval golden --case TC-SYN-001 \
     --run ../eval/results/golden/run.json --report ../eval/results/golden/TC-SYN-001.md
 ```
 
-`export-run` reads what the platform stored for the bid at stages 1 to 7 and works nothing
-out again. Its file holds the bid's quantities: for a real tender it is confidential, like
+`export-run` reads what the platform holds for the bid at stages 1 to 12. It works nothing
+out that the platform's own pages do not: the build-up, the labour estimate and the review
+pack are asked for as those pages ask. Its file holds the bid's quantities: for a real tender it is confidential, like
 the bid. `golden` writes the differences by class (critical, high, medium, low), those to
 settle against a recorded ambiguity, what the run has that the reference does not, and a
 score over the dimensions that were measured. It exits non-zero on a critical or a high

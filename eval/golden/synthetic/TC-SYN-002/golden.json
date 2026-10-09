@@ -1775,7 +1775,7 @@
               "allowance_percent": 5
             },
             {
-              "line": "reducer_150",
+              "line": "reducer_150x100",
               "group": "Fittings",
               "description": "Reducer, 150 mm (drawn)",
               "unit": "nr",
@@ -1992,7 +1992,7 @@
               "description": "150 x 100 mm concentric reducer",
               "unit": "nr",
               "client_quantity": 1.0,
-              "maps_to": "reducer_150",
+              "maps_to": "reducer_150x100",
               "generator_says": "Fitting, DN150xDN100 (fitting reducer)",
               "measured_quantity": 1.0,
               "difference": 0.0,
@@ -2038,6 +2038,17 @@
         "flagged": [
           "B4",
           "C3"
+        ],
+        "alternatives": [
+          {
+            "ambiguity": "B1",
+            "reading": "every head takes a drop, not the pendents only",
+            "values": {
+              "line / pipe_25_drop / quantity": 10.8,
+              "client / B4 / measured_quantity": 10.8,
+              "client / B4 / variance_percent": -10.0
+            }
+          }
         ]
       },
       "mandatory_fields": [
@@ -2256,7 +2267,7 @@
             }
           },
           {
-            "line": "reducer_150",
+            "line": "reducer_150x100",
             "group": "Fittings",
             "description": "Reducer, 150 mm (drawn)",
             "unit": "nr",
@@ -2490,7 +2501,29 @@
           "total_excluding_gst": "6454.39",
           "gst": "580.90",
           "total_including_gst": "7035.29"
-        }
+        },
+        "alternatives": [
+          {
+            "ambiguity": "B1",
+            "reading": "every head takes a drop, not the pendents only",
+            "values": {
+              "line / pipe_25_drop / amount": 130.68,
+              "line / pipe_25_drop / labour hours": 3.78,
+              "line / pipe_25_drop / labour cost": 74.7,
+              "labour / hours": 52.21,
+              "labour / cost": 1035.11,
+              "build-up / materials": 3843.89,
+              "build-up / wastage": 143.29,
+              "build-up / labour": 1035.11,
+              "build-up / direct": 5976.29,
+              "build-up / cost": 5976.29,
+              "build-up / margin": 478.1,
+              "build-up / total_excluding_gst": 6454.39,
+              "build-up / gst": 580.9,
+              "build-up / total_including_gst": 7035.29
+            }
+          }
+        ]
       },
       "mandatory_fields": [
         "line",
@@ -2744,7 +2777,19 @@
             "Sprinkler drops are measured by rule from the stated ceiling and main heights."
           ],
           "proposed_only_after": "a risk is treated as 'qualify' by a person: none is yet, so no qualification is proposed from a risk"
-        }
+        },
+        "alternatives": [
+          {
+            "ambiguity": "B1",
+            "reading": "every head takes a drop, not the pendents only",
+            "values": {
+              "risk / night_work / impact hours": 10.44,
+              "risk / night_work / impact cost": 207.02,
+              "risk / occupied_building / impact hours": 13.05,
+              "risk / occupied_building / impact cost": 258.78
+            }
+          }
+        ]
       },
       "mandatory_fields": [
         "kind",
@@ -2795,7 +2840,20 @@
           "three checklist items are open",
           "eight risks are untreated"
         ],
-        "submission": "none: nothing is frozen"
+        "submission": "none: nothing is frozen",
+        "alternatives": [
+          {
+            "ambiguity": "B1",
+            "reading": "every head takes a drop, not the pendents only",
+            "values": {
+              "figure / priced_bill": 4797.89,
+              "figure / direct": 5976.29,
+              "figure / total_excluding_gst": 6454.39,
+              "figure / gst": 580.9,
+              "figure / total_including_gst": 7035.29
+            }
+          }
+        ]
       },
       "mandatory_fields": [
         "figures",

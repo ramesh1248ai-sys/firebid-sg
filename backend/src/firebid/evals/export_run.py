@@ -5,8 +5,8 @@ platform holds for a bid at each stage, laid out as the package lays out what it
 It reads what the services stored and works nothing out again: a count here is a count of
 stored detections, a length the sum of stored runs, an item a live takeoff item.
 
-Stages 1 to 7. A stage with nothing stored is left out, and the comparison reports it as
-not exported.
+Stages 1 to 7 here; stages 8 to 12 in `firebid.evals.export_commercial`. A stage with
+nothing stored is left out, and the comparison reports it as not exported.
 
 Read on a session that may see the bid: the caller's own, or the service role's for a
 report across bids (`firebid-eval export-run`).
@@ -22,10 +22,12 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from firebid.db.models.core import Bid
 from firebid.db.models.documents import Document, Sheet, SheetRevision
 from firebid.db.models.drawings import SheetView
 from firebid.db.models.symbols import LegendEntry, SymbolMapping
-from firebid.db.models.takeoff import DetectedObject, DuplicateGroup, PipeRun
+from firebid.db.models.takeoff import DetectedObject, DuplicateGroup, PipeRun, QtoItem
+from firebid.evals import export_commercial as commercial
 from firebid.evals.golden import Run
 from firebid.services import qto
 
@@ -58,6 +60,18 @@ def export(session: Session, bid_id: uuid.UUID) -> Run:
     ):
         if output is not None:
             run[stage_id] = output
+    bid = session.get(Bid, bid_id)
+    if bid is not None:
+        for stage_id, read in (
+            ("STG-008", commercial.specification),
+            ("STG-009", commercial.bill),
+            ("STG-010", commercial.pricing),
+            ("STG-011", commercial.risks),
+            ("STG-012", commercial.review),
+        ):
+            later = read(session, bid)
+            if later is not None:
+                run[stage_id] = later
     return run
 
 
@@ -266,6 +280,34 @@ def _size(text: str | None) -> int | str | None:
     return int(numbers[0]) if len(numbers) == 1 else "x".join(numbers)
 
 
+def _item(item: QtoItem) -> dict[str, Any]:
+    """One takeoff item, as the package names it: what it is, its size and its run."""
+    attributes = dict(item.attributes)
+    one: dict[str, Any] = {
+        "item": item.item_type,
+        "quantity": float(item.net_quantity),
+        "unit": item.unit,
+        "level": item.level,
+        "state": item.state,
+        "description": item.description,
+    }
+    size = _size(_value(attributes, "nominal_diameter_mm") or _value(attributes, "size"))
+    outlet = _value(attributes, "outlet_diameter_mm")
+    if outlet and size is not None:
+        size = f"{size}x{outlet}"
+    if size is not None:
+        one["dn"] = size
+    if item.item_type.startswith("fitting_"):
+        one["item"], one["fitting"] = "fitting", item.item_type.removeprefix("fitting_")
+    elif item.item_type == "fitting" and _value(attributes, "fitting"):
+        one["fitting"] = _value(attributes, "fitting")
+    elif item.item_type == "pipe_hanger":
+        one["item"] = "hanger"
+    elif item.item_type == "pipe" and item.classification in PIPE_RUNS:
+        one["run"] = item.classification
+    return one
+
+
 def _takeoff(session: Session, bid_id: uuid.UUID) -> dict[str, Any] | None:
     items = qto.live_items(session, bid_id)
     if not items:
@@ -273,29 +315,7 @@ def _takeoff(session: Session, bid_id: uuid.UUID) -> dict[str, Any] | None:
     drawn: list[dict[str, Any]] = []
     derived: list[dict[str, Any]] = []
     for item in items:
-        attributes = dict(item.attributes)
-        one: dict[str, Any] = {
-            "item": item.item_type,
-            "quantity": float(item.net_quantity),
-            "unit": item.unit,
-            "level": item.level,
-            "state": item.state,
-            "description": item.description,
-        }
-        size = _size(_value(attributes, "nominal_diameter_mm") or _value(attributes, "size"))
-        outlet = _value(attributes, "outlet_diameter_mm")
-        if outlet and size is not None:
-            size = f"{size}x{outlet}"
-        if size is not None:
-            one["dn"] = size
-        if item.item_type.startswith("fitting_"):
-            one["item"], one["fitting"] = "fitting", item.item_type.removeprefix("fitting_")
-        elif item.item_type == "fitting" and _value(attributes, "fitting"):
-            one["fitting"] = _value(attributes, "fitting")
-        elif item.item_type == "pipe_hanger":
-            one["item"] = "hanger"
-        elif item.item_type == "pipe" and item.classification in PIPE_RUNS:
-            one["run"] = item.classification
+        one = _item(item)
         if item.calculation_method == "rule_derived":
             one["rule"] = item.rule_key
             derived.append(one)
