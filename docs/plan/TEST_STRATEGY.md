@@ -237,12 +237,16 @@ the ticked circle, match lines between sheets and the skewed wing.
 | Defect classification and the weighted score in the report | Built. The score is over the dimensions measured so far (85% of the weights) and says so. **To build:** linking a difference to the earlier one that caused it |
 | Semantic comparison (rubric, optional model judge) | **To build**; a model judge waits on decision D2. Until then wording is compared after normalising case and spacing only |
 | Evidence comparison (type D) | **To build** |
-| The platform run against a package in CI | TC-SYN-001, as a database test (`tests/db/test_golden_run.py`). **To build:** TC-SYN-002 and TC-SYN-003 |
+| The platform run against a package in CI | All three synthetic packages, stages 1 to 7, as database tests (`tests/db/test_golden_run.py`). TC-SYN-002's stages 8 to 12 are reported as not compared |
 | The brief for drafting a package | Added with this version |
 
 Build order: the schema and exporter first, then exact, tolerance and completeness
-comparison on TC-SYN-001 (done, 2026-10-08), then the other two synthetic packages and
-stages 8 to 12, then evidence, then semantic.
+comparison on TC-SYN-001 (done, 2026-10-08), then the other two synthetic packages (done
+for stages 1 to 7, 2026-10-08) and stages 8 to 12, then evidence, then semantic.
+
+Two rules of the stage 7 comparison came from running the pump room tender. A reference
+that does not say which of its drawn pipe is main and which is branch is compared by size
+alone. An equal tee is the same tee written as `150` or as `150x150`.
 
 A difference on something a package records as an ambiguity is reported as **to settle**,
 with the ambiguity's ID, and is neither a defect nor a pass. For that the package marks

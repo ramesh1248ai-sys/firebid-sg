@@ -229,6 +229,31 @@ def test_an_item_that_is_not_there_at_any_size_is_missing(package: golden.Packag
     ]
 
 
+def test_drawn_pipe_is_compared_by_size_alone_where_the_reference_names_no_run() -> None:
+    package = golden.load(PACKAGES / "TC-SYN-003")
+    run = the_reference_s_own(package)
+    # As the platform gives it: one line a level, each called a main.
+    for item in run["STG-007"]["pipe"]:
+        item["run"] = "main"
+
+    assert golden.compare(package, run).differences == []
+
+    run["STG-007"]["pipe"][0]["quantity"] += 3.0
+    assert defects(golden.compare(package, run)) == [
+        ("STG-007", "pipe / DN200 / m", "wrong", "CRITICAL")
+    ]
+
+
+def test_an_equal_tee_is_the_same_tee_however_its_size_is_written() -> None:
+    package = golden.load(PACKAGES / "TC-SYN-003")
+    run = the_reference_s_own(package)
+    for item in run["STG-007"]["derived_items"]:
+        if item.get("fitting") == "tee" and item["dn"] == "150x150":
+            item["dn"] = 150
+
+    assert golden.compare(package, run).differences == []
+
+
 class TestCommand:
     """`firebid-eval golden`."""
 

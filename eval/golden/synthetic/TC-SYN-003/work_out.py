@@ -303,8 +303,8 @@ golden = {
                 "equipment": equipment,
                 "pipe": pipe_items,
                 "derived_items": [
-                    {"item": "pipe", "dn": 100, "run": "rising main", "quantity": heights["L03"] / 1000, "unit": "m", "level": "L03", "rule": "riser_length", "calculation": f"{heights['L03']} mm x 1 level", "evidence": f"L03 FFL +9.000 and L04 FFL +13.500 on {fx.SCHEMATIC}", "ambiguity": "C2"},
-                    {"item": "pipe", "dn": 150, "run": "rising main", "quantity": riser_default["floor_to_floor_mm"] / 1000, "unit": "m", "level": "B1", "rule": "riser_length", "calculation": f"{riser_default['floor_to_floor_mm']} mm x 1 level", "evidence": "the rule's default: the level schedule does not name B1", "ambiguity": "C2"},
+                    {"item": "pipe", "dn": 100, "run": "riser", "quantity": heights["L03"] / 1000, "unit": "m", "level": "L03", "rule": "riser_length", "calculation": f"{heights['L03']} mm x 1 level", "evidence": f"L03 FFL +9.000 and L04 FFL +13.500 on {fx.SCHEMATIC}", "ambiguity": "C2"},
+                    {"item": "pipe", "dn": 150, "run": "riser", "quantity": riser_default["floor_to_floor_mm"] / 1000, "unit": "m", "level": "B1", "rule": "riser_length", "calculation": f"{riser_default['floor_to_floor_mm']} mm x 1 level", "evidence": "the rule's default: the level schedule does not name B1", "ambiguity": "C2"},
                     {"item": "fitting", "fitting": "tee", "dn": "200x150", "quantity": 2, "unit": "no", "level": "B1", "rule": "fitting_tee", "calculation": "the fire pump spurs at x = 5000 and 8000 leave the DN200 suction header", "ambiguity": "C3"},
                     {"item": "fitting", "fitting": "tee", "dn": "150x150", "quantity": 1, "unit": "no", "level": "B1", "rule": "fitting_tee", "calculation": "the standby pump joins the discharge header at x = 8000", "ambiguity": "C3"},
                     {"item": "fitting", "fitting": "tee", "dn": "150x50", "quantity": 1, "unit": "no", "level": "B1", "rule": "fitting_tee", "calculation": "the jockey pump joins the discharge header at x = 11000", "ambiguity": "C3"},

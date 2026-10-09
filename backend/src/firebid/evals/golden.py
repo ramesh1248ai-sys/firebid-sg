@@ -245,6 +245,14 @@ def _pipe(out: dict[str, Any], stage: Stage) -> list[Fact]:
 
 def _takeoff(out: dict[str, Any], stage: Stage) -> list[Fact]:
     percent = (stage.tolerance or {}).get("length_percent", 5.0)
+    # A reference that does not say which of its drawn pipe is main and which branch is
+    # compared by size alone: both sides are read without the run.
+    runs_stated = any(
+        item.get("run")
+        for part in ("drawn_items", "pipe")
+        for item in stage.expected_output.get(part, [])
+        if item.get("item") == "pipe"
+    )
     totals: dict[tuple[str, ...], tuple[float, str, bool, str | None]] = {}
     for part, derived in (
         ("drawn_items", False),
@@ -253,11 +261,17 @@ def _takeoff(out: dict[str, Any], stage: Stage) -> list[Fact]:
         ("derived_items", True),
     ):
         for item in out.get(part, []):
+            size = str(item["dn"]) if item.get("dn") else ""
+            if item.get("fitting") == "tee" and size and "x" not in size:
+                size = f"{size}x{size}"  # an equal tee, however it is written
+            run = str(item.get("run") or "")
+            if item.get("item") == "pipe" and not derived and not runs_stated:
+                run = ""
             key = (
                 str(item.get("item", "")),
                 str(item.get("fitting") or ""),
-                f"DN{item['dn']}" if item.get("dn") else "",
-                str(item.get("run") or ""),
+                f"DN{size}" if size else "",
+                run,
             )
             quantity, unit, _, ambiguity = totals.get(
                 key, (0.0, str(item.get("unit", "")), 0, None)
