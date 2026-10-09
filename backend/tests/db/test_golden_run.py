@@ -66,12 +66,7 @@ KNOWN_DEFECTS: dict[str, set[tuple[str, str, str]]] = {
         ("STG-012", "open / bill_variances_flagged", "HIGH"),
     },
     "TC-SYN-003": {
-        # Levels, where the package gives none and has no ambiguity for it: for a person.
-        # The platform puts what the site plan draws on a level it calls SITE (the hydrants,
-        # the hydrant main and its tees), though the sheet is registered with no level.
-        ("STG-007", "hydrant / no / level", "HIGH"),
-        ("STG-007", "pipe / DN150 / m / level", "HIGH"),
-        ("STG-007", "fitting / tee / DN150x150 / no / level", "HIGH"),
+        # A level where the package gives none and has no ambiguity for it: for a person.
         # The platform puts the breeching inlet, which only the schematic draws, on the level
         # the schematic names nearest it (L01).
         ("STG-007", "breeching_inlet / no / level", "HIGH"),
@@ -130,7 +125,15 @@ TO_SETTLE: dict[str, set[tuple[str, str, str]]] = {
         *{(stage, what, "B1") for stage, what in THE_OTHER_READING_OF_B1},
     },
     # C2 and C3 are recorded as open, and the platform gives what the package gives.
-    "TC-SYN-003": set(),
+    "TC-SYN-003": {
+        # C8: the platform puts the site plan, and what is taken off from it, on a level it
+        # reads from the drawing number (SITE); the package gives them none. The register
+        # and the takeoff agree with each other.
+        ("STG-002", "fp-site-001 / level", "C8"),
+        ("STG-007", "hydrant / no / level", "C8"),
+        ("STG-007", "pipe / DN150 / m / level", "C8"),
+        ("STG-007", "fitting / tee / DN150x150 / no / level", "C8"),
+    },
 }
 OTHER_SYSTEMS = ("hose_reel", "hydrant")
 # In the run and not in the package: each is for a person to say whether the package left it
@@ -331,9 +334,11 @@ def test_the_platform_s_stages_1_to_7_against_tc_syn_003(session: Session, pump_
     # the pipe of three plans. What differs is the level of four of the 28 kinds of item.
     passed = checks(result)
     assert all(passed[f"STG-00{n}"][0] == passed[f"STG-00{n}"][1] for n in range(1, 7)), told
+    assert passed["STG-007"][0] - passed["STG-007"][1] == 1, told
     assert passed["STG-005"] == (16, 16), told
-    assert passed["STG-007"] == (56, 52), told
     assert all(d.what.endswith("/ level") for d in result.differences), told
+    # The four with C8 are its other reading, on the sheet and on its items alike.
+    assert sum(d.other_reading for d in result.differences) == 4, told
 
 
 def test_a_bid_with_nothing_read_exports_nothing(session: Session, bid: Bid) -> None:

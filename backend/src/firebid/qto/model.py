@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
+
+from firebid.drawings import title_block
 
 
 @dataclass(frozen=True)
@@ -158,8 +159,10 @@ def key_of(*parts: Any) -> str:
 DESIGNED = "designed"
 
 
-# A site plan's sheet is of no storey: what it shows is located on the site (P2-01).
-LEVEL_IN_NUMBER = re.compile(r"(?:^|[-_])(L\d{1,2}|B\d{1,2}|RF|SITE|EXT)(?=[-_]|$)")
+# One pattern for the register and the takeoff, so that a sheet and what is taken off from
+# it are on the same level. A site plan's sheet is of no storey: what it shows is located on
+# the site (P2-01).
+LEVEL_IN_NUMBER = title_block.LEVEL_IN_NUMBER
 
 
 def level_of(sheet_number: str | None, *known: str | None) -> str | None:

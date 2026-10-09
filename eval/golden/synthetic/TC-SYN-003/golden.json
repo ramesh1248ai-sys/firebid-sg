@@ -120,7 +120,16 @@
             "status": "current"
           }
         ],
-        "superseded": []
+        "superseded": [],
+        "alternatives": [
+          {
+            "ambiguity": "C8",
+            "reading": "the site plan, and what is taken off from it, is on a level named SITE",
+            "values": {
+              "fp-site-001 / level": "SITE"
+            }
+          }
+        ]
       },
       "mandatory_fields": [
         "drawing_number",
@@ -1349,7 +1358,18 @@
             "why": "sizes change only at tees"
           }
         ],
-        "status_of_every_derived_item": "to be confirmed (the rules are seeded defaults)"
+        "status_of_every_derived_item": "to be confirmed (the rules are seeded defaults)",
+        "alternatives": [
+          {
+            "ambiguity": "C8",
+            "reading": "the site plan, and what is taken off from it, is on a level named SITE",
+            "values": {
+              "hydrant / no / level": "site",
+              "pipe / DN150 / m / level": "b1, site",
+              "fitting / tee / DN150x150 / no / level": "b1, site"
+            }
+          }
+        ]
       },
       "mandatory_fields": [
         "item",
@@ -1457,6 +1477,7 @@
     "C4",
     "C5",
     "C6",
-    "C7"
+    "C7",
+    "C8"
   ]
 }

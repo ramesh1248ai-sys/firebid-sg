@@ -102,7 +102,9 @@ REVISION = re.compile(r"[A-Z]{0,2}\d{1,3}|[A-Z]{1,2}|[-\u2013]")
 SCALE = re.compile(
     r"(1\s*:\s*\d{1,5}(\s*@\s*A\d)?)|N\.?T\.?S\.?|NOT\s+TO\s+SCALE|AS\s+(SHOWN|INDICATED)", re.I
 )
-LEVEL_IN_NUMBER = re.compile(r"(?:^|[-_])(L\d{1,2}|B\d{1,2}|RF|GF|UR|MZ)(?=[-_]|$)")
+# A level in a drawing number. A site plan's sheet is of no storey: what it shows is located
+# on the site (SITE, EXT), and the register says so as the takeoff does (`qto.model`).
+LEVEL_IN_NUMBER = re.compile(r"(?:^|[-_])(L\d{1,2}|B\d{1,2}|RF|GF|UR|MZ|SITE|EXT)(?=[-_]|$)")
 ZONE_IN_NUMBER = re.compile(r"(?:^|[-_])(Z[A-Z0-9]{1,2})(?=[-_]|$)")
 # What a level or a zone written after its label in the same run of text looks like: a
 # number or short code, a level's name, or a few of them ("5", "B1", "BASEMENT 1", "5 TO 7").

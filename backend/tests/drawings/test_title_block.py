@@ -165,6 +165,24 @@ class TestLayoutsTheGeneratorDoesNotDraw:
         assert reading.value(Field.LEVEL) == "L05"  # from the drawing number
         assert reading.value(Field.TITLE) == "LEVEL 5 SPRINKLER LAYOUT PLAN"
 
+    @pytest.mark.parametrize("number", ["FP-SITE-001", "FP-EXT-002"])
+    def test_a_site_plan_is_registered_on_the_level_its_items_are_taken_off_on(
+        self, number: str
+    ) -> None:
+        # Found by the golden comparison on TC-SYN-003: the takeoff put a site plan's
+        # hydrants on SITE, and the register gave the sheet no level.
+        from firebid.drawings import title_block
+        from firebid.qto import model
+
+        spans = [span(f"DWG NO: {number}", 640, 560), span("REV: R01", 640, 566)]
+
+        reading = read(spans, PAGE)
+
+        assert reading.value(Field.LEVEL) == number.split("-")[1]
+        assert reading.value(Field.LEVEL) == model.level_of(number)
+        # One rule, so the two cannot drift apart again.
+        assert model.LEVEL_IN_NUMBER is title_block.LEVEL_IN_NUMBER
+
     def test_a_title_that_begins_with_the_word_area_is_not_a_zone_label(self) -> None:
         spans = [
             span("AREA OF REFUGE SPRINKLER LAYOUT", 640, 552),
