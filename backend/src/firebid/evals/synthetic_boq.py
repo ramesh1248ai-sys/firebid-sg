@@ -135,7 +135,7 @@ SECTIONS: list[tuple[str, str, list[Line]]] = [
                 "150 x 100 mm concentric reducer",
                 "nr",
                 Decimal(1),
-                "Fitting, DN150 (fitting reducer)",
+                "Fitting, DN150xDN100 (fitting reducer)",
             ),
         ],
     ),

@@ -283,6 +283,9 @@ def _takeoff(session: Session, bid_id: uuid.UUID) -> dict[str, Any] | None:
             "description": item.description,
         }
         size = _size(_value(attributes, "nominal_diameter_mm") or _value(attributes, "size"))
+        outlet = _value(attributes, "outlet_diameter_mm")
+        if outlet and size is not None:
+            size = f"{size}x{outlet}"
         if size is not None:
             one["dn"] = size
         if item.item_type.startswith("fitting_"):

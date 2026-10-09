@@ -37,14 +37,11 @@ pytestmark = [pytest.mark.usefixtures("no_tiles"), pytest.mark.req("FR-LRN-01")]
 
 PACKAGES = Path(__file__).resolve().parents[3] / "eval" / "golden" / "synthetic"
 
-# Open on 2026-10-08. Each is the platform's to fix or the package's to correct against the
-# drawing, and is in the build log.
-REDUCER = ("STG-007", "fitting / reducer / no / size", "MEDIUM")
-KNOWN_DEFECTS = {
-    # The drawn reducer is held at the size of the pipe it sits on; its outlet size (100)
-    # is not held. The basement car park draws the same reducer.
-    "TC-SYN-001": {REDUCER},
-    "TC-SYN-002": {REDUCER},
+# Each is the platform's to fix or the package's to correct against the drawing, and is in
+# the build log. None is open: the last, a drawn reducer's outlet size, was fixed 2026-10-09.
+KNOWN_DEFECTS: dict[str, set[tuple[str, str, str]]] = {
+    "TC-SYN-001": set(),
+    "TC-SYN-002": set(),
     "TC-SYN-003": set(),
 }
 # Differences on what the package records as ambiguous: for a person to settle.

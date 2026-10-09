@@ -93,7 +93,7 @@ class TestTakeoff:
             "Sprinkler, sidewall": Decimal(4),
             "Gate valve, DN150": Decimal(1),
             "Check valve, DN150": Decimal(1),
-            "Fitting, DN150 (fitting reducer)": Decimal(1),
+            "Fitting, DN150xDN100 (fitting reducer)": Decimal(1),
             "Tee, DN150xDN50 (rule-derived: not drawn)": Decimal(3),
             "Tee, DN100xDN50 (rule-derived: not drawn)": Decimal(3),
             # Hangers by rule (P2-01), at the company default spacing: no specification here.
