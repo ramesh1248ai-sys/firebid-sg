@@ -126,6 +126,9 @@ class Fact:
     # at another size is one difference (its size), not one item missing and another extra.
     size: str | None = None
     identity: tuple[str, ...] | None = None
+    # The fact this one is about (an item's level is about the item). Where that one is
+    # missing, or is there at another size, this one is not reported as well.
+    of: tuple[str, ...] | None = None
 
     def label(self) -> str:
         return " / ".join(part for part in self.key if part)
@@ -259,6 +262,14 @@ def _takeoff(out: dict[str, Any], stage: Stage) -> list[Fact]:
         for item in stage.expected_output.get(part, [])
         if item.get("item") == "pipe"
     )
+    # Levels are compared where the reference states them: for the whole takeoff, or item
+    # by item. An item it gives no level (a site main, a schematic's inlet) is to have none.
+    parts = ("drawn_items", "equipment", "pipe", "derived_items")
+    reference = stage.expected_output
+    levels_stated = "level" in reference or any(
+        "level" in item for part in parts for item in reference.get(part, [])
+    )
+    levels: dict[tuple[str, ...], set[str]] = {}
     totals: dict[tuple[str, ...], tuple[float, str, bool, str | None]] = {}
     for part, derived in (
         ("drawn_items", False),
@@ -288,7 +299,9 @@ def _takeoff(out: dict[str, Any], stage: Stage) -> list[Fact]:
                 derived,
                 item.get("ambiguity") or ambiguity,
             )
-    return [
+            level = item["level"] if "level" in item else out.get("level")
+            levels.setdefault(key, set()).add(_text(level) or "no level")
+    facts = [
         Fact(
             (*key, unit),
             quantity,
@@ -300,6 +313,18 @@ def _takeoff(out: dict[str, Any], stage: Stage) -> list[Fact]:
         )
         for key, (quantity, unit, derived, ambiguity) in totals.items()
     ]
+    if levels_stated:
+        facts += [
+            Fact(
+                (*key, unit, "level"),
+                ", ".join(sorted(levels[key])),
+                "intermediate_work_product",
+                severity="HIGH",
+                of=(*key, unit),
+            )
+            for key, (_, unit, _, _) in totals.items()
+        ]
+    return facts
 
 
 def _amount(value: Any) -> float | None:
@@ -727,6 +752,8 @@ def compare(package: Package, run: Run) -> Result:
         for key, fact in expected.items():
             if key in resized:
                 continue
+            if fact.of is not None and (fact.of in resized or fact.of not in actual):
+                continue  # the item itself is the difference, and is reported once
             found = actual.get(key)
             if found is not None and _same(fact, found.value):
                 result.outcomes.append((fact.dimension, True))
@@ -756,6 +783,8 @@ def compare(package: Package, run: Run) -> Result:
                 )
             )
         for key, fact in actual.items():
+            if fact.of is not None and (fact.of not in expected or fact.of in taken):
+                continue
             if key not in expected and key not in taken:
                 result.differences.append(
                     Difference(

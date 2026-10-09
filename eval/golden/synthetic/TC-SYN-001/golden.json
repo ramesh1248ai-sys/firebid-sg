@@ -810,6 +810,7 @@
       "stage_name": "Takeoff",
       "comparison_type": "TOLERANCE",
       "expected_output": {
+        "level": "L05",
         "duplicates": [
           {
             "sheet": "FP-L05-301",

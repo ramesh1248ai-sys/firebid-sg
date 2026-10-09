@@ -51,8 +51,7 @@ pytestmark = [pytest.mark.usefixtures("no_tiles"), pytest.mark.req("FR-LRN-01")]
 PACKAGES = Path(__file__).resolve().parents[3] / "eval" / "golden" / "synthetic"
 
 # Each is the platform's to fix, the package's to correct, or the test's own, and is in the
-# build log. Stages 1 to 7 have none: the last, a drawn reducer's outlet size, was fixed
-# 2026-10-09.
+# build log.
 KNOWN_DEFECTS: dict[str, set[tuple[str, str, str]]] = {
     "TC-SYN-001": set(),
     "TC-SYN-002": {
@@ -66,7 +65,17 @@ KNOWN_DEFECTS: dict[str, set[tuple[str, str, str]]] = {
         # client lines; the package counts the client's two.
         ("STG-012", "open / bill_variances_flagged", "HIGH"),
     },
-    "TC-SYN-003": set(),
+    "TC-SYN-003": {
+        # Levels, where the package gives none and has no ambiguity for it: for a person.
+        # The platform puts what the site plan draws on a level it calls SITE (the hydrants,
+        # the hydrant main and its tees), though the sheet is registered with no level.
+        ("STG-007", "hydrant / no / level", "HIGH"),
+        ("STG-007", "pipe / DN150 / m / level", "HIGH"),
+        ("STG-007", "fitting / tee / DN150x150 / no / level", "HIGH"),
+        # The platform puts the breeching inlet, which only the schematic draws, on the level
+        # the schematic names nearest it (L01).
+        ("STG-007", "breeching_inlet / no / level", "HIGH"),
+    },
 }
 # B1: does every head take a drop, or the pendents only? The package records what the other
 # reading gives at each stage, and the platform gives exactly that, to the cent.
@@ -318,10 +327,13 @@ def test_the_platform_s_stages_1_to_7_against_tc_syn_003(session: Session, pump_
     result, told = against(session, pump_room, "TC-SYN-003")
 
     assert len(result.stages) == 7
-    # Nothing differs: 17 pieces of equipment once each, and the pipe of three plans.
-    assert all(done == passed for done, passed in checks(result).values()), told
-    assert checks(result)["STG-005"] == (16, 16), told
-    assert golden.score(result).overall == 1.0
+    # No count, length or derived quantity differs: 17 pieces of equipment once each, and
+    # the pipe of three plans. What differs is the level of four of the 28 kinds of item.
+    passed = checks(result)
+    assert all(passed[f"STG-00{n}"][0] == passed[f"STG-00{n}"][1] for n in range(1, 7)), told
+    assert passed["STG-005"] == (16, 16), told
+    assert passed["STG-007"] == (56, 52), told
+    assert all(d.what.endswith("/ level") for d in result.differences), told
 
 
 def test_a_bid_with_nothing_read_exports_nothing(session: Session, bid: Bid) -> None:
