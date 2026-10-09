@@ -270,6 +270,18 @@ class AppliedOut(BaseModel):
     basis: str
 
 
+class PortionOut(BaseModel):
+    """The part of a line on one level: a line billed for the building is worked level by
+    level, and each level carries its own multipliers."""
+
+    level: str | None
+    quantity: Decimal
+    baseline_hours: Decimal
+    multipliers: list[str]
+    factor: Decimal
+    hours: Decimal
+
+
 class LabourLineOut(BaseModel):
     line_id: uuid.UUID
     reference: str
@@ -289,6 +301,8 @@ class LabourLineOut(BaseModel):
     hourly_rate: Decimal | None
     cost: Decimal | None
     reason: str
+    # Empty for a line that is of one place: its own level, or no level at all.
+    by_level: list[PortionOut] = []
 
 
 class SubtotalOut(BaseModel):

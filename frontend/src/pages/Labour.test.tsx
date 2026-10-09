@@ -252,6 +252,56 @@ describe("the labour estimate", () => {
   });
 
   // req: FR-LAB-02
+  it("shows a line billed for the building level by level, with each level's factor", async () => {
+    const base = labour();
+    const pipe = {
+      ...base.lines[0],
+      line_id: "22222222-0000-4000-8000-000000000009",
+      reference: "A8",
+      description: "50 mm pipe (branch)",
+      level: null,
+      unit: "m",
+      quantity: "72.000",
+      hours_per_unit: "0.3000",
+      trade: "pipefitter",
+      baseline_hours: "21.60",
+      multipliers: [],
+      factor: "1.0556",
+      hours: "22.80",
+      by_level: [
+        {
+          level: "B1",
+          quantity: "40.000",
+          baseline_hours: "12.00",
+          multipliers: ["basement"],
+          factor: "1.1",
+          hours: "13.20",
+        },
+        {
+          level: "L05",
+          quantity: "32.000",
+          baseline_hours: "9.60",
+          multipliers: [],
+          factor: "1",
+          hours: "9.60",
+        },
+      ],
+    };
+    const heads = { ...base.lines[0], by_level: [] };
+    stubs({ "/labour": () => Response.json({ ...base, lines: [heads, pipe] }) });
+    renderAt(`/bids/${BID}/boq`);
+
+    const table = await screen.findByRole("table", { name: "Labour" });
+    const row = within(table).getByText("50 mm pipe (branch)").closest("tr")!;
+    expect(row).toHaveTextContent("Overall × 1.0556, by level:");
+    expect(row).toHaveTextContent("B1: 40 m, 12.00 h × 1.10 = 13.20 h");
+    expect(row).toHaveTextContent("L05: 32 m, 9.60 h × 1.00 = 9.60 h");
+    // A line that is of one place says nothing more.
+    const of_one_level = within(table).getByText("Pendent sprinkler head").closest("tr")!;
+    expect(of_one_level).not.toHaveTextContent("by level");
+  });
+
+  // req: FR-LAB-02
   it("leaves a proposed condition to a person, with its source and rationale", async () => {
     const calls = stubs();
     renderAt(`/bids/${BID}/boq`);

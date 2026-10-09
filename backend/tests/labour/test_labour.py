@@ -311,6 +311,25 @@ class TestHours:
         # The line shows each multiplier it carries anywhere, and what they come to.
         assert [m.key for m in found.multipliers] == ["basement", "night_work"]
         assert found.factor == Decimal("1.2667")
+        # And the page is told where that comes from.
+        assert found.as_json()["by_level"] == [
+            {
+                "level": "B1",
+                "quantity": "40.000",
+                "baseline_hours": "12.00",
+                "multipliers": ["basement", "night_work"],
+                "factor": "1.32",
+                "hours": "15.84",
+            },
+            {
+                "level": "L05",
+                "quantity": "32.000",
+                "baseline_hours": "9.60",
+                "multipliers": ["night_work"],
+                "factor": "1.2",
+                "hours": "11.52",
+            },
+        ]
         assert found.cost is not None
         assert found.cost.amount == (Decimal("27.36") * rate.hourly).quantize(Decimal("0.01"))
 
