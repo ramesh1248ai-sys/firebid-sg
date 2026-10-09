@@ -2786,7 +2786,9 @@
               "risk / night_work / impact hours": 10.44,
               "risk / night_work / impact cost": 207.02,
               "risk / occupied_building / impact hours": 13.05,
-              "risk / occupied_building / impact cost": 258.78
+              "risk / occupied_building / impact cost": 258.78,
+              "risk / basement / impact hours": 5.22,
+              "risk / basement / impact cost": 103.51
             }
           }
         ]

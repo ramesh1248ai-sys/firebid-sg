@@ -322,19 +322,30 @@ def computed_impact(
         [row.level] if row.level else []
     )
     estimate = labour.estimate(session, bid, today)
-    reached = [
-        line
-        for line in estimate.lines
-        if line.baseline_hours is not None and (not levels or line.line.level in levels)
-    ]
-    hours = sum((line.baseline_hours or Decimal(0) for line in reached), Decimal(0))
-    cost = sum(
-        ((line.baseline_hours or Decimal(0)) * line.rate.hourly for line in reached if line.rate),
-        Decimal(0),
-    )
-    applied = bool(reached) and all(
-        any(m.key == item.key for m in line.multipliers) for line in reached
-    )
+    # What the risk reaches of each line: (the line, its baseline hours there, whether the
+    # multiplier is already on them). A line rolled up over the building is reached for the
+    # part of it that is on the risk's levels.
+    reached: list[tuple[Any, Decimal, bool]] = []
+    for line in estimate.lines:
+        if line.baseline_hours is None:
+            continue
+        if levels and line.portions:
+            parts = [part for part in line.portions if part.level in levels]
+            if parts:
+                reached.append(
+                    (
+                        line,
+                        sum((part.baseline_hours for part in parts), Decimal(0)),
+                        all(any(m.key == item.key for m in part.multipliers) for part in parts),
+                    )
+                )
+        elif not levels or line.line.level in levels:
+            reached.append(
+                (line, line.baseline_hours, any(m.key == item.key for m in line.multipliers))
+            )
+    hours = sum((there for _, there, _ in reached), Decimal(0))
+    cost = sum((there * line.rate.hourly for line, there, _ in reached if line.rate), Decimal(0))
+    applied = bool(reached) and all(carried for _, _, carried in reached)
     return impacts.labour_impact(
         impacts.LabourReach(len(reached), hours, cost),
         item.key,

@@ -1345,7 +1345,7 @@ OTHER_READING = {
         f"risk / {key} / impact {name}": float(
             cents((all_heads_hours if name == "hours" else all_heads_cost) * (multipliers[key] - 1))
         )
-        for key in ("night_work", "occupied_building")
+        for key in ("night_work", "occupied_building", "basement")
         for name in ("hours", "cost")
     },
     "STG-012": {

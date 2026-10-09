@@ -95,7 +95,7 @@ THE_OTHER_READING_OF_B1 = {
     },
     *{
         ("STG-011", f"risk / {kind} / impact {of}")
-        for kind in ("night_work", "occupied_building")
+        for kind in ("night_work", "occupied_building", "basement")
         for of in ("hours", "cost")
     },
     *{
@@ -119,10 +119,6 @@ TO_SETTLE: dict[str, set[tuple[str, str, str]]] = {
         # B1, which is A1 again: 24 heads x 450 mm (10.8 m) against 16 pendents (7.2 m).
         ("STG-007", "pipe / DN25 / drop / m", "B1"),
         *{(stage, what, "B1") for stage, what in THE_OTHER_READING_OF_B1},
-        # B10: the platform applies the basement factor to the lines that carry level B1,
-        # which are the three lines of heads (10.40 h); the package, to all the labour.
-        ("STG-011", "risk / basement / impact hours", "B10"),
-        ("STG-011", "risk / basement / impact cost", "B10"),
     },
     # C2 and C3 are recorded as open, and the platform gives what the package gives.
     "TC-SYN-003": set(),

@@ -26,10 +26,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from firebid.db.audit import record_event
-from firebid.db.models.commercial import BoqLine
+from firebid.db.models.commercial import BoqLine, BoqLineSource
 from firebid.db.models.core import Bid
 from firebid.db.models.labour import LabourCondition, LabourProductivity
-from firebid.db.models.takeoff import BidParameter
+from firebid.db.models.takeoff import BidParameter, QtoItem
 from firebid.domain.actors import Actor, AuditContext
 from firebid.labour import estimate as est
 from firebid.labour import multipliers, productivity, rates
@@ -292,6 +292,19 @@ def _bill(session: Session, bid_id: uuid.UUID) -> list[BoqLine]:
     return lines_of(session, boq) if boq is not None else []
 
 
+def _levels(session: Session, bid_id: uuid.UUID) -> dict[uuid.UUID, dict[str | None, Decimal]]:
+    """For each bill line, the quantity of the takeoff items behind it on each level."""
+    found: dict[uuid.UUID, dict[str | None, Decimal]] = {}
+    for line_id, level, quantity in session.execute(
+        select(BoqLineSource.boq_line_id, QtoItem.level, QtoItem.net_quantity)
+        .join(QtoItem, QtoItem.id == BoqLineSource.qto_item_id)
+        .where(BoqLineSource.bid_id == bid_id, QtoItem.bid_id == bid_id)
+    ).tuples():
+        on = found.setdefault(line_id, {})
+        on[level] = on.get(level, Decimal(0)) + quantity
+    return found
+
+
 def _parameters(
     session: Session, bid_id: uuid.UUID, name: str
 ) -> dict[str | None, tuple[Decimal, str]]:
@@ -439,6 +452,7 @@ def estimate(
         return trades[trade]
 
     lines = []
+    on_levels = _levels(session, bid.id)
     for line in _bill(session, bid.id):
         if line.is_provisional or line.is_lump_sum:
             continue  # an estimator's allowance, not a measured quantity
@@ -453,12 +467,24 @@ def estimate(
         )
         key = ItemKey.parse(line.item_key) if line.item_key else None
         entry = productivity.match(key, line.unit, entries)
+        # A line rolled up over the building is worked level by level, from the takeoff
+        # items behind it: all of its quantity must be accounted for, or it is left whole.
+        split = on_levels.get(line.id, {}) if line.level is None else {}
+        by_level = (
+            [
+                (level, quantity, multipliers.applied_to(level, confirmed, catalogue))
+                for level, quantity in sorted(split.items(), key=lambda part: part[0] or "")
+            ]
+            if any(split) and sum(split.values(), Decimal(0)) == line.quantity
+            else None
+        )
         lines.append(
             est.line_hours(
                 bill_line,
                 entry,
                 multipliers.applied_to(line.level, confirmed, catalogue),
                 rate_of(entry.trade) if entry else None,
+                by_level,
             )
         )
     return est.estimate(lines)

@@ -276,6 +276,61 @@ class TestHours:
         assert shown["productivity_source"] == "company standard: PS-2026"
         assert [m["confirmed_by"] for m in shown["multipliers"]] == ["Esther", "Esther", "Sam"]
 
+    def test_a_line_rolled_up_over_the_building_is_worked_level_by_level(self) -> None:
+        items = multipliers.by_key(CONFIG)
+        confirmed = [
+            multipliers.Condition("basement", "B1", "Esther"),
+            multipliers.Condition("night_work", None, "Sam"),
+        ]
+        rate = rates.trade_rate("pipefitter", date(2026, 1, 1), rates.tables(RATE_TABLES))
+        by_level = [
+            (level, Decimal(quantity), multipliers.applied_to(level, confirmed, items))
+            for level, quantity in (("B1", "40.000"), ("L05", "32.000"))
+        ]
+
+        found = est.line_hours(
+            bill("B1", "72.000"),
+            entry(dn="50"),
+            multipliers.applied_to(None, confirmed, items),
+            rate,
+            by_level,
+        )
+
+        # 40 m on B1: 12.00 h x 1.1 (basement) x 1.2 (night) = 15.84. 32 m on L05: 9.60 h
+        # x 1.2 (night) = 11.52. The basement factor does not reach level 5.
+        assert found.baseline_hours == Decimal("21.60")
+        assert found.hours == Decimal("27.36")
+        assert [(p.level, p.baseline_hours) for p in found.portions] == [
+            ("B1", Decimal("12.00")),
+            ("L05", Decimal("9.60")),
+        ]
+        assert [[m.key for m in p.multipliers] for p in found.portions] == [
+            ["basement", "night_work"],
+            ["night_work"],
+        ]
+        # The line shows each multiplier it carries anywhere, and what they come to.
+        assert [m.key for m in found.multipliers] == ["basement", "night_work"]
+        assert found.factor == Decimal("1.2667")
+        assert found.cost is not None
+        assert found.cost.amount == (Decimal("27.36") * rate.hourly).quantize(Decimal("0.01"))
+
+    def test_a_line_all_on_one_level_comes_to_what_that_level_s_line_would(self) -> None:
+        items = multipliers.by_key(CONFIG)
+        confirmed = [multipliers.Condition("basement", "B1", "Esther")]
+        applied = multipliers.applied_to("B1", confirmed, items)
+        rate = rates.trade_rate("pipefitter", date(2026, 1, 1), rates.tables(RATE_TABLES))
+
+        rolled_up = est.line_hours(
+            bill("B1", "72.000"), entry(dn="50"), [], rate, [("B1", Decimal("72.000"), applied)]
+        )
+        on_its_level = est.line_hours(bill("B1", "72.000", "B1"), entry(dn="50"), applied, rate)
+
+        assert (rolled_up.hours, rolled_up.factor, rolled_up.cost) == (
+            on_its_level.hours,
+            on_its_level.factor,
+            on_its_level.cost,
+        )
+
     def test_a_line_with_no_entry_has_no_hours_and_says_why(self) -> None:
         found = est.line_hours(bill("C4", "2", unit="nr"), None, [], None)
 
