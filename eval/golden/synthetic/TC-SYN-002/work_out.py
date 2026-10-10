@@ -868,6 +868,12 @@ golden = {
                     "expected": "not specified, for every pipe material, class, joining method and every sprinkler K-factor, temperature, response and finish",
                     "why": "the drawing's symbols state none, and no specification attribute has been verified by a person",
                     "a_defect_if": "a takeoff item carries a specification value (black steel, grooved, K80, chrome ...) while that attribute is still a proposal",
+                    # The same, as the comparison reads it: the attributes that every item
+                    # of a kind is to leave not specified.
+                    "not_specified": {
+                        "pipe": ["pipe_material", "pipe_class", "joining_method"],
+                        "sprinkler": ["k_factor", "temperature_rating_c", "response", "finish"],
+                    },
                 },
                 "not_expected": [
                     {"item": "fitting", "fitting": "reducer", "why": "drawn, so not derived again"},

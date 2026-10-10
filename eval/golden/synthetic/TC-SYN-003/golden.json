@@ -1370,6 +1370,15 @@
               "pipe / DN150 / m / on no level": 0,
               "fitting / tee / DN150x150 / no / on no level": 0
             }
+          },
+          {
+            "ambiguity": "C6",
+            "reading": "the pump room's pipe is of the rising main's system (wet riser)",
+            "values": {
+              "pipe / DN200 / m / system": "wet rising main",
+              "pipe / DN150 / m / system": "hydrant, wet rising main",
+              "pipe / DN50 / m / system": "wet rising main"
+            }
           }
         ]
       },

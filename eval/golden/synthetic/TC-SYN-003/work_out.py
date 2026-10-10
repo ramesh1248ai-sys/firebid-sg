@@ -368,6 +368,25 @@ for one in golden["stages"]:
             }
         ]
 
+# --- The other reading of C6 (the pump room's pipe is of the rising main's system) -----------
+# The DN150 is drawn in the pump room and on the site plan, so it is of two systems.
+RISING_MAIN = "wet rising main"
+OF_THE_RISING_MAIN = {
+    f"pipe / DN{dn} / m / system": ", ".join(
+        sorted({RISING_MAIN, *(SYSTEM[n] for n in (fx.FLOOR, fx.SITE) if dn in lengths[n])})
+    )
+    for dn in lengths[fx.PUMP_ROOM]
+}
+for one in golden["stages"]:
+    if one["stage_id"] == "STG-007":
+        one["expected_output"]["alternatives"].append(
+            {
+                "ambiguity": "C6",
+                "reading": "the pump room's pipe is of the rising main's system (wet riser)",
+                "values": OF_THE_RISING_MAIN,
+            }
+        )
+
 manifest = {
     "test_case_id": "TC-SYN-003",
     "kind": "synthetic",
