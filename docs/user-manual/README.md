@@ -1,9 +1,16 @@
 # FireBid SG User Manual
 
 FireBid SG takes a fire-protection tender from uploaded documents to a priced, reviewed bid.
-This manual walks through each screen in the order a bid uses them.
+The manual has three parts:
 
-The screenshots were taken on 2026-10-08 from a synthetic test bid. See also
+| Part | Read it to |
+| --- | --- |
+| [A tender from upload to award](happy-path.md) | Follow one bid through every step, with who does what |
+| [When something is not right](exceptions.md) | Find out what a warning or a blocked step means, and what to do |
+| This page | Look up what a screen offers |
+
+This page walks through each screen in the order a bid uses them. The screenshots were
+taken on 2026-10-08 and 2026-10-10 from synthetic test bids. See also
 [the estimator quick start](../user/estimator-quick-start.md).
 
 ## Contents
@@ -164,7 +171,7 @@ second pass.
 **Specification** shows what the specification says that takeoff needs, each item with the
 clause it comes from. Takeoff uses only what a person has confirmed.
 
-![Specification](images/08-specification.png)
+![Specification](images/hp-08-obligations.png)
 
 - **Obligations**: requirements read from the specification, for you to confirm.
 - **Issues**: where the specification and the drawings disagree. Press **Check against the
@@ -172,7 +179,7 @@ clause it comes from. Takeoff uses only what a person has confirmed.
 - **Scope matrix**: what is in and out of scope.
 
 The page stays empty until a specification has been uploaded on the documents page and
-read.
+read. The walkthrough shows the [issues and the scope matrix](happy-path.md#6-read-the-specification-estimator).
 
 **Design development** is for sheets drawn as design intent only, where heads and range
 pipes are the contractor's to develop.
@@ -227,7 +234,7 @@ Then clear the other tabs:
 The BOQ page builds our bill of quantities from the verified takeoff, maps the client's
 bill to it and reconciles the two.
 
-![Bill of quantities](images/11-boq.png)
+![Bill of quantities](images/hp-15-boq-built.png)
 
 1. Set the **Measurement conventions**: how pipe is measured, fittings, hangers and
    supports, and sprinkler drops. The wording you choose is printed below as it will appear
@@ -237,8 +244,9 @@ bill to it and reconciles the two.
    once it is registered as a BOQ, and then compared with ours.
 4. Price the lines, then add quotations, labour and the cost build-up.
 
-An orange banner tells you what is holding up gate G2, for example that no BOQ is built
-yet.
+A banner at the top tells you what is holding up gate G2, for example that no BOQ is built
+yet; once nothing does, it reads "Nothing in the BOQ holds up G2". The walkthrough shows
+[mapping, reconciliation, pricing, labour and the cost build-up](happy-path.md#8-build-map-and-price-the-boq-estimator).
 
 BOQ lines are priced only from the **Rate library**, opened from **Rates** in the top bar.
 
@@ -256,7 +264,7 @@ BOQ lines are priced only from the **Rate library**, opened from **Rates** in th
 **Tender clarifications** holds the questions for the client before the clarification
 cut-off.
 
-![Tender clarifications](images/12-clarifications.png)
+![Tender clarifications](images/hp-22-clarification.png)
 
 - **To raise** lists flagged issues that are not yet in a clarification.
 - **Register** lists every clarification drafted. Choose a template and a format, then
@@ -267,7 +275,7 @@ cut-off.
 **Risk and qualifications** records scope gaps, design responsibility and execution risk,
 each with its evidence.
 
-![Risk and qualifications](images/13-risk.png)
+![Risk and qualifications](images/hp-23-risk.png)
 
 1. Press **Build the checklist** to pre-fill the scope-gap checklist from the scope matrix
    and the takeoff.
@@ -280,7 +288,7 @@ A yellow banner says what is still missing for gate G3.
 
 **Review and submission** shows the estimate as an approver sees it.
 
-![Review and submission](images/14-review.png)
+![Review and submission](images/hp-29-submission.png)
 
 The four gates are approved in order, and each card lists what blocks it:
 
@@ -289,7 +297,10 @@ The four gates are approved in order, and each card lists what blocks it:
 | G1 | Senior estimator | The takeoff verified in the workbench |
 | G2 | Senior estimator | A built BOQ |
 | G3 | Commercial director | G2 approved, the scope-gap checklist built, the bid under review |
-| G4 | Commercial director | G3 approved |
+| G4 | Commercial director | G3 approved, no clarification unresolved, every qualification accepted or rejected |
+
+Approving G4 freezes the submission: the page then lists the frozen files for download, and
+the bid manager records the outcome under them.
 
 Below the gates, the **Review pack** gives the totals with and without GST, margin, risk
 allowances and unpriced lines, then the estimate by component and by system, cost drivers,
