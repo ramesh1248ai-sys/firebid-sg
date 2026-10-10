@@ -10,8 +10,10 @@ update fields) to fill it in.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 from docx import Document
 from docx.enum.section import WD_ORIENT
@@ -51,7 +53,7 @@ IMAGE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)$")
 ORDERED = re.compile(r"^(\d+)\.\s+(.*)$")
 
 
-def shade(cell, fill: str) -> None:
+def shade(cell: Any, fill: str) -> None:
     properties = cell._tc.get_or_add_tcPr()
     shading = OxmlElement("w:shd")
     shading.set(qn("w:val"), "clear")
@@ -60,7 +62,7 @@ def shade(cell, fill: str) -> None:
     properties.append(shading)
 
 
-def field(paragraph, instruction: str, placeholder: str = "") -> None:
+def field(paragraph: Any, instruction: str, placeholder: str = "") -> None:
     """A Word field (a page number, a table of contents) that Word fills in."""
     run = paragraph.add_run()
     for kind, text in (("begin", None), (None, instruction), ("separate", None)):
@@ -83,7 +85,7 @@ def field(paragraph, instruction: str, placeholder: str = "") -> None:
     end._r.append(mark)
 
 
-def write_inline(paragraph, text: str, *, size: Pt | None = None, bold: bool = False) -> None:
+def write_inline(paragraph: Any, text: str, *, size: Pt | None = None, bold: bool = False) -> None:
     """Text with **bold**, `code` and [links](...): a link keeps its words, and one to
     another part of the manual says which part."""
     for piece in INLINE.split(text):
@@ -109,7 +111,7 @@ def write_inline(paragraph, text: str, *, size: Pt | None = None, bold: bool = F
             run.font.size = size
 
 
-def blocks(lines: list[str]):
+def blocks(lines: list[str]) -> Iterator[tuple[str, Any]]:
     """The Markdown as blocks: heading, paragraph, image, table, ordered or bullet list."""
     index = 0
     while index < len(lines):
@@ -123,8 +125,8 @@ def blocks(lines: list[str]):
             yield "heading", (level, stripped[level:].strip())
             index += 1
         elif IMAGE.match(stripped):
-            found = IMAGE.match(stripped)
-            yield "image", (found.group(1), found.group(2))
+            alt, path = IMAGE.findall(stripped)[0]
+            yield "image", (alt, path)
             index += 1
         elif stripped.startswith("|"):
             rows = []
@@ -167,13 +169,13 @@ def blocks(lines: list[str]):
             yield "paragraph", " ".join(words)
 
 
-def add_image(document, alt: str, relative: str) -> None:
+def add_image(document: Any, alt: str, relative: str) -> None:
     from PIL import Image
 
     path = MANUAL / relative
     with Image.open(path) as image:
         width, height = image.size
-    shown = TEXT_WIDTH
+    shown: int = TEXT_WIDTH
     if height / width * shown > MAX_IMAGE_HEIGHT:
         shown = int(MAX_IMAGE_HEIGHT * width / height)
     picture = document.add_paragraph()
@@ -201,7 +203,7 @@ def add_image(document, alt: str, relative: str) -> None:
     run.font.color.rgb = GREY
 
 
-def add_table(document, rows: list[list[str]]) -> None:
+def add_table(document: Any, rows: list[list[str]]) -> None:
     columns = max(len(row) for row in rows)
     table = document.add_table(rows=len(rows), cols=columns)
     table.style = "Table Grid"
@@ -223,7 +225,7 @@ def add_table(document, rows: list[list[str]]) -> None:
     document.add_paragraph().paragraph_format.space_after = Pt(4)
 
 
-def add_list(document, items: list[tuple[str, str]], ordered: bool) -> None:
+def add_list(document: Any, items: list[tuple[str, str]], ordered: bool) -> None:
     for number, text in items:
         if ordered:
             # Numbered by hand: Word's own numbering would run on from one list to the next.
@@ -238,7 +240,7 @@ def add_list(document, items: list[tuple[str, str]], ordered: bool) -> None:
         write_inline(paragraph, text)
 
 
-def add_part(document, title: str, name: str, start: str | None) -> None:
+def add_part(document: Any, title: str, name: str, start: str | None) -> None:
     lines = (MANUAL / name).read_text(encoding="utf-8").splitlines()
     if start is not None:
         lines = lines[next(i for i, line in enumerate(lines) if line.strip() == start) :]
@@ -260,7 +262,7 @@ def add_part(document, title: str, name: str, start: str | None) -> None:
             add_list(document, value, kind == "ordered")
 
 
-def style(document) -> None:
+def style(document: Any) -> None:
     section = document.sections[0]
     section.orientation = WD_ORIENT.PORTRAIT
     section.page_width, section.page_height = Cm(21.0), Cm(29.7)
@@ -306,7 +308,7 @@ def style(document) -> None:
     section.different_first_page_header_footer = True
 
 
-def cover(document) -> None:
+def cover(document: Any) -> None:
     for _ in range(7):
         document.add_paragraph()
     brand = document.add_paragraph()
@@ -343,7 +345,7 @@ def cover(document) -> None:
     run.font.color.rgb = GREY
 
 
-def front(document) -> None:
+def front(document: Any) -> None:
     document.add_page_break()
     document.add_heading("About this manual", level=1)
     document.add_paragraph(
@@ -395,7 +397,7 @@ def main() -> None:
     front(document)
     for title, name, start in PARTS:
         add_part(document, title, name, start)
-    document.save(OUT)
+    document.save(str(OUT))
     print(f"written {OUT.relative_to(ROOT)} ({OUT.stat().st_size // 1024} KB)")
 
 
