@@ -15,7 +15,8 @@ import { Button } from "@/components/ui/button";
  *
  * The review pack is the estimate as an approver needs to see it, each section one click
  * from where it comes from. The gates say who approved what, on which hash, or what stands
- * in the way. G4 freezes the submission: the page shows that it still verifies, and offers
+ * in the way. The Senior Estimator approves G2 here and the Commercial Director G3 and G4,
+ * each only their own. G4 freezes the submission: the page shows that it still verifies, and offers
  * its files for download. The platform sends nothing. Afterwards the outcome is recorded.
  */
 
@@ -96,9 +97,13 @@ export function ReviewPage() {
     },
   });
   const approve = useMutation({
-    mutationFn: async (gate: "g3" | "g4") => {
+    mutationFn: async (gate: "g2" | "g3" | "g4") => {
       const { data, error: refused } = await api.POST(
-        gate === "g3" ? "/bids/{bid_id}/gates/g3/approve" : "/bids/{bid_id}/gates/g4/approve",
+        gate === "g2"
+          ? "/bids/{bid_id}/boq/g2/approve"
+          : gate === "g3"
+            ? "/bids/{bid_id}/gates/g3/approve"
+            : "/bids/{bid_id}/gates/g4/approve",
         { ...path, body: { comment: comment || null } },
       );
       if (refused || !data) throw new Error(apiErrorMessage(refused, "The gate was not approved"));
@@ -107,11 +112,20 @@ export function ReviewPage() {
     onSuccess: () => {
       setComment("");
       refresh();
+      // G3 and G4 move the bid, and G2 is shown on the BOQ page too.
+      void client.invalidateQueries({ queryKey: ["bid", bidId] });
+      void client.invalidateQueries({ queryKey: ["boq", bidId] });
     },
     onError: fail,
   });
 
   const isDirector = session?.roles.includes("commercial_director") ?? false;
+  const isSenior = session?.roles.includes("senior_estimator") ?? false;
+  // Each approver is offered their own gates and no other.
+  const mine = [
+    ...(isSenior ? (["G2"] as const) : []),
+    ...(isDirector ? (["G3", "G4"] as const) : []),
+  ];
   const data = pack.data;
   if (pack.isPending || gates.isPending) {
     return (
@@ -165,7 +179,7 @@ export function ReviewPage() {
             <GateCard key={gate.gate} gate={gate} />
           ))}
         </ul>
-        {isDirector && gates.data && (
+        {mine.length > 0 && gates.data && (
           <div className="flex flex-wrap items-center gap-2 rounded-lg border p-3">
             <input
               aria-label="Approval comment"
@@ -174,23 +188,25 @@ export function ReviewPage() {
               value={comment}
               onChange={(event) => setComment(event.target.value)}
             />
-            {(["G3", "G4"] as const).map((name) => {
+            {mine.map((name) => {
               const gate = gates.data?.gates.find((item) => item.gate === name);
               if (!gate || gate.approved) return null;
               return (
                 <Button
                   key={name}
                   disabled={approve.isPending || gate.blockers.length > 0}
-                  onClick={() => approve.mutate(name === "G3" ? "g3" : "g4")}
+                  onClick={() => approve.mutate(name === "G2" ? "g2" : name === "G3" ? "g3" : "g4")}
                 >
-                  {name === "G3" ? "Approve G3" : "Approve G4 and freeze the submission"}
+                  {name === "G4" ? "Approve G4 and freeze the submission" : `Approve ${name}`}
                 </Button>
               );
             })}
-            <span className="text-xs text-muted-foreground">
-              G4 freezes the submission. The platform sends nothing: the files are then offered
-              for download.
-            </span>
+            {isDirector && (
+              <span className="text-xs text-muted-foreground">
+                G4 freezes the submission. The platform sends nothing: the files are then offered
+                for download.
+              </span>
+            )}
           </div>
         )}
       </div>

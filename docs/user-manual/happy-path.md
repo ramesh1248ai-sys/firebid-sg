@@ -14,10 +14,10 @@ basement car park sprinkler plan, its specification and the client's bill of qua
 
 | Person | Role | What they do in this walkthrough |
 | --- | --- | --- |
-| Bella Ng | Bid manager | Registers the bid, sets its dates, prepares the submission, records the outcome |
+| Bella Ng | Bid manager | Registers the bid, builds its team, moves it on, prepares the submission, records the outcome |
 | Esther Tan | Estimator | Uploads the tender, checks the symbols and the specification, builds the BOQ |
-| Samuel Lim | Senior estimator | Verifies the takeoff, approves G1 and G2, enters the margin, treats the risks |
-| Clara Wong | Commercial director | Approves G3 and G4 |
+| Samuel Lim | Senior estimator | Verifies the takeoff, approves G1 and G2, imports the productivity list, enters the margin, treats the risks |
+| Clara Wong | Commercial director | Decides to bid (G0), approves G3 and G4 |
 
 The bid is **BID-2026-188**, Marina Bay Commercial Development, for Harbourfront Builders
 Pte Ltd, tender reference HB/FP/2026/041, with drawings by Alpha Consultants Pte Ltd.
@@ -27,7 +27,7 @@ Pte Ltd, tender reference HB/FP/2026/041, with drawings by Alpha Consultants Pte
 | # | Step | Who | Ends when |
 | --- | --- | --- | --- |
 | 1 | Sign in | Everyone | **Your bids** opens |
-| 2 | Register the bid | Bid manager | The bid has a number |
+| 2 | Register the bid, build its team and start it | Bid manager, commercial director | The bid reads **in preparation** |
 | 3 | Upload the tender | Estimator | Every file is Ready |
 | 4 | Check the registers | Estimator | The register reads **Register confirmed** |
 | 5 | Confirm the symbols | Estimator | **Not counted** reads "Every symbol on the drawings is mapped" |
@@ -37,7 +37,7 @@ Pte Ltd, tender reference HB/FP/2026/041, with drawings by Alpha Consultants Pte
 | 9 | Labour and the cost build-up | Senior estimator | The margin is entered and the total stands |
 | 10 | Clarifications | Estimator | The questions are drafted |
 | 11 | Risk and qualifications | Senior estimator | The page reads **Ready for G3** |
-| 12 | Approve G2 and G3 | Senior estimator, then commercial director | G3 is approved |
+| 12 | Submit for review, approve G2 and G3 | Bid manager, senior estimator, commercial director | G3 is approved |
 | 13 | Prepare the submission and approve G4 | Bid manager, then commercial director | The submission is frozen |
 | 14 | Record the outcome | Bid manager | The bid reads **awarded** |
 
@@ -51,7 +51,7 @@ Everyone signs in the same way.
 
 ![The sign-in screen](images/hp-01-sign-in.png)
 
-## 2. Register the bid (bid manager)
+## 2. Register the bid, build its team and start it
 
 1. On **Your bids**, press **New bid**.
 2. Fill in **Project**, **Design consultant**, **Client**, **Tender reference** and
@@ -68,8 +68,32 @@ The yellow banner says the clarification cut-off is not set yet. It does not sto
 the tender. Bella sets it later with **Set** beside **Clarifications close**; the banner
 then goes.
 
-The other people are put on the bid's team by an administrator: there is no screen for
-that in this version (see [what has no screen yet](#what-has-no-screen-yet)).
+### The team
+
+Only the people on a bid see it, so the bid manager puts them on it. **Team**, at the foot
+of the bid page, lists who is on the bid and in what role.
+
+1. Under **Person**, choose someone. Their role in the organisation is offered under
+   **Role on this bid**; change it if they act in another role on this bid.
+2. Press **Add to the team**.
+
+![Adding the commercial director to the team](images/hp-32-team.png)
+
+Someone who has never signed in to FireBid SG is not listed: ask them to sign in once.
+
+### Moving the bid on
+
+**Move the bid on**, beside the team, offers the moves open from the bid's state. Each
+move belongs to a role; one that is not yours is shown greyed, with whose it is.
+
+1. The bid manager presses **Start qualification**. It waits until the bid's dates are in
+   and it has a team.
+2. The commercial director opens the bid and presses **Bid (G0)**: the decision to bid.
+   The bid then reads **in preparation**.
+
+![The moves open while the bid is qualifying](images/hp-33-moves.png)
+
+**Withdraw** and **No-bid (G0)** end the bid, so each needs a reason typed first.
 
 ## 3. Upload the tender (estimator)
 
@@ -211,7 +235,13 @@ productivity figure came from, any multipliers, and the trade's hourly rate.
 ![Labour by line](images/hp-19-labour.png)
 
 A line with no entry in the productivity library reads "no productivity entry" and adds no
-hours. Site conditions (height, basement, night work and so on) are proposed with
+hours. The library is kept on the **Rates** page, under **Productivity library**: the senior
+estimator imports the company's list there with **Import the productivity list**, all or
+nothing, as a rate list is.
+
+![The productivity library](images/hp-35-productivity.png)
+
+Site conditions (height, basement, night work and so on) are proposed with
 **Propose from the bid's parameters**, and count only once someone confirms them.
 
 **Cost build-up** adds every component of the estimate. Materials, fittings, valves,
@@ -268,19 +298,25 @@ resolved and every risk has a treatment.**
 
 ![Proposed exclusions](images/hp-25-qualifications.png)
 
-## 12. Approve G2 and G3
+## 12. Submit for review, approve G2 and G3
+
+When the estimate is complete the bid manager opens the bid page and presses **Submit for
+review** under **Move the bid on**. The bid then reads **under review**.
 
 **G2** is the senior estimator's approval of the bill. The BOQ page says what holds it up;
-once it reads "Nothing in the BOQ holds up G2" it can be approved. In this version G2 is
-recorded by an administrator on the senior estimator's behalf
-(see [what has no screen yet](#what-has-no-screen-yet)).
+once it reads "Nothing in the BOQ holds up G2" it links to the review page.
 
-**G3** is the commercial director's. Click **Review**. Each gate's card shows whether it is
+1. As senior estimator, click **Review**.
+2. Type a comment for the record and press **Approve G2**.
+
+![G2 ready for the senior estimator](images/hp-34-g2-ready.png)
+
+**G3** is the commercial director's, on the same page. Each gate's card shows whether it is
 approved, ready or blocked, and what blocks it.
 
-1. Read the **Review pack** below the gates: the totals, the estimate by component and by
+3. Read the **Review pack** below the gates: the totals, the estimate by component and by
    system, the variances, the open clarifications and the unpriced lines.
-2. Type a comment for the record and press **Approve G3**.
+4. Type a comment for the record and press **Approve G3**.
 
 ![G3 ready for the commercial director](images/hp-26-g3-ready.png)
 
@@ -321,17 +357,3 @@ FireBid SG sends nothing to the client. You download the files and send them you
 The bid page then reads **awarded**.
 
 ![The bid, awarded](images/hp-31-awarded.png)
-
-## What has no screen yet
-
-Four things in this walkthrough are done by an administrator through the platform's API,
-because this version has no screen for them:
-
-| What | When it is needed |
-| --- | --- |
-| Putting people on a bid's team | After the bid is registered (step 2) |
-| Importing the productivity list | Before labour can be worked out (step 9) |
-| Approving G2 | After the BOQ is built and reconciled (step 12) |
-| Moving the bid on: qualifying, in preparation, under review | Before G3; the gate reads "the bid is registered, not under review" until then |
-
-Everything else in the walkthrough is done on the screens shown.

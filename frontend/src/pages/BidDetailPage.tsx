@@ -23,6 +23,8 @@ import type { components } from "@/api/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { asInstant, formatDeadline, stateTone } from "@/lib/format";
+import { BidMoves } from "@/pages/BidMoves";
+import { BidTeam } from "@/pages/BidTeam";
 
 function useBid(bidId: string) {
   return useQuery({
@@ -361,6 +363,11 @@ export function BidDetailPage() {
           </div>
         ))}
       </nav>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <BidMoves bidId={bidId} state={bid.data.state} />
+        <BidTeam bidId={bidId} />
+      </div>
     </section>
   );
 }

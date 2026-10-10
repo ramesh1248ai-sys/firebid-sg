@@ -13,7 +13,7 @@ The screenshots were taken on 2026-10-10 from two synthetic bids on the local st
 
 | What you see | Where | What it means | What to do |
 | --- | --- | --- | --- |
-| **Bid not found** | Opening a bid | You are not on the bid's team, or it does not exist | Ask the bid manager to have you added |
+| **Bid not found** | Opening a bid | You are not on the bid's team, or it does not exist | Ask the bid manager to add you |
 | "You are not on any bids yet" | Your bids | You are on no bid's team | The same, or register a bid |
 | "Please fill out this field" | Register a bid | A required field is empty | Fill it in and press **Register bid** again |
 | "Qualification is blocked until these are in" | The bid page | A date is missing | Press **Set** beside it |
@@ -23,6 +23,8 @@ The screenshots were taken on 2026-10-10 from two synthetic bids on the local st
 | **Duplicates (n)** | Workbench | Items drawn on more than one sheet | Decide which sheet they are counted from |
 | "G1 is blocked by" | Workbench, Coverage & G1 | Something is undecided in the takeoff | Follow the link in each line |
 | "Only a Senior Estimator approves G1" | Workbench | The approval is not yours | Ask the senior estimator |
+| "For the commercial director." | The bid page, Move the bid on | The move belongs to another role | Ask them to make it |
+| "Waits on: …" | The bid page, Move the bid on | Something the move needs is missing | Supply what it names |
 | "G2 is held up: no BOQ is built" | BOQ | There is no bill yet | Press **Build the BOQ** |
 | **unpriced** | BOQ, Pricing | The rate library has no rate for the line | Choose a rate, or propose one |
 | "the rate expired on …" | BOQ, Pricing | The rate's validity has run out | Get a current rate into the library |
@@ -44,7 +46,7 @@ If you are on no bid at all, **Your bids** is empty and says so.
 
 ![No bids yet](images/ex-02-no-bids.png)
 
-**What to do:** ask the bid manager to have you added to the bid's team.
+**What to do:** ask the bid manager to add you, under **Team** on the bid page. If you are not offered there, sign in to FireBid SG once first.
 
 ### A required field is empty
 
@@ -181,6 +183,12 @@ a line saying whose it is.
 | G1, G2 | Senior estimator |
 | G3, G4 | Commercial director |
 
+The moves on the bid page are kept to their roles in the same way. A move that is not
+yours is greyed and says whose it is; one that is yours but cannot be made yet says what it
+waits on; and **Withdraw** and **No-bid (G0)** say "Give a reason first" until one is typed.
+
+![The bid's moves as an estimator sees them](images/ex-19-moves-not-yours.png)
+
 Some other actions are also kept to one role. **Prepare the submission** is the bid
 manager's: for anyone else the count of unresolved clarifications does not change when
 they press it. Importing a rate list is the senior estimator's; an estimator is offered
@@ -281,7 +289,7 @@ reason on its card.
 | "no BOQ is built" | Build the BOQ |
 | "G2 is not approved", "G3 is not approved" | The gates are approved in order; the earlier one comes first |
 | "the scope-gap checklist is not built" | Build it on the risk page |
-| "the bid is registered, not under review" | The bid has to be moved to under review; ask your administrator |
+| "the bid is registered, not under review" | Move the bid on from the bid page: start qualification, the decision to bid, then **Submit for review** |
 | "1 clarification(s) unresolved: prepare the submission, so each becomes a qualification" | The bid manager presses **Prepare the submission** on the clarifications page |
 | "9 qualification(s) neither accepted nor rejected" | Accept or reject each on the risk page |
 

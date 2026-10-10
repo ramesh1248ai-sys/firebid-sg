@@ -8358,6 +8358,49 @@
         "title": "ModelOut",
         "type": "object"
       },
+      "MoveOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "permitted": {
+            "title": "Permitted",
+            "type": "boolean"
+          },
+          "refusal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refusal"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "action",
+          "roles",
+          "permitted",
+          "refusal"
+        ],
+        "title": "MoveOut",
+        "type": "object"
+      },
       "MultiplierOut": {
         "properties": {
           "key": {
@@ -13709,6 +13752,39 @@
           "due_at"
         ],
         "title": "TaskOut",
+        "type": "object"
+      },
+      "TeamCandidateOut": {
+        "description": "Someone of the organisation who is not on the bid's team yet.",
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "display_name",
+          "username",
+          "roles"
+        ],
+        "title": "TeamCandidateOut",
         "type": "object"
       },
       "TemplateChange": {
@@ -19700,6 +19776,59 @@
           }
         ],
         "summary": "Add Member",
+        "tags": [
+          "bids"
+        ]
+      }
+    },
+    "/bids/{bid_id}/members/candidates": {
+      "get": {
+        "description": "The organisation's people who are not on this bid, with the roles each holds: who a\nbid manager may add. Someone who has left (not active) is not offered.",
+        "operationId": "list_candidates_bids__bid_id__members_candidates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TeamCandidateOut"
+                  },
+                  "title": "Response List Candidates Bids  Bid Id  Members Candidates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Candidates",
         "tags": [
           "bids"
         ]
@@ -26635,6 +26764,57 @@
       }
     },
     "/bids/{bid_id}/transitions": {
+      "get": {
+        "description": "The moves open from the bid's state, each with whose it is and what is in its way.\nG3, G4 and the outcome are not among them: they are made where they are recorded.",
+        "operationId": "list_moves_bids__bid_id__transitions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MoveOut"
+                  },
+                  "title": "Response List Moves Bids  Bid Id  Transitions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Moves",
+        "tags": [
+          "bids"
+        ]
+      },
       "post": {
         "operationId": "transition_bids__bid_id__transitions_post",
         "parameters": [

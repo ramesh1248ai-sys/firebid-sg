@@ -88,6 +88,10 @@ per step, in the order you work through them.
 - A yellow banner says what is still blocking the bid, for example missing dates.
 - Each card opens a step. Once inside a step, the tab bar under the top bar moves between
   steps, and **Back to the bid** returns here.
+- **Move the bid on**, below the cards, offers the moves open from the bid's state: start
+  qualification, the decision to bid (G0), submit for review, send back for rework,
+  withdraw. Each belongs to a role, and one that is not yours says whose it is.
+- **Team** lists who is on the bid and in what role. A bid manager adds people there.
 
 | Step | What you do there |
 | --- | --- |
@@ -263,6 +267,11 @@ BOQ lines are priced only from the **Rate library**, opened from **Rates** in th
 - **Propose a rate** suggests a single change with its source and the reason. The library
   changes only when the senior estimator approves the proposal.
 
+The same page holds the **Productivity library**: man-hours for a unit of each item, each
+with its source. Labour is worked out only from these. The senior estimator imports the
+company's list with **Import the productivity list**; any problem in the file imports
+nothing.
+
 ## 10. Clarifications, risk and review
 
 **Tender clarifications** holds the questions for the client before the clarification
@@ -294,7 +303,7 @@ A yellow banner says what is still missing for gate G3.
 
 ![Review and submission](images/hp-29-submission.png)
 
-The four gates are approved in order, and each card lists what blocks it:
+The four gates are approved in order, and each card lists what blocks it. G1 is approved in the workbench; G2, G3 and G4 here, each by its own role:
 
 | Gate | Approved by | Needs |
 | --- | --- | --- |

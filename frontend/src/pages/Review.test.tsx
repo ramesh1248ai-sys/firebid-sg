@@ -165,6 +165,48 @@ describe("the review page", () => {
   });
 
   // req: FR-PKG-02
+  it("lets the Senior Estimator approve G2, and offers them no other gate", async () => {
+    signedInAs({
+      name: "Sam Lim",
+      preferred_username: "senior.estimator@firebid.test",
+      roles: ["senior_estimator"],
+    });
+    const calls = stubs([gate("G1", APPROVED), gate("G2"), gate("G3"), gate("G4")], {
+      "/boq/g2/approve": () =>
+        Response.json({ id: "x", gate: "G2", decision: "approved" }, { status: 201 }),
+    });
+    renderAt(`/bids/${BID}/review`);
+
+    await userEvent.type(await screen.findByLabelText("Approval comment"), "bill reconciled");
+    await userEvent.click(screen.getByRole("button", { name: "Approve G2" }));
+
+    const post = calls.find((call) => call.method === "POST");
+    expect(post!.url).toContain("/boq/g2/approve");
+    expect(JSON.parse(post!.body!)).toEqual({ comment: "bill reconciled" });
+    expect(screen.queryByRole("button", { name: "Approve G3" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Approve G4/ })).toBeNull();
+  });
+
+  // req: FR-PKG-02
+  it("keeps G2 from the Senior Estimator while something blocks it", async () => {
+    signedInAs({
+      name: "Sam Lim",
+      preferred_username: "senior.estimator@firebid.test",
+      roles: ["senior_estimator"],
+    });
+    stubs([
+      gate("G1", APPROVED),
+      gate("G2", { blockers: ["no BOQ is built"] }),
+      gate("G3"),
+      gate("G4"),
+    ]);
+    renderAt(`/bids/${BID}/review`);
+
+    expect(await screen.findByRole("button", { name: "Approve G2" })).toBeDisabled();
+    expect(screen.getByRole("list", { name: "Gates" })).toHaveTextContent("no BOQ is built");
+  });
+
+  // req: FR-PKG-02
   it("does not offer the gates to anyone else", async () => {
     signedInAs({
       name: "Bella Ong",
@@ -175,6 +217,7 @@ describe("the review page", () => {
     renderAt(`/bids/${BID}/review`);
 
     await screen.findByRole("list", { name: "Gates" });
+    expect(screen.queryByRole("button", { name: "Approve G2" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Approve G3" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Approve G4/ })).toBeNull();
   });

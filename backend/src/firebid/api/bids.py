@@ -17,11 +17,11 @@ from sqlalchemy import select
 from firebid.api.deps import CurrentBid, CurrentPrincipal, DbSession, require
 from firebid.auth.permissions import Action
 from firebid.auth.provisioning import Principal
-from firebid.db.models.core import AppUser, Bid, BidMember, Project
+from firebid.db.models.core import AppUser, Bid, BidMember, Project, UserRole
 from firebid.db.models.workflow import HumanTask
 from firebid.domain.state_machines import BidState, Role, TransitionError
 from firebid.services.bids import NewBid, create_bid, dashboard, missing_mandatory_fields
-from firebid.services.transitions import apply_transition
+from firebid.services.transitions import apply_transition, bid_moves
 
 router = APIRouter(prefix="/bids", tags=["bids"])
 
@@ -81,6 +81,23 @@ class MemberOut(BaseModel):
     user_id: uuid.UUID
     role: str
     display_name: str
+
+
+class TeamCandidateOut(BaseModel):
+    """Someone of the organisation who is not on the bid's team yet."""
+
+    user_id: uuid.UUID
+    display_name: str
+    username: str
+    roles: list[str]
+
+
+class MoveOut(BaseModel):
+    target: str
+    action: str
+    roles: list[str]
+    permitted: bool
+    refusal: str | None
 
 
 class TaskIn(BaseModel):
@@ -173,6 +190,69 @@ def transition(body: TransitionIn, context: CurrentBid, session: DbSession) -> B
     return _as_out(session, context.bid)
 
 
+@router.get("/{bid_id}/transitions", response_model=list[MoveOut])
+def list_moves(context: CurrentBid, session: DbSession) -> list[MoveOut]:
+    """The moves open from the bid's state, each with whose it is and what is in its way.
+    G3, G4 and the outcome are not among them: they are made where they are recorded."""
+    return [
+        MoveOut(
+            target=move.target,
+            action=move.action,
+            roles=list(move.roles),
+            permitted=move.permitted,
+            refusal=move.refusal,
+        )
+        for move in bid_moves(session, context.bid, context.principal.actor())
+    ]
+
+
+@router.get("/{bid_id}/members/candidates", response_model=list[TeamCandidateOut])
+def list_candidates(
+    context: CurrentBid,
+    session: DbSession,
+    _: Annotated[Principal, require(Action.BID_MEMBER_MANAGE)],
+) -> list[TeamCandidateOut]:
+    """The organisation's people who are not on this bid, with the roles each holds: who a
+    bid manager may add. Someone who has left (not active) is not offered, and nobody is
+    offered twice."""
+    on_the_bid = select(BidMember.user_id).where(BidMember.bid_id == context.bid.id)
+    found = (
+        session.execute(
+            select(AppUser)
+            .where(
+                AppUser.organisation_id == context.bid.organisation_id,
+                AppUser.is_active.is_(True),
+                AppUser.id.not_in(on_the_bid),
+            )
+            .order_by(AppUser.created_at.desc())
+        )
+        .scalars()
+        .all()
+    )
+    # A username is one person. Where the identity provider has issued them a new identity,
+    # the row made at their latest first sign-in is the one they sign in as now.
+    newest: dict[str, AppUser] = {}
+    for person in found:
+        newest.setdefault(person.username, person)
+    people = sorted(newest.values(), key=lambda person: (person.display_name, person.username))
+    held: dict[uuid.UUID, list[str]] = {}
+    for user_id, role in session.execute(
+        select(UserRole.user_id, UserRole.role).where(
+            UserRole.user_id.in_([person.id for person in people])
+        )
+    ):
+        held.setdefault(user_id, []).append(role)
+    return [
+        TeamCandidateOut(
+            user_id=person.id,
+            display_name=person.display_name,
+            username=person.username,
+            roles=sorted(held.get(person.id, [])),
+        )
+        for person in people
+    ]
+
+
 @router.get("/{bid_id}/members", response_model=list[MemberOut])
 def list_members(context: CurrentBid, session: DbSession) -> list[MemberOut]:
     rows = session.execute(
@@ -194,7 +274,8 @@ def add_member(
     _: Annotated[Principal, require(Action.BID_MEMBER_MANAGE)],
 ) -> MemberOut:
     person = session.get(AppUser, body.user_id)
-    if person is None:
+    # Someone of another organisation is not found, as someone who does not exist is not.
+    if person is None or person.organisation_id != context.bid.organisation_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "user not found")
     session.merge(BidMember(bid_id=context.bid.id, user_id=body.user_id, role=str(body.role)))
     session.flush()

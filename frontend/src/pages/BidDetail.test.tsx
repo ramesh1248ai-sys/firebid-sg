@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { signedInAs } from "@/test/fake-oidc";
 import { type Call, renderAt, stubApi } from "@/test/harness";
@@ -31,8 +31,31 @@ function bid(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function stubs(handler: (call: Call) => Response) {
-  return stubApi({ [`/bids/${BID}`]: handler });
+const ESTHER = "9c2f0c3e-0000-4000-8000-000000000002";
+
+function move(overrides: Record<string, unknown> = {}) {
+  return {
+    target: "qualifying",
+    action: "start qualification",
+    roles: ["bid_manager", "commercial_director", "senior_estimator"],
+    permitted: true,
+    refusal: null,
+    ...overrides,
+  };
+}
+
+/** The bid, with nobody to add and nothing to move unless a test says otherwise. */
+function stubs(
+  handler: (call: Call) => Response,
+  extra: Record<string, (call: Call) => Response> = {},
+) {
+  return stubApi({
+    [`/bids/${BID}/members/candidates`]: () => Response.json([]),
+    [`/bids/${BID}/members`]: () => Response.json([]),
+    [`/bids/${BID}/transitions`]: () => Response.json([]),
+    ...extra,
+    [`/bids/${BID}`]: handler,
+  });
 }
 
 describe("a bid's page", () => {
@@ -121,5 +144,163 @@ describe("a bid's page", () => {
 
     const details = (await screen.findByText("90 days")).closest("dl")!;
     expect(within(details).queryByRole("button")).toBeNull();
+  });
+});
+
+describe("the team of a bid", () => {
+  const people = [
+    {
+      user_id: "5db3d143-0000-4000-8000-000000000001",
+      role: "bid_manager",
+      display_name: "Bree Tan",
+    },
+  ];
+  const candidates = [
+    {
+      user_id: ESTHER,
+      display_name: "Esther Tan",
+      username: "estimator@firebid.test",
+      roles: ["estimator"],
+    },
+  ];
+
+  // req: FR-BID-01
+  it("shows who is on the bid, and lets a bid manager add someone in a role", async () => {
+    signedInAs();
+    const calls = stubs(() => Response.json(bid()), {
+      [`/bids/${BID}/members/candidates`]: () => Response.json(candidates),
+      [`/bids/${BID}/members`]: (call) =>
+        call.method === "POST"
+          ? Response.json(
+              { user_id: ESTHER, role: "estimator", display_name: "Esther Tan" },
+              { status: 201 },
+            )
+          : Response.json(people),
+    });
+    renderAt(`/bids/${BID}`);
+
+    const team = await screen.findByRole("list", { name: "People on this bid" });
+    expect(team).toHaveTextContent("Bree Tan");
+    expect(team).toHaveTextContent("bid manager");
+
+    await screen.findByRole("option", { name: "Esther Tan (estimator@firebid.test)" });
+    await userEvent.selectOptions(
+      screen.getByLabelText("Person to add"),
+      "Esther Tan (estimator@firebid.test)",
+    );
+    // The role she holds in the organisation is offered, and can be changed.
+    expect(screen.getByLabelText("Role on this bid")).toHaveValue("estimator");
+    await userEvent.selectOptions(screen.getByLabelText("Role on this bid"), "senior estimator");
+    await userEvent.click(screen.getByRole("button", { name: "Add to the team" }));
+
+    const post = await vi.waitFor(() => {
+      const found = calls.find((call) => call.method === "POST");
+      expect(found).toBeDefined();
+      return found!;
+    });
+    expect(post.url).toContain(`/bids/${BID}/members`);
+    expect(JSON.parse(post.body!)).toEqual({ user_id: ESTHER, role: "senior_estimator" });
+  });
+
+  // req: FR-ADM-01
+  it("shows the team to an estimator and offers them nobody to add", async () => {
+    signedInAs({
+      name: "Esther Tan",
+      preferred_username: "estimator@firebid.test",
+      roles: ["estimator"],
+    });
+    const calls = stubs(() => Response.json(bid()), {
+      [`/bids/${BID}/members`]: () => Response.json(people),
+    });
+    renderAt(`/bids/${BID}`);
+
+    expect(await screen.findByRole("list", { name: "People on this bid" })).toHaveTextContent(
+      "Bree Tan",
+    );
+    expect(screen.queryByLabelText("Person to add")).toBeNull();
+    expect(calls.some((call) => call.url.includes("/members/candidates"))).toBe(false);
+  });
+});
+
+describe("moving a bid on", () => {
+  beforeEach(() => signedInAs());
+
+  // req: FR-BID-01
+  it("offers a move that is open to the reader, and moves the bid", async () => {
+    const calls = stubs(() => Response.json(bid({ missing_mandatory_fields: [] })), {
+      [`/bids/${BID}/transitions`]: (call) =>
+        call.method === "POST"
+          ? Response.json(bid({ state: "qualifying", missing_mandatory_fields: [] }))
+          : Response.json([move(), move({ target: "withdrawn", action: "withdraw" })]),
+    });
+    renderAt(`/bids/${BID}`);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Start qualification" }));
+
+    expect(await screen.findByText("qualifying")).toBeInTheDocument();
+    const post = calls.find((call) => call.method === "POST");
+    expect(JSON.parse(post!.body!)).toEqual({ target: "qualifying", reason: null });
+  });
+
+  // req: FR-BID-01
+  it("says what a move waits on, and whose a move is, and offers neither", async () => {
+    stubs(() => Response.json(bid()), {
+      [`/bids/${BID}/transitions`]: () =>
+        Response.json([
+          move({ refusal: "these details are missing: clarification_cutoff" }),
+          move({
+            target: "in_preparation",
+            action: "bid (G0)",
+            roles: ["commercial_director"],
+            permitted: false,
+          }),
+        ]),
+    });
+    renderAt(`/bids/${BID}`);
+
+    const moves = await screen.findByRole("list", { name: "Moves" });
+    expect(within(moves).getByRole("button", { name: "Start qualification" })).toBeDisabled();
+    expect(moves).toHaveTextContent("Waits on: these details are missing: clarification cutoff.");
+    expect(within(moves).getByRole("button", { name: "Bid (G0)" })).toBeDisabled();
+    expect(moves).toHaveTextContent("For the commercial director.");
+  });
+
+  // req: FR-BID-01
+  it("withdraws a bid only with a reason, and sends it", async () => {
+    const calls = stubs(() => Response.json(bid()), {
+      [`/bids/${BID}/transitions`]: (call) =>
+        call.method === "POST"
+          ? Response.json(bid({ state: "withdrawn" }))
+          : Response.json([move({ target: "withdrawn", action: "withdraw" })]),
+    });
+    renderAt(`/bids/${BID}`);
+
+    const withdraw = await screen.findByRole("button", { name: "Withdraw" });
+    expect(withdraw).toBeDisabled();
+    await userEvent.type(screen.getByLabelText("Reason for the move"), "the client cancelled");
+    await userEvent.click(withdraw);
+
+    await screen.findByText("withdrawn");
+    const post = calls.find((call) => call.method === "POST");
+    expect(JSON.parse(post!.body!)).toEqual({
+      target: "withdrawn",
+      reason: "the client cancelled",
+    });
+  });
+
+  // req: FR-BID-01
+  it("shows why the API refused a move", async () => {
+    stubs(() => Response.json(bid()), {
+      [`/bids/${BID}/transitions`]: (call) =>
+        call.method === "POST"
+          ? Response.json({ detail: "bid lifecycle: the team is incomplete" }, { status: 409 })
+          : Response.json([move()]),
+    });
+    renderAt(`/bids/${BID}`);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Start qualification" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("the team is incomplete");
+    expect(screen.getByText("registered")).toBeInTheDocument();
   });
 });

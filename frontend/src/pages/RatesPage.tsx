@@ -7,6 +7,7 @@ import { accessToken } from "@/auth/oidc";
 import { useAuth } from "@/auth/session";
 import { Button } from "@/components/ui/button";
 import { LibraryProposals } from "@/pages/LibraryProposals";
+import { ProductivityLibrary } from "@/pages/ProductivityLibrary";
 
 /**
  * The company rate library (FR-CST-01).
@@ -99,6 +100,8 @@ export function RatesPage() {
       </div>
 
       <LibraryProposals canDecide={canImport} />
+
+      <ProductivityLibrary canImport={canImport} />
     </section>
   );
 }

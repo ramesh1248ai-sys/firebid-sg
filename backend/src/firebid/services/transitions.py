@@ -7,6 +7,7 @@ cannot skip a rule by forgetting to pass it.
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Protocol
 
@@ -161,3 +162,53 @@ def apply_transition(
         reason=reason,
     )
     return transition
+
+
+# A bid's moves that are made where their approval or record is made: G3 and G4 on the
+# review page, the award or the loss with the outcome.
+MADE_ELSEWHERE = frozenset(
+    {
+        BidState.APPROVED_FOR_SUBMISSION,
+        BidState.SUBMITTED,
+        BidState.AWARDED,
+        BidState.LOST,
+    }
+)
+
+
+@dataclass(frozen=True)
+class Move:
+    """One move open from a bid's state: whose it is, whether the caller may make it, and
+    what stands in its way."""
+
+    target: str
+    action: str
+    roles: tuple[str, ...]
+    permitted: bool
+    refusal: str | None
+
+
+def bid_moves(session: Session, bid: Bid, actor: Actor) -> list[Move]:
+    """The moves a person could make from the bid's page, in the state machine's order.
+    Nothing is moved: the rules are read as `apply_transition` reads them."""
+    source = BID_LIFECYCLE.states(bid.state)
+    held = {str(role) for role in actor.roles}
+    moves = []
+    for transition in BID_LIFECYCLE.transitions:
+        if transition.source != source or transition.target in MADE_ELSEWHERE:
+            continue
+        refusal = (
+            transition.guard(_guard_context(session, bid, transition.target))
+            if transition.guard is not None
+            else None
+        )
+        moves.append(
+            Move(
+                target=str(transition.target),
+                action=transition.action,
+                roles=tuple(sorted(str(role) for role in transition.roles)),
+                permitted=bool(held & {str(role) for role in transition.roles}),
+                refusal=refusal,
+            )
+        )
+    return moves

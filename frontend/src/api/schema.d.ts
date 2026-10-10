@@ -1445,6 +1445,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/members/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Candidates
+         * @description The organisation's people who are not on this bid, with the roles each holds: who a
+         *     bid manager may add. Someone who has left (not active) is not offered.
+         */
+        get: operations["list_candidates_bids__bid_id__members_candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/bids/{bid_id}/outcome": {
         parameters: {
             query?: never;
@@ -3510,7 +3531,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Moves
+         * @description The moves open from the bid's state, each with whose it is and what is in its way.
+         *     G3, G4 and the outcome are not among them: they are made where they are recorded.
+         */
+        get: operations["list_moves_bids__bid_id__transitions_get"];
         put?: never;
         /** Transition */
         post: operations["transition_bids__bid_id__transitions_post"];
@@ -6701,6 +6727,19 @@ export interface components {
             /** Provider */
             provider: string;
         };
+        /** MoveOut */
+        MoveOut: {
+            /** Action */
+            action: string;
+            /** Permitted */
+            permitted: boolean;
+            /** Refusal */
+            refusal: string | null;
+            /** Roles */
+            roles: string[];
+            /** Target */
+            target: string;
+        };
         /** MultiplierOut */
         MultiplierOut: {
             /** Key */
@@ -8405,6 +8444,23 @@ export interface components {
             state: string;
             /** Title */
             title: string;
+        };
+        /**
+         * TeamCandidateOut
+         * @description Someone of the organisation who is not on the bid's team yet.
+         */
+        TeamCandidateOut: {
+            /** Display Name */
+            display_name: string;
+            /** Roles */
+            roles: string[];
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Username */
+            username: string;
         };
         /** TemplateChange */
         TemplateChange: {
@@ -11426,6 +11482,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_candidates_bids__bid_id__members_candidates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamCandidateOut"][];
                 };
             };
             /** @description Validation Error */
@@ -15212,6 +15299,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_moves_bids__bid_id__transitions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MoveOut"][];
                 };
             };
             /** @description Validation Error */
