@@ -13,6 +13,10 @@ This page walks through each screen in the order a bid uses them. The screenshot
 taken on 2026-10-08 and 2026-10-10 from synthetic test bids. See also
 [the estimator quick start](../user/estimator-quick-start.md).
 
+For a Word copy of all three parts, run
+`uv run --project backend python scripts/generate_user_manual_docx.py`; it writes
+`FireBid_SG_User_Manual.docx` beside this page.
+
 ## Contents
 
 1. [Signing in](#1-signing-in)
