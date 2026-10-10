@@ -133,6 +133,10 @@ TO_SETTLE: dict[str, set[tuple[str, str, str]]] = {
         ("STG-007", "hydrant / no / level", "C8"),
         ("STG-007", "pipe / DN150 / m / level", "C8"),
         ("STG-007", "fitting / tee / DN150x150 / no / level", "C8"),
+        # And so none of the main or its tees is on no level, where the package has the
+        # site's share there. The share on B1 agrees.
+        ("STG-007", "pipe / DN150 / m / on no level", "C8"),
+        ("STG-007", "fitting / tee / DN150x150 / no / on no level", "C8"),
     },
 }
 OTHER_SYSTEMS = ("hose_reel", "hydrant")
@@ -336,9 +340,10 @@ def test_the_platform_s_stages_1_to_7_against_tc_syn_003(session: Session, pump_
     assert all(passed[f"STG-00{n}"][0] == passed[f"STG-00{n}"][1] for n in range(1, 7)), told
     assert passed["STG-007"][0] - passed["STG-007"][1] == 1, told
     assert passed["STG-005"] == (16, 16), told
-    assert all(d.what.endswith("/ level") for d in result.differences), told
-    # The four with C8 are its other reading, on the sheet and on its items alike.
-    assert sum(d.other_reading for d in result.differences) == 4, told
+    assert all(d.what.endswith(("/ level", "/ on no level")) for d in result.differences), told
+    # The six with C8 are its other reading: on the sheet, on its items, and in how much of
+    # an item that is on two levels is on each.
+    assert sum(d.other_reading for d in result.differences) == 6, told
 
 
 def test_a_bid_with_nothing_read_exports_nothing(session: Session, bid: Bid) -> None:

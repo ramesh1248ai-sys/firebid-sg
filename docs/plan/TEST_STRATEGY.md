@@ -232,7 +232,7 @@ the ticked circle, match lines between sheets and the skewed wing.
 | Synthetic suites and the regression gate | Exist |
 | Truth for stages 5 to 7 and 9 in `firebid/evals/schema.py` | Exists |
 | Truth for stages 1 to 4, 8 and 10 to 12 | Held in each package's `golden.json`, read by `firebid.evals.golden` |
-| `golden.json` reader and the staged comparison | Built for exact, tolerance and completeness (A, C, E) on stages 1 to 12: `firebid-eval golden`. At stage 7 an item's level is compared where the package states it. **To build:** instance positions; an item's system and attributes at stage 7; a quantity level by level |
+| `golden.json` reader and the staged comparison | Built for exact, tolerance and completeness (A, C, E) on stages 1 to 12: `firebid-eval golden`. At stage 7 an item's level is compared where the package states it, and how much of an item is on each level where the package has it on more than one. **To build:** instance positions; an item's system and attributes at stage 7 |
 | Export of a bid's stage outputs in the same shape | Built for stages 1 to 12: `firebid-eval export-run --bid` |
 | Defect classification and the weighted score in the report | Built. The score is over the dimensions measured (90% of the weights where stage 12 is compared; evidence is not) and says so. **To build:** linking a difference to the earlier one that caused it |
 | Semantic comparison (rubric, optional model judge) | **To build**; a model judge waits on decision D2. Until then wording is compared after normalising case and spacing only |

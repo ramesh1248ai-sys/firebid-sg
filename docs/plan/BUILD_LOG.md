@@ -2409,3 +2409,24 @@ Entry template:
 - **Page (`frontend/src/pages/Labour.tsx`):** under a line's multipliers, "all on B1" where every part of it is on one level, or the overall factor and one row a level ("B1: 40 m, 12.00 h × 1.10 = 13.20 h").
 - **Not done:** the split is shown and cannot be edited. The labour workbook export is unchanged.
 - **Requirement IDs covered (test names):** FR-LAB-02: `tests/labour/test_labour.py::TestHours::test_a_line_rolled_up_over_the_building_is_worked_level_by_level` (the `by_level` rows), `frontend/src/pages/Labour.test.tsx` ("shows a line billed for the building level by level, with each level's factor").
+
+## Test · A quantity compared level by level at the takeoff · 2026-10-09
+
+Since a level's labour multiplier is on that level's share of a line, a takeoff with the right
+total and the right levels can still be wrong: 3 m of pipe moved from one level to another
+changed nothing the comparison looked at.
+
+- **What is compared.** Where the package has an item on more than one level, stage 7 now has
+  one more fact for each of those levels: how much of the item is on it (`pipe / DN150 / m /
+  on b1`). A length is within the stage's 5%, a count exact; a difference is HIGH. Only the
+  levels the package names, so a share is never missing or extra: what is on any other level
+  is in the total and in the item's levels, which are compared already.
+- **Where it applies today.** TC-SYN-003 only: the DN150 pipe (19.8 m in the pump room on B1,
+  26.25 m of site main) and the DN150 equal tees (1 and 3). TC-SYN-001 and 002 are each of
+  one level.
+- **Result.** The platform's B1 shares agree. The site's share is on SITE and not on no
+  level, which is C8 again: the package records 0 on no level as C8's other reading for both
+  items, so TC-SYN-003 has six to settle where it had four, and still one defect (the
+  breeching inlet on L01).
+- **Not done.** A share on a level the package does not name is not a fact of its own.
+- **Requirement IDs covered (test names):** FR-LRN-01: `tests/evals/test_golden_comparison.py::TestLevelsAtTheTakeoff` (an item on two levels compared level by level; a share measured as the length is; all of it on the site's level is the other reading of C8; an item on one level has no share), `tests/db/test_golden_run.py` (TC-SYN-003).
