@@ -1,9 +1,9 @@
 """A run's stage outputs against a Golden Reference Work Product Package (FR-LRN-01).
 
 `docs/plan/TEST_STRATEGY.md` says what a package is and how it is compared. This is the
-comparison: exact (type A), tolerance (C) and completeness (E), for stages 1 to 12. Semantic
-(B) and evidence (D) comparison are not built: what is not compared is reported as not
-compared, never as passed.
+comparison: exact (type A), tolerance (C), evidence (D) and completeness (E), for stages 1 to
+12. Semantic comparison (B) is not built: what is not compared is reported as not compared,
+never as passed.
 
 A **run** is a bid's stage outputs in the package's own shape: stage ID to that stage's
 `expected_output` layout (`firebid-eval export-run` writes one from a bid). Each side is
@@ -21,6 +21,15 @@ a date). A difference on something the package records as an ambiguity is **to s
 shown with the ambiguity's ID, and neither a defect nor a pass. Where the package also
 records what the other reading of the ambiguity gives (`alternatives` in a stage's expected
 output), only that value is to settle: a third value is a defect.
+
+**Evidence** is what a value cites: the sheet a legend row or a takeoff item is from, the
+sheet of an issue, the clause of a scope row or a risk, the source of a rate or of a
+productivity. It is compared where the package gives it in a form that can be compared (a
+drawing number, a clause number, a source's name), and only for a value the run has: one that
+is missing is reported once. A citation that differs is MEDIUM, and counts under evidence in
+the score. Where a reviewer accepts another citation as equivalent, the package records it
+(`equivalent_evidence`: what it is of, by its label, and the citations accepted), and a run
+that gives one of those passes. Evidence a package writes as prose is not compared.
 
 Pure: a package and a run in; differences, a score and a report out.
 """
@@ -58,7 +67,6 @@ DIMENSION_LABELS = {
     "final_output": "Final output quality",
 }
 NOT_BUILT = {
-    "evidence": "evidence comparison (type D) is not built",
     "final_output": "stage 12 was not compared",
 }
 
@@ -129,6 +137,8 @@ class Fact:
     # The fact this one is about (an item's level is about the item). Where that one is
     # missing, or is there at another size, this one is not reported as well.
     of: tuple[str, ...] | None = None
+    # For evidence: the other citations a reviewer accepts as equivalent.
+    equivalents: tuple[Any, ...] = ()
 
     def label(self) -> str:
         return " / ".join(part for part in self.key if part)
@@ -143,6 +153,20 @@ def _number(value: Any) -> float | None:
         return float(value)
     except TypeError, ValueError:
         return None
+
+
+def _cited(value: Any) -> str:
+    """A citation as it is compared: a sheet, a clause or a source, or several of them in
+    order. `company_standard CS-2026` and `Company standard CS-2026` are the same source."""
+    if isinstance(value, (list, tuple, set)):
+        return ", ".join(sorted(found for found in (_cited(one) for one in value) if found))
+    return _text(value).replace("_", " ")
+
+
+def _evidence(key: tuple[str, ...], of: tuple[str, ...], cited: Any) -> list[Fact]:
+    """What the value at `of` cites, where it cites anything."""
+    value = _cited(cited)
+    return [Fact(key, value, "evidence", severity="MEDIUM", of=of)] if value else []
 
 
 def _intake(out: dict[str, Any], _: Stage) -> list[Fact]:
@@ -211,10 +235,19 @@ def _views(out: dict[str, Any], _: Stage) -> list[Fact]:
 
 
 def _legend(out: dict[str, Any], _: Stage) -> list[Fact]:
-    return [
+    facts = [
         Fact((_text(row.get("description")), "object type"), row.get("object_type"), "completeness")
         for row in out.get("rows", [])
     ]
+    # The sheets a row is on: its own, or the legend's where the rows name none.
+    of_all = out.get("legend_sheets") or [out.get("legend_sheet")]
+    sheets: dict[str, set[str]] = {}
+    for row in out.get("rows", []):
+        on = [row["sheet"]] if row.get("sheet") else of_all
+        sheets.setdefault(_text(row.get("description")), set()).update(_cited(one) for one in on)
+    for description, found in sheets.items():
+        facts += _evidence((description, "sheet"), (description, "object type"), found)
+    return facts
 
 
 def _objects(out: dict[str, Any], _: Stage) -> list[Fact]:
@@ -269,7 +302,7 @@ def _takeoff(out: dict[str, Any], stage: Stage) -> list[Fact]:
     levels_stated = "level" in reference or any(
         "level" in item for part in parts for item in reference.get(part, [])
     )
-    totals, levels, shares = _taken_off(out, out.get("level"), runs_stated)
+    totals, levels, shares, sheets = _taken_off(out, out.get("level"), runs_stated)
     # Where the reference has an item on more than one level, how much of it is on each is
     # compared as well: a level's labour multiplier is on that level's share. Only the levels
     # the reference names, so a share is never missing or extra: the rest is in the total.
@@ -314,6 +347,9 @@ def _takeoff(out: dict[str, Any], stage: Stage) -> list[Fact]:
             for key, (_, unit, _, ambiguity) in totals.items()
             for level in split.get(key, [])
         ]
+    # The sheets an item is taken off from, where it names any.
+    for key, (_, unit, _, _) in totals.items():
+        facts += _evidence((*key, unit, "sheet"), (*key, unit), sheets.get(key))
     return facts
 
 
@@ -322,11 +358,18 @@ Totals = dict[tuple[str, ...], tuple[float, str, bool, str | None]]
 
 def _taken_off(
     out: dict[str, Any], of_all: Any, runs_stated: bool
-) -> tuple[Totals, dict[tuple[str, ...], set[str]], dict[tuple[str, ...], dict[str, float]]]:
-    """A takeoff's items by what they are: the quantity of each, the levels it is on, and
-    how much of it is on each level. `of_all` is the level of an item that states none."""
+) -> tuple[
+    Totals,
+    dict[tuple[str, ...], set[str]],
+    dict[tuple[str, ...], dict[str, float]],
+    dict[tuple[str, ...], set[str]],
+]:
+    """A takeoff's items by what they are: the quantity of each, the levels it is on, how
+    much of it is on each level, and the sheets it is from. `of_all` is the level of an item
+    that states none."""
     levels: dict[tuple[str, ...], set[str]] = {}
     shares: dict[tuple[str, ...], dict[str, float]] = {}
+    sheets: dict[tuple[str, ...], set[str]] = {}
     totals: Totals = {}
     for part, derived in (
         ("drawn_items", False),
@@ -361,7 +404,10 @@ def _taken_off(
             levels.setdefault(key, set()).add(level)
             on = shares.setdefault(key, {})
             on[level] = on.get(level, 0.0) + amount
-    return totals, levels, shares
+            sheets.setdefault(key, set()).update(
+                _cited(one) for one in item.get("sheets") or [item.get("sheet")] if one
+            )
+    return totals, levels, shares, sheets
 
 
 def _amount(value: Any) -> float | None:
@@ -401,13 +447,9 @@ def _specification(out: dict[str, Any], _: Stage) -> list[Fact]:
         )
     for one in out.get("issues", []):
         clause = one.get("clause")
-        facts.append(
-            Fact(
-                ("issue", str(one.get("rule")), f"clause {clause}" if clause else "no clause"),
-                one.get("state"),
-                "business_rule",
-            )
-        )
+        issue = ("issue", str(one.get("rule")), f"clause {clause}" if clause else "no clause")
+        facts.append(Fact(issue, one.get("state"), "business_rule"))
+        facts += _evidence((*issue, "sheet"), issue, one.get("sheet"))
     matrix = out.get("scope_matrix", {})
     rows = matrix.get("rows") or [
         {"system": system, **interface}
@@ -415,13 +457,9 @@ def _specification(out: dict[str, Any], _: Stage) -> list[Fact]:
         for interface in matrix.get("interfaces_for_each_system", [])
     ]
     for row in rows:
-        facts.append(
-            Fact(
-                ("scope", str(row.get("system")), str(row.get("key"))),
-                row.get("status"),
-                "business_rule",
-            )
-        )
+        scope = ("scope", str(row.get("system")), str(row.get("key")))
+        facts.append(Fact(scope, row.get("status"), "business_rule"))
+        facts += _evidence((*scope, "clause"), scope, row.get("clause"))
     return facts
 
 
@@ -466,7 +504,16 @@ def _pricing(out: dict[str, Any], stage: Stage) -> list[Fact]:
     facts = []
     for line in out.get("lines", []):
         where = ("line", str(line.get("line")))
-        facts.append(Fact((*where, "price_status"), line.get("price_status"), "business_rule"))
+        priced = (*where, "price_status")
+        facts.append(Fact(priced, line.get("price_status"), "business_rule"))
+        # A price's source and how long it holds; the hours' entry and where it is from.
+        for name, cited in (
+            ("rate source", line.get("rate_source")),
+            ("rate valid until", line.get("rate_valid_until")),
+            ("productivity entry", (line.get("labour") or {}).get("productivity_entry")),
+            ("productivity source", (line.get("labour") or {}).get("productivity_source")),
+        ):
+            facts += _evidence((*where, name), priced, cited)
         for name in ("unit_rate", "amount"):
             facts.append(Fact((*where, name), _amount(line.get(name)), "calculation"))
         if "warnings" in line:
@@ -549,9 +596,9 @@ def _risks(out: dict[str, Any], stage: Stage) -> list[Fact]:
         )
     for risk in out.get("risks", []):
         where = ("risk", str(risk.get("kind")))
-        facts.append(
-            Fact((*where, "proposed treatment"), risk.get("proposed_treatment"), "business_rule")
-        )
+        treated = (*where, "proposed treatment")
+        facts.append(Fact(treated, risk.get("proposed_treatment"), "business_rule"))
+        facts += _evidence((*where, "clauses"), treated, risk.get("clauses"))
         impact = risk.get("impact")
         if isinstance(impact, dict):
             for name in ("hours", "cost"):
@@ -740,6 +787,20 @@ def _other_readings(stage: Stage, expected: dict[tuple[str, ...], Fact]) -> None
             )
 
 
+def _equivalents(stage: Stage, expected: dict[tuple[str, ...], Fact]) -> None:
+    """Mark the citations a reviewer accepts in place of the package's own
+    (`equivalent_evidence`: what it is of, by its label, and the citations accepted)."""
+    labels = {fact.label(): key for key, fact in expected.items() if fact.dimension == "evidence"}
+    for one in stage.expected_output.get("equivalent_evidence", []):
+        what = str(one.get("what"))
+        key = labels.get(what)
+        if key is None:
+            raise ValueError(f"{stage.stage_id}: no expected evidence is labelled {what!r}")
+        fact = expected[key]
+        accepted = tuple(_cited(value) for value in one.get("accepted", []))
+        expected[key] = replace(fact, equivalents=(*fact.equivalents, *accepted))
+
+
 def compare(package: Package, run: Run) -> Result:
     stages = []
     for stage in package.stages:
@@ -768,6 +829,7 @@ def compare(package: Package, run: Run) -> Result:
         expected = {fact.key: fact for fact in extract(stage.expected_output, stage)}
         actual = {fact.key: fact for fact in extract(run[stage.stage_id], stage)}
         _other_readings(stage, expected)
+        _equivalents(stage, expected)
         resized = _resized(expected, actual)
         for other, fact in resized.values():
             measured = fact.tolerance_percent is not None
@@ -792,7 +854,7 @@ def compare(package: Package, run: Run) -> Result:
             if fact.of is not None and (fact.of in resized or fact.of not in actual):
                 continue  # the item itself is the difference, and is reported once
             found = actual.get(key)
-            if found is not None and _same(fact, found.value):
+            if found is not None and (_same(fact, found.value) or found.value in fact.equivalents):
                 result.outcomes.append((fact.dimension, True))
                 continue
             settle = fact.ambiguity is not None
@@ -801,9 +863,11 @@ def compare(package: Package, run: Run) -> Result:
             )
             if fact.alternatives and not reading:
                 settle = False  # neither reading of the ambiguity gives this
-            # Something missing is a failure of completeness, whatever it is of. A
-            # difference on an ambiguity is not scored either way.
-            dimension = "completeness" if found is None else fact.dimension
+            # Something missing is a failure of completeness, whatever it is of, but a
+            # value that cites nothing is a failure of evidence. A difference on an
+            # ambiguity is not scored either way.
+            missing = found is None and fact.dimension != "evidence"
+            dimension = "completeness" if missing else fact.dimension
             if not settle:
                 result.outcomes.append((dimension, False))
             result.differences.append(
@@ -822,6 +886,8 @@ def compare(package: Package, run: Run) -> Result:
         for key, fact in actual.items():
             if fact.of is not None and (fact.of not in expected or fact.of in taken):
                 continue
+            if fact.dimension == "evidence":
+                continue  # compared where the reference gives it, and not otherwise
             if key not in expected and key not in taken:
                 result.differences.append(
                     Difference(
@@ -989,8 +1055,9 @@ def report(result: Result, scored: Score) -> str:
             )
     lines += [
         "",
-        "> Compared: exact, tolerance and completeness, on stages 1 to 12. Not compared: "
-        "wording (semantic), evidence and positions. A stage that was not compared has not "
+        "> Compared: exact, tolerance and completeness, on stages 1 to 12, and evidence where "
+        "the package gives a sheet, a clause or a source. Not compared: wording (semantic), "
+        "evidence written as prose, and positions. A stage that was not compared has not "
         "passed.",
         "",
     ]

@@ -64,6 +64,10 @@ KNOWN_DEFECTS: dict[str, set[tuple[str, str, str]]] = {
         # The platform flags the five lines the client's bill has no item for, with the two
         # client lines; the package counts the client's two.
         ("STG-012", "open / bill_variances_flagged", "HIGH"),
+        # The same purchase order, its kind written out by the platform (`purchase order
+        # PO-889`) and short by the package (`PO PO-889`): for a reviewer to accept as
+        # equivalent, in the package's `equivalent_evidence`.
+        ("STG-010", "line / pipe_100_main / rate source", "MEDIUM"),
     },
     "TC-SYN-003": {
         # A level where the package gives none and has no ambiguity for it: for a person.
@@ -310,7 +314,8 @@ def test_the_platform_s_stages_1_to_7_against_tc_syn_001(session: Session, tende
     assert len(result.stages) == 7
     # Every count and every drawn length of the installation is the reference's.
     assert checks(result)["STG-005"] == (11, 11), told
-    assert checks(result)["STG-004"] == (8, 8), told
+    # Eight legend rows, and the sheet each is on.
+    assert checks(result)["STG-004"] == (16, 16), told
 
 
 def test_the_platform_s_twelve_stages_against_tc_syn_002(

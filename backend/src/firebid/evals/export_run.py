@@ -283,6 +283,7 @@ def _size(text: str | None) -> int | str | None:
 def _item(item: QtoItem) -> dict[str, Any]:
     """One takeoff item, as the package names it: what it is, its size and its run."""
     attributes = dict(item.attributes)
+    sources: Any = dict(item.derivation or {}).get("sources") or []
     one: dict[str, Any] = {
         "item": item.item_type,
         "quantity": float(item.net_quantity),
@@ -290,6 +291,14 @@ def _item(item: QtoItem) -> dict[str, Any]:
         "level": item.level,
         "state": item.state,
         "description": item.description,
+        # The sheets it was taken off from: its evidence.
+        "sheets": sorted(
+            {
+                str(source["sheet_number"])
+                for source in sources
+                if isinstance(source, dict) and source.get("sheet_number")
+            }
+        ),
     }
     size = _size(_value(attributes, "nominal_diameter_mm") or _value(attributes, "size"))
     outlet = _value(attributes, "outlet_diameter_mm")
