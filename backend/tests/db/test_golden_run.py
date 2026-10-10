@@ -70,6 +70,10 @@ KNOWN_DEFECTS: dict[str, set[tuple[str, str, str]]] = {
         # The platform puts the breeching inlet, which only the schematic draws, on the level
         # the schematic names nearest it (L01).
         ("STG-007", "breeching_inlet / no / level", "HIGH"),
+        # The package has each fire pump's driver (electric, diesel), which the schedule
+        # gives in the pump's description ("ELECTRIC FIRE PUMP") and in no column of its
+        # own. The platform reads the columns, and so states no driver.
+        ("STG-007", "fire_pump / no / driver", "HIGH"),
     },
 }
 # B1: does every head take a drop, or the pendents only? The package records what the other
@@ -137,6 +141,11 @@ TO_SETTLE: dict[str, set[tuple[str, str, str]]] = {
         # site's share there. The share on B1 agrees.
         ("STG-007", "pipe / DN150 / m / on no level", "C8"),
         ("STG-007", "fitting / tee / DN150x150 / no / on no level", "C8"),
+        # C6: the platform puts the pump room's pipe with the rising main (wet riser); the
+        # package names it for the pumps. The floor's and the site's pipe agree.
+        ("STG-007", "pipe / DN200 / m / system", "C6"),
+        ("STG-007", "pipe / DN150 / m / system", "C6"),
+        ("STG-007", "pipe / DN50 / m / system", "C6"),
     },
 }
 OTHER_SYSTEMS = ("hose_reel", "hydrant")
@@ -336,15 +345,19 @@ def test_the_platform_s_stages_1_to_7_against_tc_syn_003(session: Session, pump_
 
     assert len(result.stages) == 7
     # No count, length or derived quantity differs: 17 pieces of equipment once each, and
-    # the pipe of three plans. What differs is the level of four of the 28 kinds of item.
+    # the pipe of three plans. What differs is the level of four of the 28 kinds of item,
+    # the system the pump room's pipe is named for, and the fire pumps' driver.
     passed = checks(result)
     assert all(passed[f"STG-00{n}"][0] == passed[f"STG-00{n}"][1] for n in range(1, 7)), told
-    assert passed["STG-007"][0] - passed["STG-007"][1] == 1, told
+    assert passed["STG-007"][0] - passed["STG-007"][1] == 2, told
     assert passed["STG-005"] == (16, 16), told
-    assert all(d.what.endswith(("/ level", "/ on no level")) for d in result.differences), told
+    assert all(
+        d.what.endswith(("/ level", "/ on no level", "/ system", "/ driver"))
+        for d in result.differences
+    ), told
     # The six with C8 are its other reading: on the sheet, on its items, and in how much of
-    # an item that is on two levels is on each.
-    assert sum(d.other_reading for d in result.differences) == 6, told
+    # an item that is on two levels is on each. The three with C6 are its other reading.
+    assert sum(d.other_reading for d in result.differences) == 9, told
 
 
 def test_a_bid_with_nothing_read_exports_nothing(session: Session, bid: Bid) -> None:

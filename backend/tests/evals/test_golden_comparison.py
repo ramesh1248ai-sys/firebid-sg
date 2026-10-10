@@ -379,6 +379,171 @@ class TestLevelsAtTheTakeoff:
         ]
 
 
+class TestAttributesAndSystemsAtTheTakeoff:
+    """What an item states beyond its size, and the system it is of. On TC-SYN-003 (pumps
+    with a schedule, pipe of three systems) and TC-SYN-002 (a specification nobody has
+    verified, so nothing is to state a material)."""
+
+    @pytest.fixture(scope="class")
+    def systems(self) -> golden.Package:
+        return golden.load(PACKAGES / "TC-SYN-003")
+
+    @pytest.fixture(scope="class")
+    def priced(self) -> golden.Package:
+        return golden.load(PACKAGES / "TC-SYN-002")
+
+    @staticmethod
+    def pump(run: golden.Run, tag: str) -> dict[str, Any]:
+        found: dict[str, Any]
+        (found,) = [one for one in run["STG-007"]["equipment"] if one.get("tag") == tag]
+        return found
+
+    @staticmethod
+    def pipe(run: golden.Run, sheet: str, dn: int) -> dict[str, Any]:
+        found: dict[str, Any]
+        (found,) = [
+            one for one in run["STG-007"]["pipe"] if one["sheet"] == sheet and one["dn"] == dn
+        ]
+        return found
+
+    def test_a_pump_of_another_duty_is_a_high_defect_of_that_attribute_alone(
+        self, systems: golden.Package
+    ) -> None:
+        run = the_reference_s_own(systems)
+        self.pump(run, "FP-02")["attributes"]["duty"] = "duty"
+
+        result = golden.compare(systems, run)
+
+        assert defects(result) == [("STG-007", "fire_pump / no / duty", "wrong", "HIGH")]
+        # The two pumps are one kind of item: the values they have between them.
+        (one,) = result.differences
+        assert (one.expected, one.actual) == ("duty, standby", "duty")
+
+    def test_an_attribute_an_item_does_not_state_is_not_specified(
+        self, systems: golden.Package
+    ) -> None:
+        run = the_reference_s_own(systems)
+        for tag in ("FP-01", "FP-02"):
+            del self.pump(run, tag)["attributes"]["driver"]
+
+        result = golden.compare(systems, run)
+
+        assert defects(result) == [("STG-007", "fire_pump / no / driver", "wrong", "HIGH")]
+        assert result.differences[0].actual == "not specified"
+
+    def test_a_value_where_none_is_to_be_is_critical(self, priced: golden.Package) -> None:
+        # Nobody has verified the specification: no pipe is to say what it is made of.
+        run = the_reference_s_own(priced)
+        (main,) = [
+            one
+            for one in run["STG-007"]["drawn_items"]
+            if one["item"] == "pipe" and one["dn"] == 150
+        ]
+        main["attributes"] = {"pipe_material": "black_steel", "joining_method": "not specified"}
+
+        result = golden.compare(priced, run)
+
+        assert [d for d in defects(result) if d[0] == "STG-007"] == [
+            ("STG-007", "pipe / DN150 / main / m / pipe_material", "wrong", "CRITICAL")
+        ]
+        (one,) = [d for d in result.differences if d.stage_id == "STG-007"]
+        assert (one.expected, one.actual) == ("not specified", "black steel")
+
+    def test_every_pipe_and_every_head_of_the_car_park_is_checked_for_it(
+        self, priced: golden.Package
+    ) -> None:
+        own = {s.stage_id: copy.deepcopy(s.expected_output) for s in priced.stages}
+
+        (takeoff,) = [s for s in golden.compare(priced, own).stages if s.stage_id == "STG-007"]
+        bare = golden.compare(
+            priced.model_copy(
+                update={
+                    "stages": tuple(
+                        s.model_copy(
+                            update={
+                                "expected_output": {
+                                    k: v for k, v in s.expected_output.items() if k != "attributes"
+                                }
+                            }
+                        )
+                        if s.stage_id == "STG-007"
+                        else s
+                        for s in priced.stages
+                    )
+                }
+            ),
+            own,
+        )
+        (without,) = [s for s in bare.stages if s.stage_id == "STG-007"]
+
+        # Five kinds of pipe by three attributes, three kinds of head by four.
+        assert takeoff.checks - without.checks == 5 * 3 + 3 * 4
+        assert takeoff.passed == takeoff.checks
+
+    def test_a_system_is_the_same_by_its_key_or_by_its_name(self, systems: golden.Package) -> None:
+        run = the_reference_s_own(systems)
+        self.pipe(run, "FP-L03-401", 100)["system"] = "wet_riser"
+        self.pipe(run, "FP-SITE-001", 150)["system"] = "Hydrant system"
+
+        assert golden.compare(systems, run).differences == []
+
+    def test_pipe_put_with_another_system_is_a_medium_defect(self, systems: golden.Package) -> None:
+        run = the_reference_s_own(systems)
+        self.pipe(run, "FP-L03-401", 100)["system"] = "hydrant"
+        stated_none = the_reference_s_own(systems)
+        del self.pipe(stated_none, "FP-L03-401", 100)["system"]
+
+        assert defects(golden.compare(systems, run)) == [
+            ("STG-007", "pipe / DN100 / m / system", "wrong", "MEDIUM")
+        ]
+        (one,) = golden.compare(systems, stated_none).differences
+        assert (one.what, one.actual, one.classification) == (
+            "pipe / DN100 / m / system",
+            "none stated",
+            "MEDIUM",
+        )
+
+    def test_the_pump_room_s_pipe_as_the_rising_main_s_is_the_other_reading_of_c6(
+        self, systems: golden.Package
+    ) -> None:
+        other = the_reference_s_own(systems)
+        third = the_reference_s_own(systems)
+        for dn in (200, 150, 50):
+            self.pipe(other, "FP-B1-101", dn)["system"] = "wet_riser"
+            self.pipe(third, "FP-B1-101", dn)["system"] = "sprinkler"
+
+        settled = golden.compare(systems, other).differences
+        wrong = golden.compare(systems, third)
+
+        assert {(d.what, d.classification, d.ambiguity, d.other_reading) for d in settled} == {
+            (f"pipe / DN{dn} / m / system", "TO SETTLE", "C6", True) for dn in (200, 150, 50)
+        }
+        assert defects(wrong) == [
+            ("STG-007", f"pipe / DN{dn} / m / system", "wrong", "MEDIUM") for dn in (200, 150, 50)
+        ]
+
+    def test_what_the_package_does_not_state_is_not_compared(self, package: golden.Package) -> None:
+        # TC-SYN-001 states no attribute and no system: a run that does is not marked for it.
+        run = the_reference_s_own(package)
+        for item in run["STG-007"]["drawn_items"]:
+            item["attributes"] = {"pipe_material": "black_steel"}
+            item["system"] = "sprinkler"
+
+        assert golden.compare(package, run).differences == []
+
+    def test_a_missing_item_is_reported_once_and_not_for_what_it_states_too(
+        self, systems: golden.Package
+    ) -> None:
+        run = the_reference_s_own(systems)
+        run["STG-007"]["equipment"] = [
+            one for one in run["STG-007"]["equipment"] if one["item"] != "jockey_pump"
+        ]
+
+        assert defects(golden.compare(systems, run)) == [
+            ("STG-007", "jockey_pump / no", "missing", "CRITICAL")
+        ]
+
+
 class TestEvidence:
     """What a value cites: a sheet, a clause, a source. On TC-SYN-003 (the sheets of a takeoff)
     and TC-SYN-002 (the clauses and the sources of a priced bid)."""

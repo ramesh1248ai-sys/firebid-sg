@@ -2470,3 +2470,41 @@ measured. This is comparison type D of the test strategy.
   waits on semantic comparison. A location on the sheet waits on instance positions. A
   clarification candidate's sheet is not exported. No expected value of a package was changed.
 - **Requirement IDs covered (test names):** FR-LRN-01: `tests/evals/test_golden_comparison.py::TestEvidence` (an item from another sheet; a value that cites nothing; a rate from another source and hours from another entry; a source however its kind is spelt; a risk or scope row from another clause and an issue on another sheet; something missing reported once; evidence the package does not give; an accepted equivalent), `tests/db/test_golden_run.py` (all three packages).
+
+## Test · An item's attributes and system compared at the takeoff · 2026-10-10
+
+The takeoff was compared by what an item is, how much of it there is, where it is and what
+sheet it is from. What it states (a pump's duty, a pipe's material) and the system it is of
+were exported by nobody and compared by nothing, so an item carrying an unverified
+specification value, which TC-SYN-002 calls critical, would have passed.
+
+- **What is compared (`firebid/evals/golden.py`, stage 7).** An item's attributes and its
+  system, where the package states them. An attribute is stated on an item, or for every
+  item of a kind that is to state none (`attributes.not_specified`, by kind and attribute).
+  An attribute an item does not have is "not specified".
+- **The rules.** A value where none is to be is CRITICAL and counts as a business rule; any
+  other attribute is HIGH and counts as calculation; a system is MEDIUM. Items are compared
+  by what they are, so two pumps of one type are compared by the values they have between
+  them, not pump by pump. A system is the same by its key or by its name (`wet_riser`, wet
+  rising main). A missing item is not reported again for what it states.
+- **The export (`export_run.py`).** A takeoff item gives its attributes, each as stated (a
+  value or "not specified"), and its system where it has one. Its size and what fitting it
+  is are not among them: the package names the item by those.
+- **The packages, through their `work_out.py`.** No expected value changed. TC-SYN-002 gains
+  `attributes.not_specified`, which says in a form the comparison reads what the stage
+  already said in words (pipe: material, class, joining method; sprinkler: K-factor,
+  temperature, response, finish). TC-SYN-003 gains the other reading of C6, which its part
+  11 already recorded: the pump room's pipe is of the rising main's system.
+- **Result.** TC-SYN-002: 27 checks (five kinds of pipe by three attributes, three kinds of
+  head by four), and no item states a value. TC-SYN-003: the pumps' duty, flow, head and
+  power agree, and so do the systems of the floor's and the site's pipe. Two things differ.
+  The platform states no driver for the fire pumps, where the package has electric and
+  diesel: the schedule gives it in the description ("ELECTRIC FIRE PUMP") and in no column,
+  and the platform reads the columns. It is listed as a known HIGH defect, for a person to
+  say whether the platform should read it or the package should not expect it. And the
+  platform puts the pump room's pipe with the rising main, which is the other reading of C6:
+  three to settle. TC-SYN-001 states neither, and nothing of it is compared.
+- **Not done.** Attributes item by item where there are two of a kind (it needs the tag in
+  the run). A system on equipment, or on a derived item: no package states one. TC-SYN-001
+  has no `not_specified` rule, though its specification is as unverified as TC-SYN-002's.
+- **Requirement IDs covered (test names):** FR-LRN-01: `tests/evals/test_golden_comparison.py::TestAttributesAndSystemsAtTheTakeoff` (a pump of another duty; an attribute not stated; a value where none is to be; every pipe and head of the car park; a system by key or name; pipe put with another system; the other reading of C6; what the package does not state; a missing item reported once), `tests/db/test_golden_run.py` (all three packages).

@@ -232,7 +232,7 @@ the ticked circle, match lines between sheets and the skewed wing.
 | Synthetic suites and the regression gate | Exist |
 | Truth for stages 5 to 7 and 9 in `firebid/evals/schema.py` | Exists |
 | Truth for stages 1 to 4, 8 and 10 to 12 | Held in each package's `golden.json`, read by `firebid.evals.golden` |
-| `golden.json` reader and the staged comparison | Built for exact, tolerance, evidence and completeness (A, C, D, E) on stages 1 to 12: `firebid-eval golden`. At stage 7 an item's level is compared where the package states it, and how much of an item is on each level where the package has it on more than one. **To build:** instance positions; an item's system and attributes at stage 7 |
+| `golden.json` reader and the staged comparison | Built for exact, tolerance, evidence and completeness (A, C, D, E) on stages 1 to 12: `firebid-eval golden`. At stage 7 an item's level is compared where the package states it, how much of an item is on each level where the package has it on more than one, and an item's attributes and system where the package states them. **To build:** instance positions; attributes item by item where a package has two of a kind (it needs the item's tag in the run) |
 | Export of a bid's stage outputs in the same shape | Built for stages 1 to 12: `firebid-eval export-run --bid` |
 | Defect classification and the weighted score in the report | Built. The score is over the dimensions measured (all of the weights where stage 12 is compared, 95% where a package stops at stage 7) and says so. **To build:** linking a difference to the earlier one that caused it |
 | Semantic comparison (rubric, optional model judge) | **To build**; a model judge waits on decision D2. Until then wording is compared after normalising case and spacing only |
@@ -269,6 +269,16 @@ citation as equivalent (section 6, type D), the package records it in the stage'
 `equivalent_evidence`: what it is of, by the label the comparison gives it, and the
 citations accepted. A source's kind is the same however it is spelt (`company_standard`,
 `Company standard`).
+
+At stage 7 an item's attributes and its system are compared where the package states
+them. A package states an attribute on an item (a pump's duty, flow and head), or for every
+item of a kind that is to state none: `attributes.not_specified` in the stage's expected
+output, by kind (`pipe`, `sprinkler`) and attribute. An attribute an item does not have is
+"not specified". A value where none is to be is critical, since something nobody verified
+has reached the takeoff; any other attribute is high; a system is medium. Items are compared
+by what they are, so two fire pumps are compared by the values they have between them (duty
+and standby), not pump by pump. A system is the same by its key or by its name
+(`wet_riser`, wet rising main).
 
 At stages 9 and 10 a bill line is named by what it is of (`heads_pendent`,
 `pipe_150_main`, `tee_150x50`, `hanger_50`), from the takeoff items behind it, so two

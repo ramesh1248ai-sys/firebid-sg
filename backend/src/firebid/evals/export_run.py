@@ -36,6 +36,9 @@ DRAWINGS = ("pdf", "dxf")  # the kinds that are read sheet by sheet
 VERDICTS = {"nts": "not to scale"}
 PIPE_RUNS = ("main", "branch", "drop", "riser")
 SIZE = re.compile(r"\d+")
+# What a takeoff item holds among its attributes that the package names it by, or gives
+# apart from them: its size, what fitting it is, its system.
+IDENTITY = ("nominal_diameter_mm", "outlet_diameter_mm", "size", "fitting", "system")
 
 
 def export(session: Session, bid_id: uuid.UUID) -> Run:
@@ -314,6 +317,16 @@ def _item(item: QtoItem) -> dict[str, Any]:
         one["item"] = "hanger"
     elif item.item_type == "pipe" and item.classification in PIPE_RUNS:
         one["run"] = item.classification
+    # The system it says it is of, where it says one: pipe of the bid's own system does not.
+    system = _value(attributes, "system")
+    if system is not None:
+        one["system"] = system
+    # What else it states, each as stated: a value, or "not specified".
+    one["attributes"] = {
+        name: str(found.get("value") if isinstance(found, dict) else found)
+        for name, found in sorted(attributes.items())
+        if name not in IDENTITY
+    }
     return one
 
 

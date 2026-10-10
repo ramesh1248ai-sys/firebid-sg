@@ -31,6 +31,16 @@ the score. Where a reviewer accepts another citation as equivalent, the package 
 (`equivalent_evidence`: what it is of, by its label, and the citations accepted), and a run
 that gives one of those passes. Evidence a package writes as prose is not compared.
 
+At the takeoff an item's **attributes** and its **system** are compared where the package
+states them. An attribute is stated on an item (a pump's duty, flow and head), or for every
+item of a kind that is to state none (`attributes.not_specified`: a pipe's material while the
+specification is still a proposal). Items are compared by what they are, so two pumps of one
+type are compared by the values they have between them, not pump by pump. An attribute an
+item does not have is "not specified". A value where none is to be is CRITICAL (something
+unverified reached the takeoff, counted as a business rule); any other attribute is HIGH; a
+system is MEDIUM. A system is the same by its key or by its name (`wet_riser`, `wet rising
+main`).
+
 Pure: a package and a run in; differences, a score and a report out.
 """
 
@@ -161,6 +171,24 @@ def _cited(value: Any) -> str:
     if isinstance(value, (list, tuple, set)):
         return ", ".join(sorted(found for found in (_cited(one) for one in value) if found))
     return _text(value).replace("_", " ")
+
+
+NOT_SPECIFIED = "not specified"
+# A system by its key, and by the name the platform's pages and the requirements give it.
+SYSTEM_NAMES = {"wet riser": "wet rising main", "dry riser": "dry rising main"}
+
+
+def _system(value: Any) -> str:
+    name = _cited(value).removesuffix(" system")
+    return SYSTEM_NAMES.get(name, name)
+
+
+def _stated(items: list[dict[str, Any]], name: str) -> str:
+    """The values the items of one kind have for an attribute, between them."""
+    found = (
+        one.get(name) if isinstance(one := item.get("attributes"), dict) else None for item in items
+    )
+    return ", ".join(sorted({_cited(value) or NOT_SPECIFIED for value in found}))
 
 
 def _evidence(key: tuple[str, ...], of: tuple[str, ...], cited: Any) -> list[Fact]:
@@ -302,15 +330,12 @@ def _takeoff(out: dict[str, Any], stage: Stage) -> list[Fact]:
     levels_stated = "level" in reference or any(
         "level" in item for part in parts for item in reference.get(part, [])
     )
-    totals, levels, shares, sheets = _taken_off(out, out.get("level"), runs_stated)
+    totals, levels, shares, sheets, items = _taken_off(out, out.get("level"), runs_stated)
+    expected = _taken_off(reference, reference.get("level"), runs_stated)
     # Where the reference has an item on more than one level, how much of it is on each is
     # compared as well: a level's labour multiplier is on that level's share. Only the levels
     # the reference names, so a share is never missing or extra: the rest is in the total.
-    split = {
-        key: sorted(found)
-        for key, found in _taken_off(reference, reference.get("level"), runs_stated)[1].items()
-        if len(found) > 1
-    }
+    split = {key: sorted(found) for key, found in expected[1].items() if len(found) > 1}
     facts = [
         Fact(
             (*key, unit),
@@ -350,6 +375,45 @@ def _takeoff(out: dict[str, Any], stage: Stage) -> list[Fact]:
     # The sheets an item is taken off from, where it names any.
     for key, (_, unit, _, _) in totals.items():
         facts += _evidence((*key, unit, "sheet"), (*key, unit), sheets.get(key))
+    # Attributes and systems, where the reference states them: on an item, or for every item
+    # of a kind that is to state none.
+    none = reference.get("attributes")
+    none = none.get("not_specified", {}) if isinstance(none, dict) else {}
+    for key, (_, unit, _, _) in totals.items():
+        named = expected[4].get(key, [])
+        names = {
+            name
+            for item in named
+            if isinstance(item.get("attributes"), dict)
+            for name in item["attributes"]
+        }
+        for kind, of_kind in none.items():
+            if key[0] == kind or key[0].startswith(f"{kind}_"):
+                names.update(of_kind)
+        for name in sorted(names):
+            # A value where none is to be: something unverified reached the takeoff, which
+            # is a rule broken and not a value misread.
+            unstated = _stated(named, name) == NOT_SPECIFIED
+            facts.append(
+                Fact(
+                    (*key, unit, name),
+                    _stated(items[key], name),
+                    "business_rule" if unstated else "calculation",
+                    severity="CRITICAL" if unstated else "HIGH",
+                    of=(*key, unit),
+                )
+            )
+        if any(item.get("system") for item in named):
+            systems = sorted({_system(item.get("system")) for item in items[key]} - {""})
+            facts.append(
+                Fact(
+                    (*key, unit, "system"),
+                    ", ".join(systems) or "none stated",
+                    "intermediate_work_product",
+                    severity="MEDIUM",
+                    of=(*key, unit),
+                )
+            )
     return facts
 
 
@@ -363,10 +427,12 @@ def _taken_off(
     dict[tuple[str, ...], set[str]],
     dict[tuple[str, ...], dict[str, float]],
     dict[tuple[str, ...], set[str]],
+    dict[tuple[str, ...], list[dict[str, Any]]],
 ]:
     """A takeoff's items by what they are: the quantity of each, the levels it is on, how
-    much of it is on each level, and the sheets it is from. `of_all` is the level of an item
-    that states none."""
+    much of it is on each level, the sheets it is from, and the items themselves. `of_all`
+    is the level of an item that states none."""
+    items: dict[tuple[str, ...], list[dict[str, Any]]] = {}
     levels: dict[tuple[str, ...], set[str]] = {}
     shares: dict[tuple[str, ...], dict[str, float]] = {}
     sheets: dict[tuple[str, ...], set[str]] = {}
@@ -407,7 +473,8 @@ def _taken_off(
             sheets.setdefault(key, set()).update(
                 _cited(one) for one in item.get("sheets") or [item.get("sheet")] if one
             )
-    return totals, levels, shares, sheets
+            items.setdefault(key, []).append(item)
+    return totals, levels, shares, sheets, items
 
 
 def _amount(value: Any) -> float | None:
