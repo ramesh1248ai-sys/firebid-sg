@@ -102,6 +102,86 @@ describe("the rate library", () => {
   });
 });
 
+describe("the productivity library", () => {
+  const entry = {
+    id: "88888888-0000-4000-8000-000000000001",
+    item_type: "pipe",
+    dn: "50",
+    joining: "",
+    description: "Pipe DN50, screwed",
+    unit: "m",
+    hours_per_unit: "0.30",
+    trade: "pipefitter",
+    source_type: "company_standard",
+    source_reference: "PS-2026",
+    source: "company standard: PS-2026",
+    version: 1,
+    retired_at: null,
+    created_at: "2026-10-01T00:00:00Z",
+  };
+
+  // req: FR-LAB-01
+  it("lists each entry with its source, and reports a bad list row by row", async () => {
+    signedInAs({
+      name: "Sam Lim",
+      preferred_username: "senior.estimator@firebid.test",
+      roles: ["senior_estimator"],
+    });
+    const calls = stubApi({
+      "/labour/productivity/import": () =>
+        Response.json({
+          imported: false,
+          sheet: "Productivity",
+          created: 0,
+          superseded: 0,
+          unchanged: 0,
+          problems: [
+            { row: 9, column: "man-hours per unit", message: "0 is not a positive figure" },
+          ],
+        }),
+      "/labour/productivity": () => Response.json([entry]),
+      "/rates": () => Response.json([rate()]),
+    });
+    renderAt("/rates");
+
+    const table = await screen.findByRole("table", { name: "Productivity" });
+    const row = within(table).getByText("Pipe DN50, screwed").closest("tr")!;
+    expect(row).toHaveTextContent("pipe, DN50");
+    expect(row).toHaveTextContent("0.30");
+    expect(row).toHaveTextContent("company standard: PS-2026");
+
+    const file = new File(["PK"], "productivity.xlsx");
+    await userEvent.upload(screen.getByLabelText(/Import a productivity list/), file);
+    await userEvent.click(screen.getByRole("button", { name: "Import the productivity list" }));
+
+    const problems = await screen.findByRole("table", { name: "Productivity import problems" });
+    expect(problems).toHaveTextContent("row 9");
+    expect(problems).toHaveTextContent("0 is not a positive figure");
+    expect(
+      calls.some((c) => c.method === "POST" && c.url.includes("/labour/productivity/import")),
+    ).toBe(true);
+  });
+
+  // req: FR-LAB-01
+  it("says an empty library gives no line hours, and offers an estimator no import", async () => {
+    signedInAs({
+      name: "Ethan Lim",
+      preferred_username: "estimator@firebid.test",
+      roles: ["estimator"],
+    });
+    stubApi({
+      "/labour/productivity": () => Response.json([]),
+      "/rates": () => Response.json([rate()]),
+    });
+    renderAt("/rates");
+
+    expect(
+      await screen.findByText(/no BOQ line has labour hours until a list is imported/),
+    ).toBeVisible();
+    expect(screen.queryByLabelText(/Import a productivity list/)).toBeNull();
+  });
+});
+
 describe("pricing the BOQ", () => {
   function stubs(lines: ReturnType<typeof line>[]) {
     return stubApi({

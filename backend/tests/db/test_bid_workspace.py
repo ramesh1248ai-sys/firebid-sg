@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from firebid.api.app import create_app
@@ -259,3 +259,150 @@ class TestPermissions:
     ) -> None:
         response = sign_in(outsider).post("/bids", json=create_bid_payload())
         assert response.status_code == 403
+
+
+class TestTheTeam:
+    @pytest.mark.req("FR-BID-01")
+    def test_a_bid_manager_is_offered_the_people_not_yet_on_the_bid(
+        self,
+        sign_in: SignIn,
+        session: Session,
+        organisation: Organisation,
+        bid_manager: Principal,
+    ) -> None:
+        esther = make_person(session, organisation, "esther", {str(Role.ESTIMATOR)})
+        client = sign_in(bid_manager)
+        bid = client.post("/bids", json=create_bid_payload()).json()["id"]
+
+        offered = client.get(f"/bids/{bid}/members/candidates").json()
+
+        # Whoever registered the bid is on it already, and so is not offered.
+        assert [(one["display_name"], one["username"], one["roles"]) for one in offered] == [
+            ("Esther", "esther@firebid.test", ["estimator"])
+        ]
+
+        added = client.post(
+            f"/bids/{bid}/members", json={"user_id": str(esther.user_id), "role": "estimator"}
+        )
+
+        assert added.status_code == 201
+        assert client.get(f"/bids/{bid}/members/candidates").json() == []
+        assert {one["display_name"] for one in client.get(f"/bids/{bid}/members").json()} == {
+            "Bella",
+            "Esther",
+        }
+
+    @pytest.mark.req("FR-ADM-01")
+    def test_someone_who_may_not_manage_the_team_is_offered_nobody(
+        self, sign_in: SignIn, bid_manager: Principal, outsider: Principal
+    ) -> None:
+        client = sign_in(bid_manager)
+        bid = client.post("/bids", json=create_bid_payload()).json()["id"]
+        client.post(
+            f"/bids/{bid}/members", json={"user_id": str(outsider.user_id), "role": "estimator"}
+        )
+
+        refused = sign_in(outsider).get(f"/bids/{bid}/members/candidates")
+
+        assert refused.status_code == 403
+
+    @pytest.mark.req("NFR-08")
+    def test_someone_of_another_organisation_cannot_be_added(
+        self, sign_in: SignIn, session: Session, bid_manager: Principal
+    ) -> None:
+        elsewhere = Organisation(name="Another Contractor Pte Ltd")
+        session.add(elsewhere)
+        session.flush()
+        stranger = make_person(session, elsewhere, "sam", {str(Role.ESTIMATOR)})
+        client = sign_in(bid_manager)
+        bid = client.post("/bids", json=create_bid_payload()).json()["id"]
+
+        refused = client.post(
+            f"/bids/{bid}/members", json={"user_id": str(stranger.user_id), "role": "estimator"}
+        )
+
+        assert refused.status_code == 404
+        assert "sam@firebid.test" not in str(client.get(f"/bids/{bid}/members/candidates").json())
+
+    @pytest.mark.req("FR-BID-01")
+    def test_a_person_with_two_identities_is_offered_once_as_they_sign_in_now(
+        self,
+        sign_in: SignIn,
+        session: Session,
+        organisation: Organisation,
+        bid_manager: Principal,
+    ) -> None:
+        earlier = make_person(session, organisation, "esther", {str(Role.ESTIMATOR)})
+        session.execute(
+            update(AppUser)
+            .where(AppUser.id == earlier.user_id)
+            .values(created_at=datetime.now(UTC) - timedelta(days=30))
+        )
+        session.commit()
+        now = make_person(session, organisation, "esther", {str(Role.SENIOR_ESTIMATOR)})
+        client = sign_in(bid_manager)
+        bid = client.post("/bids", json=create_bid_payload()).json()["id"]
+
+        offered = client.get(f"/bids/{bid}/members/candidates").json()
+
+        assert [(one["user_id"], one["roles"]) for one in offered] == [
+            (str(now.user_id), ["senior_estimator"])
+        ]
+
+
+class TestMoves:
+    @pytest.mark.req("FR-BID-01")
+    def test_a_new_bid_s_moves_say_whose_each_is_and_what_is_in_its_way(
+        self, sign_in: SignIn, bid_manager: Principal
+    ) -> None:
+        client = sign_in(bid_manager)
+        bid = client.post("/bids", json=create_bid_payload(clarification_cutoff=None)).json()["id"]
+
+        moves = {one["target"]: one for one in client.get(f"/bids/{bid}/transitions").json()}
+
+        assert list(moves) == ["qualifying", "withdrawn"]
+        start = moves["qualifying"]
+        assert (start["action"], start["permitted"]) == ("start qualification", True)
+        assert start["refusal"] == "these details are missing: clarification_cutoff"
+        assert moves["withdrawn"]["refusal"] is None
+        # Nothing was moved by asking.
+        assert client.get(f"/bids/{bid}").json()["state"] == "registered"
+
+    @pytest.mark.req("FR-ADM-01")
+    def test_a_move_that_is_another_role_s_is_shown_and_not_permitted(
+        self, sign_in: SignIn, bid_manager: Principal
+    ) -> None:
+        client = sign_in(bid_manager)
+        bid = client.post("/bids", json=create_bid_payload()).json()["id"]
+        client.post(f"/bids/{bid}/transitions", json={"target": "qualifying"})
+
+        moves = {one["action"]: one for one in client.get(f"/bids/{bid}/transitions").json()}
+
+        assert moves["bid (G0)"]["permitted"] is False
+        assert moves["bid (G0)"]["roles"] == ["commercial_director"]
+        assert moves["withdraw"]["permitted"] is True
+
+    @pytest.mark.req("FR-PKG-02")
+    def test_the_gates_and_the_outcome_are_not_moves_of_the_bid_s_page(
+        self,
+        sign_in: SignIn,
+        session: Session,
+        organisation: Organisation,
+        bid_manager: Principal,
+    ) -> None:
+        director = make_person(session, organisation, "clara", {str(Role.COMMERCIAL_DIRECTOR)})
+        client = sign_in(bid_manager)
+        bid = client.post("/bids", json=create_bid_payload()).json()["id"]
+        client.post(
+            f"/bids/{bid}/members",
+            json={"user_id": str(director.user_id), "role": "commercial_director"},
+        )
+        client.post(f"/bids/{bid}/transitions", json={"target": "qualifying"})
+        sign_in(director).post(f"/bids/{bid}/transitions", json={"target": "in_preparation"})
+        client = sign_in(bid_manager)
+        client.post(f"/bids/{bid}/transitions", json={"target": "under_review"})
+
+        targets = [one["target"] for one in client.get(f"/bids/{bid}/transitions").json()]
+
+        # G3 (approved for submission) is approved on the review page.
+        assert targets == ["in_preparation", "withdrawn"]

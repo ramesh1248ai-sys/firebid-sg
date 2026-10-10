@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 
 import { api, apiErrorMessage } from "@/api/client";
 import type { components } from "@/api/schema";
@@ -189,7 +189,7 @@ export function BoqPage() {
         </p>
       )}
 
-      <G2Status g2={data.g2.data} />
+      <G2Status g2={data.g2.data} bidId={bidId} />
 
       <ClientBills bidId={bidId} bills={data.client.data ?? []} onError={fail} />
 
@@ -240,7 +240,7 @@ export function BoqPage() {
   );
 }
 
-function G2Status({ g2 }: { g2: G2 | undefined }) {
+function G2Status({ g2, bidId }: { g2: G2 | undefined; bidId: string }) {
   if (!g2) return null;
   const reasons = [
     !g2.g1_approved && "G1 is not approved",
@@ -256,7 +256,14 @@ function G2Status({ g2 }: { g2: G2 | undefined }) {
       aria-label="G2"
       className={`rounded-md border p-3 text-sm ${g2.clear ? "border-green-600" : "border-amber-500"}`}
     >
-      {g2.clear ? "Nothing in the BOQ holds up G2." : `G2 is held up: ${reasons.join("; ")}.`}
+      {g2.clear ? (
+        <>
+          Nothing in the BOQ holds up G2. The Senior Estimator approves it on the{" "}
+          <Link to={`/bids/${bidId}/review`}>review page</Link>.
+        </>
+      ) : (
+        `G2 is held up: ${reasons.join("; ")}.`
+      )}
     </p>
   );
 }

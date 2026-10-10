@@ -2539,3 +2539,33 @@ instance with its position and allows 250 mm.
   listed: the count already says there is one too many. The runs of a pipe network (stage 6
   lists each with its ends) are not placed.
 - **Requirement IDs covered (test names):** FR-LRN-01: `tests/evals/test_golden_comparison.py::TestWhereAnObjectIs` (a right count made of a symbol somewhere else; the tolerance; another bay; a run that places by gridlines; a view with no grid; a tag beside the wrong symbol; a type not counted reported once; a run that places nothing), `tests/db/test_golden_run.py` (all three packages).
+
+## Feat · Screens for the team, the bid's moves, G2 and the productivity library · 2026-10-10
+
+Writing the user manual showed four steps of a bid that had an API and no screen, so a bid
+could not be taken from registered to submitted without someone calling the API.
+
+- **The team (bid page, `frontend/src/pages/BidTeam.tsx`).** Who is on the bid, shown to
+  everyone on it. A bid manager or administrator adds a person of the organisation in a
+  role; the role the person holds in the organisation is offered and can be changed.
+  New route `GET /bids/{id}/members/candidates` (BID_MEMBER_MANAGE): the organisation's
+  active people not on the bid, with their roles, each offered once (the newest identity of
+  a username). `POST /bids/{id}/members` now refuses someone of another organisation.
+- **Moving the bid on (bid page, `BidMoves.tsx`).** The moves open from the bid's state,
+  each with whose it is and what it waits on. New route `GET /bids/{id}/transitions`,
+  from `services.transitions.bid_moves`, which reads the rules as `apply_transition` does
+  and moves nothing. G3, G4 and the award or loss are not offered: each is made where it is
+  approved or recorded. Withdraw and no-bid need a reason on the screen.
+- **G2 (review page).** The Senior Estimator is offered **Approve G2**, with a comment, and
+  no other gate; the Commercial Director still G3 and G4. The BOQ page's G2 line links
+  there once nothing holds G2 up.
+- **Productivity library (rates page, `ProductivityLibrary.tsx`).** The current entries
+  with their sources, and for the Senior Estimator the import of a list, reported row by
+  row when it is refused.
+- **Tried on the running stack** as each role: a bid registered, its team built, moved to
+  qualifying, in preparation and under review; G2 approved; a productivity list imported.
+- **The manual** (`docs/user-manual/`) says how each is done on screen, with five new
+  screenshots, and no longer has "what has no screen yet".
+- **Not done.** Taking someone off a bid, or changing their role (the API has no route).
+  Entering one productivity figure by hand (the API has it; the screen offers the import).
+- **Requirement IDs covered (test names):** FR-BID-01: `tests/db/test_bid_workspace.py::TestTheTeam`, `::TestMoves`, `frontend/src/pages/BidDetail.test.tsx` ("the team of a bid", "moving a bid on"). FR-ADM-01: the same, for who is offered what. NFR-08: `TestTheTeam::test_someone_of_another_organisation_cannot_be_added`. FR-PKG-02: `frontend/src/pages/Review.test.tsx` ("lets the Senior Estimator approve G2", "keeps G2 from the Senior Estimator while something blocks it"), `TestMoves::test_the_gates_and_the_outcome_are_not_moves_of_the_bid_s_page`. FR-LAB-01: `frontend/src/pages/Rates.test.tsx` ("the productivity library").
