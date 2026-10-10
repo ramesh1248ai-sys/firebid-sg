@@ -232,11 +232,11 @@ the ticked circle, match lines between sheets and the skewed wing.
 | Synthetic suites and the regression gate | Exist |
 | Truth for stages 5 to 7 and 9 in `firebid/evals/schema.py` | Exists |
 | Truth for stages 1 to 4, 8 and 10 to 12 | Held in each package's `golden.json`, read by `firebid.evals.golden` |
-| `golden.json` reader and the staged comparison | Built for exact, tolerance, evidence and completeness (A, C, D, E) on stages 1 to 12: `firebid-eval golden`. At stage 7 an item's level is compared where the package states it, how much of an item is on each level where the package has it on more than one, and an item's attributes and system where the package states them. **To build:** instance positions; attributes item by item where a package has two of a kind (it needs the item's tag in the run) |
+| `golden.json` reader and the staged comparison | Built for exact, tolerance, evidence and completeness (A, C, D, E) on stages 1 to 12: `firebid-eval golden`. At stage 7 an item's level is compared where the package states it, how much of an item is on each level where the package has it on more than one, and an item's attributes and system where the package states them. At stage 5 each counted object's grid bay and its place in the building. **To build:** attributes item by item where a package has two of a kind (it needs the item's tag in the run) |
 | Export of a bid's stage outputs in the same shape | Built for stages 1 to 12: `firebid-eval export-run --bid` |
 | Defect classification and the weighted score in the report | Built. The score is over the dimensions measured (all of the weights where stage 12 is compared, 95% where a package stops at stage 7) and says so. **To build:** linking a difference to the earlier one that caused it |
 | Semantic comparison (rubric, optional model judge) | **To build**; a model judge waits on decision D2. Until then wording is compared after normalising case and spacing only |
-| Evidence comparison (type D) | Built for what a package cites in a form that can be compared: the sheet of a legend row, of a takeoff item and of an issue; the clause of a scope row and of a risk; the source and validity of a rate; the entry and source of a productivity. **To build:** evidence a package writes as prose (the note behind a derived item, both sides of an issue), which waits on semantic comparison; a location on the sheet, which waits on instance positions |
+| Evidence comparison (type D) | Built for what a package cites in a form that can be compared: the sheet of a legend row, of a takeoff item and of an issue; the clause of a scope row and of a risk; the source and validity of a rate; the entry and source of a productivity. **To build:** evidence a package writes as prose (the note behind a derived item, both sides of an issue), which waits on semantic comparison |
 | The platform run against a package in CI | All three synthetic packages, as database tests (`tests/db/test_golden_run.py`): TC-SYN-001 and TC-SYN-003 on stages 1 to 7, TC-SYN-002 on all twelve |
 | The brief for drafting a package | Added with this version |
 
@@ -269,6 +269,17 @@ citation as equivalent (section 6, type D), the package records it in the stage'
 `equivalent_evidence`: what it is of, by the label the comparison gives it, and the
 citations accepted. A source's kind is the same however it is spelt (`company_standard`,
 `Company standard`).
+
+Where a counted object is, is compared at stage 5 as evidence. A package lists each
+instance with its grid bay and its position in the building. A platform does not know where
+the building's origin is, so a run gives the bay and the instance's distance from two
+gridlines it names, and the package's own gridlines (stage 3) say where those are. The bays
+are compared by type and sheet (four pendents in A-B/1-2). The positions are compared
+instance by instance: each of the package's is to have one of the run's, of its type, within
+the stage's `position_mm` (250 mm), with its tag where the package gives one. A right count
+made of a symbol somewhere else is then a medium defect of evidence, and keeps its mark for
+the count. An instance on a view with no grid (a schematic) has no place in the building and
+is not compared.
 
 At stage 7 an item's attributes and its system are compared where the package states
 them. A package states an attribute on an item (a pump's duty, flow and head), or for every

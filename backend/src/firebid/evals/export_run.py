@@ -36,6 +36,9 @@ DRAWINGS = ("pdf", "dxf")  # the kinds that are read sheet by sheet
 VERDICTS = {"nts": "not to scale"}
 PIPE_RUNS = ("main", "branch", "drop", "riser")
 SIZE = re.compile(r"\d+")
+# The platform's grid reference for a bay, `Grid A1-B2` with a dash of its own, which a
+# package writes `A-B/1-2`.
+BAY = re.compile(r"^Grid ([A-Z]+)(\d+)\W+([A-Z]+)(\d+)$")
 # What a takeoff item holds among its attributes that the package names it by, or gives
 # apart from them: its size, what fitting it is, its system.
 IDENTITY = ("nominal_diameter_mm", "outlet_diameter_mm", "size", "fitting", "system")
@@ -223,19 +226,57 @@ def _objects(
     )
     if not found:
         return None
+    views = {
+        view.id: view
+        for view in session.execute(select(SheetView).where(SheetView.bid_id == bid_id)).scalars()
+    }
     counts: dict[str, dict[str, int]] = {number: {} for number in number_of.values()}
+    instances: dict[str, list[dict[str, Any]]] = {number: [] for number in number_of.values()}
     for one in found:
         number = number_of.get(one.sheet_id)
         # What a person rejected is not there; a riser or a drop is pipe, counted at stage 7.
         if number is None or one.kind != "object" or one.state == "rejected":
             continue
         counts[number][one.object_type] = counts[number].get(one.object_type, 0) + 1
+        instances[number].append(_instance(one, views.get(one.view_id) if one.view_id else None))
     return {
         "sheets": [
-            {"sheet": number, "counts": dict(sorted(counts[number].items()))}
+            {
+                "sheet": number,
+                "counts": dict(sorted(counts[number].items())),
+                "instances": sorted(
+                    instances[number], key=lambda i: (i["object_type"], i["x"], i["y"])
+                ),
+            }
             for number in sorted(counts)
         ]
     }
+
+
+def _instance(one: DetectedObject, view: SheetView | None) -> dict[str, Any]:
+    """Where a detection is: on the sheet, in which grid bay, and how far in the building
+    from the view's first gridline each way. The platform does not know where the building's
+    origin is, so a place in the building is a distance from gridlines it can name."""
+    position = dict(one.geometry_ref or {})
+    x, y = float(str(position.get("x", 0))), float(str(position.get("y", 0)))
+    out: dict[str, Any] = {"object_type": one.object_type, "x": x, "y": y}
+    tag = dict(one.attributes or {}).get("tag")
+    if tag:
+        out["tag"] = str(tag)
+    if one.grid_reference:
+        bay = BAY.match(one.grid_reference)
+        out["grid"] = "{0}-{2}/{1}-{3}".format(*bay.groups()) if bay else one.grid_reference
+    grid: Any = view.grid if view is not None else None
+    # The scale the view is drawn at: proved, or as stated where nobody has proved it.
+    scale = (view.denominator or view.stated_denominator) if view is not None else None
+    if isinstance(grid, dict) and scale and grid.get("across") and grid.get("up"):
+        (across, at_x), (up, at_y) = grid["across"][0], grid["up"][0]
+        out["offset_mm"] = {
+            "across": [str(across), round((x - float(at_x)) * scale, 1)],
+            # Sheet coordinates run down the page; the building's run up.
+            "up": [str(up), round((float(at_y) - y) * scale, 1)],
+        }
+    return out
 
 
 def _pipe(

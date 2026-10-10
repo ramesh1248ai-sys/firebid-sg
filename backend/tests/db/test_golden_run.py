@@ -317,8 +317,10 @@ def test_the_platform_s_stages_1_to_7_against_tc_syn_001(session: Session, tende
     result, told = against(session, tender, "TC-SYN-001")
 
     assert len(result.stages) == 7
-    # Every count and every drawn length of the installation is the reference's.
-    assert checks(result)["STG-005"] == (11, 11), told
+    # Every count and every drawn length of the installation is the reference's, and so is
+    # where each object is: 11 counts, 19 counts by grid bay, and the place of each of the
+    # 33 instances on the plan and the enlarged plan (the schematic has no grid).
+    assert checks(result)["STG-005"] == (63, 63), told
     # Eight legend rows, and the sheet each is on.
     assert checks(result)["STG-004"] == (16, 16), told
 
@@ -350,7 +352,9 @@ def test_the_platform_s_stages_1_to_7_against_tc_syn_003(session: Session, pump_
     passed = checks(result)
     assert all(passed[f"STG-00{n}"][0] == passed[f"STG-00{n}"][1] for n in range(1, 7)), told
     assert passed["STG-007"][0] - passed["STG-007"][1] == 2, told
-    assert passed["STG-005"] == (16, 16), told
+    # 16 counts, 16 counts by grid bay, and the place and tag of each of the 16 instances on
+    # the three plans.
+    assert passed["STG-005"] == (48, 48), told
     assert all(
         d.what.endswith(("/ level", "/ on no level", "/ system", "/ driver"))
         for d in result.differences

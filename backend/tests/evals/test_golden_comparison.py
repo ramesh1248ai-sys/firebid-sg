@@ -379,6 +379,149 @@ class TestLevelsAtTheTakeoff:
         ]
 
 
+class TestWhereAnObjectIs:
+    """Each counted object's grid bay and its place in the building, on TC-SYN-001 (a plan,
+    an enlarged plan and a schematic) and TC-SYN-003 (tagged equipment)."""
+
+    PLAN = "FP-L05-201"
+
+    @pytest.fixture(scope="class")
+    def systems(self) -> golden.Package:
+        return golden.load(PACKAGES / "TC-SYN-003")
+
+    @staticmethod
+    def instance(run: golden.Run, number: str, kind: str, n: int = 0) -> dict[str, Any]:
+        found: dict[str, Any] = [
+            one for one in sheet(run, "STG-005", number)["instances"] if one["object_type"] == kind
+        ][n]
+        return found
+
+    def test_a_right_count_made_of_a_symbol_somewhere_else_is_a_defect_of_evidence(
+        self, package: golden.Package
+    ) -> None:
+        run = the_reference_s_own(package)
+        head = self.instance(run, self.PLAN, "sprinkler_pendent")
+        at = (head["x_mm"], head["y_mm"])
+        head["x_mm"] += 2000.0  # in the same bay still
+
+        result = golden.compare(package, run)
+
+        assert defects(result) == [
+            (
+                "STG-005",
+                f"fp-l05-201 / sprinkler_pendent / at {at[0]:g}, {at[1]:g}",
+                "missing",
+                "MEDIUM",
+            )
+        ]
+        assert result.differences[0].dimension == "evidence"
+        # The count is right and is scored as right.
+        scored = {d.key: d.score for d in golden.score(result).dimensions}
+        assert scored["intermediate_work_product"] == 1.0
+
+    def test_a_position_may_be_out_by_the_stage_s_tolerance_and_no_more(
+        self, package: golden.Package
+    ) -> None:
+        def moved(by: float) -> golden.Result:
+            run = the_reference_s_own(package)
+            self.instance(run, self.PLAN, "gate_valve")["y_mm"] += by
+            return golden.compare(package, run)
+
+        assert moved(250.0).differences == []
+        assert len(defects(moved(251.0))) == 1
+
+    def test_an_object_in_another_bay_is_also_a_defect_of_its_bay(
+        self, package: golden.Package
+    ) -> None:
+        run = the_reference_s_own(package)
+        valve = self.instance(run, self.PLAN, "gate_valve")
+        assert valve["grid"] == "A-B/1-2"
+        valve["grid"], valve["x_mm"] = "B-C/1-2", valve["x_mm"] + 6000.0
+
+        assert {what for _, what, _, _ in defects(golden.compare(package, run))} == {
+            "fp-l05-201 / gate_valve / in a-b/1-2",
+            "fp-l05-201 / gate_valve / at 1800, 3000",
+        }
+
+    def test_a_run_places_an_object_by_the_gridlines_it_names(
+        self, package: golden.Package
+    ) -> None:
+        # As the platform does: a bay in its own words, and a distance from two gridlines,
+        # which the package's stage 3 says the place of. Any gridline will do.
+        grid = package.stage("STG-003").expected_output["grid"]  # type: ignore[union-attr]
+        run = the_reference_s_own(package)
+        for number in (self.PLAN, "FP-L05-301"):
+            for n, one in enumerate(sheet(run, "STG-005", number)["instances"]):
+                across, up = ("A", "1") if n % 2 else ("C", "3")
+                one["offset_mm"] = {
+                    "across": [across, one.pop("x_mm") - grid["across_mm"][across]],
+                    "up": [up, one.pop("y_mm") - grid["up_mm"][up]],
+                }
+                (a, b), (low, high) = (part.split("-") for part in one["grid"].split("/"))
+                one["grid"] = f"Grid {a}{low}\u2013{b}{high}"
+
+        assert golden.compare(package, run).differences == []
+
+        self.instance(run, self.PLAN, "check_valve")["offset_mm"]["across"][1] += 1000.0
+        assert defects(golden.compare(package, run)) == [
+            ("STG-005", "fp-l05-201 / check_valve / at 2500, 3000", "missing", "MEDIUM")
+        ]
+
+    def test_an_object_on_a_view_with_no_grid_has_no_place_to_compare(
+        self, package: golden.Package
+    ) -> None:
+        run = the_reference_s_own(package)
+        for one in sheet(run, "STG-005", "FP-SCH-001")["instances"]:
+            one["x_mm"] += 50_000.0
+
+        assert golden.compare(package, run).differences == []
+
+    def test_a_tag_beside_the_wrong_symbol_is_a_defect_of_each(
+        self, systems: golden.Package
+    ) -> None:
+        run = the_reference_s_own(systems)
+        first = self.instance(run, "FP-B1-101", "fire_pump", 0)
+        second = self.instance(run, "FP-B1-101", "fire_pump", 1)
+        first["tag"], second["tag"] = second["tag"], first["tag"]
+        del self.instance(run, "FP-B1-101", "jockey_pump")["tag"]
+
+        result = golden.compare(systems, run)
+
+        assert {(d.what, d.kind, d.expected, d.actual) for d in result.differences} == {
+            ("fp-b1-101 / fire_pump / at 5000, 6000", "wrong", "fp-01", "fp-02"),
+            ("fp-b1-101 / fire_pump / at 8000, 6000", "wrong", "fp-02", "fp-01"),
+            ("fp-b1-101 / jockey_pump / at 11000, 6000", "wrong", "jp-01", "no tag"),
+        }
+        assert {d.classification for d in result.differences} == {"MEDIUM"}
+
+    def test_a_type_that_is_not_counted_is_reported_once_and_not_for_its_places_too(
+        self, package: golden.Package
+    ) -> None:
+        run = the_reference_s_own(package)
+        plan = sheet(run, "STG-005", self.PLAN)
+        del plan["counts"]["gate_valve"]
+        plan["instances"] = [one for one in plan["instances"] if one["object_type"] != "gate_valve"]
+
+        found = [d for d in defects(golden.compare(package, run)) if d[0] == "STG-005"]
+
+        assert found == [("STG-005", "fp-l05-201 / gate_valve / count", "missing", "CRITICAL")]
+
+    def test_a_run_that_places_nothing_keeps_its_counts_and_loses_the_evidence(
+        self, package: golden.Package
+    ) -> None:
+        run = the_reference_s_own(package)
+        for one in run["STG-005"]["sheets"]:
+            del one["instances"]
+
+        result = golden.compare(package, run)
+
+        assert result.differences and {d.dimension for d in result.differences} == {"evidence"}
+        assert {d.classification for d in result.differences} == {"MEDIUM"}
+        placed = [d for d in result.differences if " / at " in d.what]
+        # Every instance of the two gridded sheets, and none of the schematic's two.
+        assert len(placed) == 27 + 6
+
+
 class TestAttributesAndSystemsAtTheTakeoff:
     """What an item states beyond its size, and the system it is of. On TC-SYN-003 (pumps
     with a schedule, pipe of three systems) and TC-SYN-002 (a specification nobody has

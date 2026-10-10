@@ -2508,3 +2508,34 @@ specification value, which TC-SYN-002 calls critical, would have passed.
   the run). A system on equipment, or on a derived item: no package states one. TC-SYN-001
   has no `not_specified` rule, though its specification is as unverified as TC-SYN-002's.
 - **Requirement IDs covered (test names):** FR-LRN-01: `tests/evals/test_golden_comparison.py::TestAttributesAndSystemsAtTheTakeoff` (a pump of another duty; an attribute not stated; a value where none is to be; every pipe and head of the car park; a system by key or name; pipe put with another system; the other reading of C6; what the package does not state; a missing item reported once), `tests/db/test_golden_run.py` (all three packages).
+
+## Test · Where each counted object is, compared against a golden package · 2026-10-10
+
+Stage 5 compared how many of each type a sheet has. A right count made of the wrong symbols
+(a legend example counted, a real head missed) passed, though each package lists every
+instance with its position and allows 250 mm.
+
+- **What is compared (`firebid/evals/golden.py`, stage 5).** For each type on each sheet,
+  how many are in each grid bay; and for each instance of the package that is in a bay, that
+  the run has one of its type within the stage's `position_mm`, the nearest not already
+  taken, with its tag where the package gives one. Both are evidence: MEDIUM, scored under
+  evidence and traceability, compared only for a type the run counts.
+- **The building's origin.** A package gives a position in the building's own coordinates.
+  The platform holds a position on the sheet, a grid reference and the view's gridlines and
+  scale, and has no origin for the building. So the export gives each instance's distance
+  from the view's first gridline each way (`offset_mm`: the gridline's name and millimetres
+  in the building), and the comparison places it by the package's own gridlines (stage 3,
+  `grid`). A run may also give `x_mm` and `y_mm` outright. A bay is the same as `A-B/1-2` or
+  as the platform's "Grid A1-B2".
+- **The export (`export_run.py`).** Stage 5 has `instances` for each sheet: type, tag,
+  position on the sheet, bay and offset. The offset uses the view's proved scale, or its
+  stated one where nobody has proved it (the enlarged plan of TC-SYN-001).
+- **Result.** The platform agrees on every bay and every position: 52 checks on TC-SYN-001
+  (33 instances), 32 on TC-SYN-003 (16 instances, each with its tag) and 27 instances on
+  TC-SYN-002. No package
+  was changed.
+- **Not done.** An instance on a view with no grid is not placed (the schematics: 2 on
+  TC-SYN-001, 13 on TC-SYN-003). What the run has where the package has nothing is not
+  listed: the count already says there is one too many. The runs of a pipe network (stage 6
+  lists each with its ends) are not placed.
+- **Requirement IDs covered (test names):** FR-LRN-01: `tests/evals/test_golden_comparison.py::TestWhereAnObjectIs` (a right count made of a symbol somewhere else; the tolerance; another bay; a run that places by gridlines; a view with no grid; a tag beside the wrong symbol; a type not counted reported once; a run that places nothing), `tests/db/test_golden_run.py` (all three packages).
