@@ -1,5 +1,8 @@
 # Open items: analysis and plan · 2026-10-08
 
+> The order of work is now in `COMPREHENSIVE_PLAN.md` (11 October 2026), which also covers
+> what has been found since. The analysis of each item below still stands.
+
 What is open after PR #67, where each item comes from, how to fix it, and in what order.
 Sources: `docs/reports/phase2-gaps.yaml`, the build log, and the measurements on the real
 bid (MOH set, 148 sheets, 12,088 candidate symbols).
