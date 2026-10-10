@@ -353,6 +353,9 @@ OTHER_READING = {
         "hydrant / no / level": "site",
         "pipe / DN150 / m / level": "b1, site",
         "fitting / tee / DN150x150 / no / level": "b1, site",
+        # How much of each is on no level: none of it, where the site main is on SITE.
+        "pipe / DN150 / m / on no level": 0,
+        "fitting / tee / DN150x150 / no / on no level": 0,
     },
 }
 for one in golden["stages"]:

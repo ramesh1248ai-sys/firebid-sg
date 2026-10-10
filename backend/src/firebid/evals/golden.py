@@ -269,38 +269,15 @@ def _takeoff(out: dict[str, Any], stage: Stage) -> list[Fact]:
     levels_stated = "level" in reference or any(
         "level" in item for part in parts for item in reference.get(part, [])
     )
-    levels: dict[tuple[str, ...], set[str]] = {}
-    totals: dict[tuple[str, ...], tuple[float, str, bool, str | None]] = {}
-    for part, derived in (
-        ("drawn_items", False),
-        ("equipment", False),
-        ("pipe", False),
-        ("derived_items", True),
-    ):
-        for item in out.get(part, []):
-            size = str(item["dn"]) if item.get("dn") else ""
-            if item.get("fitting") == "tee" and size and "x" not in size:
-                size = f"{size}x{size}"  # an equal tee, however it is written
-            run = str(item.get("run") or "")
-            if item.get("item") == "pipe" and not derived and not runs_stated:
-                run = ""
-            key = (
-                str(item.get("item", "")),
-                str(item.get("fitting") or ""),
-                f"DN{size}" if size else "",
-                run,
-            )
-            quantity, unit, _, ambiguity = totals.get(
-                key, (0.0, str(item.get("unit", "")), 0, None)
-            )
-            totals[key] = (
-                quantity + float(item.get("quantity", 0)),
-                unit,
-                derived,
-                item.get("ambiguity") or ambiguity,
-            )
-            level = item["level"] if "level" in item else out.get("level")
-            levels.setdefault(key, set()).add(_text(level) or "no level")
+    totals, levels, shares = _taken_off(out, out.get("level"), runs_stated)
+    # Where the reference has an item on more than one level, how much of it is on each is
+    # compared as well: a level's labour multiplier is on that level's share. Only the levels
+    # the reference names, so a share is never missing or extra: the rest is in the total.
+    split = {
+        key: sorted(found)
+        for key, found in _taken_off(reference, reference.get("level"), runs_stated)[1].items()
+        if len(found) > 1
+    }
     facts = [
         Fact(
             (*key, unit),
@@ -324,7 +301,67 @@ def _takeoff(out: dict[str, Any], stage: Stage) -> list[Fact]:
             )
             for key, (_, unit, _, _) in totals.items()
         ]
+        facts += [
+            Fact(
+                (*key, unit, f"on {level}"),
+                shares[key].get(level, 0.0),
+                "calculation",
+                tolerance_percent=percent if unit == "m" else None,
+                severity="HIGH",
+                ambiguity=ambiguity,
+                of=(*key, unit),
+            )
+            for key, (_, unit, _, ambiguity) in totals.items()
+            for level in split.get(key, [])
+        ]
     return facts
+
+
+Totals = dict[tuple[str, ...], tuple[float, str, bool, str | None]]
+
+
+def _taken_off(
+    out: dict[str, Any], of_all: Any, runs_stated: bool
+) -> tuple[Totals, dict[tuple[str, ...], set[str]], dict[tuple[str, ...], dict[str, float]]]:
+    """A takeoff's items by what they are: the quantity of each, the levels it is on, and
+    how much of it is on each level. `of_all` is the level of an item that states none."""
+    levels: dict[tuple[str, ...], set[str]] = {}
+    shares: dict[tuple[str, ...], dict[str, float]] = {}
+    totals: Totals = {}
+    for part, derived in (
+        ("drawn_items", False),
+        ("equipment", False),
+        ("pipe", False),
+        ("derived_items", True),
+    ):
+        for item in out.get(part, []):
+            size = str(item["dn"]) if item.get("dn") else ""
+            if item.get("fitting") == "tee" and size and "x" not in size:
+                size = f"{size}x{size}"  # an equal tee, however it is written
+            run = str(item.get("run") or "")
+            if item.get("item") == "pipe" and not derived and not runs_stated:
+                run = ""
+            key = (
+                str(item.get("item", "")),
+                str(item.get("fitting") or ""),
+                f"DN{size}" if size else "",
+                run,
+            )
+            quantity, unit, _, ambiguity = totals.get(
+                key, (0.0, str(item.get("unit", "")), 0, None)
+            )
+            amount = float(item.get("quantity", 0))
+            totals[key] = (
+                quantity + amount,
+                unit,
+                derived,
+                item.get("ambiguity") or ambiguity,
+            )
+            level = _text(item.get("level", of_all)) or "no level"
+            levels.setdefault(key, set()).add(level)
+            on = shares.setdefault(key, {})
+            on[level] = on.get(level, 0.0) + amount
+    return totals, levels, shares
 
 
 def _amount(value: Any) -> float | None:

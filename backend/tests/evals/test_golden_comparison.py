@@ -300,6 +300,67 @@ class TestLevelsAtTheTakeoff:
         (found,) = golden.compare(package, run).differences
         assert found.what.endswith("/ level") and found.classification == "HIGH"
 
+    def test_an_item_on_two_levels_is_compared_level_by_level(
+        self, systems: golden.Package
+    ) -> None:
+        """The DN150 pipe is the pump room's and the site main's. Three metres moved from
+        one to the other leave the total and the levels as they were: a level's labour
+        multiplier is on that level's share, so the share is compared."""
+        run = the_reference_s_own(systems)
+        pipe = [i for i in run["STG-007"]["pipe"] if i["dn"] == 150]
+        assert sorted(str(i["level"]) for i in pipe) == ["B1", "None"]
+        for item in pipe:
+            item["quantity"] += 3.0 if item["level"] == "B1" else -3.0
+
+        found = golden.compare(systems, run).differences
+
+        assert [(d.what, d.kind, d.classification) for d in found] == [
+            ("pipe / DN150 / m / on b1", "wrong", "HIGH"),
+            ("pipe / DN150 / m / on no level", "wrong", "HIGH"),
+        ]
+        assert (found[0].expected, found[0].actual) == (19.8, 22.8)
+
+    def test_a_share_is_measured_as_the_length_is(self, systems: golden.Package) -> None:
+        run = the_reference_s_own(systems)
+        for item in run["STG-007"]["pipe"]:
+            if item["dn"] == 150:
+                item["quantity"] += 0.5 if item["level"] == "B1" else -0.5
+
+        assert golden.compare(systems, run).differences == []
+
+    def test_all_of_it_on_the_site_s_level_is_the_other_reading_of_c8(
+        self, systems: golden.Package
+    ) -> None:
+        run = the_reference_s_own(systems)
+        for part in ("pipe", "derived_items"):
+            for item in run["STG-007"][part]:
+                if item.get("level", "") is None and item["item"] in ("pipe", "fitting"):
+                    item["level"] = "SITE"
+
+        found = golden.compare(systems, run).differences
+
+        assert {(d.what, d.ambiguity, d.other_reading) for d in found} == {
+            ("pipe / DN150 / m / level", "C8", True),
+            ("pipe / DN150 / m / on no level", "C8", True),
+            ("fitting / tee / DN150x150 / no / level", "C8", True),
+            ("fitting / tee / DN150x150 / no / on no level", "C8", True),
+        }
+
+    def test_an_item_on_one_level_has_no_share_to_compare(self, systems: golden.Package) -> None:
+        stage = next(s for s in systems.stages if s.stage_id == "STG-007")
+        shares = [
+            fact.label()
+            for fact in golden.EXTRACTORS["STG-007"](stage.expected_output, stage)
+            if fact.key[-1].startswith("on ")
+        ]
+
+        assert shares == [
+            "pipe / DN150 / m / on b1",
+            "pipe / DN150 / m / on no level",
+            "fitting / tee / DN150x150 / no / on b1",
+            "fitting / tee / DN150x150 / no / on no level",
+        ]
+
     def test_a_missing_item_is_reported_once_and_not_for_its_level_too(
         self, systems: golden.Package
     ) -> None:
