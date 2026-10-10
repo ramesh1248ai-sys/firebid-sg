@@ -31,6 +31,16 @@ the score. Where a reviewer accepts another citation as equivalent, the package 
 (`equivalent_evidence`: what it is of, by its label, and the citations accepted), and a run
 that gives one of those passes. Evidence a package writes as prose is not compared.
 
+Where a counted object is, is evidence too. A package lists each instance with the grid
+bay it is in and its position in the building; a run, with its bay and its distance from two
+gridlines it names (`offset_mm`), since a platform does not know where the building's
+origin is. The bays are compared type by type and sheet by sheet (four pendents in A-B/1-2).
+The positions are compared instance by instance: each of the package's is to have one of the
+run's, of its type, within the stage's `position_mm` (250 mm unless stated), and with its tag
+where the package gives one. The package's own gridlines (stage 3, `grid`) say where the
+run's are. An instance on a view with no grid (a schematic) has no place in the building and
+is not compared.
+
 At the takeoff an item's **attributes** and its **system** are compared where the package
 states them. An attribute is stated on an item (a pump's duty, flow and head), or for every
 item of a kind that is to state none (`attributes.not_specified`: a pipe's material while the
@@ -47,6 +57,8 @@ Pure: a package and a run in; differences, a score and a report out.
 from __future__ import annotations
 
 import json
+import math
+import re
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal
@@ -278,12 +290,101 @@ def _legend(out: dict[str, Any], _: Stage) -> list[Fact]:
     return facts
 
 
+BAY = re.compile(r"^(?:grid )?([a-z]+)(\d+)\W+([a-z]+)(\d+)$")
+
+
+def _bay(value: Any) -> str:
+    """A grid bay however it is written: `A-B/1-2`, or `Grid A1-B2` with any dash."""
+    text = _text(value)
+    found = BAY.match(text)
+    return "{0}-{2}/{1}-{3}".format(*found.groups()) if found else text
+
+
 def _objects(out: dict[str, Any], _: Stage) -> list[Fact]:
-    return [
-        Fact((_text(sheet.get("sheet")), kind, "count"), count, "intermediate_work_product")
-        for sheet in out.get("sheets", [])
-        for kind, count in sheet.get("counts", {}).items()
-    ]
+    facts = []
+    for sheet in out.get("sheets", []):
+        number = _text(sheet.get("sheet"))
+        for kind, count in sheet.get("counts", {}).items():
+            facts.append(Fact((number, kind, "count"), count, "intermediate_work_product"))
+        # How many of each type are in each grid bay: where they are, as evidence.
+        bays: dict[tuple[str, str], int] = {}
+        for instance in sheet.get("instances", []):
+            if instance.get("grid"):
+                where = (str(instance.get("object_type")), _bay(instance["grid"]))
+                bays[where] = bays.get(where, 0) + 1
+        for (kind, bay), count in bays.items():
+            facts.append(
+                Fact(
+                    (number, kind, f"in {bay}"),
+                    count,
+                    "evidence",
+                    severity="MEDIUM",
+                    of=(number, kind, "count"),
+                )
+            )
+    return facts
+
+
+def _point(instance: dict[str, Any], grid: dict[str, Any]) -> tuple[float, float] | None:
+    """Where an instance is in the building, by the reference's gridlines: stated outright,
+    or as its distance from a gridline across and a gridline up that it names."""
+    offset = instance.get("offset_mm")
+    if isinstance(offset, dict):
+        try:
+            (across, x), (up, y) = offset["across"], offset["up"]
+            return (
+                float(grid["across_mm"][str(across)]) + float(x),
+                float(grid["up_mm"][str(up)]) + float(y),
+            )
+        except KeyError, TypeError, ValueError:
+            return None
+    x, y = _number(instance.get("x_mm")), _number(instance.get("y_mm"))
+    return None if x is None or y is None else (x, y)
+
+
+def _located(
+    stage: Stage, out: dict[str, Any], grid: dict[str, Any]
+) -> tuple[list[Fact], list[Fact]]:
+    """Each of the reference's instances that is in a grid bay, and the run's instance at
+    its place: of its type, within the stage's tolerance, the nearest not already taken."""
+    within = float((stage.tolerance or {}).get("position_mm", 250.0))
+    theirs = {_text(sheet.get("sheet")): sheet for sheet in out.get("sheets", [])}
+    expected: list[Fact] = []
+    actual: list[Fact] = []
+    for sheet in stage.expected_output.get("sheets", []):
+        number = _text(sheet.get("sheet"))
+        found = [
+            (str(one.get("object_type")), point, one.get("tag"))
+            for one in theirs.get(number, {}).get("instances", [])
+            if (point := _point(one, grid)) is not None
+        ]
+        taken: set[int] = set()
+        for instance in sheet.get("instances", []):
+            at = _point(instance, grid)
+            if at is None or not instance.get("grid"):
+                continue  # on no grid: it has no place in the building
+            kind = str(instance.get("object_type"))
+            key = (number, kind, f"at {at[0]:g}, {at[1]:g}")
+            tagged = instance.get("tag")
+            of = (number, kind, "count")
+            expected.append(
+                Fact(
+                    key, _text(tagged) if tagged else "found", "evidence", severity="MEDIUM", of=of
+                )
+            )
+            near = [
+                (math.dist(at, point), index)
+                for index, (other, point, _) in enumerate(found)
+                if other == kind and index not in taken and math.dist(at, point) <= within
+            ]
+            if near:
+                _, index = min(near)
+                taken.add(index)
+                tag = _text(found[index][2]) or "no tag"
+                actual.append(
+                    Fact(key, tag if tagged else "found", "evidence", severity="MEDIUM", of=of)
+                )
+    return expected, actual
 
 
 def _pipe(out: dict[str, Any], stage: Stage) -> list[Fact]:
@@ -895,6 +996,13 @@ def compare(package: Package, run: Run) -> Result:
         result = StageResult(stage.stage_id, stage.stage_name, "compared")
         expected = {fact.key: fact for fact in extract(stage.expected_output, stage)}
         actual = {fact.key: fact for fact in extract(run[stage.stage_id], stage)}
+        if stage.stage_id == "STG-005":
+            # Where each instance is: the views' stage says where the gridlines are.
+            views = package.stage("STG-003")
+            grid = views.expected_output.get("grid") if views is not None else None
+            placed = _located(stage, run[stage.stage_id], grid if isinstance(grid, dict) else {})
+            expected |= {fact.key: fact for fact in placed[0]}
+            actual |= {fact.key: fact for fact in placed[1]}
         _other_readings(stage, expected)
         _equivalents(stage, expected)
         resized = _resized(expected, actual)
@@ -1123,9 +1231,9 @@ def report(result: Result, scored: Score) -> str:
     lines += [
         "",
         "> Compared: exact, tolerance and completeness, on stages 1 to 12, and evidence where "
-        "the package gives a sheet, a clause or a source. Not compared: wording (semantic), "
-        "evidence written as prose, and positions. A stage that was not compared has not "
-        "passed.",
+        "the package gives a sheet, a clause, a source or a place on the sheet. Not compared: "
+        "wording (semantic), and evidence written as prose. A stage that was not compared has "
+        "not passed.",
         "",
     ]
     return "\n".join(lines)
