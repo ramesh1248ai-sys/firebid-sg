@@ -71,10 +71,11 @@ def test_a_run_that_gives_the_reference_scores_full_marks_on_what_was_measured(
 
     assert scored.overall == 1.0
     measured = {d.key: d.score for d in scored.dimensions}
-    assert measured["evidence"] is None and measured["final_output"] is None
-    # 100% of the 85% that can be measured so far, and the report says which 85%.
-    assert scored.measured_weight == 85
-    assert "over the 85% of the weights that were measured" in golden.report(result, scored)
+    assert measured["evidence"] == 1.0 and measured["final_output"] is None
+    # 100% of the 95% that this package measures (it stops at stage 7), and the report says
+    # which 95%.
+    assert scored.measured_weight == 95
+    assert "over the 95% of the weights that were measured" in golden.report(result, scored)
 
 
 def test_a_wrong_count_is_a_critical_defect_at_the_stage_it_first_shows(
@@ -376,6 +377,178 @@ class TestLevelsAtTheTakeoff:
             ("test_header / no", "missing"),
             ("flow_switch / no", "extra"),
         ]
+
+
+class TestEvidence:
+    """What a value cites: a sheet, a clause, a source. On TC-SYN-003 (the sheets of a takeoff)
+    and TC-SYN-002 (the clauses and the sources of a priced bid)."""
+
+    @pytest.fixture(scope="class")
+    def systems(self) -> golden.Package:
+        return golden.load(PACKAGES / "TC-SYN-003")
+
+    @pytest.fixture(scope="class")
+    def priced(self) -> golden.Package:
+        return golden.load(PACKAGES / "TC-SYN-002")
+
+    @staticmethod
+    def own(package: golden.Package) -> golden.Run:
+        return {s.stage_id: copy.deepcopy(s.expected_output) for s in package.stages}
+
+    @staticmethod
+    def line(run: golden.Run, name: str) -> dict[str, Any]:
+        found: dict[str, Any]
+        (found,) = [one for one in run["STG-010"]["lines"] if one["line"] == name]
+        return found
+
+    def test_an_item_taken_off_from_another_sheet_is_a_medium_defect_of_evidence(
+        self, systems: golden.Package
+    ) -> None:
+        run = self.own(systems)
+        for item in run["STG-007"]["equipment"]:
+            if item["item"] == "fire_water_tank":
+                item["sheet"] = "FP-SCH-002"
+
+        result = golden.compare(systems, run)
+
+        assert defects(result) == [("STG-007", "fire_water_tank / no / sheet", "wrong", "MEDIUM")]
+        (one,) = result.differences
+        assert (one.expected, one.actual, one.dimension) == ("fp-b1-101", "fp-sch-002", "evidence")
+        # The count is right, and is scored as right: the evidence alone is marked down.
+        scored = {d.key: d.score for d in golden.score(result).dimensions}
+        assert scored["calculation"] == 1.0
+        assert scored["evidence"] is not None and scored["evidence"] < 1.0
+
+    def test_an_item_is_from_every_sheet_any_part_of_it_is_from(
+        self, systems: golden.Package
+    ) -> None:
+        # The package has the DN150 pipe from two sheets; a run that names them the other way
+        # round, or in one item, cites the same two.
+        run = self.own(systems)
+        pipe = [one for one in run["STG-007"]["pipe"] if one["dn"] == 150]
+        assert len(pipe) == 2
+        for one in pipe:
+            one["sheets"] = [one.pop("sheet")]
+        pipe[0]["sheets"], pipe[1]["sheets"] = pipe[1]["sheets"], pipe[0]["sheets"]
+        pipe[0]["level"], pipe[1]["level"] = pipe[1]["level"], pipe[0]["level"]
+        pipe[0]["quantity"], pipe[1]["quantity"] = pipe[1]["quantity"], pipe[0]["quantity"]
+
+        assert golden.compare(systems, run).differences == []
+
+    def test_a_value_that_cites_nothing_is_missing_evidence_and_not_a_missing_value(
+        self, priced: golden.Package
+    ) -> None:
+        run = self.own(priced)
+        del self.line(run, "heads_pendent")["rate_source"]
+
+        result = golden.compare(priced, run)
+
+        assert defects(result) == [
+            ("STG-010", "line / heads_pendent / rate source", "missing", "MEDIUM")
+        ]
+        assert result.differences[0].dimension == "evidence"
+
+    def test_a_rate_from_another_source_and_hours_from_another_entry_are_each_a_defect(
+        self, priced: golden.Package
+    ) -> None:
+        run = self.own(priced)
+        line = self.line(run, "heads_pendent")
+        line["rate_source"] = "quotation Q-2026-1001"
+        line["labour"]["productivity_source"] = "estimator judgement: Sam Senior"
+
+        assert defects(golden.compare(priced, run)) == [
+            ("STG-010", "line / heads_pendent / rate source", "wrong", "MEDIUM"),
+            ("STG-010", "line / heads_pendent / productivity source", "wrong", "MEDIUM"),
+        ]
+
+    def test_a_source_is_the_same_however_its_kind_is_spelt(self, priced: golden.Package) -> None:
+        run = self.own(priced)
+        self.line(run, "heads_pendent")["rate_source"] = "company_standard  cs-2026"
+
+        assert golden.compare(priced, run).differences == []
+
+    def test_a_risk_or_a_scope_row_from_another_clause_and_an_issue_on_another_sheet(
+        self, priced: golden.Package
+    ) -> None:
+        run = self.own(priced)
+        (risk,) = [one for one in run["STG-011"]["risks"] if one["kind"] == "shop_drawings"]
+        risk["clauses"] = ["6.5"]
+        run["STG-008"]["issues"][0]["sheet"] = "FP-B1-202"
+        matrix = run["STG-008"]["scope_matrix"]
+        matrix["interfaces_for_each_system"][0]["clause"] = "7.9"
+
+        found = defects(golden.compare(priced, run))
+
+        assert ("STG-011", "risk / shop_drawings / clauses", "wrong", "MEDIUM") in found
+        assert (
+            "STG-008",
+            "issue / conflict:pipe_material / clause 2.1.3 / sheet",
+            "wrong",
+            "MEDIUM",
+        ) in found
+        # The row is one of every system's, so its clause is wrong for each.
+        assert {what for _, what, _, _ in found if what.endswith("/ clause")} == {
+            f"scope / {system} / power_supply / clause" for system in matrix["systems"]
+        }
+        assert len(found) == 2 + len(matrix["systems"])
+
+    def test_something_missing_is_reported_once_and_not_for_its_evidence_too(
+        self, priced: golden.Package
+    ) -> None:
+        run = self.own(priced)
+        run["STG-011"]["risks"] = [r for r in run["STG-011"]["risks"] if r["kind"] != "shutdown"]
+
+        result = golden.compare(priced, run)
+
+        assert {d.what for d in result.differences} == {
+            "risk / shutdown / proposed treatment",
+            "risk / shutdown / impact",
+        }
+        assert not any(d.dimension == "evidence" for d in result.differences)
+
+    def test_evidence_the_package_does_not_give_is_not_compared(
+        self, package: golden.Package
+    ) -> None:
+        # TC-SYN-001 names no sheet for its items: a run that does is not marked for it.
+        run = the_reference_s_own(package)
+        for item in run["STG-007"]["drawn_items"]:
+            item["sheets"] = ["FP-L05-201"]
+
+        result = golden.compare(package, run)
+
+        assert result.differences == []
+        assert not any(d == "evidence" for d, _ in result.stages[6].outcomes)
+
+    def test_a_citation_a_reviewer_accepts_as_equivalent_passes(
+        self, priced: golden.Package
+    ) -> None:
+        def accepting(what: str) -> golden.Package:
+            stages = []
+            for stage in priced.stages:
+                if stage.stage_id == "STG-010":
+                    output = copy.deepcopy(stage.expected_output)
+                    output["equivalent_evidence"] = [
+                        {"what": what, "accepted": ["company standard CS-2026 rev A"]}
+                    ]
+                    stage = stage.model_copy(update={"expected_output": output})
+                stages.append(stage)
+            return priced.model_copy(update={"stages": tuple(stages)})
+
+        run = self.own(priced)
+        self.line(run, "heads_pendent")["rate_source"] = "Company standard CS-2026 rev A"
+        other = self.own(priced)
+        self.line(other, "heads_pendent")["rate_source"] = "company standard CS-2025"
+        accepted = accepting("line / heads_pendent / rate source")
+
+        assert defects(golden.compare(priced, run)) != []
+        assert golden.compare(accepted, run).differences == []
+        # Its own citation still passes, and one that is neither is still a defect.
+        assert golden.compare(accepted, self.own(priced)).differences == []
+        assert defects(golden.compare(accepted, other)) == [
+            ("STG-010", "line / heads_pendent / rate source", "wrong", "MEDIUM")
+        ]
+        with pytest.raises(ValueError, match="no expected evidence is labelled"):
+            golden.compare(accepting("line / heads_pendent / amount"), run)
 
 
 class TestTheLaterStages:

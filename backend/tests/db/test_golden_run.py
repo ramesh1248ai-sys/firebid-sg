@@ -310,7 +310,8 @@ def test_the_platform_s_stages_1_to_7_against_tc_syn_001(session: Session, tende
     assert len(result.stages) == 7
     # Every count and every drawn length of the installation is the reference's.
     assert checks(result)["STG-005"] == (11, 11), told
-    assert checks(result)["STG-004"] == (8, 8), told
+    # Eight legend rows, and the sheet each is on.
+    assert checks(result)["STG-004"] == (16, 16), told
 
 
 def test_the_platform_s_twelve_stages_against_tc_syn_002(

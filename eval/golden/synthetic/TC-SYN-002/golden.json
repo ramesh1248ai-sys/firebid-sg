@@ -2523,6 +2523,17 @@
               "build-up / total_including_gst": 7035.29
             }
           }
+        ],
+        "equivalent_evidence": [
+          {
+            "what": "line / pipe_100_main / rate source",
+            "accepted": [
+              "purchase order PO-889"
+            ],
+            "why": "the same purchase order, with the kind of source written out",
+            "accepted_by": "Ramesh R",
+            "accepted_on": "2026-10-10"
+          }
         ]
       },
       "mandatory_fields": [

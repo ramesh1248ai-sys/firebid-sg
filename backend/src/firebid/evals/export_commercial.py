@@ -41,6 +41,18 @@ def _amount(money: Any) -> str | None:
     return None if money is None else str(money.amount)
 
 
+def _clause(cited: Any) -> str | None:
+    """The clause a risk's evidence cites: stated, or in the label of a clause it quotes
+    (`Specification clause 8.4`)."""
+    if not isinstance(cited, dict):
+        return None
+    if "clause" in cited:
+        return str(cited["clause"])
+    if cited.get("kind") == "clause":
+        return str(cited.get("label") or "").rpartition("clause ")[2] or None
+    return None
+
+
 def line_name(item: dict[str, Any]) -> str:
     """What a bill line is of, from one of the takeoff items behind it (`export_run._item`)."""
     kind, size = str(item["item"]), item.get("dn")
@@ -235,6 +247,11 @@ def pricing(session: Session, bid: Bid) -> dict[str, Any] | None:
             one["labour"] = {
                 "hours_per_unit": _text(worked.entry.hours) if worked.entry else None,
                 "productivity_entry": worked.entry.description if worked.entry else None,
+                "productivity_source": (
+                    f"{worked.entry.source_type}: {worked.entry.source_reference}"
+                    if worked.entry
+                    else None
+                ),
                 "trade": worked.entry.trade if worked.entry else None,
                 "hours": _text(worked.hours),
                 "hourly_rate": _text(worked.rate.hourly) if worked.rate else None,
@@ -328,9 +345,7 @@ def risks(session: Session, bid: Bid) -> dict[str, Any] | None:
             {
                 "kind": row.kind,
                 "family": row.category.replace("_", " "),
-                "clauses": sorted(
-                    str(e["clause"]) for e in row.evidence if isinstance(e, dict) and "clause" in e
-                ),
+                "clauses": sorted({clause for e in row.evidence if (clause := _clause(e))}),
                 "proposed_treatment": row.proposed_treatment,
                 "treatment": row.treatment,
                 "impact": impact,

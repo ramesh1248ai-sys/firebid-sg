@@ -98,7 +98,8 @@ out that the platform's own pages do not: the build-up, the labour estimate and 
 pack are asked for as those pages ask. Its file holds the bid's quantities: for a real tender it is confidential, like
 the bid. `golden` writes the differences by class (critical, high, medium, low), those to
 settle against a recorded ambiguity, what the run has that the reference does not, and a
-score over the dimensions that were measured. It exits non-zero on a critical or a high
+score over the dimensions that were measured. What a value cites (its sheet, clause or source)
+is compared where the package gives it; a citation that differs is a medium defect. It exits non-zero on a critical or a high
 defect. A stage that is not compared is reported as not compared, never as passed.
 
 In CI the same comparison runs for the three synthetic packages as database tests

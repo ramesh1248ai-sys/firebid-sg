@@ -232,18 +232,18 @@ the ticked circle, match lines between sheets and the skewed wing.
 | Synthetic suites and the regression gate | Exist |
 | Truth for stages 5 to 7 and 9 in `firebid/evals/schema.py` | Exists |
 | Truth for stages 1 to 4, 8 and 10 to 12 | Held in each package's `golden.json`, read by `firebid.evals.golden` |
-| `golden.json` reader and the staged comparison | Built for exact, tolerance and completeness (A, C, E) on stages 1 to 12: `firebid-eval golden`. At stage 7 an item's level is compared where the package states it, and how much of an item is on each level where the package has it on more than one. **To build:** instance positions; an item's system and attributes at stage 7 |
+| `golden.json` reader and the staged comparison | Built for exact, tolerance, evidence and completeness (A, C, D, E) on stages 1 to 12: `firebid-eval golden`. At stage 7 an item's level is compared where the package states it, and how much of an item is on each level where the package has it on more than one. **To build:** instance positions; an item's system and attributes at stage 7 |
 | Export of a bid's stage outputs in the same shape | Built for stages 1 to 12: `firebid-eval export-run --bid` |
-| Defect classification and the weighted score in the report | Built. The score is over the dimensions measured (90% of the weights where stage 12 is compared; evidence is not) and says so. **To build:** linking a difference to the earlier one that caused it |
+| Defect classification and the weighted score in the report | Built. The score is over the dimensions measured (all of the weights where stage 12 is compared, 95% where a package stops at stage 7) and says so. **To build:** linking a difference to the earlier one that caused it |
 | Semantic comparison (rubric, optional model judge) | **To build**; a model judge waits on decision D2. Until then wording is compared after normalising case and spacing only |
-| Evidence comparison (type D) | **To build** |
+| Evidence comparison (type D) | Built for what a package cites in a form that can be compared: the sheet of a legend row, of a takeoff item and of an issue; the clause of a scope row and of a risk; the source and validity of a rate; the entry and source of a productivity. **To build:** evidence a package writes as prose (the note behind a derived item, both sides of an issue), which waits on semantic comparison; a location on the sheet, which waits on instance positions |
 | The platform run against a package in CI | All three synthetic packages, as database tests (`tests/db/test_golden_run.py`): TC-SYN-001 and TC-SYN-003 on stages 1 to 7, TC-SYN-002 on all twelve |
 | The brief for drafting a package | Added with this version |
 
 Build order: the schema and exporter first, then exact, tolerance and completeness
 comparison on TC-SYN-001 (done, 2026-10-08), then the other two synthetic packages (done
-for stages 1 to 7, 2026-10-08) and stages 8 to 12 (done, 2026-10-09), then evidence, then
-semantic.
+for stages 1 to 7, 2026-10-08) and stages 8 to 12 (done, 2026-10-09), then evidence (done,
+2026-10-10), then semantic.
 
 Two rules of the stage 7 comparison came from running the pump room tender. A reference
 that does not say which of its drawn pipe is main and which is branch is compared by size
@@ -260,6 +260,15 @@ package may record what the **other reading** gives, in a stage's `alternatives`
 ambiguity, and for each affected value (by the label the comparison gives it) its other
 value. A run that gives the expected value passes; one that gives the other value is to
 settle, marked as the other reading; one that gives neither has a defect.
+
+Evidence is compared only where the package gives it, and only for a value the run has: a
+missing item is one difference, not one for the item and one for its sheet. A citation that
+differs is a medium defect and counts under evidence and traceability, so a right quantity
+from the wrong sheet keeps its mark for the quantity. Where a reviewer accepts another
+citation as equivalent (section 6, type D), the package records it in the stage's
+`equivalent_evidence`: what it is of, by the label the comparison gives it, and the
+citations accepted. A source's kind is the same however it is spelt (`company_standard`,
+`Company standard`).
 
 At stages 9 and 10 a bill line is named by what it is of (`heads_pendent`,
 `pipe_150_main`, `tee_150x50`, `hanger_50`), from the takeoff items behind it, so two

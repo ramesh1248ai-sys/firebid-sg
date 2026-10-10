@@ -2430,3 +2430,43 @@ changed nothing the comparison looked at.
   breeching inlet on L01).
 - **Not done.** A share on a level the package does not name is not a fact of its own.
 - **Requirement IDs covered (test names):** FR-LRN-01: `tests/evals/test_golden_comparison.py::TestLevelsAtTheTakeoff` (an item on two levels compared level by level; a share measured as the length is; all of it on the site's level is the other reading of C8; an item on one level has no share), `tests/db/test_golden_run.py` (TC-SYN-003).
+
+## Test · Evidence compared against a golden package · 2026-10-10
+
+The comparison checked a value and not what it cites, so a right count from the wrong sheet,
+or a right price from the wrong source, passed, and the evidence 10% of the score was never
+measured. This is comparison type D of the test strategy.
+
+- **What is compared (`firebid/evals/golden.py`).** What a value cites, where the package
+  gives it in a form that can be compared: the sheets a legend row is on (stage 4); the
+  sheets a takeoff item is from (stage 7); an issue's sheet and a scope row's clause (stage
+  8); a price's rate source and validity, and the hours' productivity entry and its source
+  (stage 10); a risk's clauses (stage 11). An attribute's, an obligation's and an issue's
+  clause were already part of what each is.
+- **The rules.** A citation that differs, or a value that cites nothing, is MEDIUM and
+  counts under evidence and traceability, not under what the value itself counts under. It
+  is compared only for a value the run has, so something missing is not reported again for
+  its evidence, and only where the package gives it: evidence the run has and the package
+  does not is not a difference. A source's kind is the same however it is spelt
+  (`company_standard`, `Company standard`).
+- **Equivalents.** A stage of a package may record the citations a reviewer accepts in
+  place of its own: `equivalent_evidence`, a list of `{"what": <the label the comparison
+  gives it>, "accepted": [...]}`. A label the stage has no evidence for is refused.
+- **The export (`export_run.py`, `export_commercial.py`).** A takeoff item now gives the
+  sheets it was taken off from (`sheets`, from its derivation), and a line's labour the
+  source of its productivity (`productivity_source`). A risk's clauses are read from the
+  clause a citation quotes as well as from one it states: the execution risks cite
+  "Specification clause 8.4" by label, and were exported with no clause.
+- **Result.** 8 evidence checks on TC-SYN-001, 31 on TC-SYN-003 and 86 on TC-SYN-002, and
+  the platform agrees on all of them. One citation is worded differently: the rate for the
+  DN100 main is from the same purchase order, which the platform writes `purchase order
+  PO-889` and the package `PO PO-889`. Ramesh R accepted it as equivalent on 2026-10-10,
+  and TC-SYN-002 records that at stage 10 (`equivalent_evidence`, written by its
+  `work_out.py`, and in part 7 of `package.md`).
+  The score is now over all of the weights on TC-SYN-002 and 95% on the two packages that
+  stop at stage 7 (it was 90% and 85%).
+- **Not done.** Evidence a package writes as prose is not compared: the note behind a
+  derived item, both sides of an issue (`issue_evidence`), a pump's schedule row. That
+  waits on semantic comparison. A location on the sheet waits on instance positions. A
+  clarification candidate's sheet is not exported. No expected value of a package was changed.
+- **Requirement IDs covered (test names):** FR-LRN-01: `tests/evals/test_golden_comparison.py::TestEvidence` (an item from another sheet; a value that cites nothing; a rate from another source and hours from another entry; a source however its kind is spelt; a risk or scope row from another clause and an issue on another sheet; something missing reported once; evidence the package does not give; an accepted equivalent), `tests/db/test_golden_run.py` (all three packages).
