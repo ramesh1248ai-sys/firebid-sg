@@ -507,7 +507,7 @@ provisional sums (B8). The eleven ambiguities in part 11.
 | High | A conflict between clause and note not raised; clause 5.1 read as a fire protection attribute; client item C3 mapped to an item, or B4 not flagged; the expired rate shown without its warning; a risk of section 8 missed; the level not B1 |
 | Medium | A risk found with no clause cited; the basement risk's impact on other hours than the reference's; a checklist status proposed from the wrong clause; the hidden sheet's cells read as lines and then discarded |
 | Low | Wording; order; line numbering |
-| Acceptable variation | The figures of `if_every_head_takes_a_drop` until B1 is settled (`golden.json` records them value by value as each stage's `alternatives`, so that a figure which is neither reading's is still a defect); hanger lines absent under "deemed included" (B7); two candidates on one subject grouped |
+| Acceptable variation | The figures of `if_every_head_takes_a_drop` until B1 is settled (`golden.json` records them value by value as each stage's `alternatives`, so that a figure which is neither reading's is still a defect); hanger lines absent under "deemed included" (B7); two candidates on one subject grouped; the source of the DN100 main's rate cited as `purchase order PO-889` where the rate list writes `PO PO-889`: the same purchase order with its kind written out, accepted as equivalent by Ramesh R on 2026-10-10 (`equivalent_evidence` at stage 10 of `golden.json`) |
 
 ## 8. Evaluation score
 

@@ -1363,6 +1363,23 @@ for one in golden["stages"]:
             }
         ]
 
+# Citations accepted in place of the package's own. The rate list writes the kind of this
+# source short ("PO"); written out, it is the same purchase order.
+EQUIVALENT_EVIDENCE = {
+    "STG-010": [
+        {
+            "what": "line / pipe_100_main / rate source",
+            "accepted": ["purchase order PO-889"],
+            "why": "the same purchase order, with the kind of source written out",
+            "accepted_by": "Ramesh R",
+            "accepted_on": "2026-10-10",
+        }
+    ],
+}
+for one in golden["stages"]:
+    if one["stage_id"] in EQUIVALENT_EVIDENCE:
+        one["expected_output"]["equivalent_evidence"] = EQUIVALENT_EVIDENCE[one["stage_id"]]
+
 manifest = {
     "test_case_id": "TC-SYN-002",
     "kind": "synthetic",

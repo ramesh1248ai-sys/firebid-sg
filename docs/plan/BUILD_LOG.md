@@ -2458,13 +2458,15 @@ measured. This is comparison type D of the test strategy.
   clause a citation quotes as well as from one it states: the execution risks cite
   "Specification clause 8.4" by label, and were exported with no clause.
 - **Result.** 8 evidence checks on TC-SYN-001, 31 on TC-SYN-003 and 86 on TC-SYN-002, and
-  the platform agrees on all but one: the rate for the DN100 main is from the same purchase
-  order, which the platform writes `purchase order PO-889` and the package `PO PO-889`. It
-  is listed as a known difference, for a reviewer to accept as equivalent in the package.
+  the platform agrees on all of them. One citation is worded differently: the rate for the
+  DN100 main is from the same purchase order, which the platform writes `purchase order
+  PO-889` and the package `PO PO-889`. Ramesh R accepted it as equivalent on 2026-10-10,
+  and TC-SYN-002 records that at stage 10 (`equivalent_evidence`, written by its
+  `work_out.py`, and in part 7 of `package.md`).
   The score is now over all of the weights on TC-SYN-002 and 95% on the two packages that
   stop at stage 7 (it was 90% and 85%).
 - **Not done.** Evidence a package writes as prose is not compared: the note behind a
   derived item, both sides of an issue (`issue_evidence`), a pump's schedule row. That
   waits on semantic comparison. A location on the sheet waits on instance positions. A
-  clarification candidate's sheet is not exported. No package was changed.
+  clarification candidate's sheet is not exported. No expected value of a package was changed.
 - **Requirement IDs covered (test names):** FR-LRN-01: `tests/evals/test_golden_comparison.py::TestEvidence` (an item from another sheet; a value that cites nothing; a rate from another source and hours from another entry; a source however its kind is spelt; a risk or scope row from another clause and an issue on another sheet; something missing reported once; evidence the package does not give; an accepted equivalent), `tests/db/test_golden_run.py` (all three packages).

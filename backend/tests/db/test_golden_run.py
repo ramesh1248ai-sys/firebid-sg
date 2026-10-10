@@ -64,10 +64,6 @@ KNOWN_DEFECTS: dict[str, set[tuple[str, str, str]]] = {
         # The platform flags the five lines the client's bill has no item for, with the two
         # client lines; the package counts the client's two.
         ("STG-012", "open / bill_variances_flagged", "HIGH"),
-        # The same purchase order, its kind written out by the platform (`purchase order
-        # PO-889`) and short by the package (`PO PO-889`): for a reviewer to accept as
-        # equivalent, in the package's `equivalent_evidence`.
-        ("STG-010", "line / pipe_100_main / rate source", "MEDIUM"),
     },
     "TC-SYN-003": {
         # A level where the package gives none and has no ambiguity for it: for a person.
