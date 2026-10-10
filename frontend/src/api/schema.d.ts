@@ -1455,7 +1455,8 @@ export interface paths {
         /**
          * List Candidates
          * @description The organisation's people who are not on this bid, with the roles each holds: who a
-         *     bid manager may add. Someone who has left (not active) is not offered.
+         *     bid manager may add. Someone who has left (not active) is not offered, and nobody is
+         *     offered twice.
          */
         get: operations["list_candidates_bids__bid_id__members_candidates_get"];
         put?: never;

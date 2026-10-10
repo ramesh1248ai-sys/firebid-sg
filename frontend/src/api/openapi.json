@@ -19783,7 +19783,7 @@
     },
     "/bids/{bid_id}/members/candidates": {
       "get": {
-        "description": "The organisation's people who are not on this bid, with the roles each holds: who a\nbid manager may add. Someone who has left (not active) is not offered.",
+        "description": "The organisation's people who are not on this bid, with the roles each holds: who a\nbid manager may add. Someone who has left (not active) is not offered, and nobody is\noffered twice.",
         "operationId": "list_candidates_bids__bid_id__members_candidates_get",
         "parameters": [
           {
