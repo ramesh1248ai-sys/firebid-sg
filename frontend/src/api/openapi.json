@@ -26786,6 +26786,63 @@
         ]
       }
     },
+    "/bids/{bid_id}/symbols/unnamed/crop.png": {
+      "get": {
+        "description": "One instance of a symbol nobody has named, outlined, with the drawing round it.",
+        "operationId": "unnamed_crop_bids__bid_id__symbols_unnamed_crop_png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bid_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Bid Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "symbol_key",
+            "required": true,
+            "schema": {
+              "maxLength": 120,
+              "title": "Symbol Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Unnamed Crop",
+        "tags": [
+          "symbols"
+        ]
+      }
+    },
     "/bids/{bid_id}/tasks": {
       "get": {
         "operationId": "list_tasks_bids__bid_id__tasks_get",

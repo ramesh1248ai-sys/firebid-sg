@@ -66,7 +66,7 @@ P6 wait on the people named.
 
 | ID | Item | How | Size | Waits on |
 | --- | --- | --- | --- | --- |
-| R1 | An unnamed symbol group is shown as a count, with no picture (found in A4) | Show a crop of one instance, and where it is, in "Symbols nobody has named". Without it 578 groups cannot be named | S to M | Nothing |
+| R1 | **Done, 2026-10-11.** An unnamed symbol group was shown as a count, with no picture (found in A4) | Each group in "Symbols nobody has named" shows one instance, outlined, with the sheet it is on and a link that moves the drawing to it. Not yet tried on the real bid's 578 groups | S to M | Nothing |
 | R2 | Name the large unexplained groups on the real bid | A person's act in the workbench, once per consultant: the empty box as "Not an installed object", fittings as decided | Operational | R1; the fittings decision |
 | R3 | The design basis and match lines across the whole set (B4) | Run the design-basis read over the 148 sheets and record it; a second consultant's drawings when one is available | M | Nothing |
 | R4 | **First real count on one floor.** Level 10 of the MOH set | Estimators give the device counts; the fire alarm rows are confirmed; compare by row; file it as golden package TC-MOH-L10 (kept out of git, guardrail 8) | M | Estimators' counts; the ticked-circle decision |

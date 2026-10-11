@@ -28,6 +28,7 @@ import contextlib
 import hashlib
 import json
 import re
+import threading
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -1017,6 +1018,11 @@ class Unmapped:
     mapping_lineage_id: uuid.UUID | None
     proposed_type: str | None
     sheets: set[uuid.UUID] = field(default_factory=set)
+    # One of them to look at: the first the detector recorded. A count alone does not
+    # say what the shape is.
+    sample_id: int | None = None
+    sample_sheet_id: uuid.UUID | None = None
+    sample_box: list[float] | None = None
 
 
 @dataclass
@@ -1090,6 +1096,10 @@ def counts(session: Session, bid_id: uuid.UUID, *, current_only: bool = True) ->
         )
         group.instances += 1
         group.sheets.add(instance.sheet_id)
+        if group.sample_id is None or instance.id < group.sample_id:
+            group.sample_id = instance.id
+            group.sample_sheet_id = instance.sheet_id
+            group.sample_box = [float(v) for v in instance.bbox]
     aside = select(SheetGeometry.symbols_set_aside).where(
         SheetGeometry.bid_id == bid_id, SheetGeometry.symbols_set_aside.is_not(None)
     )
@@ -1113,3 +1123,71 @@ def unmapped_by_sheet(found: Counts) -> dict[uuid.UUID, int]:
         for sheet in group.sheets:
             totals[sheet] += 1
     return dict(totals)
+
+
+# --- A picture of a symbol nobody has named -------------------------------------------------
+
+# Changing how the picture is drawn changes this, so that pictures already stored are not served.
+SAMPLE_PICTURE_VERSION = "1"
+# The widest picture is this many pixels: a shape the size of a title block is still one image.
+_SAMPLE_PIXELS = 480
+# Drawing is done with pyplot, which keeps one current figure for the process.
+_drawing = threading.Lock()
+
+
+def sample_instance(session: Session, bid_id: uuid.UUID, symbol_key: str) -> SymbolInstance | None:
+    """The instance shown for a symbol key: the first recorded on a Current sheet."""
+    from firebid.services.revisions import current_sheets
+
+    sheet_ids = [sheet.id for _, sheet in current_sheets(session, bid_id)]
+    return (
+        session.execute(
+            select(SymbolInstance)
+            .where(
+                SymbolInstance.bid_id == bid_id,
+                SymbolInstance.symbol_key == symbol_key,
+                SymbolInstance.sheet_id.in_(sheet_ids),
+            )
+            .order_by(SymbolInstance.id)
+            .limit(1)
+        )
+        .scalars()
+        .first()
+    )
+
+
+def sample_picture(
+    session: Session, store: ObjectStore, bid_id: uuid.UUID, symbol_key: str
+) -> bytes | None:
+    """One instance of the symbol with what is drawn round it, as a PNG; the instance is
+    outlined. Drawn from the sheet's geometry once, then kept. None: no such symbol here."""
+    instance = sample_instance(session, bid_id, symbol_key)
+    if instance is None:
+        return None
+    record = session.execute(
+        select(SheetGeometry).where(SheetGeometry.sheet_id == instance.sheet_id)
+    ).scalar_one_or_none()
+    if record is None:
+        return None
+    x0, y0, x1, y1 = (float(v) for v in instance.bbox)
+    # Enough of the drawing round it to tell a head on a branch from a box in a title block.
+    margin = min(max(1.5 * max(x1 - x0, y1 - y0), 8.0), 30.0)
+    digest = hashlib.sha256(
+        json.dumps([record.object_key, [x0, y0, x1, y1], margin, SAMPLE_PICTURE_VERSION]).encode()
+    ).hexdigest()
+    key = f"symbols/crops/unnamed/{digest}.png"
+    if store.exists(key):
+        return store.get(key)
+    table = geometry_service.load(store, record)
+    widest = max(x1 - x0, y1 - y0) + 2 * margin
+    with _drawing:
+        image = crops.render(
+            table,
+            (x0, y0, x1, y1),
+            margin_mm=margin,
+            pixels_per_mm=min(crops.PIXELS_PER_MM, _SAMPLE_PIXELS / widest),
+            outline=(x0, y0, x1, y1),
+        )
+    with contextlib.suppress(ObjectExists):  # drawn by a request that arrived with this one
+        store.put_once(key, image, content_type=PNG)
+    return image
