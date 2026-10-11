@@ -2569,3 +2569,42 @@ could not be taken from registered to submitted without someone calling the API.
 - **Not done.** Taking someone off a bid, or changing their role (the API has no route).
   Entering one productivity figure by hand (the API has it; the screen offers the import).
 - **Requirement IDs covered (test names):** FR-BID-01: `tests/db/test_bid_workspace.py::TestTheTeam`, `::TestMoves`, `frontend/src/pages/BidDetail.test.tsx` ("the team of a bid", "moving a bid on"). FR-ADM-01: the same, for who is offered what. NFR-08: `TestTheTeam::test_someone_of_another_organisation_cannot_be_added`. FR-PKG-02: `frontend/src/pages/Review.test.tsx` ("lets the Senior Estimator approve G2", "keeps G2 from the Senior Estimator while something blocks it"), `TestMoves::test_the_gates_and_the_outcome_are_not_moves_of_the_bid_s_page`. FR-LAB-01: `frontend/src/pages/Rates.test.tsx` ("the productivity library").
+
+## Feat · Pilot readiness: what a real bid needs from its own people · 2026-10-11
+
+Stream P of `COMPREHENSIVE_PLAN.md`: what stood between a bid and being run end to end by
+the people on it, without anyone calling the API.
+
+- **The client's priced workbook is frozen with the submission (P1).** Where the client
+  issued a bill of their own, `submission._files` adds their workbook with our rates in it
+  (`client-boq-priced.xlsx`) to the snapshot, the manifest and the downloads. A workbook
+  that cannot be priced refuses the freeze with the reason.
+- **A person is taken off a bid, or their role changed (P3).** `PATCH` and `DELETE
+  /bids/{id}/members/{user_id}` for whoever manages the team. A bid keeps at least one bid
+  manager (409 otherwise). Adding, changing and removing each write an audit event, which
+  adding did not before. The Team panel has the role beside each person and **Take off the
+  bid**, asked twice.
+- **One productivity figure by hand (P4).** A form on the productivity library for the
+  existing route; a company standard or a project needs its reference.
+- **Exchange rates (found on the way).** Confirming a quotation in another currency is
+  refused until a rate is recorded, and nothing recorded one on screen. The rates page now
+  lists the rates and lets the Senior Estimator record one with its source and date
+  (`frontend/src/pages/ExchangeRates.tsx`; the API existed).
+- **The outcome form says not to name individuals (P6, the page's half).** Whether the
+  audit event keeps the text is still the DPO's to decide.
+- **One bid from registered to awarded, as an end-to-end test (P2).**
+  `frontend/e2e/bid-to-outcome.spec.ts`: the bid manager registers the bid, builds the team
+  (adds three people, takes one off and puts them back), starts qualification; the
+  Commercial Director decides to bid; the Senior Estimator imports the productivity list
+  and approves G2; the Commercial Director G3 and G4; the frozen files include the client's
+  priced bill; the bid manager records the outcome. The takeoff, pricing and risk steps in
+  between go through the API. It runs in under a minute on a warm stack.
+- **The pilot runbook (P8).** `docs/runbooks/pilot.md`: what must be true before the first
+  tender, the steps for each one, what to record as a finding, and when to stop.
+- **The manual's missing steps (P9).** `docs/user-manual/other-steps.md`, staged on the
+  local stack with nine screenshots: an addendum with a revised sheet, a tender kept in
+  folders, a supplier's quotation in a foreign currency, and design development.
+- **Not done, and why.** Accepted risk allowances in the build-up (P5) wait on the product
+  owner. The locked snapshot bucket (P7) is set in a deployed environment. The business
+  figures (P10) are the Estimating Manager's and Commercial Director's.
+- **Requirement IDs covered (test names):** FR-PKG-03: `tests/db/test_submission.py::TestFreeze::test_the_client_s_own_bill_is_frozen_with_our_rates_in_it`. FR-BID-01, FR-ADM-01: `tests/db/test_bid_workspace.py::TestTheTeam` (change a role and take someone off; a bid keeps a bid manager; only who manages the team changes it, and each change is on record), `frontend/src/pages/BidDetail.test.tsx`. FR-LAB-01: `frontend/src/pages/Rates.test.tsx` ("takes one figure by hand only with its source"). FR-CST-04: `frontend/src/pages/Rates.test.tsx` ("exchange rates"). FR-BID-01, FR-PKG-02, FR-PKG-03, FR-LAB-01, FR-LRN-02: `frontend/e2e/bid-to-outcome.spec.ts`.

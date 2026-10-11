@@ -6,6 +6,7 @@ import type { components } from "@/api/schema";
 import { accessToken } from "@/auth/oidc";
 import { useAuth } from "@/auth/session";
 import { Button } from "@/components/ui/button";
+import { ExchangeRates } from "@/pages/ExchangeRates";
 import { LibraryProposals } from "@/pages/LibraryProposals";
 import { ProductivityLibrary } from "@/pages/ProductivityLibrary";
 
@@ -102,6 +103,8 @@ export function RatesPage() {
       <LibraryProposals canDecide={canImport} />
 
       <ProductivityLibrary canImport={canImport} />
+
+      <ExchangeRates canRecord={canImport} />
     </section>
   );
 }

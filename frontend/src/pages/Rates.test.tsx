@@ -227,6 +227,83 @@ describe("the productivity library", () => {
   });
 });
 
+describe("exchange rates", () => {
+  const usd = {
+    id: "99999999-0000-4000-8000-000000000001",
+    currency: "USD",
+    rate: "1.3450",
+    source: "MAS, 9 Oct 2026",
+    as_of: "2026-10-09",
+    created_at: "2026-10-09T02:00:00Z",
+  };
+
+  // req: FR-CST-04
+  it("lists each rate with its source and date, and records one with both", async () => {
+    signedInAs({
+      name: "Sam Lim",
+      preferred_username: "senior.estimator@firebid.test",
+      roles: ["senior_estimator"],
+    });
+    const calls = stubApi({
+      "/costing/fx-rates": (call) =>
+        call.method === "POST"
+          ? Response.json(
+              {
+                buffer_percent: "2.0",
+                import_lines: [],
+                rates: [usd, { ...usd, id: "x", currency: "EUR", rate: "1.4600" }],
+              },
+              { status: 201 },
+            )
+          : Response.json({ buffer_percent: "2.0", import_lines: [], rates: [usd] }),
+      "/rates": () => Response.json([rate()]),
+    });
+    renderAt("/rates");
+
+    const table = await screen.findByRole("table", { name: "Exchange rates" });
+    expect(within(table).getByText("USD").closest("tr")).toHaveTextContent("MAS, 9 Oct 2026");
+    expect(screen.getByRole("region", { name: "Exchange rates" })).toHaveTextContent(
+      "a buffer of 2.0% on the rate",
+    );
+
+    const form = screen.getByRole("form", { name: "Record an exchange rate" });
+    await userEvent.type(within(form).getByLabelText("Currency"), "eur");
+    await userEvent.type(within(form).getByLabelText("SGD for one unit"), "1.46");
+    // A rate is not taken without where it is from and the day it is of.
+    expect(within(form).getByRole("button", { name: "Record the rate" })).toBeDisabled();
+    await userEvent.type(within(form).getByLabelText("Rate date"), "2026-10-10");
+    await userEvent.type(within(form).getByLabelText("Source of the rate"), "bank quote");
+    await userEvent.click(within(form).getByRole("button", { name: "Record the rate" }));
+
+    expect(await within(table).findByText("EUR")).toBeInTheDocument();
+    const post = calls.find((call) => call.method === "POST");
+    expect(JSON.parse(post!.body!)).toEqual({
+      currency: "EUR",
+      rate: "1.46",
+      source: "bank quote",
+      as_of: "2026-10-10",
+    });
+  });
+
+  // req: FR-CST-04
+  it("shows the rates to an estimator and offers them no way to record one", async () => {
+    signedInAs({
+      name: "Ethan Lim",
+      preferred_username: "estimator@firebid.test",
+      roles: ["estimator"],
+    });
+    stubApi({
+      "/costing/fx-rates": () =>
+        Response.json({ buffer_percent: "2.0", import_lines: [], rates: [usd] }),
+      "/rates": () => Response.json([rate()]),
+    });
+    renderAt("/rates");
+
+    await screen.findByRole("table", { name: "Exchange rates" });
+    expect(screen.queryByRole("form", { name: "Record an exchange rate" })).toBeNull();
+  });
+});
+
 describe("pricing the BOQ", () => {
   function stubs(lines: ReturnType<typeof line>[]) {
     return stubApi({
