@@ -15,6 +15,7 @@ attributes of Current specifications only, "not specified" for anything else.
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -297,9 +298,11 @@ def read_attributes_with_model(
     if revision is None:
         return []
     clauses = clauses_of(session, revision_id)
+    # The clauses by their digest: a long list of them is longer than a run's key may be.
+    asked = hashlib.sha256(",".join(clause_numbers).encode()).hexdigest()[:24]
     request = AgentInput(
         bid_id=revision.bid_id,
-        idempotency_key=f"spec_attributes:{revision_id}:{system}:{','.join(clause_numbers)}",
+        idempotency_key=f"spec_attributes:{revision_id}:{system}:{asked}",
         payload=SpecInput(
             clauses=[(c.number, c.heading, c.text) for c in clauses],
             system=system,

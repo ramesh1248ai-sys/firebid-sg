@@ -263,6 +263,43 @@ def test_a_model_call_records_its_route_provider_model_prompt_and_cost(
     assert stored.citation_ok is True
 
 
+@pytest.mark.req("FR-SPEC-01")
+def test_a_long_list_of_clauses_is_asked_about_as_a_short_one_is(
+    session: Session, bid: Bid, store: MemoryObjectStore, tmp_path: Path
+) -> None:
+    # Found on the local stack: 22 clauses in one request made a key longer than the run's
+    # column takes, and the job failed before the model was asked.
+    revision = read(session, bid, store)
+    answer = {
+        "attributes": [
+            {
+                "attribute": "joining_method",
+                "value": "threaded",
+                "clause": "3.1",
+                "quote": "joined by screwed fittings throughout",
+                "confidence": 0.9,
+            }
+        ]
+    }
+    clauses = ["3.1", *(f"{section}.{n}" for section in (6, 7, 8) for n in range(1, 9))]
+
+    [stored] = specs.read_attributes_with_model(
+        session, revision.id, "hose_reel", clauses, router(session, tmp_path, answer)
+    )
+    session.commit()
+
+    assert stored.citation_ok is True
+    # Another list of clauses is another request, not the first one's answer again.
+    specs.read_attributes_with_model(
+        session, revision.id, "hose_reel", clauses[:-1], router(session, tmp_path, answer)
+    )
+    session.commit()
+    keys = session.execute(
+        select(AgentRun.idempotency_key).where(AgentRun.route == "spec_attribute_extract")
+    ).scalars()
+    assert len(set(keys)) == 2
+
+
 def router(session: Session, tmp_path: Path, reply: dict[str, Any]) -> Router:
     path = tmp_path / "llm.yaml"
     path.write_text(CONFIG, encoding="utf-8")
