@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from firebid.db.audit import record_event
@@ -76,15 +76,26 @@ def ensure_seeded(session: Session, organisation_id: uuid.UUID) -> None:
     type a later release added to the seed (the Phase 2 equipment, P2-01).
 
     A type the organisation has, at any version, deprecated or not, is never touched."""
-    known = set(
-        session.execute(
-            select(ObjectType.key).where(ObjectType.organisation_id == organisation_id).distinct()
-        ).scalars()
-    )
-    missing = [spec for spec in seed_types() if spec.key not in known]
-    if not missing:
+
+    def missing() -> list[TypeSpec]:
+        known = set(
+            session.execute(
+                select(ObjectType.key)
+                .where(ObjectType.organisation_id == organisation_id)
+                .distinct()
+            ).scalars()
+        )
+        return [spec for spec in seed_types() if spec.key not in known]
+
+    if not missing():
         return
-    for spec in missing:
+    # An organisation's first tender is several documents read at once, and each comes here.
+    # One seeds at a time, held until this transaction ends; the rest then find it seeded.
+    session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext('firebid.object_library:' || :organisation))"),
+        {"organisation": str(organisation_id)},
+    )
+    for spec in missing():
         session.add(
             ObjectType(
                 # The clock, not the transaction's start: versions made in one transaction

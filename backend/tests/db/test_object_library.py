@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import threading
+import time
+
 import pytest
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import Engine, select
+from sqlalchemy.orm import Session, sessionmaker
 
 from firebid.db.models.audit import AuditEvent
 from firebid.db.models.core import Organisation
@@ -65,6 +68,36 @@ class TestTheSeed:
             select(ObjectType).where(ObjectType.organisation_id == seeded.id)
         ).scalars()
         assert len(list(rows)) == before
+
+    def test_two_that_seed_at_once_seed_it_once(
+        self, engine: Engine, session: Session, organisation: Organisation
+    ) -> None:
+        # Found on a new database: the three documents of an organisation's first tender
+        # were read at once, each seeded the library, and one failed on the unique key.
+        factory = sessionmaker(bind=engine, expire_on_commit=False)
+        holding = threading.Event()
+
+        def seed_and_hold() -> None:
+            with factory() as holder:
+                library.ensure_seeded(holder, organisation.id)
+                holding.set()
+                time.sleep(0.5)
+                holder.commit()
+
+        thread = threading.Thread(target=seed_and_hold)
+        thread.start()
+        try:
+            assert holding.wait(timeout=10)
+            with factory() as second:
+                library.ensure_seeded(second, organisation.id)
+                second.commit()
+        finally:
+            thread.join(timeout=15)
+
+        rows = session.execute(
+            select(ObjectType.key).where(ObjectType.organisation_id == organisation.id)
+        ).scalars()
+        assert sorted(rows) == sorted(spec.key for spec in library.seed_types())
 
 
 class TestVersions:
