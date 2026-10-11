@@ -2670,3 +2670,19 @@ The end-to-end test that failed on this machine then failed on the empty databas
 - **Not done.** The MOH tender is not uploaded again: R2 and R4 need it read first. Runs
   recorded under the old key are not rekeyed, so a request made before this is made once more.
 - **Requirement IDs covered (test names):** FR-ADM-02: `tests/db/test_object_library.py::TestTheSeed::test_two_that_seed_at_once_seed_it_once`. FR-SPEC-01: `tests/db/test_spec_attributes.py::test_a_long_list_of_clauses_is_asked_about_as_a_short_one_is`.
+
+## Fix · The end-to-end test of someone on no bids · 2026-10-12
+
+`bid-workspace.spec.ts` signed in as the estimator and expected "You are not on any bids
+yet". `bid-to-outcome.spec.ts` puts the estimator on a bid's team and leaves them there, so
+the test failed whenever that one had got there first: on `main` after PR #91, where the two
+ran side by side, and on any stack the suite had already run on. This, and not the old bids,
+is the test H1 said failed on this machine.
+
+- **The test signs in as procurement**, whom no test puts on a team, and is named for
+  someone on no bids.
+- **Tried.** `make e2e` twice on one stack: the second run failed before the change, and
+  passes after it (11 passed, one skipped).
+- **Not done.** The tests still share one stack and its accounts; a test that puts
+  procurement on a team would bring this back.
+- **Requirement IDs covered (test names):** FR-BID-01, NFR-08: `frontend/e2e/bid-workspace.spec.ts` ("someone on no bids sees none of them").

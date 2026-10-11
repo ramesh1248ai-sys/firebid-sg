@@ -103,7 +103,7 @@ All of it waits on decision D2 (provider data terms and hosting).
 
 | ID | Item | How | Size |
 | --- | --- | --- | --- |
-| H1 | **Done, 2026-10-12.** The local database held 38 bids from screenshots, test runs and trials; one end-to-end test failed on this machine | The database and object-store volumes were recreated. The test then failed for a reason of the platform's own, since fixed: an organisation's first tender, read several documents at once, seeded the object library twice. The MOH trial bid went with the volume and is to be uploaded again before R2 | S |
+| H1 | **Done, 2026-10-12.** The local database held 38 bids from screenshots, test runs and trials; one end-to-end test failed on this machine | The database and object-store volumes were recreated. On the empty database another test failed for a reason of the platform's own, since fixed: an organisation's first tender, read several documents at once, seeded the object library twice. The test that had failed here was one that expected the estimator to be on no bids, which any earlier run of the suite undoes; it now signs in as someone no test puts on a team. The MOH trial bid went with the volume and is to be uploaded again before R2 | S |
 | H2 | `scripts/generate_kt_presentation.py` is untracked and fails the type check | Annotate it before it is committed, or keep it out of the repository | S, yours |
 | H3 | The Word manual is untracked, and its contents page needs refreshing | Decide whether a generated 6 MB file belongs in git; press F9 in Word | S, yours |
 | H4 | The frontend has a linter and no formatter | Decide whether to adopt one; if so, format once in its own change so that later diffs stay small | S |

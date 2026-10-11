@@ -52,8 +52,10 @@ test("a bid manager registers a bid and sees it with its deadlines", async ({ pa
   await expect(page.getByRole("cell", { name: "bid: created" }).first()).toBeVisible();
 });
 
-test("an estimator on no bids sees none of them", async ({ page }) => {
-  await signIn(page, "estimator@firebid.test");
+test("someone on no bids sees none of them", async ({ page }) => {
+  // Someone no test puts on a bid's team: bid-to-outcome puts the estimator on one, at the
+  // same time as this runs or on a run before it.
+  await signIn(page, "procurement@firebid.test");
   await expect(page.getByText("You are not on any bids yet")).toBeVisible();
 });
 
