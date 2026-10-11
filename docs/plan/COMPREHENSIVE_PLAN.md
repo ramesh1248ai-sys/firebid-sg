@@ -44,6 +44,11 @@ Three things do:
 
 ### P. Pilot readiness: a real bid run by its own people
 
+**Status, 2026-10-11:** P1, P2, P3, P4, P8 and P9 are done, and the page half of P6;
+see the build log entry "Pilot readiness". A fifth step with no screen was found on
+the way (recording an exchange rate) and given one. P5, P7, P10 and the audit half of
+P6 wait on the people named.
+
 | ID | Item | How | Size | Waits on |
 | --- | --- | --- | --- | --- |
 | P1 | The priced client workbook is not in the frozen submission (was D4) | Add it to the snapshot's files and manifest; test that it verifies and downloads | S to M | Nothing |

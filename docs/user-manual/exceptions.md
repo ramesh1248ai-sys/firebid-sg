@@ -29,6 +29,7 @@ The screenshots were taken on 2026-10-10 from two synthetic bids on the local st
 | **unpriced** | BOQ, Pricing | The rate library has no rate for the line | Choose a rate, or propose one |
 | "the rate expired on …" | BOQ, Pricing | The rate's validity has run out | Get a current rate into the library |
 | "Nothing was imported" | Rates | The rate list has a bad row | Fix the rows named and import again |
+| "no FX rate is recorded for USD" | BOQ, confirming a quotation | The quotation is in a currency with no exchange rate | The senior estimator records one on the Rates page |
 | "Not ready for G3" | Risk | Checklist items or risks are undecided | Resolve and treat each one |
 | A gate reads **blocked** | Review | Something it needs is missing | Clear each reason listed on its card |
 
@@ -189,6 +190,9 @@ waits on; and **Withdraw** and **No-bid (G0)** say "Give a reason first" until o
 
 ![The bid's moves as an estimator sees them](images/ex-19-moves-not-yours.png)
 
+On the **Team** panel, taking off or changing the only bid manager is refused: "a bid
+keeps at least one bid manager: add another before changing this one".
+
 Some other actions are also kept to one role. **Prepare the submission** is the bid
 manager's: for anyone else the count of unresolved clarifications does not change when
 they press it. Importing a rate list is the senior estimator's; an estimator is offered
@@ -248,6 +252,20 @@ one rate with its source and reason; the library changes only when the senior es
 approves the proposal.
 
 ![The rate library as an estimator sees it](images/ex-15-rates-estimator.png)
+
+### A quotation cannot be confirmed
+
+Confirming a quotation in a foreign currency is refused with **"no FX rate is recorded for
+USD: record one before pricing"** until a rate for that currency exists.
+
+**What to do:** the senior estimator records the rate under **Exchange rates** on the
+**Rates** page, with its source and date. See
+[a quotation in another currency](other-steps.md#a-quotation-in-another-currency). Then
+press **Confirm the quotation** again.
+
+A quotation may also carry warnings under the supplier's name: that it ends before the
+tender's validity does, or that it states exclusions. Neither stops it being confirmed;
+both are for you to weigh before relying on its prices.
 
 ### What the reconciliation flags
 
