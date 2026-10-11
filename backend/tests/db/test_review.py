@@ -415,6 +415,56 @@ class TestCoverageAndG1:
         session.expire_all()
         assert review.unmapped_in_scope(session, tender.id) == []
 
+    @pytest.mark.req("FR-VIS-02")
+    def test_an_unnamed_symbol_comes_with_one_of_its_instances_to_look_at(
+        self,
+        session: Session,
+        organisation: Organisation,
+        tender: Bid,
+        store: MemoryObjectStore,
+        sign_in: SignIn,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A count alone does not say what a shape is: each group names one instance, and
+        the picture of it is drawn from the sheet's geometry once."""
+        from firebid.db.models.symbols import SymbolInstance
+
+        monkeypatch.setattr("firebid.api.symbols.get_object_store", lambda: store)
+        _, principal = estimator(session, organisation, tender)
+        client = sign_in(principal)
+        unnamed = review.unmapped_in_scope(session, tender.id)
+        assert unnamed
+
+        for group in unnamed:
+            first = (
+                session.execute(
+                    select(SymbolInstance)
+                    .where(
+                        SymbolInstance.bid_id == tender.id,
+                        SymbolInstance.symbol_key == group["symbol_key"],
+                    )
+                    .order_by(SymbolInstance.id)
+                )
+                .scalars()
+                .first()
+            )
+            assert first is not None
+            assert group["sample"] == {"sheet_id": str(first.sheet_id), "box": first.bbox}
+            assert group["sample"]["sheet_id"] in group["sheets"]
+
+        def pictures() -> int:
+            return sum(key.startswith("symbols/crops/unnamed/") for key in store.objects)
+
+        url = f"/bids/{tender.id}/symbols/unnamed/crop.png"
+        drawn = client.get(url, params={"symbol_key": unnamed[0]["symbol_key"]})
+        assert drawn.status_code == 200, drawn.text
+        assert drawn.headers["content-type"] == "image/png"
+        assert drawn.content.startswith(b"\x89PNG") and pictures() == 1
+
+        again = client.get(url, params={"symbol_key": unnamed[0]["symbol_key"]})
+        assert again.content == drawn.content and pictures() == 1, "kept, not drawn again"
+        assert client.get(url, params={"symbol_key": "shape:nothing"}).status_code == 404
+
 
 @pytest.mark.req("NFR-01")
 def test_naming_an_unlisted_symbol_matches_only_what_no_legend_row_claimed(

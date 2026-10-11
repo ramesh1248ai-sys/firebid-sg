@@ -2608,3 +2608,25 @@ the people on it, without anyone calling the API.
   owner. The locked snapshot bucket (P7) is set in a deployed environment. The business
   figures (P10) are the Estimating Manager's and Commercial Director's.
 - **Requirement IDs covered (test names):** FR-PKG-03: `tests/db/test_submission.py::TestFreeze::test_the_client_s_own_bill_is_frozen_with_our_rates_in_it`. FR-BID-01, FR-ADM-01: `tests/db/test_bid_workspace.py::TestTheTeam` (change a role and take someone off; a bid keeps a bid manager; only who manages the team changes it, and each change is on record), `frontend/src/pages/BidDetail.test.tsx`. FR-LAB-01: `frontend/src/pages/Rates.test.tsx` ("takes one figure by hand only with its source"). FR-CST-04: `frontend/src/pages/Rates.test.tsx` ("exchange rates"). FR-BID-01, FR-PKG-02, FR-PKG-03, FR-LAB-01, FR-LRN-02: `frontend/e2e/bid-to-outcome.spec.ts`.
+
+## Feat · A picture of each symbol nobody has named · 2026-10-11
+
+R1 of `COMPREHENSIVE_PLAN.md`. The workbench listed an unnamed symbol group as "Unlisted
+shape · 14 on 1 sheet(s)": a count, and nothing to say what the shape was. On the real bid
+there are 578 such groups.
+
+- **Each group names one instance.** `symbols.counts` keeps, for every unnamed group, the
+  first instance the detector recorded on a Current sheet (`sample_sheet_id`, `sample_box`);
+  the G1 blockers carry it as `sample`.
+- **The picture.** `GET /bids/{id}/symbols/unnamed/crop.png?symbol_key=…` draws that
+  instance from the sheet's stored geometry, with the drawing round it (1.5 times its size,
+  between 8 and 30 mm) and a dashed outline round the instance itself. At most 480 pixels
+  wide, so a shape the size of a title block is still one picture. Drawn once and kept in
+  the object store under `symbols/crops/unnamed/`, keyed by the geometry file, the box and
+  `SAMPLE_PICTURE_VERSION`. `crops.render` takes `pixels_per_mm` and `outline` for this.
+- **In the workbench.** Under **Symbols & scale**, each group shows the picture, the sheet
+  it is on, and **Show on the drawing**, which changes sheet if need be and moves the viewer
+  to the instance. A picture is asked for only when its row is scrolled into view.
+- **Not done.** Not tried on the real bid: how long the first picture of a large sheet
+  takes there is unmeasured. The Symbols page's own list of unmapped symbols has no picture.
+- **Requirement IDs covered (test names):** FR-VIS-02: `tests/db/test_review.py::TestCoverageAndG1::test_an_unnamed_symbol_comes_with_one_of_its_instances_to_look_at`, `frontend/src/pages/Workbench.test.tsx` ("shows one of each unnamed symbol, and where it is").

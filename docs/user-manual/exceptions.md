@@ -166,7 +166,7 @@ The approve button stays grey until the list is empty.
 | --- | --- |
 | "Coverage is 0%, the policy is 100%" | **Items still to decide** opens the queue. Accept or reject each item |
 | "1 unresolved duplicate group(s)" | **Resolve them** opens the Duplicates tab |
-| "10 symbol type(s) on Current sheets nobody has named" | **Name them** opens Symbols & scale |
+| "10 symbol type(s) on Current sheets nobody has named" | **Name them** opens Symbols & scale, where each is pictured, outlined, with **Show on the drawing** |
 | "QTO-000018 has an incomplete evidence record" | **Open it**. An item added by hand needs its level, sheet and place on the drawing |
 
 Rejecting an item needs a reason: **Reject** stays grey until one is chosen from

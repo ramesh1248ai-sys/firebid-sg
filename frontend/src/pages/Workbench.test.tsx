@@ -122,7 +122,15 @@ const BLOCKED = {
   pending_work: [{ task: "detection.run", status: "todo", jobs: 1 }],
   coverage: COVERAGE,
   unmapped_symbols: [
-    { symbol_key: "shape:abc", description: null, instances: 14, status: "no legend", sheets: [SHEET], mapping_lineage_id: null },
+    {
+      symbol_key: "shape:abc",
+      description: null,
+      instances: 14,
+      status: "no legend",
+      sheets: [SHEET],
+      mapping_lineage_id: null,
+      sample: { sheet_id: SHEET, box: [100, 120, 104, 124] },
+    },
   ],
 };
 
@@ -303,6 +311,26 @@ describe("the workbench", () => {
 
     await userEvent.click(within(blockers).getByRole("button", { name: "Resolve them" }));
     expect(await screen.findByText("No repeats found across these sheets.")).toBeInTheDocument();
+  });
+
+  // req: FR-VIS-02
+  it("shows one of each unnamed symbol, and where it is", async () => {
+    const calls = stubs();
+    renderAt(`/bids/${BID}/workbench`);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Symbols & scale" }));
+
+    const unnamed = await screen.findByRole("list", { name: "Unnamed symbols" });
+    const group = await within(unnamed).findByRole("listitem");
+    expect(group).toHaveTextContent("Unlisted shape · 14 on 1 sheet(s) · no legend");
+    expect(group).toHaveTextContent("One of them, outlined, on FP-L05-201.");
+    await waitFor(() =>
+      expect(
+        calls.some((c) => c.url.endsWith("/symbols/unnamed/crop.png?symbol_key=shape%3Aabc")),
+      ).toBe(true),
+    );
+    await userEvent.click(within(group).getByRole("button", { name: /Show one Unlisted shape/ }));
+    expect(within(group).getByRole("button", { name: "Name" })).toBeDisabled();
   });
 
   // req: FR-REV-04

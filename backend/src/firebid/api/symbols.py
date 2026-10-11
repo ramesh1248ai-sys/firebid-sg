@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 
@@ -169,6 +169,20 @@ def legend_crop(entry_id: uuid.UUID, context: CurrentBid, session: DbSession) ->
         content=get_object_store().get(entry.crop_key),
         media_type="image/png",
         headers={"Cache-Control": "private, max-age=31536000, immutable"},
+    )
+
+
+@router.get("/unnamed/crop.png")
+def unnamed_crop(
+    symbol_key: Annotated[str, Query(max_length=120)], context: CurrentBid, session: DbSession
+) -> Response:
+    """One instance of a symbol nobody has named, outlined, with the drawing round it."""
+    image = service.sample_picture(session, get_object_store(), context.bid.id, symbol_key)
+    if image is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such symbol on this bid's drawings")
+    # Short-lived: reading the sheet again may put another instance first.
+    return Response(
+        content=image, media_type="image/png", headers={"Cache-Control": "private, max-age=300"}
     )
 
 

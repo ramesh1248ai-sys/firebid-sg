@@ -530,9 +530,16 @@ export function WorkbenchPage() {
           {tab === "setup" && (
             <div className="min-h-0 flex-1 overflow-auto rounded-lg border p-2">
               <SetupPanel
+                bidId={bidId}
                 blockers={blockers.data}
                 types={objectTypes.data ?? []}
                 sheet={sheet}
+                sheets={sheets.data ?? []}
+                onShow={(target, box) => {
+                  if (target !== sheetId) chooseSheet(target);
+                  setFocus({ box, key: Date.now() });
+                  post({ type: "focus", sheetId: target, box });
+                }}
                 busy={busy}
                 error={error}
                 calibrating={calibrating}
