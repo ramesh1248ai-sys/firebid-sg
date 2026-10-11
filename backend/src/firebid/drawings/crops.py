@@ -18,18 +18,24 @@ PIXELS_PER_MM = 12
 
 
 def render(
-    table: pa.Table, box: tuple[float, float, float, float], margin_mm: float = 2.0
+    table: pa.Table,
+    box: tuple[float, float, float, float],
+    margin_mm: float = 2.0,
+    *,
+    pixels_per_mm: float = PIXELS_PER_MM,
+    outline: tuple[float, float, float, float] | None = None,
 ) -> bytes:
+    """`outline` is a box drawn round one thing in the crop, to say which it is about."""
     import matplotlib
 
     matplotlib.use("Agg")
     from matplotlib import pyplot as plt
-    from matplotlib.patches import Circle
+    from matplotlib.patches import Circle, Rectangle
 
     x0, y0, x1, y1 = box[0] - margin_mm, box[1] - margin_mm, box[2] + margin_mm, box[3] + margin_mm
     width, height = max(x1 - x0, 1.0), max(y1 - y0, 1.0)
     figure = plt.figure(
-        figsize=(width * PIXELS_PER_MM / 100, height * PIXELS_PER_MM / 100), dpi=100
+        figsize=(width * pixels_per_mm / 100, height * pixels_per_mm / 100), dpi=100
     )
     axes = figure.add_axes((0, 0, 1, 1))
     axes.set_xlim(x0, x1)
@@ -64,8 +70,20 @@ def render(
             )
     for span in texts(table):
         if span["text"] and x0 <= span["minx"] <= x1 and y0 <= span["miny"] <= y1:
-            size = max(float(span["maxy"] - span["miny"]), 1.0) * PIXELS_PER_MM * 0.72
+            size = max(float(span["maxy"] - span["miny"]), 1.0) * pixels_per_mm * 0.72
             axes.text(span["minx"], span["maxy"], span["text"], fontsize=size, va="baseline")
+    if outline is not None:
+        axes.add_patch(
+            Rectangle(
+                (outline[0], outline[1]),
+                outline[2] - outline[0],
+                outline[3] - outline[1],
+                fill=False,
+                color="#d9480f",
+                linewidth=1.5,
+                linestyle="--",
+            )
+        )
     buffer = io.BytesIO()
     figure.savefig(buffer, format="png", facecolor="white")
     plt.close(figure)

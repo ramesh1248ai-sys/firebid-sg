@@ -59,7 +59,8 @@ the documents arrive, not the day work starts.
    calibration serves every sheet that shares those gridlines.
 3. **Symbols.** Work through the legend on the **Symbols** page. Then open the workbench's
    **Symbols & scale** tab and name the large groups nobody has named, once: the mapping is
-   remembered for the consultant.
+   remembered for the consultant. Each group shows one of its shapes, outlined, and **Show on
+   the drawing** goes to it.
    - A shape on every sheet that is not an object (a title-block box, a north point) is
      named **Not an installed object**.
    - Whether pipe fittings drawn as symbols are counted is the Senior Estimator's decision,

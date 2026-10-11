@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { AuthorisedImage } from "@/components/AuthorisedImage";
 
 import type { WorkbenchSheet } from "./data";
 import type { ObjectType } from "./manual";
@@ -141,6 +143,28 @@ export function GatePanel({
   );
 }
 
+/**
+ * Its children only once it has been scrolled into view: a tender can have hundreds of
+ * unnamed symbols, and each picture is a request.
+ */
+function WhenSeen({ className, children }: { className: string; children: React.ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [seen, setSeen] = useState(typeof IntersectionObserver === "undefined");
+  useEffect(() => {
+    if (seen || !box.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) setSeen(true);
+    });
+    observer.observe(box.current);
+    return () => observer.disconnect();
+  }, [seen]);
+  return (
+    <div ref={box} className={className}>
+      {seen && children}
+    </div>
+  );
+}
+
 function Blocker({ children }: { children: React.ReactNode }) {
   return (
     <p role="listitem" className="rounded border border-amber-300 p-2 dark:border-amber-700">
@@ -189,24 +213,30 @@ function Meter({
 
 /** Symbols nobody has named, and views whose scale cannot be trusted (P1-03/P1-04 APIs). */
 export function SetupPanel({
+  bidId,
   blockers,
   types,
   sheet,
+  sheets,
   busy,
   error,
   calibrating,
   onName,
+  onShow,
   onStartCalibration,
   onCalibrate,
   onCancelCalibration,
 }: {
+  bidId: string;
   blockers: Blockers | undefined;
   types: ObjectType[];
   sheet: WorkbenchSheet | null;
+  sheets: WorkbenchSheet[];
   busy: boolean;
   error: string | null;
   calibrating: { viewId: string; points: number[][] } | null;
   onName: (symbolKey: string, lineageId: string | null, objectType: string) => void;
+  onShow: (sheetId: string, box: number[]) => void;
   onStartCalibration: (viewId: string) => void;
   onCalibrate: (distanceMm: number) => void;
   onCancelCalibration: () => void;
@@ -229,12 +259,37 @@ export function SetupPanel({
         <ul className="space-y-2" aria-label="Unnamed symbols">
           {unmapped.map((symbol) => {
             const key = String(symbol.symbol_key);
+            const name = String(symbol.description ?? "Unlisted shape");
+            const sample = symbol.sample as { sheet_id: string; box: number[] } | null | undefined;
+            const on = sample && sheets.find((s) => s.sheet_id === sample.sheet_id)?.sheet_number;
             return (
               <li key={key} className="rounded border p-2">
                 <p>
-                  {String(symbol.description ?? "Unlisted shape")} · {String(symbol.instances)} on{" "}
+                  {name} · {String(symbol.instances)} on{" "}
                   {(symbol.sheets as string[]).length} sheet(s) · {String(symbol.status)}
                 </p>
+                {sample && (
+                  <div className="mt-1 flex items-start gap-2">
+                    <WhenSeen className="h-24 w-24 shrink-0 rounded border bg-white">
+                      <AuthorisedImage
+                        path={`/api/bids/${bidId}/symbols/unnamed/crop.png?symbol_key=${encodeURIComponent(key)}`}
+                        alt={`One ${name}, outlined, as drawn`}
+                        className="h-full w-full object-contain"
+                      />
+                    </WhenSeen>
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      <p>One of them, outlined{on ? `, on ${on}` : ""}.</p>
+                      <button
+                        type="button"
+                        className="underline"
+                        aria-label={`Show one ${name} (${key}) on the drawing`}
+                        onClick={() => onShow(sample.sheet_id, sample.box)}
+                      >
+                        Show on the drawing
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="mt-1 flex gap-2">
                   <select
                     aria-label={`Type for ${key}`}

@@ -401,6 +401,10 @@ def unmapped_in_scope(session: Session, bid_id: uuid.UUID) -> list[dict[str, Any
             "mapping_lineage_id": str(group.mapping_lineage_id)
             if group.mapping_lineage_id
             else None,
+            # One of them, to show and to go to: a count does not say what the shape is.
+            "sample": {"sheet_id": str(group.sample_sheet_id), "box": group.sample_box}
+            if group.sample_sheet_id
+            else None,
         }
         for group in found.unmapped
     ]
