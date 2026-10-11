@@ -30,13 +30,13 @@ WORKDIR /app
 
 # Dependencies first, so code changes reuse the cached dependency layer.
 COPY pyproject.toml uv.lock .python-version README.md ./
-RUN --mount=from=ghcr.io/astral-sh/uv:0.12.23,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev --no-install-project
+RUN --mount=from=ghcr.io/astral-sh/uv:0.13.0,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev --no-install-project
 
 COPY alembic.ini ./
 # The LLM routing table. It is read at runtime, and /health fails without it.
 COPY config ./config
 COPY src ./src
-RUN --mount=from=ghcr.io/astral-sh/uv:0.12.23,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev
+RUN --mount=from=ghcr.io/astral-sh/uv:0.13.0,source=/uv,target=/usr/local/bin/uv uv sync --frozen --no-dev
 
 ARG GIT_SHA=unknown
 ENV FIREBID_GIT_SHA=$GIT_SHA
