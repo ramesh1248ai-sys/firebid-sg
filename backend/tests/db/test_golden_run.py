@@ -72,8 +72,9 @@ KNOWN_DEFECTS: dict[str, set[tuple[str, str, str]]] = {
         ("STG-007", "breeching_inlet / no / level", "HIGH"),
         # The package has each fire pump's driver (electric, diesel), which the schedule
         # gives in the pump's description ("ELECTRIC FIRE PUMP") and in no column of its
-        # own. The platform reads the columns, and so states no driver.
-        ("STG-007", "fire_pump / no / driver", "HIGH"),
+        # own. The platform reads the columns, and so states no driver: of either pump.
+        ("STG-007", "fire_pump / no / FP-01 / driver", "HIGH"),
+        ("STG-007", "fire_pump / no / FP-02 / driver", "HIGH"),
     },
 }
 # B1: does every head take a drop, or the pendents only? The package records what the other
@@ -351,7 +352,8 @@ def test_the_platform_s_stages_1_to_7_against_tc_syn_003(session: Session, pump_
     # the system the pump room's pipe is named for, and the fire pumps' driver.
     passed = checks(result)
     assert all(passed[f"STG-00{n}"][0] == passed[f"STG-00{n}"][1] for n in range(1, 7)), told
-    assert passed["STG-007"][0] - passed["STG-007"][1] == 2, told
+    # The system, and the driver of each of the two fire pumps: each is found by its tag.
+    assert passed["STG-007"][0] - passed["STG-007"][1] == 3, told
     # 16 counts, 16 counts by grid bay, and the place and tag of each of the 16 instances on
     # the three plans.
     assert passed["STG-005"] == (48, 48), told

@@ -44,12 +44,14 @@ is not compared.
 At the takeoff an item's **attributes** and its **system** are compared where the package
 states them. An attribute is stated on an item (a pump's duty, flow and head), or for every
 item of a kind that is to state none (`attributes.not_specified`: a pipe's material while the
-specification is still a proposal). Items are compared by what they are, so two pumps of one
-type are compared by the values they have between them, not pump by pump. An attribute an
-item does not have is "not specified". A value where none is to be is CRITICAL (something
-unverified reached the takeoff, counted as a business rule); any other attribute is HIGH; a
-system is MEDIUM. A system is the same by its key or by its name (`wet_riser`, `wet rising
-main`).
+specification is still a proposal). An item the package tags (`FP-01`) is compared with the
+run's item of that tag (`tag`, or `tags` where one item counts several), one to one: the duty
+pump is to be the duty pump. A run with no item of that tag has the tag missing (HIGH), and
+that item's attributes are not compared. Items without a tag are compared by what they are,
+by the values they have between them. An attribute an item does not have is "not specified".
+A value where none is to be is CRITICAL (something unverified reached the takeoff, counted
+as a business rule); any other attribute is HIGH; a system is MEDIUM. A system is the same
+by its key or by its name (`wet_riser`, `wet rising main`).
 
 Pure: a package and a run in; differences, a score and a report out.
 """
@@ -201,6 +203,11 @@ def _stated(items: list[dict[str, Any]], name: str) -> str:
         one.get(name) if isinstance(one := item.get("attributes"), dict) else None for item in items
     )
     return ", ".join(sorted({_cited(value) or NOT_SPECIFIED for value in found}))
+
+
+def _tags(item: dict[str, Any]) -> set[str]:
+    """The tags an item has: one (`tag`), or one for each of the objects it counts (`tags`)."""
+    return {_text(tag) for tag in (item.get("tag"), *(item.get("tags") or [])) if tag}
 
 
 def _evidence(key: tuple[str, ...], of: tuple[str, ...], cited: Any) -> list[Fact]:
@@ -482,6 +489,37 @@ def _takeoff(out: dict[str, Any], stage: Stage) -> list[Fact]:
     none = none.get("not_specified", {}) if isinstance(none, dict) else {}
     for key, (_, unit, _, _) in totals.items():
         named = expected[4].get(key, [])
+        # An item the reference tags (a pump of the schedule) is compared with the run's
+        # item of that tag, one to one. A run that tags none of its items cannot say which
+        # is which: the tag is then what is missing, and the attributes are not compared.
+        tagged = [
+            item for item in named if item.get("tag") and isinstance(item.get("attributes"), dict)
+        ]
+        for item in tagged:
+            tag = str(item["tag"])
+            own = next((one for one in items[key] if _text(tag) in _tags(one)), None)
+            if own is None:
+                continue
+            facts.append(
+                Fact(
+                    (*key, unit, tag),
+                    "tagged",
+                    "intermediate_work_product",
+                    severity="HIGH",
+                    of=(*key, unit),
+                )
+            )
+            facts += [
+                Fact(
+                    (*key, unit, tag, name),
+                    _stated([own], name),
+                    "calculation",
+                    severity="HIGH",
+                    of=(*key, unit, tag),
+                )
+                for name in sorted(item["attributes"])
+            ]
+        named = [item for item in named if not any(item is one for one in tagged)]
         names = {
             name
             for item in named

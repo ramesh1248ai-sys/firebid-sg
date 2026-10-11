@@ -2608,3 +2608,22 @@ the people on it, without anyone calling the API.
   owner. The locked snapshot bucket (P7) is set in a deployed environment. The business
   figures (P10) are the Estimating Manager's and Commercial Director's.
 - **Requirement IDs covered (test names):** FR-PKG-03: `tests/db/test_submission.py::TestFreeze::test_the_client_s_own_bill_is_frozen_with_our_rates_in_it`. FR-BID-01, FR-ADM-01: `tests/db/test_bid_workspace.py::TestTheTeam` (change a role and take someone off; a bid keeps a bid manager; only who manages the team changes it, and each change is on record), `frontend/src/pages/BidDetail.test.tsx`. FR-LAB-01: `frontend/src/pages/Rates.test.tsx` ("takes one figure by hand only with its source"). FR-CST-04: `frontend/src/pages/Rates.test.tsx` ("exchange rates"). FR-BID-01, FR-PKG-02, FR-PKG-03, FR-LAB-01, FR-LRN-02: `frontend/e2e/bid-to-outcome.spec.ts`.
+
+## Test · A tagged item is compared with the item of its tag · 2026-10-11
+
+E2 of `COMPREHENSIVE_PLAN.md`. At the takeoff, two fire pumps were compared by the values
+they had between them, so a run that gave the duty pump the standby pump's row agreed with
+the package.
+
+- **The export names what an item counts.** `export_run._takeoff` gives each takeoff item
+  the tags of the detections it was made from (`tags`), read from the stored detections by
+  the item's members. Nothing in the takeoff itself changed.
+- **The comparison (`golden._takeoff`).** An item the package gives a tag and attributes is
+  compared with the run's item of that tag (`tag`, or one of its `tags`), attribute by
+  attribute: `fire_pump / no / FP-02 / duty`. A run with no item of that tag has the tag
+  missing, HIGH, as completeness, and that item's attributes are not compared. Items the
+  package does not tag, and the kinds that are to state nothing, are compared as before.
+- **What it changes on the three packages.** TC-SYN-003's known defect of the fire pumps'
+  driver is now two, one a pump (`KNOWN_DEFECTS`); it still waits on E1. Nothing else moved.
+- **Not done.** A tagged item's level, sheet and system are still compared by kind.
+- **Requirement IDs covered (test names):** FR-LRN-01: `tests/evals/test_golden_comparison.py::TestAttributesAndSystemsAtTheTakeoff` (`test_two_pumps_that_have_each_other_s_duty_are_both_wrong`, `test_one_item_that_counts_both_pumps_is_compared_with_each`, `test_a_run_that_does_not_tag_a_pump_has_the_tag_missing_and_no_more`), `tests/db/test_golden_run.py::test_the_platform_s_stages_1_to_7_against_tc_syn_003`.

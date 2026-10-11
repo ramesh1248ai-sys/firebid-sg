@@ -377,8 +377,21 @@ def _takeoff(session: Session, bid_id: uuid.UUID) -> dict[str, Any] | None:
         return None
     drawn: list[dict[str, Any]] = []
     derived: list[dict[str, Any]] = []
+    # The tag of each object an item counts (FP-01), so that a tagged item of the package
+    # is compared with this one and not with another of its kind.
+    tag_of = {
+        str(found.id): str(tag)
+        for found in session.execute(
+            select(DetectedObject).where(DetectedObject.bid_id == bid_id)
+        ).scalars()
+        if (tag := dict(found.attributes or {}).get("tag"))
+    }
     for item in items:
         one = _item(item)
+        members: Any = dict(item.derivation or {}).get("members") or []
+        tags = sorted({tag_of[str(m.get("id"))] for m in members if str(m.get("id")) in tag_of})
+        if tags:
+            one["tags"] = tags
         if item.calculation_method == "rule_derived":
             one["rule"] = item.rule_key
             derived.append(one)

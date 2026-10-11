@@ -557,10 +557,56 @@ class TestAttributesAndSystemsAtTheTakeoff:
 
         result = golden.compare(systems, run)
 
-        assert defects(result) == [("STG-007", "fire_pump / no / duty", "wrong", "HIGH")]
-        # The two pumps are one kind of item: the values they have between them.
+        assert defects(result) == [("STG-007", "fire_pump / no / FP-02 / duty", "wrong", "HIGH")]
+        # The pump of that tag, and not the two between them.
         (one,) = result.differences
-        assert (one.expected, one.actual) == ("duty, standby", "duty")
+        assert (one.expected, one.actual) == ("standby", "duty")
+
+    def test_two_pumps_that_have_each_other_s_duty_are_both_wrong(
+        self, systems: golden.Package
+    ) -> None:
+        # Between them they are still a duty pump and a standby pump.
+        run = the_reference_s_own(systems)
+        first, second = self.pump(run, "FP-01"), self.pump(run, "FP-02")
+        for name in ("duty", "driver"):
+            first["attributes"][name], second["attributes"][name] = (
+                second["attributes"][name],
+                first["attributes"][name],
+            )
+
+        assert defects(golden.compare(systems, run)) == [
+            ("STG-007", f"fire_pump / no / {tag} / {name}", "wrong", "HIGH")
+            for tag in ("FP-01", "FP-02")
+            for name in ("driver", "duty")
+        ]
+
+    def test_one_item_that_counts_both_pumps_is_compared_with_each(
+        self, systems: golden.Package
+    ) -> None:
+        # As the platform gives two pumps it reads the same of: one item, both tags.
+        run = the_reference_s_own(systems)
+        first, second = self.pump(run, "FP-01"), self.pump(run, "FP-02")
+        run["STG-007"]["equipment"].remove(second)
+        del first["tag"]
+        first.update(quantity=2, tags=["FP-01", "FP-02"])
+
+        assert defects(golden.compare(systems, run)) == [
+            ("STG-007", "fire_pump / no / FP-02 / driver", "wrong", "HIGH"),
+            ("STG-007", "fire_pump / no / FP-02 / duty", "wrong", "HIGH"),
+        ]
+
+    def test_a_run_that_does_not_tag_a_pump_has_the_tag_missing_and_no_more(
+        self, systems: golden.Package
+    ) -> None:
+        run = the_reference_s_own(systems)
+        standby = self.pump(run, "FP-02")
+        del standby["tag"]
+        standby["attributes"]["duty"] = "duty"
+
+        result = golden.compare(systems, run)
+
+        assert defects(result) == [("STG-007", "fire_pump / no / FP-02", "missing", "HIGH")]
+        assert result.differences[0].dimension == "completeness"
 
     def test_an_attribute_an_item_does_not_state_is_not_specified(
         self, systems: golden.Package
@@ -571,8 +617,11 @@ class TestAttributesAndSystemsAtTheTakeoff:
 
         result = golden.compare(systems, run)
 
-        assert defects(result) == [("STG-007", "fire_pump / no / driver", "wrong", "HIGH")]
-        assert result.differences[0].actual == "not specified"
+        assert defects(result) == [
+            ("STG-007", "fire_pump / no / FP-01 / driver", "wrong", "HIGH"),
+            ("STG-007", "fire_pump / no / FP-02 / driver", "wrong", "HIGH"),
+        ]
+        assert {d.actual for d in result.differences} == {"not specified"}
 
     def test_a_value_where_none_is_to_be_is_critical(self, priced: golden.Package) -> None:
         # Nobody has verified the specification: no pipe is to say what it is made of.

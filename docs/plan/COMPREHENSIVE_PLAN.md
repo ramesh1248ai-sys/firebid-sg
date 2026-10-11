@@ -80,7 +80,7 @@ P6 wait on the people named.
 | ID | Item | How | Size | Waits on |
 | --- | --- | --- | --- | --- |
 | E1 | The fire pumps' driver on TC-SYN-003 | Either read the driver from the schedule's description ("ELECTRIC FIRE PUMP"), or drop it from the package | S | Senior Estimator |
-| E2 | Attributes are compared by kind, not pump by pump | Put the item's tag in the takeoff export; compare tagged items one to one | S to M | Nothing |
+| E2 | **Done, 2026-10-11.** Attributes were compared by kind, not pump by pump | The takeoff export gives each item its tags; an item the package tags is compared with the run's item of that tag, attribute by attribute | S to M | Nothing |
 | E3 | A defect is not linked to the earlier one that caused it | Trace a value's inputs back a stage; mark the later differences as following from the first and count them once (strategy, section 7) | M to L | Nothing |
 | E4 | Semantic comparison (type B), including evidence written as prose | First the rubric route: a named reviewer's verdict recorded in the package. The model judge after D2, with its verdicts sampled by a person | M, then M | The judge waits on D2 |
 | E5 | No synthetic case takes equipment past stage 7 | Fixtures for the pump room: a specification, client BOQ, rate list and productivity list. Then TC-SYN-003 to stage 12 | L | Nothing |

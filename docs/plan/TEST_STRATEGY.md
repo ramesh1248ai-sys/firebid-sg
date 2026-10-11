@@ -286,9 +286,11 @@ them. A package states an attribute on an item (a pump's duty, flow and head), o
 item of a kind that is to state none: `attributes.not_specified` in the stage's expected
 output, by kind (`pipe`, `sprinkler`) and attribute. An attribute an item does not have is
 "not specified". A value where none is to be is critical, since something nobody verified
-has reached the takeoff; any other attribute is high; a system is medium. Items are compared
-by what they are, so two fire pumps are compared by the values they have between them (duty
-and standby), not pump by pump. A system is the same by its key or by its name
+has reached the takeoff; any other attribute is high; a system is medium. An item the package
+tags (FP-01) is compared with the run's item of that tag, one to one, so two fire pumps that
+have each other's duty are both wrong; a run with no item of that tag has the tag missing
+(high) and that item's attributes are not compared. Items without a tag are compared by what
+they are, by the values they have between them. A system is the same by its key or by its name
 (`wet_riser`, wet rising main).
 
 At stages 9 and 10 a bill line is named by what it is of (`heads_pendent`,
