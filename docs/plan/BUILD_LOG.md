@@ -2649,3 +2649,24 @@ the package.
   driver is now two, one a pump (`KNOWN_DEFECTS`); it still waits on E1. Nothing else moved.
 - **Not done.** A tagged item's level, sheet and system are still compared by kind.
 - **Requirement IDs covered (test names):** FR-LRN-01: `tests/evals/test_golden_comparison.py::TestAttributesAndSystemsAtTheTakeoff` (`test_two_pumps_that_have_each_other_s_duty_are_both_wrong`, `test_one_item_that_counts_both_pumps_is_compared_with_each`, `test_a_run_that_does_not_tag_a_pump_has_the_tag_missing_and_no_more`), `tests/db/test_golden_run.py::test_the_platform_s_stages_1_to_7_against_tc_syn_003`.
+
+## Fix · A new database: the library seeded once, a long list of clauses asked about · 2026-10-12
+
+H1 of `COMPREHENSIVE_PLAN.md`. The local database and object-store volumes were recreated
+(they held 38 bids from screenshots, test runs and trials, the MOH trial bid among them).
+The end-to-end test that failed on this machine then failed on the empty database too.
+
+- **An organisation's first tender seeded its object library more than once.** Its
+  documents are read at once and each came to `object_library.ensure_seeded`; one failed on
+  the unique key, its `parse.document` job ended in error, and its sheet was never read. On
+  the workbench test that sheet was the legend. Seeding now takes a lock for the
+  organisation, held to the end of the transaction, and looks again before it adds anything.
+- **A long list of clauses was never asked about.** `specs.read_attributes_with_model` keyed
+  its request by every clause number, and 22 of them made a key longer than `agent_run`
+  takes (120 characters): the job failed before the model was called. The key now carries a
+  digest of the clauses.
+- **Tried.** `make e2e` on a recreated volume with the library fix built in: 11 passed, one
+  skipped. The stack was not rebuilt after the second fix.
+- **Not done.** The MOH tender is not uploaded again: R2 and R4 need it read first. Runs
+  recorded under the old key are not rekeyed, so a request made before this is made once more.
+- **Requirement IDs covered (test names):** FR-ADM-02: `tests/db/test_object_library.py::TestTheSeed::test_two_that_seed_at_once_seed_it_once`. FR-SPEC-01: `tests/db/test_spec_attributes.py::test_a_long_list_of_clauses_is_asked_about_as_a_short_one_is`.
