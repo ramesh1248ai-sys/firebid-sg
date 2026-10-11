@@ -31,8 +31,8 @@ security_review:
         which is append-only and kept seven years
       severity: medium
       status: >-
-        open: say on the page not to name individuals; decide with the DPO whether the
-        audit event holds the text
+        open: the outcome form now says not to name individuals (11 Oct 2026); decide with
+        the DPO whether the audit event holds the text
     - finding: >-
         Without a snapshot bucket configured, submission snapshots are written with no
         object lock: tampering is detected by the hashes, not prevented
@@ -187,12 +187,15 @@ gaps:
     action: >-
       Product owner: accept, or offer the DXF of the layout alone, to be laid over the
       consultant's own CAD file.
-  - gap: "The end-to-end tests do not open the Phase 2 pages"
+  - gap: "The end-to-end tests open the Phase 2 pages only where a gate or a move is made"
     cause: >-
-      The eleven end-to-end tests cover sign-in, the bid workspace, document intake and the
-      workbench, and pass on the current stack. None opens Costing, Labour, Clarifications,
-      Risk, Review or Design, and those pages were not walked through in a browser.
-    action: "Add an end-to-end test that takes a bid from pricing to G4; walk the pages before the pilot."
+      `e2e/bid-to-outcome.spec.ts` (11 Oct 2026) takes one bid from registered to awarded:
+      the team and the bid's moves on the bid page, the productivity import, G2, G3 and G4
+      on the review page, the frozen submission and the outcome. Pricing, labour, risk and
+      the specification analysis are done in it through the API. Costing, Labour,
+      Clarifications, Risk and Design were walked through in a browser for the user manual,
+      which is not a test.
+    action: "Extend the test to those pages if the pilot finds a fault a page test did not."
   - gap: "Title block reading measures 100% here and measured 50% in the Phase 1 report"
     cause: >-
       The suite's scanned tenders need Tesseract. The Phase 1 report was generated where it
@@ -232,9 +235,6 @@ gaps:
   - gap: "Accepted risk allowances are shown beside the estimate, not in it"
     cause: "P2-07 and P2-08 left the cost build-up without a risk component."
     action: "Product owner: decide whether an accepted allowance becomes a build-up component."
-  - gap: "The priced client workbook is not among the frozen submission's files"
-    cause: "P2-08 freezes the company bill, the review pack, the qualifications and the clarification register."
-    action: "Add the priced client workbook to the snapshot before the pilot's first submission."
   - gap: "Decision D5 (named approvers for the gates) is open"
     cause: "The gates are approved by role, from the permission matrix."
     action: "Sponsor: name the approvers, or confirm that the role is enough."

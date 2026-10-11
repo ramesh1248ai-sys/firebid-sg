@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, update
+from sqlalchemy import Engine, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from firebid.api.app import create_app
@@ -348,6 +348,88 @@ class TestTheTeam:
         assert [(one["user_id"], one["roles"]) for one in offered] == [
             (str(now.user_id), ["senior_estimator"])
         ]
+
+    @pytest.mark.req("FR-BID-01")
+    def test_a_bid_manager_changes_a_role_and_takes_someone_off_the_bid(
+        self, sign_in: SignIn, bid_manager: Principal, outsider: Principal
+    ) -> None:
+        client = sign_in(bid_manager)
+        bid = client.post("/bids", json=create_bid_payload()).json()["id"]
+        member = f"/bids/{bid}/members/{outsider.user_id}"
+        client.post(
+            f"/bids/{bid}/members", json={"user_id": str(outsider.user_id), "role": "estimator"}
+        )
+
+        changed = client.patch(member, json={"role": "senior_estimator"})
+
+        assert changed.status_code == 200
+        assert changed.json()["role"] == "senior_estimator"
+        assert sign_in(outsider).get(f"/bids/{bid}").status_code == 200
+
+        removed = sign_in(bid_manager).delete(member)
+
+        assert removed.status_code == 204
+        # Off the bid, it is not found for them, as for anyone who was never on it.
+        assert sign_in(outsider).get(f"/bids/{bid}").status_code == 404
+        client = sign_in(bid_manager)
+        assert [one["display_name"] for one in client.get(f"/bids/{bid}/members").json()] == [
+            "Bella"
+        ]
+        assert client.delete(member).status_code == 404
+
+    @pytest.mark.req("FR-ADM-01")
+    def test_a_bid_keeps_at_least_one_bid_manager(
+        self,
+        sign_in: SignIn,
+        session: Session,
+        organisation: Organisation,
+        bid_manager: Principal,
+    ) -> None:
+        client = sign_in(bid_manager)
+        bid = client.post("/bids", json=create_bid_payload()).json()["id"]
+        own = f"/bids/{bid}/members/{bid_manager.user_id}"
+
+        assert client.delete(own).status_code == 409
+        refused = client.patch(own, json={"role": "estimator"})
+        assert refused.status_code == 409
+        assert "at least one bid manager" in refused.json()["detail"]
+
+        # With another bid manager on the bid, the first may step down.
+        second = make_person(session, organisation, "bao", {str(Role.BID_MANAGER)})
+        client.post(
+            f"/bids/{bid}/members", json={"user_id": str(second.user_id), "role": "bid_manager"}
+        )
+        assert client.patch(own, json={"role": "estimator"}).status_code == 200
+
+    @pytest.mark.req("FR-ADM-01")
+    def test_only_who_manages_the_team_changes_it_and_each_change_is_on_record(
+        self, sign_in: SignIn, session: Session, bid_manager: Principal, outsider: Principal
+    ) -> None:
+        client = sign_in(bid_manager)
+        bid = client.post("/bids", json=create_bid_payload()).json()["id"]
+        member = f"/bids/{bid}/members/{outsider.user_id}"
+        client.post(
+            f"/bids/{bid}/members", json={"user_id": str(outsider.user_id), "role": "estimator"}
+        )
+
+        as_estimator = sign_in(outsider)
+        assert as_estimator.patch(member, json={"role": "bid_manager"}).status_code == 403
+        assert as_estimator.delete(member).status_code == 403
+
+        client = sign_in(bid_manager)
+        client.patch(member, json={"role": "senior_estimator"})
+        client.delete(member)
+        from firebid.db.models.audit import AuditEvent
+
+        actions = [
+            event.action
+            for event in session.execute(
+                select(AuditEvent)
+                .where(AuditEvent.bid_id == uuid.UUID(bid), AuditEvent.action.like("bid team:%"))
+                .order_by(AuditEvent.occurred_at)
+            ).scalars()
+        ]
+        assert actions == ["bid team: added", "bid team: role changed", "bid team: removed"]
 
 
 class TestMoves:

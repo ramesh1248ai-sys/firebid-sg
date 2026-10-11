@@ -1467,6 +1467,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/bids/{bid_id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Member
+         * @description Take someone off the bid: they no longer see it. What they did on it stays on record
+         *     under their name.
+         */
+        delete: operations["remove_member_bids__bid_id__members__user_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Change Member Role
+         * @description The role someone holds on this bid. Their role in the organisation is not changed.
+         */
+        patch: operations["change_member_role_bids__bid_id__members__user_id__patch"];
+        trace?: never;
+    };
     "/bids/{bid_id}/outcome": {
         parameters: {
             query?: never;
@@ -6715,6 +6740,10 @@ export interface components {
              */
             user_id: string;
         };
+        /** MemberRoleIn */
+        MemberRoleIn: {
+            role: components["schemas"]["Role"];
+        };
         /** ModelOut */
         ModelOut: {
             /** Capabilities */
@@ -11514,6 +11543,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TeamCandidateOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_member_bids__bid_id__members__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_member_role_bids__bid_id__members__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+                bid_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberRoleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberOut"];
                 };
             };
             /** @description Validation Error */

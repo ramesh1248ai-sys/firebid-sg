@@ -31,13 +31,15 @@ OUT = MANUAL / "FireBid_SG_User_Manual.docx"
 # opening are replaced by this document's.
 PARTS = (
     ("Part 1 · A tender from upload to award", "happy-path.md", None),
-    ("Part 2 · When something is not right", "exceptions.md", None),
-    ("Part 3 · Screen reference", "README.md", "## 1. Signing in"),
+    ("Part 2 · Steps some tenders need", "other-steps.md", None),
+    ("Part 3 · When something is not right", "exceptions.md", None),
+    ("Part 4 · Screen reference", "README.md", "## 1. Signing in"),
 )
 PART_NAMES = {
     "happy-path.md": "Part 1",
-    "exceptions.md": "Part 2",
-    "README.md": "Part 3",
+    "other-steps.md": "Part 2",
+    "exceptions.md": "Part 3",
+    "README.md": "Part 4",
 }
 
 NAVY = RGBColor(0x0F, 0x1E, 0x3D)
@@ -353,7 +355,7 @@ def front(document: Any) -> None:
         "reviewed bid. Nothing the platform proposes counts until a person accepts it, and "
         "every quantity and price traces back to where it came from."
     )
-    document.add_paragraph("The manual has three parts:")
+    document.add_paragraph("The manual has four parts:")
     add_table(
         document,
         [
@@ -363,14 +365,18 @@ def front(document: Any) -> None:
                 "Follow one bid through every step, with who does each and what they press",
             ],
             [
-                "**Part 2 · When something is not right**",
+                "**Part 2 · Steps some tenders need**",
+                "Handle an addendum, a tender kept in folders, a quotation, or design intent",
+            ],
+            [
+                "**Part 3 · When something is not right**",
                 "Find out what a warning or a blocked step means, and what to do",
             ],
-            ["**Part 3 · Screen reference**", "Look up what a screen offers"],
+            ["**Part 4 · Screen reference**", "Look up what a screen offers"],
         ],
     )
     document.add_paragraph(
-        "The screenshots were taken on 8 and 10 October 2026 from synthetic test bids on a "
+        "The screenshots were taken between 8 and 11 October 2026 from synthetic test bids on a "
         "local installation. No client's tender appears in them."
     )
     heading = document.add_paragraph()

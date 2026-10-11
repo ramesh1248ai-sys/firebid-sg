@@ -12,11 +12,18 @@ import { Button } from "@/components/ui/button";
  * Man-hours for a unit of each item, each with its source: a company standard, a project
  * it was measured on, or a named estimator's judgement. Labour is worked out only from
  * these, so a line with no entry has no hours. A list is imported from a workbook, all or
- * nothing, as a rate list is.
+ * nothing, as a rate list is; one figure is entered by hand, with its source.
  */
 
 type Entry = components["schemas"]["EntryOut"];
 type Report = components["schemas"]["ProductivityImportOut"];
+type NewEntry = components["schemas"]["EntryIn"];
+
+const SOURCES: { value: NewEntry["source_type"]; label: string }[] = [
+  { value: "company_standard", label: "Company standard" },
+  { value: "historical_project", label: "Historical project" },
+  { value: "estimator_judgement", label: "Estimator judgement" },
+];
 
 export function ProductivityLibrary({ canImport }: { canImport: boolean }) {
   const entries = useQuery({
@@ -39,6 +46,7 @@ export function ProductivityLibrary({ canImport }: { canImport: boolean }) {
       </div>
 
       {canImport && <ImportForm />}
+      {canImport && <EntryForm />}
 
       {entries.isLoading && <p className="text-sm">Reading…</p>}
       {entries.isError && (
@@ -174,5 +182,192 @@ function ImportForm() {
         </div>
       )}
     </form>
+  );
+}
+
+const EMPTY = {
+  item_type: "",
+  dn: "",
+  joining: "",
+  description: "",
+  unit: "",
+  hours_per_unit: "",
+  trade: "",
+  source_type: "company_standard" as NewEntry["source_type"],
+  source_reference: "",
+};
+
+/** One figure, entered by hand. A figure with the same item and unit as one in the library
+ * becomes its new version; the old one is kept. */
+function EntryForm() {
+  const client = useQueryClient();
+  const [form, setForm] = useState(EMPTY);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<Entry | null>(null);
+  const set = (name: keyof typeof EMPTY) => (event: { target: { value: string } }) =>
+    setForm((current) => ({ ...current, [name]: event.target.value }));
+  const judgement = form.source_type === "estimator_judgement";
+  const save = useMutation({
+    mutationFn: async (): Promise<Entry> => {
+      const { data, error: refused } = await api.POST("/labour/productivity", {
+        body: {
+          item_type: form.item_type.trim(),
+          dn: form.dn.trim(),
+          joining: form.joining.trim(),
+          description: form.description.trim(),
+          unit: form.unit.trim(),
+          hours_per_unit: form.hours_per_unit.trim(),
+          trade: form.trade.trim(),
+          source_type: form.source_type,
+          source_reference: form.source_reference.trim() || null,
+        },
+      });
+      if (refused || !data) throw new Error(apiErrorMessage(refused, "The figure was not saved"));
+      return data;
+    },
+    onSuccess: (entry) => {
+      setError(null);
+      setSaved(entry);
+      setForm(EMPTY);
+      void client.invalidateQueries({ queryKey: ["productivity"] });
+      void client.invalidateQueries({ queryKey: ["boq"] });
+    },
+    onError: (caught) => {
+      setSaved(null);
+      setError(caught instanceof Error ? caught.message : "The figure was not saved");
+    },
+  });
+  const ready =
+    form.item_type.trim() &&
+    form.description.trim() &&
+    form.unit.trim() &&
+    form.trade.trim() &&
+    Number(form.hours_per_unit) > 0 &&
+    (judgement || form.source_reference.trim());
+
+  return (
+    <details className="rounded-md border p-3">
+      <summary className="cursor-pointer text-sm font-medium">Enter one figure by hand</summary>
+      <form
+        aria-label="One productivity figure"
+        className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          save.mutate();
+        }}
+      >
+        <label>
+          <span className="block text-xs text-muted-foreground">Type (as the takeoff names it)</span>
+          <input
+            aria-label="Type"
+            className="w-full"
+            placeholder="pipe"
+            value={form.item_type}
+            onChange={set("item_type")}
+          />
+        </label>
+        <label>
+          <span className="block text-xs text-muted-foreground">DN (blank for any size)</span>
+          <input aria-label="DN" className="w-full" value={form.dn} onChange={set("dn")} />
+        </label>
+        <label>
+          <span className="block text-xs text-muted-foreground">Joining (blank for any)</span>
+          <input
+            aria-label="Joining"
+            className="w-full"
+            value={form.joining}
+            onChange={set("joining")}
+          />
+        </label>
+        <label className="sm:col-span-2">
+          <span className="block text-xs text-muted-foreground">Description</span>
+          <input
+            aria-label="Description"
+            className="w-full"
+            value={form.description}
+            onChange={set("description")}
+          />
+        </label>
+        <label>
+          <span className="block text-xs text-muted-foreground">Trade</span>
+          <input
+            aria-label="Trade"
+            className="w-full"
+            placeholder="pipefitter"
+            value={form.trade}
+            onChange={set("trade")}
+          />
+        </label>
+        <label>
+          <span className="block text-xs text-muted-foreground">Man-hours</span>
+          <input
+            aria-label="Man-hours per unit"
+            className="w-full"
+            inputMode="decimal"
+            value={form.hours_per_unit}
+            onChange={set("hours_per_unit")}
+          />
+        </label>
+        <label>
+          <span className="block text-xs text-muted-foreground">Per (unit)</span>
+          <input
+            aria-label="Unit"
+            className="w-full"
+            placeholder="m"
+            value={form.unit}
+            onChange={set("unit")}
+          />
+        </label>
+        <label>
+          <span className="block text-xs text-muted-foreground">Source</span>
+          <select
+            aria-label="Source type"
+            className="w-full"
+            value={form.source_type}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                source_type: event.target.value as NewEntry["source_type"],
+              }))
+            }
+          >
+            {SOURCES.map((one) => (
+              <option key={one.value} value={one.value}>
+                {one.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="sm:col-span-2">
+          <span className="block text-xs text-muted-foreground">
+            {judgement
+              ? "Source reference (left blank, it is under your name)"
+              : "Source reference: the standard, or the project it was measured on"}
+          </span>
+          <input
+            aria-label="Source reference"
+            className="w-full"
+            value={form.source_reference}
+            onChange={set("source_reference")}
+          />
+        </label>
+        <div className="flex items-end">
+          <Button type="submit" disabled={!ready || save.isPending}>
+            Save the figure
+          </Button>
+        </div>
+        {error && (
+          <p role="alert" className="text-sm text-red-700 sm:col-span-2 lg:col-span-3">
+            {error}
+          </p>
+        )}
+        {saved && (
+          <p role="status" className="text-sm sm:col-span-2 lg:col-span-3">
+            Saved: {saved.description}, {saved.hours_per_unit} h per {saved.unit} ({saved.source})
+            {saved.version > 1 ? `, version ${saved.version}` : ""}.
+          </p>
+        )}
+      </form>
+    </details>
   );
 }

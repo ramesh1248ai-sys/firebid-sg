@@ -1,11 +1,12 @@
 # FireBid SG User Manual
 
 FireBid SG takes a fire-protection tender from uploaded documents to a priced, reviewed bid.
-The manual has three parts:
+The manual has four parts:
 
 | Part | Read it to |
 | --- | --- |
 | [A tender from upload to award](happy-path.md) | Follow one bid through every step, with who does what |
+| [Steps some tenders need](other-steps.md) | Handle an addendum, a tender kept in folders, a supplier's quotation, or drawings that show design intent only |
 | [When something is not right](exceptions.md) | Find out what a warning or a blocked step means, and what to do |
 | This page | Look up what a screen offers |
 
@@ -13,7 +14,7 @@ This page walks through each screen in the order a bid uses them. The screenshot
 taken on 2026-10-08 and 2026-10-10 from synthetic test bids. See also
 [the estimator quick start](../user/estimator-quick-start.md).
 
-For a Word copy of all three parts, run
+For a Word copy of all four parts, run
 `uv run --project backend python scripts/generate_user_manual_docx.py`; it writes
 `FireBid_SG_User_Manual.docx` beside this page.
 
@@ -91,7 +92,8 @@ per step, in the order you work through them.
 - **Move the bid on**, below the cards, offers the moves open from the bid's state: start
   qualification, the decision to bid (G0), submit for review, send back for rework,
   withdraw. Each belongs to a role, and one that is not yours says whose it is.
-- **Team** lists who is on the bid and in what role. A bid manager adds people there.
+- **Team** lists who is on the bid and in what role. A bid manager adds people there,
+  changes a role, or takes someone off the bid.
 
 | Step | What you do there |
 | --- | --- |
@@ -270,7 +272,11 @@ BOQ lines are priced only from the **Rate library**, opened from **Rates** in th
 The same page holds the **Productivity library**: man-hours for a unit of each item, each
 with its source. Labour is worked out only from these. The senior estimator imports the
 company's list with **Import the productivity list**; any problem in the file imports
-nothing.
+nothing. **Enter one figure by hand** takes a single figure with its source.
+
+Below it, **Exchange rates** lists what a quotation in another currency is brought to
+SGD at. The senior estimator records a rate with its source and date; a quotation in a
+currency with no rate cannot be confirmed.
 
 ## 10. Clarifications, risk and review
 
@@ -312,7 +318,8 @@ The four gates are approved in order, and each card lists what blocks it. G1 is 
 | G3 | Commercial director | G2 approved, the scope-gap checklist built, the bid under review |
 | G4 | Commercial director | G3 approved, no clarification unresolved, every qualification accepted or rejected |
 
-Approving G4 freezes the submission: the page then lists the frozen files for download, and
+Approving G4 freezes the submission: the page then lists the frozen files for download
+(the client's own bill, priced, among them where they issued one), and
 the bid manager records the outcome under them.
 
 Below the gates, the **Review pack** gives the totals with and without GST, margin, risk

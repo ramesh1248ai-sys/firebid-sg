@@ -81,6 +81,10 @@ of the bid page, lists who is on the bid and in what role.
 
 Someone who has never signed in to FireBid SG is not listed: ask them to sign in once.
 
+Beside each person the bid manager can change the role they hold on this bid, or press
+**Take off the bid** and confirm. Someone taken off no longer sees the bid; what they did
+on it stays on record under their name. A bid keeps at least one bid manager.
+
 ### Moving the bid on
 
 **Move the bid on**, beside the team, offers the moves open from the bid's state. Each
@@ -237,7 +241,9 @@ productivity figure came from, any multipliers, and the trade's hourly rate.
 A line with no entry in the productivity library reads "no productivity entry" and adds no
 hours. The library is kept on the **Rates** page, under **Productivity library**: the senior
 estimator imports the company's list there with **Import the productivity list**, all or
-nothing, as a rate list is.
+nothing, as a rate list is. A single figure is entered under **Enter one figure by hand**,
+with its source: a company standard or a project needs its reference, and an estimator's
+judgement left without one is recorded under their name.
 
 ![The productivity library](images/hp-35-productivity.png)
 
@@ -339,7 +345,8 @@ bid manager clears both.
 ![G4 ready to approve](images/hp-28-g4-ready.png)
 
 G4 freezes the submission. **Frozen submission** lists the files exactly as they were
-approved (the bill, the review pack, the qualifications and the clarifications), each with
+approved (our bill, the review pack, the qualifications, the clarifications and, where the
+client issued a bill of their own, their workbook with our rates in it), each with
 a **Download** button, and says whether the snapshot still verifies.
 
 ![The frozen submission](images/hp-29-submission.png)
@@ -351,6 +358,9 @@ FireBid SG sends nothing to the client. You download the files and send them you
 1. On **Review**, under **Outcome**, choose **Awarded**, **Lost** or **Withdrawn**.
 2. Enter the awarded price, the reasons and any feedback about competitors.
 3. Press **Record the outcome**.
+
+Do not name individuals in the reasons or the feedback: the text is kept in the audit
+record, which cannot be edited.
 
 ![The outcome recorded](images/hp-30-outcome.png)
 

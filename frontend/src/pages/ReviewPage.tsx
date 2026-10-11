@@ -443,6 +443,10 @@ function OutcomePanel({
         value={feedback}
         onChange={(event) => setFeedback(event.target.value)}
       />
+      <p className="text-xs text-muted-foreground">
+        Do not name individuals in either box: what is written here is kept in the audit record,
+        which cannot be edited.
+      </p>
       <Button type="submit" disabled={record.isPending}>
         {outcome ? "Save the outcome" : "Record the outcome"}
       </Button>

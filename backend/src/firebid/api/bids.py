@@ -10,15 +10,17 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Response, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from firebid.api.deps import CurrentBid, CurrentPrincipal, DbSession, require
 from firebid.auth.permissions import Action
 from firebid.auth.provisioning import Principal
+from firebid.db.audit import record_event
 from firebid.db.models.core import AppUser, Bid, BidMember, Project, UserRole
 from firebid.db.models.workflow import HumanTask
+from firebid.domain.actors import AuditContext
 from firebid.domain.state_machines import BidState, Role, TransitionError
 from firebid.services.bids import NewBid, create_bid, dashboard, missing_mandatory_fields
 from firebid.services.transitions import apply_transition, bid_moves
@@ -74,6 +76,10 @@ class BidSummaryOut(BidOut):
 
 class MemberIn(BaseModel):
     user_id: uuid.UUID
+    role: Role
+
+
+class MemberRoleIn(BaseModel):
     role: Role
 
 
@@ -277,9 +283,110 @@ def add_member(
     # Someone of another organisation is not found, as someone who does not exist is not.
     if person is None or person.organisation_id != context.bid.organisation_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "user not found")
-    session.merge(BidMember(bid_id=context.bid.id, user_id=body.user_id, role=str(body.role)))
+    existing = session.get(BidMember, (context.bid.id, body.user_id))
+    if existing is not None:
+        return _set_role(session, context, existing, person, str(body.role))
+    session.add(BidMember(bid_id=context.bid.id, user_id=body.user_id, role=str(body.role)))
     session.flush()
+    _team_event(session, context, "added", person, after={"role": str(body.role)})
     return MemberOut(user_id=person.id, role=str(body.role), display_name=person.display_name)
+
+
+def _team_event(
+    session: DbSession,
+    context: CurrentBid,
+    what: str,
+    person: AppUser,
+    *,
+    before: dict[str, str] | None = None,
+    after: dict[str, str] | None = None,
+) -> None:
+    record_event(
+        session,
+        context=AuditContext(organisation_id=context.bid.organisation_id, bid_id=context.bid.id),
+        actor=context.principal.actor(),
+        action=f"bid team: {what}",
+        entity_type=BidMember.__tablename__,
+        entity_id=person.id,
+        before=before,
+        after=after,
+    )
+
+
+def _keeps_a_manager(session: DbSession, bid_id: uuid.UUID, member: BidMember) -> None:
+    """A bid keeps at least one bid manager: without one nobody could add to its team or
+    move it on."""
+    if member.role != str(Role.BID_MANAGER):
+        return
+    others = session.execute(
+        select(func.count())
+        .select_from(BidMember)
+        .where(
+            BidMember.bid_id == bid_id,
+            BidMember.role == str(Role.BID_MANAGER),
+            BidMember.user_id != member.user_id,
+        )
+    ).scalar_one()
+    if not others:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "a bid keeps at least one bid manager: add another before changing this one",
+        )
+
+
+def _set_role(
+    session: DbSession, context: CurrentBid, member: BidMember, person: AppUser, role: str
+) -> MemberOut:
+    if member.role != role:
+        _keeps_a_manager(session, context.bid.id, member)
+        before = member.role
+        member.role = role
+        session.flush()
+        _team_event(
+            session, context, "role changed", person, before={"role": before}, after={"role": role}
+        )
+    return MemberOut(user_id=person.id, role=role, display_name=person.display_name)
+
+
+def _member(
+    session: DbSession, context: CurrentBid, user_id: uuid.UUID
+) -> tuple[BidMember, AppUser]:
+    member = session.get(BidMember, (context.bid.id, user_id))
+    person = session.get(AppUser, user_id)
+    if member is None or person is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "they are not on this bid")
+    return member, person
+
+
+@router.patch("/{bid_id}/members/{user_id}", response_model=MemberOut)
+def change_member_role(
+    user_id: uuid.UUID,
+    body: MemberRoleIn,
+    context: CurrentBid,
+    session: DbSession,
+    _: Annotated[Principal, require(Action.BID_MEMBER_MANAGE)],
+) -> MemberOut:
+    """The role someone holds on this bid. Their role in the organisation is not changed."""
+    member, person = _member(session, context, user_id)
+    return _set_role(session, context, member, person, str(body.role))
+
+
+@router.delete("/{bid_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_member(
+    user_id: uuid.UUID,
+    context: CurrentBid,
+    session: DbSession,
+    _: Annotated[Principal, require(Action.BID_MEMBER_MANAGE)],
+) -> Response:
+    """Take someone off the bid: they no longer see it. What they did on it stays on record
+    under their name."""
+    member, person = _member(session, context, user_id)
+    _keeps_a_manager(session, context.bid.id, member)
+    role = member.role
+    session.delete(member)
+    session.flush()
+    _team_event(session, context, "removed", person, before={"role": role})
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{bid_id}/tasks", response_model=list[TaskOut])
