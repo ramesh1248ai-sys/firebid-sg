@@ -34,6 +34,7 @@ from firebid.services import library_governance as governance
 from firebid.services import risk as risk_service
 from firebid.services import submission as service
 from firebid.storage.object_store import MemoryObjectStore
+from tests.db.test_boq import client_workbook
 from tests.db.test_risk import Team, risk_bid  # noqa: F401
 from tests.db.test_sheet_views import SignIn, app, sign_in  # noqa: F401
 from tests.db.test_symbol_mapping import no_tiles, store  # noqa: F401
@@ -409,6 +410,43 @@ class TestFreeze:
         assert found.ok and found.problems == []
         assert found.files_checked == 5 and found.records_listed > 50
         assert found.changed_since == []
+
+    def test_the_client_s_own_bill_is_frozen_with_our_rates_in_it(
+        self,
+        session: Session,
+        estimated: tuple[Bid, Team],
+        store: MemoryObjectStore,
+    ) -> None:
+        """What goes back to the client is their workbook, priced: it is part of what was
+        submitted, so it is frozen with the rest."""
+        bid, team = estimated
+        workbook = client_workbook(session, bid, store)
+        boq.read_client_boq(session, store, workbook)
+        boq.propose_mappings(session, bid.id)
+        for mapping in boq.mappings(session, bid.id).values():
+            if mapping.state == "proposed" and mapping.boq_line_key:
+                boq.decide_mapping(session, mapping, team.estimator, decision="confirm")
+        session.commit()
+        ready_for_g4(session, bid, team)
+
+        _, snapshot = service.approve_g4(session, bid, team.director, store, "submit")
+        session.commit()
+
+        assert [f["name"] for f in snapshot.files][-1] == "client-boq-priced.xlsx"
+        frozen = next(f for f in snapshot.files if f["name"] == "client-boq-priced.xlsx")
+        content = store.get(frozen["key"])
+        # The client's sheet, with a rate of ours where a line of theirs is one of ours.
+        sheet = load_workbook(io.BytesIO(content))["Bill 1 - Sprinklers"]
+        original = load_workbook(io.BytesIO(store.get(workbook.storage_key)))["Bill 1 - Sprinklers"]
+        changed = [
+            cell.coordinate
+            for row in sheet.iter_rows()
+            for cell in row
+            if cell.value != original[cell.coordinate].value
+        ]
+        assert changed, "no rate was written into the client's workbook"
+        found = service.verify_snapshot(session, store, snapshot, bid)
+        assert found.ok and found.files_checked == 6
 
     def test_a_tampered_object_fails_verification(
         self,

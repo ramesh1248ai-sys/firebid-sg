@@ -396,8 +396,10 @@ def _qualifications_workbook(session: Session, bid: Bid) -> bytes:
     return buffer.getvalue()
 
 
-def _files(session: Session, bid: Bid) -> list[tuple[str, bytes, str]]:
-    """The files exported with the submission: (name, content, media type)."""
+def _files(session: Session, bid: Bid, store: ObjectStore) -> list[tuple[str, bytes, str]]:
+    """The files exported with the submission: (name, content, media type). Where the client
+    issued a bill of their own, it is among them as it goes back to them: their workbook with
+    our rates in its rate cells."""
     from firebid.clarifications import export
     from firebid.services import boq, clarifications, review_pack
 
@@ -419,6 +421,14 @@ def _files(session: Session, bid: Bid) -> list[tuple[str, bytes, str]]:
     ]
     if boq.current_boq(session, bid.id) is not None:
         files.insert(0, ("company-boq.xlsx", boq.company_workbook(session, bid.id), XLSX))
+    workbooks = sorted({sheet.document_id for sheet, _ in boq.client_lines(session, bid.id)})
+    for number, document_id in enumerate(workbooks, start=1):
+        try:
+            priced = boq.priced_client_workbook(session, store, bid.id, document_id)
+        except boq.BoqError as refusal:
+            raise GateError(f"the client's bill could not be priced: {refusal}") from refusal
+        name = "client-boq-priced.xlsx" if number == 1 else f"client-boq-priced-{number}.xlsx"
+        files.append((name, priced, XLSX))
     return files
 
 
@@ -440,7 +450,7 @@ def freeze(
     snapshot_id = uuid.uuid4()
     prefix = f"snapshots/{bid.id}/{snapshot_id}"
     files = []
-    for name, content, media in _files(session, bid):
+    for name, content, media in _files(session, bid, store):
         key = f"{prefix}/{name}"
         store.put_once(key, content, content_type=media)
         files.append(
