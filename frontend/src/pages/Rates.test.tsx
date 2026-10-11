@@ -163,6 +163,50 @@ describe("the productivity library", () => {
   });
 
   // req: FR-LAB-01
+  it("takes one figure by hand only with its source, and sends it", async () => {
+    signedInAs({
+      name: "Sam Lim",
+      preferred_username: "senior.estimator@firebid.test",
+      roles: ["senior_estimator"],
+    });
+    const calls = stubApi({
+      "/labour/productivity": (call) =>
+        call.method === "POST"
+          ? Response.json({ ...entry, description: "Check valve DN150", version: 1 }, { status: 201 })
+          : Response.json([entry]),
+      "/rates": () => Response.json([rate()]),
+    });
+    renderAt("/rates");
+
+    await userEvent.click(await screen.findByText("Enter one figure by hand"));
+    const form = screen.getByRole("form", { name: "One productivity figure" });
+    await userEvent.type(within(form).getByLabelText("Type"), "check_valve");
+    await userEvent.type(within(form).getByLabelText("DN"), "150");
+    await userEvent.type(within(form).getByLabelText("Description"), "Check valve DN150");
+    await userEvent.type(within(form).getByLabelText("Trade"), "pipefitter");
+    await userEvent.type(within(form).getByLabelText("Man-hours per unit"), "3.5");
+    await userEvent.type(within(form).getByLabelText("Unit"), "no");
+    // A company standard is not taken without saying which.
+    expect(within(form).getByRole("button", { name: "Save the figure" })).toBeDisabled();
+    await userEvent.type(within(form).getByLabelText("Source reference"), "PS-2026");
+    await userEvent.click(within(form).getByRole("button", { name: "Save the figure" }));
+
+    expect(await within(form).findByRole("status")).toHaveTextContent("Saved: Check valve DN150");
+    const post = calls.find((call) => call.method === "POST");
+    expect(JSON.parse(post!.body!)).toEqual({
+      item_type: "check_valve",
+      dn: "150",
+      joining: "",
+      description: "Check valve DN150",
+      unit: "no",
+      hours_per_unit: "3.5",
+      trade: "pipefitter",
+      source_type: "company_standard",
+      source_reference: "PS-2026",
+    });
+  });
+
+  // req: FR-LAB-01
   it("says an empty library gives no line hours, and offers an estimator no import", async () => {
     signedInAs({
       name: "Ethan Lim",
@@ -179,6 +223,7 @@ describe("the productivity library", () => {
       await screen.findByText(/no BOQ line has labour hours until a list is imported/),
     ).toBeVisible();
     expect(screen.queryByLabelText(/Import a productivity list/)).toBeNull();
+    expect(screen.queryByText("Enter one figure by hand")).toBeNull();
   });
 });
 

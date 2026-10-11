@@ -291,6 +291,8 @@ describe("the review page", () => {
     const form = await screen.findByRole("form", { name: "Outcome" });
     await userEvent.selectOptions(within(form).getByLabelText("Result"), "awarded");
     await userEvent.type(within(form).getByLabelText("Awarded price"), "412500");
+    // The text is kept for good: the form says so before anything is typed.
+    expect(form).toHaveTextContent("Do not name individuals");
     await userEvent.type(within(form).getByLabelText("Reasons"), "Lowest compliant offer");
     await userEvent.click(within(form).getByRole("button", { name: "Record the outcome" }));
 

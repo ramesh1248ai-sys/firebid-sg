@@ -202,6 +202,57 @@ describe("the team of a bid", () => {
     expect(JSON.parse(post.body!)).toEqual({ user_id: ESTHER, role: "senior_estimator" });
   });
 
+  // req: FR-BID-01
+  it("lets a bid manager change a role, and take someone off the bid after asking", async () => {
+    signedInAs();
+    const both = [
+      ...people,
+      { user_id: ESTHER, role: "estimator", display_name: "Esther Tan" },
+    ];
+    const calls = stubs(() => Response.json(bid()), {
+      [`/bids/${BID}/members/${ESTHER}`]: (call) =>
+        call.method === "DELETE"
+          ? new Response(null, { status: 204 })
+          : Response.json({ user_id: ESTHER, role: "senior_estimator", display_name: "Esther Tan" }),
+      [`/bids/${BID}/members`]: () => Response.json(both),
+    });
+    renderAt(`/bids/${BID}`);
+
+    await userEvent.selectOptions(await screen.findByLabelText("Role of Esther Tan"), "senior estimator");
+    const patch = await vi.waitFor(() => {
+      const found = calls.find((call) => call.method === "PATCH");
+      expect(found).toBeDefined();
+      return found!;
+    });
+    expect(patch.url).toContain(`/bids/${BID}/members/${ESTHER}`);
+    expect(JSON.parse(patch.body!)).toEqual({ role: "senior_estimator" });
+
+    // One press asks; nothing is sent until the second.
+    await userEvent.click(screen.getByRole("button", { name: "Take Esther Tan off the bid" }));
+    expect(calls.some((call) => call.method === "DELETE")).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Yes, take Esther Tan off" }));
+    await vi.waitFor(() => expect(calls.some((call) => call.method === "DELETE")).toBe(true));
+  });
+
+  // req: FR-ADM-01
+  it("says why the last bid manager cannot be taken off", async () => {
+    signedInAs();
+    stubs(() => Response.json(bid()), {
+      [`/bids/${BID}/members/${people[0]!.user_id}`]: () =>
+        Response.json(
+          { detail: "a bid keeps at least one bid manager: add another before changing this one" },
+          { status: 409 },
+        ),
+      [`/bids/${BID}/members`]: () => Response.json(people),
+    });
+    renderAt(`/bids/${BID}`);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Take Bree Tan off the bid" }));
+    await userEvent.click(screen.getByRole("button", { name: "Yes, take Bree Tan off" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("a bid keeps at least one bid manager");
+  });
+
   // req: FR-ADM-01
   it("shows the team to an estimator and offers them nobody to add", async () => {
     signedInAs({
@@ -218,6 +269,8 @@ describe("the team of a bid", () => {
       "Bree Tan",
     );
     expect(screen.queryByLabelText("Person to add")).toBeNull();
+    expect(screen.queryByLabelText("Role of Bree Tan")).toBeNull();
+    expect(screen.queryByRole("button", { name: /off the bid/ })).toBeNull();
     expect(calls.some((call) => call.url.includes("/members/candidates"))).toBe(false);
   });
 });
