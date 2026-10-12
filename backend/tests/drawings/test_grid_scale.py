@@ -233,6 +233,27 @@ class TestScaleFromASharedGrid:
         assert too_few is None and no_grid is None
         assert elsewhere is None, "its dimensions give 1:200 and the grid 1:100"
 
+    def test_a_figure_beside_the_wrong_line_does_not_undo_a_view_stating_no_scale(self) -> None:
+        # Found on a real tender (A03-B6-04): 18 dimensions and the grid gave 1:100, and one
+        # 8400 beside a 14 mm line gave 1:584, so the plan had no scale at all.
+        unstated = Stated(None, False, "AS INDICATED")
+        dimensions = tuple(Evidence(8400.0, 84.0, "figure") for _ in range(18))
+        stray = Evidence(8400.0, 14.39, "figure")
+        grid = scale.grid_evidence(ABOVE, self.known())
+
+        verdict = scale.corroborate(unverified(unstated, (*dimensions, stray)), grid)
+        too_many = scale.corroborate(unverified(unstated, (*dimensions[:7], stray, stray)), grid)
+
+        assert verdict is not None
+        assert (verdict.status, verdict.denominator) == (ScaleStatus.VERIFIED, 100.0)
+        assert verdict.reason == (
+            "no scale is stated; 18 dimension(s) on the view and 3 grid spacing(s) known "
+            "from A03-06-01 all give 1:100; 1 figure(s) beside a line do not and were set "
+            "aside as not dimensions"
+        )
+        assert len(verdict.evidence) == 22  # the stray figure is kept for a person to see
+        assert too_many is None, "two of nine is more than a few"
+
     def test_a_verdict_is_read_back_as_it_was_stored(self) -> None:
         verdict = scale.corroborate(unverified(), scale.grid_evidence(ABOVE, self.known()))
         assert verdict is not None
