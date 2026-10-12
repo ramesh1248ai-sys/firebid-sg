@@ -31,7 +31,7 @@ from __future__ import annotations
 import itertools
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import numpy as np
@@ -52,6 +52,15 @@ LABEL = re.compile(
 CONTINUES = re.compile(
     r"\b(?:SEE|REFER(?:\s+TO)?|CONT(?:INUED|INUATION|\.)?(?:\s+ON)?)\s+"
     r"(?:(?:DWG|DRG|DRAWING|SHEET)\.?\s*)?(?:NO\.?\s*)?([A-Z0-9][A-Z0-9/_.()-]*\d[A-Z0-9/_.()-]*)",
+    re.IGNORECASE,
+)
+# The same, of words put back together from their letters, where a space is a guess: read
+# with the spaces taken out. The sheet such a note names is in the note's own words.
+LABEL_OF_LETTERS = re.compile(
+    r"MATCH-?LINE|FORCONTINUATION|CONTINU(?:ED|ES|ATION)ON", re.IGNORECASE
+)
+NAMED_IN_LETTERS = re.compile(
+    r"(?:DWG|DRG|DRAWING|SHEET)\.?(?:NO\.?)?[-:]?([A-Z0-9]+(?:[-_/.][A-Z0-9]+){2,})",
     re.IGNORECASE,
 )
 # A match line reaches across at least this share of the plan's smaller side.
@@ -87,11 +96,14 @@ class MatchLine:
     side: int
     reason: str
     services_mm: tuple[float, float]  # coloured linework on the +1 side and on the -1 side
+    # Every sheet named along the line: two notes on one line may each name another.
+    other_sheets: tuple[str, ...] = ()
 
     def to_json(self) -> dict[str, Any]:
         return {
             "label": self.label,
             "other_sheet": self.other_sheet,
+            "other_sheets": list(self.other_sheets),
             "line": [[round(v, 2) for v in self.a], [round(v, 2) for v in self.b]],
             "side": self.side,
             "proposed_side": self.side,
@@ -190,8 +202,11 @@ def _straight_lines(seg: geometry.Segments, wanted: np.ndarray, shift: float) ->
 
 
 def _written_at(span: dict[str, Any]) -> float:
-    """The direction the words run, in degrees from 0 to 180 (0: across the sheet)."""
-    rotation = float(span.get("rotation") or 0.0) % 180.0
+    """The direction the words run, in degrees from 0 to 180 (0: across the sheet).
+
+    As a line's direction is measured, down the sheet: a rotation is measured up it.
+    """
+    rotation = -float(span.get("rotation") or 0.0) % 180.0
     if rotation:
         return rotation
     wide = float(span["maxx"]) - float(span["minx"])
@@ -202,6 +217,31 @@ def _written_at(span: dict[str, Any]) -> float:
 def _runs_with(theta: float, written: float) -> bool:
     apart = abs(math.degrees(theta) % 180.0 - written) % 180.0
     return min(apart, 180.0 - apart) <= PARALLEL_DEG
+
+
+def _is_label(span: dict[str, Any]) -> bool:
+    words = str(span.get("text") or "")
+    if LABEL.search(words):
+        return True
+    return "corners" in span and bool(LABEL_OF_LETTERS.search("".join(words.split())))
+
+
+def _named_in(span: dict[str, Any]) -> str | None:
+    """The sheet a note put back together from its letters names in its own words."""
+    if "corners" not in span:
+        return None
+    named = NAMED_IN_LETTERS.search("".join(str(span["text"]).split()))
+    return (
+        named.group(1).rstrip(".") if named and any(c.isdigit() for c in named.group(1)) else None
+    )
+
+
+def _named(spans: list[dict[str, Any]], span: dict[str, Any], words: str) -> str | None:
+    """The sheet a label says the floor goes on to: in its words, or written beside them."""
+    if "corners" in span:
+        return _named_in(span) or _named_beside(spans, span)
+    other = CONTINUES.search(words)
+    return other.group(1).rstrip(".") if other else _named_beside(spans, span)
 
 
 def _named_beside(spans: list[dict[str, Any]], label: dict[str, Any]) -> str | None:
@@ -261,8 +301,8 @@ def find(
     `grid` is the view's structural grid, as (axis, position) with "x" a vertical line at
     that x; `services` are the pipe runs found drawn on the sheet.
     """
-    spans = geometry.texts(table)
-    labels = [span for span in spans if span.get("text") and LABEL.search(str(span["text"]))]
+    spans = geometry.joined_letters(geometry.texts(table))
+    labels = [span for span in spans if _is_label(span)]
     if not labels:
         return Found([], [])
     x0, y0, x1, y1 = region
@@ -293,7 +333,13 @@ def find(
         left, top = float(span["minx"]), float(span["miny"])
         right, bottom = float(span["maxx"]), float(span["maxy"])
         centre = ((left + right) / 2, (top + bottom) / 2)
-        corners = ((left, top), (right, top), (right, bottom), (left, bottom))
+        # Words at an angle have a box along their writing, far smaller than the one around them.
+        corners = span.get("corners") or (
+            (left, top),
+            (right, top),
+            (right, bottom),
+            (left, bottom),
+        )
         beside: list[tuple[float, Line]] = []
         on_grid: list[tuple[float, Line]] = []
         for line in candidates:
@@ -319,10 +365,20 @@ def find(
             (line for distance, line in near if distance <= nearest + TIE_MM),
             key=lambda line: line[3] - line[2],
         )
-        # Two labels on one line, or one line found in both binnings: one match line.
-        if any(
-            abs(math.degrees(theta) - a) < 1.0 and abs(offset - o) < 2 * TIE_MM for a, o in taken
-        ):
+        # Two labels on one line, or one line found in both binnings: one match line, which
+        # goes on to every sheet its labels name.
+        same = next(
+            (
+                index
+                for index, (a, o) in enumerate(taken)
+                if abs(math.degrees(theta) - a) < 1.0 and abs(offset - o) < 2 * TIE_MM
+            ),
+            None,
+        )
+        if same is not None:
+            named = _named(spans, span, words)
+            if named and named not in lines[same].other_sheets:
+                lines[same] = replace(lines[same], other_sheets=(*lines[same].other_sheets, named))
             continue
         ends = _clip_to_box(theta, offset, region)
         if ends is None:
@@ -344,16 +400,17 @@ def find(
             whole = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
             side = 1 if _area(_clip(whole, a, b, 1)) >= _area(_clip(whole, a, b, -1)) else -1
             reason = "the larger side: no services are drawn on either"
-        other = CONTINUES.search(words)
+        named = _named(spans, span, words)
         lines.append(
             MatchLine(
                 label=words,
-                other_sheet=other.group(1).rstrip(".") if other else _named_beside(spans, span),
+                other_sheet=named,
                 a=a,
                 b=b,
                 side=side,
                 reason=reason,
                 services_mm=(positive, negative),
+                other_sheets=(named,) if named else (),
             )
         )
     return Found(lines, unplaced)

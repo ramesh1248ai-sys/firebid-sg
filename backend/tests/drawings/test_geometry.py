@@ -291,3 +291,69 @@ class TestAHeavySheet:
             "circle": kinds.count("circle"),
             "text": kinds.count("text"),
         }
+
+
+class TestTextWrittenALetterAtATime:
+    """Found on a real tender: a note along a wing at an angle to the sheet arrived as one
+    span a letter, and nothing read as what the note says."""
+
+    def letters(self, text: str, rotation: float, height: float = 6.0) -> list[dict[str, object]]:
+        turn = np.radians(rotation)
+        spans: list[dict[str, object]] = []
+        for index, letter in enumerate(text):
+            if letter == " ":
+                continue
+            x = 100.0 + index * 0.6 * height * float(np.cos(turn))
+            y = 200.0 - index * 0.6 * height * float(np.sin(turn))
+            spans.append(
+                {
+                    "text": letter,
+                    "minx": x - 2.5,
+                    "miny": y - 2.5,
+                    "maxx": x + 2.5,
+                    "maxy": y + 2.5,
+                    "height": height,
+                    "rotation": rotation,
+                }
+            )
+        return spans
+
+    def test_the_letters_are_one_span_with_a_space_where_they_stand_apart(self) -> None:
+        (span,) = geometry.joined_letters(self.letters("REFER TO DRG. NO. - A03-02-01", 38.4))
+
+        assert span["text"] == "REFER TO DRG. NO. - A03-02-01"
+        assert span["rotation"] == 38.4
+
+    def test_it_is_read_in_the_order_it_is_written_whatever_order_it_arrives_in(self) -> None:
+        letters = self.letters("MATCH LINE", -128.4)
+
+        (span,) = geometry.joined_letters(letters[::-1])
+
+        assert span["text"] == "MATCH LINE"
+
+    def test_its_corners_are_the_box_along_the_writing(self) -> None:
+        (span,) = geometry.joined_letters(self.letters("MATCH LINE", 45.0))
+
+        corners = np.array(span["corners"])
+        sides = np.hypot(*(corners - np.roll(corners, 1, axis=0)).T)
+        # Ten letters long and one high, where the box around it is nearly square.
+        assert sorted(np.round(sides, 1)) == [6.0, 6.0, 36.0, 36.0]
+        assert span["maxx"] - span["minx"] == pytest.approx(span["maxy"] - span["miny"])
+
+    def test_text_square_to_the_sheet_and_a_letter_alone_are_left_as_they_are(self) -> None:
+        across = self.letters("AB", 0.0)
+        up = self.letters("CD", 90.0)
+        alone = self.letters("E", 30.0)
+
+        assert geometry.joined_letters([*across, *up, *alone]) == [*across, *up, *alone]
+
+    def test_two_notes_on_one_slope_far_apart_are_two(self) -> None:
+        first = self.letters("ONE", 30.0)
+        second = [
+            {**span, "minx": span["minx"] + 90.0, "maxx": span["maxx"] + 90.0}  # type: ignore[operator]
+            for span in self.letters("TWO", 30.0)
+        ]
+
+        joined = geometry.joined_letters([*first, *second])
+
+        assert sorted(str(span["text"]) for span in joined) == ["ONE", "TWO"]

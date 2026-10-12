@@ -380,7 +380,9 @@ function MatchLines({ sheet, onScope, busy }: { sheet: Sheet; onScope: (choice: 
         {sheet.match_lines.map((line, index) => (
           <li key={`${line.label}-${index}`}>
             “{line.label}”
-            {line.other_sheet && <span> — continues on {line.other_sheet}</span>}
+            {line.other_sheet && (
+              <span> — continues on {(line.other_sheets?.length ? line.other_sheets : [line.other_sheet]).join(" and ")}</span>
+            )}
             {line.line ? (
               <>
                 <span className="text-muted-foreground">

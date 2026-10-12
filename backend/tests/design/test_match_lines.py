@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from firebid.design import match_lines, rooms
@@ -271,3 +273,91 @@ def test_the_dashed_line_along_the_note_is_taken_not_the_wall_through_it_or_besi
     assert polygon is not None
     # The side with more of the services: east of the cut.
     assert min(x for x, _ in polygon) == pytest.approx(200.0, abs=0.5)
+
+
+def lettered(
+    plan: Plan, text: str, x: float, y: float, rotation: float, height: float = 7.0
+) -> None:
+    """Words as some CAD exports write them at an angle: a letter a span, from (x, y)."""
+    turn = math.radians(rotation)
+    wide, tall = 0.5 * height, 0.7 * height
+    half_x = (wide * abs(math.cos(turn)) + tall * abs(math.sin(turn))) / 2
+    half_y = (wide * abs(math.sin(turn)) + tall * abs(math.cos(turn))) / 2
+    for index, letter in enumerate(text):
+        if letter == " ":
+            continue
+        along = index * 0.6 * height
+        centre_x, centre_y = x + along * math.cos(turn), y - along * math.sin(turn)
+        plan.builder.text(
+            letter,
+            (centre_x - half_x, centre_y - half_y, centre_x + half_x, centre_y + half_y),
+            plan.builder.group(),
+            height=height,
+            rotation=rotation,
+        )
+
+
+def slanted(plan: Plan, x: float, y: float, rotation: float, length: float) -> None:
+    """A row of dashes from (x, y), at an angle measured up the sheet."""
+    turn = math.radians(rotation)
+    along = 0.0
+    while along < length:
+        end = min(along + 14.0, length)
+        plan.wall(
+            x + along * math.cos(turn),
+            y - along * math.sin(turn),
+            x + end * math.cos(turn),
+            y - end * math.sin(turn),
+            BLACK,
+        )
+        along += 20.0
+
+
+WING_DEG = 51.6
+NOTE_ON_THE_WING = "FOR CONTINUATION, REFER TO DRG. NO. - 60743399_ACM_TN_PO_D_MFP_A03-02-01"
+
+
+def wing_sheet() -> Plan:
+    """Found on a real tender: a wing at an angle to the sheet, cut along its own direction,
+    with the note written along the cut a letter at a time and the sheet's number in it."""
+    plan = building()
+    slanted(plan, 120.0, 280.0, WING_DEG, 330.0)
+    turn = math.radians(WING_DEG)
+    # Beside the cut, 5 mm off it, starting 40 mm along.
+    start_x = 120.0 + 40.0 * math.cos(turn) - 5.0 * math.sin(turn)
+    start_y = 280.0 - 40.0 * math.sin(turn) - 5.0 * math.cos(turn)
+    lettered(plan, NOTE_ON_THE_WING, start_x, start_y, WING_DEG)
+    # Another row of dashes straight through the note, leaning the other way.
+    slanted(plan, 80.0, 20.0, -WING_DEG, 330.0)
+    return plan
+
+
+def test_a_note_written_at_an_angle_a_letter_at_a_time_is_read_as_what_it_says() -> None:
+    found = match_lines.find(wing_sheet().table(), REGION)
+
+    assert found.unplaced == []
+    (line,) = found.lines
+    assert line.label == NOTE_ON_THE_WING
+    assert line.other_sheet == "60743399_ACM_TN_PO_D_MFP_A03-02-01"
+
+
+def test_its_line_is_the_one_along_the_words_not_the_one_leaning_the_other_way() -> None:
+    (line,) = match_lines.find(wing_sheet().table(), REGION).lines
+
+    # The cut climbs the sheet to the right, as the words do.
+    (low_x, low_y), (high_x, high_y) = sorted([line.a, line.b])
+    assert high_y < low_y
+    assert math.degrees(math.atan2(low_y - high_y, high_x - low_x)) == pytest.approx(
+        WING_DEG, abs=0.5
+    )
+
+
+def test_two_notes_on_one_line_that_name_two_sheets_are_one_line_that_goes_on_to_both() -> None:
+    plan = west_sheet()
+    plan.name("MATCH LINE - SEE DWG FP-L10-104", 205.0, 270.0)
+
+    (line,) = match_lines.find(plan.table(), REGION).lines
+
+    assert line.other_sheet == "FP-L10-102"
+    assert line.other_sheets == ("FP-L10-102", "FP-L10-104")
+    assert line.to_json()["other_sheets"] == ["FP-L10-102", "FP-L10-104"]

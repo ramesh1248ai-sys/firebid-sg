@@ -8158,6 +8158,14 @@
             ],
             "title": "Other Sheet"
           },
+          "other_sheets": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Other Sheets",
+            "type": "array"
+          },
           "proposed_side": {
             "anyOf": [
               {

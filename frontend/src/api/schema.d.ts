@@ -6708,6 +6708,11 @@ export interface components {
             line?: number[][] | null;
             /** Other Sheet */
             other_sheet?: string | null;
+            /**
+             * Other Sheets
+             * @default []
+             */
+            other_sheets: string[];
             /** Proposed Side */
             proposed_side?: number | null;
             /** Reason */

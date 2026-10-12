@@ -55,6 +55,8 @@ class SpaceOut(BaseModel):
 class MatchLineOut(BaseModel):
     label: str
     other_sheet: str | None = None
+    # Every sheet named along the line; the first is `other_sheet`.
+    other_sheets: list[str] = []
     # The line across the plan, in sheet millimetres. None: the label's line was not found.
     line: list[list[float]] | None = None
     side: int | None = None
