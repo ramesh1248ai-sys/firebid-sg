@@ -26,6 +26,7 @@ that query it work on NumPy arrays and Shapely's STRtree rather than per-primiti
 from __future__ import annotations
 
 import io
+import itertools
 import math
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -488,3 +489,135 @@ def texts(table: pa.Table) -> list[dict[str, Any]]:
         ]
     )
     return picked.to_pylist()
+
+
+# Text within this of square to the sheet is written whole; text turned further may not be.
+TURNED_DEG = 0.05
+# A letter's advance, as a share of the text's height, until the letters themselves say.
+LETTER_ADVANCE = 0.6
+# Letters further apart than this many advances are not one run of words.
+RUN_GAP = 3.0
+# A gap this much of an advance wider than two letters need is a space.
+SPACE_GAP = 0.3
+# Letters of one run sit within this share of the text's height of its middle line.
+RUN_ACROSS = 0.45
+
+
+def joined_letters(spans: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Text written at an angle, put back together from its letters.
+
+    Some CAD exports write text that is not square to the sheet a letter at a time: a note
+    along a wing that stands at 38 degrees arrives as "F", "O", "R", each a span of its
+    own, and nothing reads as what the note says. Spans of one rotation and height that
+    follow one another along the way they are written are joined into one, with a space
+    where the letters stand apart. Text square to the sheet is passed through.
+
+    A joined span keeps the box around all its letters and adds `corners`: the four corners
+    of the box along the writing, which for words at an angle is far smaller.
+    """
+    out: list[dict[str, Any]] = []
+    turned: dict[tuple[float, float], list[dict[str, Any]]] = {}
+    for span in spans:
+        rotation = float(span.get("rotation") or 0.0)
+        height = float(span.get("height") or 0.0)
+        square = abs((rotation + 45.0) % 90.0 - 45.0) < TURNED_DEG
+        if square or height <= 0 or not str(span.get("text") or "").strip():
+            out.append(span)
+        else:
+            turned.setdefault((round(rotation * 2) / 2, round(height, 1)), []).append(span)
+    for (_, height), group in turned.items():
+        angle = math.radians(float(group[0]["rotation"]))
+        # Sheet millimetres run down the sheet; a rotation is measured up it.
+        along_x, along_y = math.cos(angle), -math.sin(angle)
+        placed = []
+        for span in group:
+            x = (float(span["minx"]) + float(span["maxx"])) / 2
+            y = (float(span["miny"]) + float(span["maxy"])) / 2
+            placed.append((x * along_x + y * along_y, -x * along_y + y * along_x, span))
+        placed.sort(key=lambda item: item[0])
+        advance = LETTER_ADVANCE * height
+        runs: list[list[tuple[float, float, dict[str, Any]]]] = []
+        for item in placed:
+            along, across, span = item
+            best: tuple[float, list[tuple[float, float, dict[str, Any]]]] | None = None
+            for run in runs:
+                middle = sum(member[1] for member in run) / len(run)
+                gap = along - run[-1][0] - advance * _letters(run[-1][2], span)
+                beside = abs(across - middle) <= RUN_ACROSS * height and gap <= RUN_GAP * advance
+                if beside and (best is None or gap < best[0]):
+                    best = (gap, run)
+            if best is None:
+                runs.append([item])
+            else:
+                best[1].append(item)
+        for run in runs:
+            if len(run) == 1:
+                out.append(run[0][2])
+                continue
+            # What the letters themselves say an advance is, where enough stand alone.
+            steps = sorted(
+                b[0] - a[0]
+                for a, b in itertools.pairwise(run)
+                if len(str(a[2]["text"]).strip()) == 1 and len(str(b[2]["text"]).strip()) == 1
+            )
+            step = steps[len(steps) // 2] if len(steps) >= 3 else advance
+            # Between two letters or figures the gap is judged by their own widths (an M is
+            # twice an I), against the gap usual in this run; elsewhere by the advance.
+            gaps = [
+                b[0] - a[0] - (_size(a[2], angle) + _size(b[2], angle)) / 2
+                if _is_letter(a[2]) and _is_letter(b[2])
+                else None
+                for a, b in itertools.pairwise(run)
+            ]
+            known = sorted(between for between in gaps if between is not None)
+            usual = known[len(known) // 2] if len(known) >= 3 else None
+            words = str(run[0][2]["text"]).strip()
+            for (a, b), between in zip(itertools.pairwise(run), gaps, strict=True):
+                if between is not None and usual is not None:
+                    spaced = between - usual > SPACE_GAP * step
+                else:
+                    spaced = b[0] - a[0] - step * _letters(a[2], b[2]) > SPACE_GAP * step
+                words += (" " if spaced else "") + str(b[2]["text"]).strip()
+            low = run[0][0] - step * len(str(run[0][2]["text"]).strip()) / 2
+            high = run[-1][0] + step * len(str(run[-1][2]["text"]).strip()) / 2
+            middle = sum(member[1] for member in run) / len(run)
+            out.append(
+                {
+                    **run[0][2],
+                    "text": words,
+                    "minx": min(float(member[2]["minx"]) for member in run),
+                    "miny": min(float(member[2]["miny"]) for member in run),
+                    "maxx": max(float(member[2]["maxx"]) for member in run),
+                    "maxy": max(float(member[2]["maxy"]) for member in run),
+                    "corners": [
+                        (
+                            along * along_x - across * along_y,
+                            along * along_y + across * along_x,
+                        )
+                        for along, across in (
+                            (low, middle - height / 2),
+                            (high, middle - height / 2),
+                            (high, middle + height / 2),
+                            (low, middle + height / 2),
+                        )
+                    ],
+                }
+            )
+    return out
+
+
+def _is_letter(span: dict[str, Any]) -> bool:
+    words = str(span["text"]).strip()
+    return len(words) == 1 and words.isalnum()
+
+
+def _size(span: dict[str, Any], angle: float) -> float:
+    """A turned letter's width and height together, from the square box around it."""
+    wide = float(span["maxx"]) - float(span["minx"])
+    tall = float(span["maxy"]) - float(span["miny"])
+    return (wide + tall) / (abs(math.cos(angle)) + abs(math.sin(angle)))
+
+
+def _letters(first: dict[str, Any], second: dict[str, Any]) -> float:
+    """How many advances lie between the middles of two spans written one after the other."""
+    return (len(str(first["text"]).strip()) + len(str(second["text"]).strip())) / 2

@@ -149,6 +149,7 @@ describe("design development", () => {
         {
           label: "MATCH LINE - SEE DWG FP-L10-02",
           other_sheet: "FP-L10-02",
+          other_sheets: ["FP-L10-02", "FP-L10-03"],
           line: [[175, 0], [175, 300]],
           side: 1,
           proposed_side: 1,
@@ -169,7 +170,7 @@ describe("design development", () => {
     await userEvent.click(within(row).getByRole("button", { name: "FP-L10-01" }));
 
     const lines = screen.getByRole("list", { name: "Match lines" });
-    expect(lines).toHaveTextContent("continues on FP-L10-02");
+    expect(lines).toHaveTextContent("continues on FP-L10-02 and FP-L10-03");
     expect(lines).toHaveTextContent("this sheet's side: the side with more of the pipework drawn");
     expect(lines).toHaveTextContent("its line was not found, so it does not limit the layout");
     expect(table).toHaveTextContent("so the shared floor is designed once");

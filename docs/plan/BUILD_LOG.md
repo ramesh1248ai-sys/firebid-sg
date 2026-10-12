@@ -2731,3 +2731,51 @@ code changed.
   drawings. The exit report was not written again from the gap list.
 - **Requirement IDs covered (test names):** none; a trial. It bears on FR-DSN-01, FR-DSN-06
   and FR-VIS-05.
+
+## Fix · R9: a continuation note written at an angle · 2026-10-12
+
+R9 of `COMPREHENSIVE_PLAN.md`, found by R3: on the MOH set 28 continuation notes on 18
+sheets had no match line, seven sheets none at all.
+
+- **Cause.** A wing of the building stands at 38.4 degrees to the sheet, and the notes
+  along its cuts are written at 51.6 degrees. The PDF writes text that is not square to the
+  sheet a letter at a time, so the stored text held "F", "O", "R" and nothing read as "FOR
+  CONTINUATION". The same holds for notes turned by a tenth of a degree. They were never
+  labels, which is why none was listed as a label without a line.
+- **Letters are joined (`drawings/geometry.joined_letters`).** Spans of one rotation and
+  height that follow one another along the way they are written become one span, with a
+  space where the letters stand apart: by their own widths between two letters or figures,
+  by the advance elsewhere. Text square to the sheet is passed through. A joined span
+  carries `corners`, the box along its writing; the box around a note at an angle is most
+  of a wing. Used by the match-line finder only.
+- **The finder (`design/match_lines`).**
+  - A joined note is a label when it reads as one with its spaces taken out, since a space
+    is a guess; the sheet it names is read from its own words the same way.
+  - The way words run was compared with a line's direction as if both were measured the
+    same way up. A rotation is measured up the sheet and a line down it, so for words at
+    51.6 degrees the line leaning the other way was the one preferred. Square text hid it.
+  - Two notes on one line were one match line and the second note's sheet was dropped. A
+    line now keeps every sheet named along it: `other_sheets` on the line, in the API and
+    on the Design page ("continues on A and B"). `other_sheet` is still the first.
+- **On the stack, the MOH bid's design basis read again:** 255 match lines on all 144
+  sheets with a verified scale (240 on 138 before), ten of them naming two sheets. Every
+  one of the 268 notes written on the 145 plans is read. Sheets naming each other both
+  ways: 120 pairs, from 105; named one way only: 18, from 29.
+- **Not done.**
+  - The 18 one-way names were not looked into. One at least is the drawing's own:
+    `A03-06-04` says it continues on `A03-05-02`, a sheet of the storey below.
+  - Three notes name `A03-02-03`, `A03-05-03` and `A03-06-03`, which are read as key plans
+    (R10).
+  - A joined note's words are not always spaced as written ("CONTINUATION,REFER").
+  - Nothing else that reads text joins letters: a room name, a pipe size or a view title
+    written at an angle is still a letter a span. Whether that is why the three sheets are
+    key plans was not checked.
+  - The full suite was not run here: the design and drawings tests (475), the design
+    step's database tests (13), lint, types and the Design page's tests were. A bid read
+    before this keeps its match lines until its design basis is read again.
+- **Requirement IDs covered (test names):** FR-DSN-06:
+  `tests/design/test_match_lines.py::test_a_note_written_at_an_angle_a_letter_at_a_time_is_read_as_what_it_says`,
+  `::test_its_line_is_the_one_along_the_words_not_the_one_leaning_the_other_way`,
+  `::test_two_notes_on_one_line_that_name_two_sheets_are_one_line_that_goes_on_to_both`;
+  `Design.test.tsx` ("shows the match line a sheet's layout stops at"). FR-VIS-01:
+  `tests/drawings/test_geometry.py::TestTextWrittenALetterAtATime` (5).
