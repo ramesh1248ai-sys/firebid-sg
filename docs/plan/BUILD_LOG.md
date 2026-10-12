@@ -2834,3 +2834,46 @@ Left as not done by R9 and R10. No code changed.
 - **Not done.** Whether each of the sixteen is a missing note or a wrong number was not
   judged from the plans: that is the consultant's to say. The Rev B archive of the set was
   not compared with the folder.
+
+## Fix · R7: the false second view on 13 sheets; `A03-B6-04`'s scale · 2026-10-12
+
+R7 of `COMPREHENSIVE_PLAN.md` (C4, C1 and C2 of `OPEN_ITEMS_PLAN.md`). C3, a grid index on
+real sheets, waits on its decision and was not touched.
+
+- **The false view was text read as a view's title (C4).**
+  - On the twelve helipad, lower roof and upper roof sheets a row of the legend reads "WET
+    RISER LANDING VALVE (SCHEMATIC)". It was a schematic view across the plan, and the
+    plan's own view was cut to what lay nearer its title.
+  - On `A03-03-03` a room is named FROZEN SECTION on two lines, and SECTION was a section.
+- **Fix (`drawings/views.detect`).** Two things a title is not:
+  - a row of a list: text with a line above it and a line below it that start where it
+    starts, neither of them a title or a scale;
+  - a label: text no taller than the middle piece of the sheet's text, on a sheet with at
+    least 20 pieces. The room's name is 2.4 mm, the legend row 4.6 mm and the sheet's title
+    6.3 mm, so height alone does not tell the legend row.
+  - `views.DETECTOR_VERSION` is `6`, so "Read again" finds a bid's views again.
+- **`A03-B6-04` had its scale undone by one figure (C1).** Its title block says AS
+  INDICATED. Of 19 figures paired with a line, 18 give 1:100 and one, an 8400 beside a
+  14 mm line, gives 1:584. Where no scale is stated the grid was let prove one only if
+  every figure agreed. Now (`drawings/scale.corroborate`) the figures that do not agree
+  are set aside and said to be, by the rule `verify` has where a scale is stated: at least
+  five agree and they are at least four in five.
+- **C2 was already done.** `A03-B2-05`, whose lettered lines run three ways, has a grid:
+  every plan of the bid has. The gap list said otherwise.
+- **On all 148 sheets of the MOH bid,** old against new from the stored geometry: the views
+  change on those 13 and no other, and each becomes one plan over its whole drawing area.
+- **On the stack,** views found again and the design basis read again: 148 views, each a
+  plan with a verified scale (161 views before, one plan unverified); `A03-B6-04` at 1:100
+  by 18 figures and 10 grid spacings, one figure set aside. 148 sheets proposed, none
+  blocked; 264 match lines on all 148; 128 pairs of sheets naming each other and 17 names
+  one way. The two that named `A03-B6-04` are answered. It names `A03-B6-08`, which does
+  not write its number: the basements' pattern, on all six now.
+- **Not done.** C3. The 146 sheets queued for detection after the views were found were
+  left running. The benchmark tender (121 sheets) was not run against the new title
+  rules. The full suite was not run here: the drawings, design and parsing tests (507),
+  lint and types on the changed files were.
+- **Requirement IDs covered (test names):** FR-VIS-08:
+  `tests/drawings/test_views.py::TestTitlesOnARealSheet` (a row of the legend is not a
+  view; a room's name is not a view; a second view titled in larger letters still is).
+  FR-VIS-05: `tests/drawings/test_grid_scale.py`
+  `::test_a_figure_beside_the_wrong_line_does_not_undo_a_view_stating_no_scale`.

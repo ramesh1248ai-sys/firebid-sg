@@ -74,22 +74,21 @@ gaps:
     action: >-
       Run the rest of the MOH set and a second consultant's drawings; a person confirms
       each sheet's side on the Design page meanwhile.
-  - gap: "On the whole real set, no drawn head is counted; two one-way names wait on a scale"
+  - gap: "On the whole real set, no drawn head is counted"
     cause: >-
-      All 148 sheets of the MOH set are read on one bid, none with an error, and 147 of its
-      148 plans have a verified scale. The design basis was read for the set on 12 October
-      2026: 147 sheets proposed, with 261 match lines, each naming a plan of the set. No
-      drawn head is counted on any sheet, because no legend row is confirmed, so no side
-      was chosen by the pipework. Eighteen sheets are named by a neighbour they do not name
-      back. Sixteen are the drawings' own: the named sheet's PDF does not write the other's
-      number anywhere, and two of the sixteen name a sheet of the storey above or below.
-      The other two name A03-B6-04, which writes both numbers but has no verified scale, so
-      no match line is found on it. Text at an angle is joined from its letters for match
+      All 148 sheets of the MOH set are read on one bid, none with an error, and each is one
+      plan with a verified scale. The design basis was read for the set on 12 October 2026:
+      148 sheets proposed, with 264 match lines, each naming a plan of the set. No drawn
+      head is counted on any sheet, because no legend row is confirmed, so no side was
+      chosen by the pipework. Seventeen sheets are named by a neighbour they do not name
+      back, and all are the drawings' own: the named sheet's PDF does not write the other's
+      number anywhere. Six are sheet 04 of a basement naming sheet 08, and two name a sheet
+      of the storey above or below. Text at an angle is joined from its letters for match
       lines only. No other consultant's drawings have been run.
     action: >-
-      Confirm the legend rows (R2) and read the basis again; calibrate A03-B6-04 (C1); ask
-      the consultant about the sixteen if a side is in doubt; lay out one whole floor and
-      compare its head count with the estimators'.
+      Confirm the legend rows (R2) and read the basis again; ask the consultant about the
+      seventeen if a side is in doubt; lay out one whole floor and compare its head count
+      with the estimators'.
   - gap: "A matching pass still reads every symbol of the bid"
     cause: >-
       A document that finishes now matches the bid's symbols only if a sheet's were read
@@ -169,8 +168,11 @@ gaps:
       On the real set 68 of 145 plans state a scale that nothing on them confirms (the upper
       floors carry no dimension). A sheet is now verified by the grid it shares with a sheet
       whose scale is proved, by its own dimensions or by a person's calibration: 62 of the 68
-      are. Six are left: sheets with fewer than three gridline bubbles in a row whose spacing
-      is known (the skewed wing, and two with none).
+      are. Six were left then: sheets with fewer than three gridline bubbles in a row whose
+      spacing is known (the skewed wing, and two with none). As the set is read now, on 12
+      October 2026, none is left: all 148 plans are verified. The last, A03-B6-04, states no
+      scale and had one figure beside the wrong line among its 19; such a figure is now set
+      aside, as it is where a scale is stated. Another tender may still have such sheets.
     action: >-
       Pilot runbook: calibrate those on a known length; one calibration then serves every
       sheet on the same gridlines. A bid's views are checked when a document finishes or a
@@ -179,11 +181,11 @@ gaps:
   - gap: "A real plan's grid names a place but is not shared between sheets"
     cause: >-
       Gridlines drawn dashed, a wing's at an angle, and lines labelled with a letter and a
-      number are now found: 147 of the 148 real sheets have a grid and their points a grid
+      number are now found: all 148 real sheets have a grid and their points a grid
       reference (FR-VIS-07), 67 of them a second grid for the wing. A grid found from dashes
       gives no grid index, so detections on two real sheets are not matched by grid
       (FR-VIS-08): the building has several grids, and two places at one index would be
-      counted once. One sheet (A03-B2-05) has none: its lettered lines run three ways.
+      counted once.
     action: >-
       Product owner and Senior Estimator: decide whether a real sheet's grid may give an
       index, now that each block's lines are told apart by their labels.
