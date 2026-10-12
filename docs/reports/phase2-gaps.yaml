@@ -66,22 +66,26 @@ gaps:
     cause: >-
       On the four tenth-storey sheets of the MOH set, run on their extracted geometry, each
       match line and the sheet it continues on are found, and sheet 1's layout falls from
-      514 heads to 372 on its own side (the estimators counted 346 there). The other 144
-      sheets and other consultants' ways of marking a cut are untried. A match line that
+      514 heads to 372 on its own side (the estimators counted 346 there). The whole set
+      has since been read on the stack (the next entry); other consultants' ways of marking
+      a cut are untried. A match line that
       steps is followed as one straight line; a DXF whose pipes are coloured by layer gives
       no colour to judge by; nothing compares two sheets to check they took opposite sides.
     action: >-
       Run the rest of the MOH set and a second consultant's drawings; a person confirms
       each sheet's side on the Design page meanwhile.
-  - gap: "The whole real set has been read; its design basis has not been summarised"
+  - gap: "On the whole real set, 28 continuation notes get no match line and three plans no design basis"
     cause: >-
-      All 148 sheets of the MOH set are read on one bid, none with an error. Every sheet is
-      Current with the right number, every readable sheet has a plan view, and about half
-      have a scale their own grid dimensions verify. The design basis and match lines across
-      the whole set were not tallied, and no other consultant's drawings have been run.
+      All 148 sheets of the MOH set are read on one bid, none with an error, and 144 of its
+      145 plans have a verified scale. The design basis was read for the set on 12 October
+      2026: 144 sheets proposed, 240 match lines on 138 sheets, each naming a sheet of the
+      set. Against the words on the sheets, 18 sheets are short by 28 notes (seven have no
+      line at all), and a note without a line is not shown. Three plans are read as key
+      plans and get no design basis. No drawn head is counted on any sheet, so no side was
+      chosen by the pipework. No other consultant's drawings have been run.
     action: >-
-      Read the design basis for the set; lay out one whole floor and compare its head count
-      with the estimators'.
+      Find why a note gets no line, and show a note without one; class the three sheets as
+      plans; lay out one whole floor and compare its head count with the estimators'.
   - gap: "A matching pass still reads every symbol of the bid"
     cause: >-
       A document that finishes now matches the bid's symbols only if a sheet's were read
