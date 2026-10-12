@@ -74,18 +74,22 @@ gaps:
     action: >-
       Run the rest of the MOH set and a second consultant's drawings; a person confirms
       each sheet's side on the Design page meanwhile.
-  - gap: "On the whole real set, no drawn head is counted and 18 sheets are named one way"
+  - gap: "On the whole real set, no drawn head is counted; two one-way names wait on a scale"
     cause: >-
       All 148 sheets of the MOH set are read on one bid, none with an error, and 147 of its
       148 plans have a verified scale. The design basis was read for the set on 12 October
       2026: 147 sheets proposed, with 261 match lines, each naming a plan of the set. No
       drawn head is counted on any sheet, because no legend row is confirmed, so no side
       was chosen by the pipework. Eighteen sheets are named by a neighbour they do not name
-      back; one at least is the drawing's own mistake. Text at an angle is joined from its
-      letters for match lines only. No other consultant's drawings have been run.
+      back. Sixteen are the drawings' own: the named sheet's PDF does not write the other's
+      number anywhere, and two of the sixteen name a sheet of the storey above or below.
+      The other two name A03-B6-04, which writes both numbers but has no verified scale, so
+      no match line is found on it. Text at an angle is joined from its letters for match
+      lines only. No other consultant's drawings have been run.
     action: >-
-      Confirm the legend rows (R2) and read the basis again; look at the 18; lay out one
-      whole floor and compare its head count with the estimators'.
+      Confirm the legend rows (R2) and read the basis again; calibrate A03-B6-04 (C1); ask
+      the consultant about the sixteen if a side is in doubt; lay out one whole floor and
+      compare its head count with the estimators'.
   - gap: "A matching pass still reads every symbol of the bid"
     cause: >-
       A document that finishes now matches the bid's symbols only if a sheet's were read

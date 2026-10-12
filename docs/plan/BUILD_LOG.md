@@ -2811,3 +2811,26 @@ R10 of `COMPREHENSIVE_PLAN.md`, found by R3 on the MOH set.
 - **Requirement IDs covered (test names):** FR-DOC-02:
   `tests/drawings/test_title_block.py::TestWhereTheTitleBlockIs` (a busy plan does not
   outweigh the strip with more of the labels; a word written in every room is one label).
+
+## Finding · R9: the 18 sheets named one way · 2026-10-12
+
+Left as not done by R9 and R10. No code changed.
+
+- **How.** The 18 were listed from the stored match lines of `BID-2026-019`. For each, the
+  text of the two sheets' PDFs (the `SPK  Drawing` folder of the MOH set) was searched,
+  with its spaces taken out, for every drawing number of the set.
+- **Sixteen are the drawings' own.** The named sheet does not write the other sheet's
+  number anywhere. On all sixteen the numbers a sheet writes are its own and the ones its
+  stored match lines name, so no note on them is unread.
+  - Five are one pattern down the basements: sheet 04 of B1, B2, B3, B4 and B5 names sheet
+    08, which names 05, 06 and 07.
+  - Two name a sheet of another storey: `A03-06-04` names `A03-05-02`, and `A03-B4-05`
+    names `A03-B3-06`.
+  - The other nine: `A03-01-02` names `01-01`, `01-06` names `01-03`, `01-08` names
+    `01-06`, `06-02` names `06-04`, `08-04` names `08-02`, `B1-07` names `B1-04`, `B1-08`
+    names `B1-06`, `B4-01` names `B4-02`, `B4-06` names `B4-05`.
+- **Two follow C1.** `A03-B6-01` and `A03-B6-05` name `A03-B6-04`, which writes both their
+  numbers. It has no verified scale, is blocked, and so has no match line.
+- **Not done.** Whether each of the sixteen is a missing note or a wrong number was not
+  judged from the plans: that is the consultant's to say. The Rev B archive of the set was
+  not compared with the folder.
