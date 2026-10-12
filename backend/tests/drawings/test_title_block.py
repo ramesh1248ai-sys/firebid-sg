@@ -25,6 +25,7 @@ from firebid.drawings.title_block import (
     fingerprint,
     joined,
     learn,
+    locate,
     ocr_digits,
     parse_date,
     read,
@@ -626,3 +627,49 @@ def test_text_is_placed_on_the_sheet_when_the_page_s_origin_is_not_its_corner() 
     assert x0 == pytest.approx(450 / 72 * 25.4, abs=1.0)
     assert 0.8 * height < y0 < y1 < 0.9 * height
     assert width / 2 < x0 < x1 < width
+
+
+class TestWhereTheTitleBlockIs:
+    """Found on a real tender: on three sheets of 148 the busy bottom of the plan, with its
+    room names and equipment tags, outweighed the title block down the right edge. The
+    sheet's own title was then taken for part of the title block, and the plan for the key
+    plan in it."""
+
+    A0 = Box(0, 0, 1189, 841)
+
+    def title_block(self) -> list[Span]:
+        """Down the right edge: a revision table at the top, the fields at the bottom."""
+        return [
+            Span("DATE", 1075, 172, 1082, 174),
+            Span("REV", 1088, 172, 1093, 174),
+            Span("KEY PLAN", 1071, 323, 1085, 326),
+            Span("DRAWING TITLE:", 1072, 745, 1088, 747),
+            Span("SCALE:", 1138, 777, 1145, 779),
+            Span("DATE:", 1072, 784, 1077, 786),
+            Span("SHEET NUMBER:", 1072, 798, 1090, 800),
+            Span("REVISION:", 1147, 798, 1158, 800),
+            Span("60743399_ACM_TN_PO_D_MFP_A03-02-03", 1072, 805, 1140, 809),
+        ]
+
+    def bottom_of_the_plan(self, room: str) -> list[Span]:
+        """Along the bottom of the plan: rooms, each with a tag that reads as a number."""
+        spans = []
+        for index in range(40):
+            x = 60.0 + 20.0 * index
+            spans.append(Span(room, x, 700, x + 12, 703))
+            spans.append(Span(f"AC-L2-{index:02d}", x, 710, x + 14, 713))
+        return spans
+
+    def test_a_busy_plan_does_not_outweigh_the_strip_with_more_of_the_labels(self) -> None:
+        region = locate([*self.title_block(), *self.bottom_of_the_plan("WARD")], self.A0)
+
+        assert region is not None
+        assert region.x0 > 1000  # the strip down the right edge, not the one along the bottom
+        assert region.y0 < 200
+
+    def test_a_word_written_in_every_room_is_one_label_not_many(self) -> None:
+        # AREA is a title block's word too, and a plan may write it in every room.
+        region = locate([*self.title_block(), *self.bottom_of_the_plan("AREA")], self.A0)
+
+        assert region is not None
+        assert region.x0 > 1000

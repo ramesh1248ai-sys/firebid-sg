@@ -312,13 +312,18 @@ CANDIDATES = (
 def locate(spans: Sequence[Span], page: Box) -> Box | None:
     """The region holding the title block, tightened to the text inside it.
 
-    Scored by labels and drawing numbers, which a title block is dense with and a plan is not.
-    Ties go to the bottom-right corner, the commonest place.
+    By its different labels first, which a title block has and a plan has not: a busy plan's
+    strip of room names and equipment tags, which read as drawing numbers, must not outweigh
+    the strip with more of the labels. A label is counted once however often it is written:
+    a title block says SCALE once, and a plan may say AREA in every room. Between regions
+    with as many, by labels, drawing numbers and how much text they hold. Ties go to the
+    bottom-right corner, the commonest place.
     """
-    best: tuple[float, Box] | None = None
+    best: tuple[tuple[int, float], Box] | None = None
     for candidate in CANDIDATES:
         region = candidate.absolute_in(page)
         inside = [span for span in spans if region.contains(span)]
+        labels = len({span.clean.upper() for span in inside if _label_of(span) or _inline(span)})
         score = sum(
             5.0
             if _label_of(span) or _inline(span)
@@ -327,8 +332,8 @@ def locate(spans: Sequence[Span], page: Box) -> Box | None:
             else 0.2
             for span in inside
         )
-        if score > 0 and (best is None or score > best[0]):
-            best = (score, region)
+        if score > 0 and (best is None or (labels, score) > best[0]):
+            best = ((labels, score), region)
     if best is None:
         return None
     region = best[1]

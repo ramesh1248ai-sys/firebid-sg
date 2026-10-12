@@ -2779,3 +2779,35 @@ sheets had no match line, seven sheets none at all.
   `::test_two_notes_on_one_line_that_name_two_sheets_are_one_line_that_goes_on_to_both`;
   `Design.test.tsx` ("shows the match line a sheet's layout stops at"). FR-VIS-01:
   `tests/drawings/test_geometry.py::TestTextWrittenALetterAtATime` (5).
+
+## Fix · R10: three plans read as key plans; no drawn head counted · 2026-10-12
+
+R10 of `COMPREHENSIVE_PLAN.md`, found by R3 on the MOH set.
+
+- **No drawn head is counted: not a fault.** A sheet's drawn heads are its detected
+  objects of a sprinkler type, and the bid has no detected object at all: no legend row is
+  confirmed. The count, and with it the pipework rule for a match line's side, follows R2.
+- **Three plans read as key plans: the title block was looked for in the wrong strip.**
+  `title_block.locate` scores three regions of the page, and on `A03-02-03`, `A03-05-03`
+  and `A03-06-03` the strip along the bottom beat the one down the right edge by 77.4 to
+  77.0: 182 room names at 0.2 each and four equipment tags that read as drawing numbers
+  ("CHWP-HW") against seven labels. The sheet's own title, at the bottom of the plan, was
+  then inside the "title block" and ignored, and the only title left was the KEY PLAN
+  caption of the real one.
+- **Fix (`drawings/title_block.locate`).** A region is chosen by how many different labels
+  it holds, then by the old score. A label counts once however often it is written: with
+  labels merely counted, `A03-01-07`, whose plan writes AREA in five rooms, went wrong the
+  other way. `views.DETECTOR_VERSION` is `5`, so "Read again" finds a bid's views again.
+- **On all 148 sheets of the MOH bid,** old against new from the stored geometry: the
+  region changes on those three and no other, each becomes one plan on its storey, and
+  every title-block reading is the same.
+- **On the stack,** views found again (one job, 8 minutes) and the design basis read
+  again: 148 plans, 147 with a verified scale; 147 sheets proposed and one blocked
+  (`A03-B6-04`); 261 match lines, every sheet named being a plan of the set; 126 pairs of
+  sheets naming each other, 18 names one way.
+- **Not done.** The 18 one-way names; `A03-B6-04`'s calibration (C1); the second view on
+  13 sheets (R7). The full suite was not run here: the drawings, design and parsing tests
+  (503), the database tests for views and the parse pipeline (36), lint and types were.
+- **Requirement IDs covered (test names):** FR-DOC-02:
+  `tests/drawings/test_title_block.py::TestWhereTheTitleBlockIs` (a busy plan does not
+  outweigh the strip with more of the labels; a word written in every room is one label).
