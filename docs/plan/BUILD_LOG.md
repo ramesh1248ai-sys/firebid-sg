@@ -2686,3 +2686,48 @@ is the test H1 said failed on this machine.
 - **Not done.** The tests still share one stack and its accounts; a test that puts
   procurement on a team would bring this back.
 - **Requirement IDs covered (test names):** FR-BID-01, NFR-08: `frontend/e2e/bid-workspace.spec.ts` ("someone on no bids sees none of them").
+
+## Trial · R3: the design basis and match lines across the MOH set · 2026-10-12
+
+R3 of `COMPREHENSIVE_PLAN.md` (B4 of `OPEN_ITEMS_PLAN.md`). The 148 sheets of the MOH
+design-intent set were uploaded again to the local stack, as bid `BID-2026-019` (the trial
+bid went with the volume in H1), and the design basis was read for every sheet at once. No
+code changed.
+
+- **Read.** 148 files sent in about 5 minutes and all read 58 minutes after the last was
+  sent. Every sheet is Current with the right number; none failed. 144 plans have a
+  verified scale and one has not (`A03-B6-04`, item C1). On 6 October it was 77 and 68: the
+  shared grid now proves the rest as the sheets are read.
+- **Design basis.** One job, two minutes, 145 sheets: 144 proposed, one blocked
+  (`A03-B6-04`, no verified scale).
+  - Design intent is stated on 133 sheets. The 12 without are the helipad, lower roof and
+    upper roof.
+  - Criteria are read from the notes on 60 sheets, the four of each storey from 7 to 21,
+    two criteria a sheet (the concealed layer or Ordinary Hazard Group III Special at
+    4 m by 3 m, and the exposed layer at 3 m by 3 m). The other 85 have the rules' default
+    alone.
+  - No sheet has a drawn head counted (`drawn_heads` is 0 on all 145), on a set that draws
+    them. So every side of every match line was chosen by "the side with more of the
+    services drawn", never by the pipework.
+- **Match lines.** 240 lines on 138 sheets, and every one names a sheet of this set. 105
+  pairs of sheets name each other; 29 lines name a sheet that does not name them back.
+- **Checked against the words on the sheets.** Each sheet's text was searched for "FOR
+  CONTINUATION" and compared with the lines found. On 127 of the 145 the two agree. On 18,
+  28 notes have no line, and nothing says so: a note without a line is not kept as a label
+  (`labels with no line` is 0).
+  - Seven sheets have notes and no line at all: `A03-02-04`, `A03-05-04`, `A03-06-04` and
+    `A03-B6-04` (three notes each), `A03-HELI-02`, `A03-LR-02` and `A03-UR-02` (one each).
+    These are the sheets most of the 29 one-way lines point at.
+  - Eleven more are short: sheet 1 of storeys 2 to 6 by one, `A03-01-04`, `A03-B1-04`,
+    `A03-03-03` and `A03-04-03` by one, `A03-03-04` and `A03-04-04` by two.
+- **Three plans are read as key plans** and get no design basis: `A03-02-03`, `A03-05-03`
+  and `A03-06-03`, each with two continuation notes. The second view on 13 sheets is as
+  before (R7).
+- **Not done.** Why a note gets no line was not looked into, nor why the three sheets are
+  key plans, nor why no head is counted (no legend row is confirmed on this bid, which may
+  be all of it). No layout was made. The symbol counts on the new bid were not tallied. The
+  bid's consultant is a placeholder, "ACM (as in the drawing numbers; to be confirmed)".
+  The combined legend and schematic files were not uploaded. No second consultant's
+  drawings. The exit report was not written again from the gap list.
+- **Requirement IDs covered (test names):** none; a trial. It bears on FR-DSN-01, FR-DSN-06
+  and FR-VIS-05.
