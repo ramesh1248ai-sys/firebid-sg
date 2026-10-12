@@ -312,17 +312,21 @@ def corroborate(own: Verdict, grid: list[list[Evidence]]) -> Verdict | None:
     along another row that disagree are set aside and said to be. On a real tender they are
     a skewed wing's gridlines, whose bubbles do not stand square to them, so the grid never
     makes a view conflicting. A view that states no scale is verified only where its own
-    dimensions, enough of them, and such a row all give the same one.
+    dimensions, enough of them, and such a row all give the same one. As where a scale is
+    stated (`verify`), a few figures beside a line that give another are set aside and
+    said to be: they are not dimensions.
     """
     if own.status is not ScaleStatus.UNVERIFIED:
         return None
     scale_of = own.stated.denominator
     mine = sorted(item.denominator for item in own.evidence)
+    alike = len(mine)
     if scale_of is None:
         if len(mine) < MAJORITY_AT_LEAST:
             return None
         scale_of = mine[len(mine) // 2]
-        if not all(same_scale(item, scale_of) for item in mine):
+        alike = sum(same_scale(item, scale_of) for item in mine)
+        if alike < MAJORITY_AT_LEAST or alike < MAJORITY_SHARE * len(mine):
             return None
         whole = float(round(scale_of))
         scale_of = whole if same_scale(whole, scale_of) else scale_of
@@ -340,9 +344,14 @@ def corroborate(own: Verdict, grid: list[list[Evidence]]) -> Verdict | None:
     reason = (
         f"{len(agreeing)} grid spacing(s) known from {sheets} agree with 1:{scale_of:.0f}"
         if own.stated.denominator is not None
-        else f"no scale is stated; {len(mine)} dimension(s) on the view and {len(agreeing)} "
+        else f"no scale is stated; {alike} dimension(s) on the view and {len(agreeing)} "
         f"grid spacing(s) known from {sheets} all give 1:{scale_of:.0f}"
     )
+    if alike < len(mine):
+        reason += (
+            f"; {len(mine) - alike} figure(s) beside a line do not and were set aside as not "
+            "dimensions"
+        )
     if others:
         reason += (
             f"; {len(others)} along another row of bubbles do not and were set aside (a "

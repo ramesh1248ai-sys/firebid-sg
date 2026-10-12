@@ -29,7 +29,7 @@ from firebid.drawings.scale import Stated, Verdict, evidence_in, parse_stated, v
 from firebid.drawings.title_block import Box, Span, locate
 
 # Bumped when detection changes, so every sheet's views are detected again.
-DETECTOR_VERSION = "5"
+DETECTOR_VERSION = "6"
 
 
 class ViewKind(StrEnum):
@@ -68,6 +68,15 @@ MAX_TITLE_WORDS_WITH_COMMA = 8
 # Two runs on one line closer than this (x their height) are one piece of text a PDF writer
 # split, as a long title often is.
 JOIN_GAP = 0.3
+# A view's title is lettered larger than the drawing's labels. A room's name that holds a
+# title's word ("FROZEN SECTION") is not: it is no taller than half the sheet's text. Said
+# only of a sheet with at least this many pieces of text to judge by.
+ORDINARY_AT_LEAST = 20
+# A row of a list (a legend's "WET RISER LANDING VALVE (SCHEMATIC)") starts where the rows
+# above and below it start, to within this many millimetres, and they are within this many
+# of its heights. A title stands alone, with at most its scale beneath it.
+LIST_ALIGNED_MM = 0.5
+LIST_REACH = 8.0
 
 
 @dataclass(frozen=True)
@@ -160,10 +169,14 @@ def detect(
     """The sheet's views: exact ones from the source, else found by their titles."""
     spans = joined(texts(table))
     region = _title_block_region(spans, page)
+    outside = [span for span in spans if span["text"] and not _inside(span, region)]
+    ordinary = _ordinary_height(outside)
     titles = [
         span
-        for span in spans
-        if span["text"] and is_title(str(span["text"])) and not _inside(span, region)
+        for span in outside
+        if is_title(str(span["text"]))
+        and not _a_label(span, ordinary)
+        and not _a_row_of_a_list(span, outside)
     ]
     viewports = [view for view in source_views or [] if view.get("kind") == "viewport"]
     if viewports:
@@ -211,6 +224,48 @@ def _inside(span: dict[str, Any], region: Box | None) -> bool:
     cx = (float(span["minx"]) + float(span["maxx"])) / 2
     cy = (float(span["miny"]) + float(span["maxy"])) / 2
     return region.x0 <= cx <= region.x1 and region.y0 <= cy <= region.y1
+
+
+def _level(span: dict[str, Any]) -> bool:
+    return not float(span.get("rotation") or 0.0) % 360
+
+
+def _tall(span: dict[str, Any]) -> float:
+    return float(span["maxy"]) - float(span["miny"])
+
+
+def _ordinary_height(spans: list[dict[str, Any]]) -> float | None:
+    """How tall the sheet's text is, by the middle piece of it; None for too little text."""
+    heights = sorted(_tall(span) for span in spans if _level(span))
+    return heights[len(heights) // 2] if len(heights) >= ORDINARY_AT_LEAST else None
+
+
+def _a_label(span: dict[str, Any], ordinary: float | None) -> bool:
+    """Whether text is lettered as the drawing's labels are, not as a view's title."""
+    return ordinary is not None and _level(span) and _tall(span) <= ordinary
+
+
+def _a_row_of_a_list(span: dict[str, Any], spans: list[dict[str, Any]]) -> bool:
+    """Whether text has a line above it and a line below it that start where it starts."""
+    if not _level(span):
+        return False
+    left, top, reach = float(span["minx"]), float(span["miny"]), LIST_REACH * _tall(span)
+    above = below = False
+    for other in spans:
+        apart = float(other["miny"]) - top
+        if (
+            other is span
+            or not _level(other)
+            or abs(float(other["minx"]) - left) > LIST_ALIGNED_MM
+            or not 0 < abs(apart) <= reach
+        ):
+            continue
+        words = str(other["text"])
+        stated = parse_stated(words)
+        if is_title(words) or stated.denominator or stated.nts:
+            continue
+        above, below = above or apart < 0, below or apart > 0
+    return above and below
 
 
 def _drawing_area(

@@ -229,7 +229,7 @@ class TestTitlesOnARealSheet:
         "EMPLOYER. BIM SERVICES COORDINATION AND BIM MODELING FOR DETAIL",
     )
 
-    def sheet(self) -> Any:
+    def sheet(self, more: tuple[tuple[str, float, float, float], ...] = ()) -> Any:
         builder = geometry.Builder(geometry.Method.PDF_VECTOR)
 
         def write(words: str, x: float, y: float, height: float) -> None:
@@ -256,6 +256,8 @@ class TestTitlesOnARealSheet:
         write("60743399_ACM_TN_TO_D_MFP_A03-10-02", 1079.0, 810.0, 3.0)
         write("REVISION:", 1147.0, 798.0, 2.0)
         write("00", 1156.0, 810.0, 3.0)
+        for words, x, y, height in more:
+            write(words, x, y, height)
         return builder.table()
 
     def test_a_sentence_of_the_notes_is_not_a_view_s_title(self) -> None:
@@ -282,6 +284,45 @@ class TestTitlesOnARealSheet:
         assert view.title is not None and view.title.endswith("10TH STOREY - SHEET 2")
         assert view.stated.denominator == 100
         assert view.level == "L10"
+
+    def test_a_row_of_the_legend_that_holds_a_title_s_word_is_not_a_view(self) -> None:
+        # Found on the roof and helipad sheets: a legend row gave each a schematic view
+        # across the whole plan.
+        legend = (
+            ("HOSE REEL", 70.0, 161.0, 3.7),
+            ("HOSE REEL C/W STAINLESS STEEL CABINET", 70.0, 172.0, 3.7),
+            ("WET RISER LANDING VALVE (SCHEMATIC)", 70.0, 184.0, 4.6),
+            ("WET SPRINKLER PIPE", 70.0, 203.0, 3.7),
+        )
+
+        (view,) = views.detect(self.sheet(legend), self.PAGE, "AS INDICATED")
+
+        assert view.kind is views.ViewKind.PLAN
+        assert view.title is not None and view.title.endswith("10TH STOREY - SHEET 2")
+
+    def test_a_room_s_name_that_holds_a_title_s_word_is_not_a_view(self) -> None:
+        # Found on A03-03-03: a laboratory's FROZEN SECTION room made the sheet a section.
+        rooms = tuple(
+            (name, 320.0 + 60.0 * (index % 10), 240.0 + 30.0 * (index // 10), 2.4)
+            for index, name in enumerate(["STORE", "CORRIDOR", "OFFICE", "LOBBY"] * 6)
+        )
+        frozen = (("FROZEN", 520.0, 500.0, 2.4), ("SECTION", 520.0, 504.0, 2.4))
+
+        (view,) = views.detect(self.sheet(rooms + frozen), self.PAGE, "AS INDICATED")
+
+        assert view.kind is views.ViewKind.PLAN
+        assert view.title is not None and view.title.endswith("10TH STOREY - SHEET 2")
+
+    def test_a_second_view_titled_in_larger_letters_than_the_labels_is_still_a_view(self) -> None:
+        rooms = tuple(
+            (name, 320.0 + 60.0 * (index % 10), 240.0 + 30.0 * (index // 10), 2.4)
+            for index, name in enumerate(["STORE", "CORRIDOR", "OFFICE", "LOBBY"] * 6)
+        )
+        section = (("SECTION A-A", 700.0, 700.0, 5.0), ("1 : 50", 700.0, 707.0, 3.5))
+
+        found = views.detect(self.sheet(rooms + section), self.PAGE, "AS INDICATED")
+
+        assert sorted(view.kind for view in found) == [ViewKind.PLAN, ViewKind.SECTION]
 
     def test_a_level_is_read_before_its_word_as_well_as_after(self) -> None:
         assert views.level_of("10TH STOREY - SHEET 1") == "L10"
