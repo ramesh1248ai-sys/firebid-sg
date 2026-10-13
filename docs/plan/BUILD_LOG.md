@@ -2957,3 +2957,55 @@ with its rule and clause and no sheet, though TC-SYN-002 states the sheet of eac
   `tests/evals/test_golden_comparison.py::TestEvidence`
   `::test_a_clarification_candidate_from_an_issue_on_another_sheet`,
   `tests/db/test_golden_run.py` (TC-SYN-002).
+
+## Test · E6: TC-SYN-001 says what its pipes and heads are not to state · 2026-10-13
+
+The second of E6's small gaps. TC-SYN-001 has no specification, and said in words that
+nothing says grooved pipework; nothing compared it.
+
+- **The package (`eval/golden/synthetic/TC-SYN-001`).** Stage 7 gains
+  `attributes.not_specified`, as TC-SYN-002 has: a pipe's material, class and joining
+  method, and a sprinkler's K-factor, temperature rating, response and finish. Part 2 of
+  `package.md` says so under the takeoff. No quantity, level or item changed. The package
+  is still a draft that no person has verified (E7).
+- **Result.** The platform states none of them on TC-SYN-001, so nothing differs. A value
+  on any of them is CRITICAL, by the rule already in `golden.py`.
+- **A test changed.** `test_what_the_package_does_not_state_is_not_compared` gave every
+  item of TC-SYN-001 a pipe material to show it was not marked. It now gives a pressure
+  rating, which the package still does not state.
+- **Not done.** The rest of E6: pipe runs placed as objects are; the breeching inlet's
+  level; the three listed TC-SYN-002 differences. The full suite was not run here: the
+  evaluation tests (251) and the golden run on a database (4) were, with lint and types.
+- **Requirement IDs covered (test names):** FR-LRN-01:
+  `tests/evals/test_golden_comparison.py::TestAttributesAndSystemsAtTheTakeoff`
+  `::test_a_tender_with_no_specification_states_no_material_and_no_k_factor`,
+  `tests/db/test_golden_run.py` (TC-SYN-001).
+
+## Test · E6: where each pipe run is, compared against a golden package · 2026-10-13
+
+The third of E6's small gaps. Stage 6 compared how much pipe of each size a sheet has. The
+right length drawn somewhere else passed, though each package lists every run with its ends.
+
+- **What is compared (`golden._laid`, stage 6).** For each run of the package, that the
+  run has pipe of its size at both its ends. The platform may cut a run where the package
+  does not, or join two the package keeps apart, so an end is looked for along every run of
+  that size on the sheet, not at another run's end. It is evidence: MEDIUM, scored under
+  evidence and traceability, compared only for a size whose length the run gives.
+- **The tolerance** is the stage's `position_mm`, or 250 mm where it states none. No
+  package states one at stage 6; 250 mm is what each states for an object at stage 5.
+- **The export (`export_run._pipe`).** Each sheet has `runs`: a run's size and its points,
+  each on the sheet and, where the view has a grid and a scale, as its distance from the
+  view's first gridline each way (`_offset`, which an object's position already used).
+- **Result.** The platform has pipe at both ends of every run: 15 on TC-SYN-001, 10 on
+  TC-SYN-002 and 13 on TC-SYN-003. No package was changed.
+- **Not done.** A run's path between its ends is not compared, so a run with a bend is
+  placed by its ends alone. Pipe the platform has where the package has none is not listed:
+  the length already says there is too much. The rest of E6 needs a person: the breeching
+  inlet's level, and the three listed TC-SYN-002 differences. The full suite was not run
+  here: the evaluation tests (256) and the golden run on a database (4) were, with lint and
+  types.
+- **Requirement IDs covered (test names):** FR-LRN-01:
+  `tests/evals/test_golden_comparison.py::TestWhereAPipeRunIs` (the right length drawn
+  somewhere else; an end within the tolerance; a run cut in two, or placed by gridlines;
+  pipe of another size at its place; a run that places no pipe),
+  `tests/db/test_golden_run.py` (all three packages).

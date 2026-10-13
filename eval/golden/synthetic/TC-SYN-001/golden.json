@@ -947,6 +947,24 @@
             "calculation": "ceil(8050 / 4500)"
           }
         ],
+        "attributes": {
+          "expected": "not specified, for every pipe material, class, joining method and every sprinkler K-factor, temperature, response and finish",
+          "why": "the drawing's symbols state none, and the tender has no specification",
+          "a_defect_if": "a takeoff item carries a value for any of them (black steel, grooved, K80, chrome ...)",
+          "not_specified": {
+            "pipe": [
+              "pipe_material",
+              "pipe_class",
+              "joining_method"
+            ],
+            "sprinkler": [
+              "k_factor",
+              "temperature_rating_c",
+              "response",
+              "finish"
+            ]
+          }
+        },
         "not_expected": [
           {
             "item": "fitting",

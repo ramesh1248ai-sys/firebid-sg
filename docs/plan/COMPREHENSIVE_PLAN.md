@@ -87,7 +87,7 @@ P6 wait on the people named.
 | E3 | A defect is not linked to the earlier one that caused it | Trace a value's inputs back a stage; mark the later differences as following from the first and count them once (strategy, section 7) | M to L | Nothing |
 | E4 | Semantic comparison (type B), including evidence written as prose | First the rubric route: a named reviewer's verdict recorded in the package. The model judge after D2, with its verdicts sampled by a person | M, then M | The judge waits on D2 |
 | E5 | No synthetic case takes equipment past stage 7 | Fixtures for the pump room: a specification, client BOQ, rate list and productivity list. Then TC-SYN-003 to stage 12 | L | Nothing |
-| E6 | Small gaps. **The first is done, 2026-10-13:** a clarification candidate's sheet is exported and compared | Pipe runs placed as objects are; a "not specified" rule for TC-SYN-001; the breeching inlet's level; the three listed TC-SYN-002 differences each settled as the platform's, the package's or the test's | S each | Two need a person |
+| E6 | Small gaps. **Three are done, 2026-10-13:** a clarification candidate's sheet is exported and compared, TC-SYN-001 has a "not specified" rule, and pipe runs are placed by their ends | The breeching inlet's level; the three listed TC-SYN-002 differences each settled as the platform's, the package's or the test's | S each | Two need a person |
 | E7 | No package is verified by a person | The Senior Estimator settles each package's ambiguities (six, eleven and eight) and signs it | Business | Estimating team |
 | E8 | The golden run is not a gate | Once a real package is filed: run before each gate and nightly, and fail on a critical or unreviewed high defect (strategy, section 8) | S | R4; product owner on the rule |
 

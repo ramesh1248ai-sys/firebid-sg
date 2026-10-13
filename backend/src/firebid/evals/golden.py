@@ -58,6 +58,7 @@ Pure: a package and a run in; differences, a score and a report out.
 
 from __future__ import annotations
 
+import itertools
 import json
 import math
 import re
@@ -392,6 +393,63 @@ def _located(
                     Fact(key, tag if tagged else "found", "evidence", severity="MEDIUM", of=of)
                 )
     return expected, actual
+
+
+def _reach(at: tuple[float, float], path: list[tuple[float, float]]) -> float:
+    """How far a point is from a run drawn through `path`."""
+    best = math.inf
+    for (x0, y0), (x1, y1) in itertools.pairwise(path):
+        dx, dy = x1 - x0, y1 - y0
+        along = dx * dx + dy * dy
+        t = (
+            0.0
+            if not along
+            else max(0.0, min(1.0, ((at[0] - x0) * dx + (at[1] - y0) * dy) / along))
+        )
+        best = min(best, math.dist(at, (x0 + t * dx, y0 + t * dy)))
+    return best
+
+
+def _laid(stage: Stage, out: dict[str, Any], grid: dict[str, Any]) -> tuple[list[Fact], list[Fact]]:
+    """Each run of the reference, and whether the run has pipe of its size at both its ends,
+    within the stage's tolerance. The platform may cut a run where the reference does not,
+    or join two it keeps apart: an end is looked for along every run of the size."""
+    within = float((stage.tolerance or {}).get("position_mm", 250.0))
+    theirs = {_text(sheet.get("sheet")): sheet for sheet in out.get("sheets", [])}
+    expected: list[Fact] = []
+    actual: list[Fact] = []
+    for sheet in stage.expected_output.get("sheets", []):
+        number = _text(sheet.get("sheet"))
+        paths: dict[str, list[list[tuple[float, float]]]] = {}
+        for one in theirs.get(number, {}).get("runs", []):
+            path = _path(one, grid)
+            if len(path) > 1:
+                paths.setdefault(str(one.get("dn")), []).append(path)
+        for one in sheet.get("runs", []):
+            ends = _path(one, grid)
+            if len(ends) != 2:
+                continue
+            (x0, y0), (x1, y1) = ends
+            size = f"DN{one.get('dn')}"
+            key = (number, size, f"run {x0:g}, {y0:g} to {x1:g}, {y1:g}")
+            fact = Fact(key, "found", "evidence", severity="MEDIUM", of=(number, size, "length mm"))
+            expected.append(fact)
+            drawn = paths.get(str(one.get("dn")), [])
+            if all(any(_reach(end, path) <= within for path in drawn) for end in ends):
+                actual.append(fact)
+    return expected, actual
+
+
+def _path(run: dict[str, Any], grid: dict[str, Any]) -> list[tuple[float, float]]:
+    """A run's points in the building: its two ends as the reference states them, or the
+    points the platform places by gridlines."""
+    if "from_mm" in run and "to_mm" in run:
+        try:
+            return [(float(x), float(y)) for x, y in (run["from_mm"], run["to_mm"])]
+        except TypeError, ValueError:
+            return []
+    points = (_point(one, grid) for one in run.get("points", []) if isinstance(one, dict))
+    return [point for point in points if point is not None]
 
 
 def _pipe(out: dict[str, Any], stage: Stage) -> list[Fact]:
@@ -1043,6 +1101,12 @@ def compare(package: Package, run: Run) -> Result:
             placed = _located(stage, run[stage.stage_id], grid if isinstance(grid, dict) else {})
             expected |= {fact.key: fact for fact in placed[0]}
             actual |= {fact.key: fact for fact in placed[1]}
+        if stage.stage_id == "STG-006":
+            views = package.stage("STG-003")
+            grid = views.expected_output.get("grid") if views is not None else None
+            laid = _laid(stage, run[stage.stage_id], grid if isinstance(grid, dict) else {})
+            expected |= {fact.key: fact for fact in laid[0]}
+            actual |= {fact.key: fact for fact in laid[1]}
         _other_readings(stage, expected)
         _equivalents(stage, expected)
         resized = _resized(expected, actual)

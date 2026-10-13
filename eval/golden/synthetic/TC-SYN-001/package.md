@@ -216,6 +216,10 @@ Derived by rule, each "to be confirmed":
 Not expected: a derived reducer (one is drawn); an elbow (A4); grooved couplings; seismic
 restraint; a flow switch; a pipe allowance at this stage (A5).
 
+Attributes: every pipe's material, class and joining method, and every sprinkler's K-factor,
+temperature rating, response and finish, are "not specified". The symbols state none and the
+tender has no specification, so a value on any of them came from nowhere a person verified.
+
 - **Validation rules:** each drawn count equals FP-L05-201's; the sum of the three sheets
   (20 pendents, 3 gate valves, 3 check valves) is not the takeoff; every item names the
   sheet and place, or the rule and version, it comes from; every derived item is marked.
