@@ -715,13 +715,31 @@ class TestAttributesAndSystemsAtTheTakeoff:
         ]
 
     def test_what_the_package_does_not_state_is_not_compared(self, package: golden.Package) -> None:
-        # TC-SYN-001 states no attribute and no system: a run that does is not marked for it.
+        # TC-SYN-001 states no pressure rating and no system: a run that does is not marked
+        # for it.
         run = the_reference_s_own(package)
         for item in run["STG-007"]["drawn_items"]:
-            item["attributes"] = {"pipe_material": "black_steel"}
+            item["attributes"] = {"pressure_rating": "PN16"}
             item["system"] = "sprinkler"
 
         assert golden.compare(package, run).differences == []
+
+    def test_a_tender_with_no_specification_states_no_material_and_no_k_factor(
+        self, package: golden.Package
+    ) -> None:
+        # TC-SYN-001 has no specification at all: a value on a pipe or a head came from
+        # nowhere a person verified.
+        run = the_reference_s_own(package)
+        for item in run["STG-007"]["drawn_items"]:
+            if item["item"] == "pipe" and item["dn"] == 150:
+                item["attributes"] = {"pipe_material": "black_steel"}
+            if item["item"] == "sprinkler_upright":
+                item["attributes"] = {"k_factor": "K80"}
+
+        assert sorted(defects(golden.compare(package, run))) == [
+            ("STG-007", "pipe / DN150 / main / m / pipe_material", "wrong", "CRITICAL"),
+            ("STG-007", "sprinkler_upright / no / k_factor", "wrong", "CRITICAL"),
+        ]
 
     def test_a_missing_item_is_reported_once_and_not_for_what_it_states_too(
         self, systems: golden.Package
