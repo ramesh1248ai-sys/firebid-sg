@@ -2980,3 +2980,32 @@ nothing says grooved pipework; nothing compared it.
   `tests/evals/test_golden_comparison.py::TestAttributesAndSystemsAtTheTakeoff`
   `::test_a_tender_with_no_specification_states_no_material_and_no_k_factor`,
   `tests/db/test_golden_run.py` (TC-SYN-001).
+
+## Test · E6: where each pipe run is, compared against a golden package · 2026-10-13
+
+The third of E6's small gaps. Stage 6 compared how much pipe of each size a sheet has. The
+right length drawn somewhere else passed, though each package lists every run with its ends.
+
+- **What is compared (`golden._laid`, stage 6).** For each run of the package, that the
+  run has pipe of its size at both its ends. The platform may cut a run where the package
+  does not, or join two the package keeps apart, so an end is looked for along every run of
+  that size on the sheet, not at another run's end. It is evidence: MEDIUM, scored under
+  evidence and traceability, compared only for a size whose length the run gives.
+- **The tolerance** is the stage's `position_mm`, or 250 mm where it states none. No
+  package states one at stage 6; 250 mm is what each states for an object at stage 5.
+- **The export (`export_run._pipe`).** Each sheet has `runs`: a run's size and its points,
+  each on the sheet and, where the view has a grid and a scale, as its distance from the
+  view's first gridline each way (`_offset`, which an object's position already used).
+- **Result.** The platform has pipe at both ends of every run: 15 on TC-SYN-001, 10 on
+  TC-SYN-002 and 13 on TC-SYN-003. No package was changed.
+- **Not done.** A run's path between its ends is not compared, so a run with a bend is
+  placed by its ends alone. Pipe the platform has where the package has none is not listed:
+  the length already says there is too much. The rest of E6 needs a person: the breeching
+  inlet's level, and the three listed TC-SYN-002 differences. The full suite was not run
+  here: the evaluation tests (256) and the golden run on a database (4) were, with lint and
+  types.
+- **Requirement IDs covered (test names):** FR-LRN-01:
+  `tests/evals/test_golden_comparison.py::TestWhereAPipeRunIs` (the right length drawn
+  somewhere else; an end within the tolerance; a run cut in two, or placed by gridlines;
+  pipe of another size at its place; a run that places no pipe),
+  `tests/db/test_golden_run.py` (all three packages).
