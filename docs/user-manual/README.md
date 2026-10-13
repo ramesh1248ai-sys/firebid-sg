@@ -351,5 +351,20 @@ why. It cannot be edited or deleted. Filter by action, entity or date range, and
 
 ![History](images/18-audit.png)
 
+**People** is for system administrators. It lists everyone who has signed in, with their
+sign-in name, the roles they hold, how many bids they are on and whether their access is
+on.
+
+- A name and a sign-in name come from the sign-in service and are changed there.
+- Press **Edit** beside a person to tick the roles they hold or to clear **Access on**,
+  then **Save**. The change holds from their next click and is written to History.
+- Someone whose access is off cannot use FireBid. Their roles, their place on bids and
+  their name on what they did are kept.
+- You cannot change your own access: another administrator does. The organisation always
+  keeps at least one administrator who can sign in.
+- A person's role on a bid is another matter: a bid manager sets it on the bid's **Team**.
+- Someone who has never signed in is not listed. When they first sign in they start with
+  the roles the sign-in service gives them.
+
 The **Platform** page (model routing and AI spend) is for administrators only and is not
 covered here.

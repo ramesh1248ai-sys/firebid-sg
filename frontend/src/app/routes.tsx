@@ -23,6 +23,7 @@ import { SheetViewerPage } from "@/pages/SheetViewerPage";
 import { SignInPage } from "@/pages/SignInPage";
 import { SpecificationPage } from "@/pages/SpecificationPage";
 import { SymbolsPage } from "@/pages/SymbolsPage";
+import { UsersPage } from "@/pages/UsersPage";
 import { PopoutViewerPage, WorkbenchPage } from "@/pages/WorkbenchPage";
 
 export const routes: RouteObject[] = [
@@ -54,6 +55,7 @@ export const routes: RouteObject[] = [
           { path: "rates", element: <RatesPage /> },
           { path: "kpis", element: <KpisPage /> },
           { path: "admin", element: <AdminPage /> },
+          { path: "people", element: <UsersPage /> },
         ],
       },
     ],

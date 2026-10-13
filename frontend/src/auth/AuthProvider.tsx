@@ -1,6 +1,7 @@
 import type { User } from "oidc-client-ts";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { api, apiErrorMessage } from "@/api/client";
 import { userManager } from "@/auth/oidc";
 import { AuthContext, type AuthState, type Session, toSession } from "@/auth/session";
 
@@ -15,6 +16,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const live = user !== null && !user.expired;
       setSession(live ? toSession(user) : null);
       setStatus(live ? "signed-in" : "signed-out");
+      if (live) void known(toSession(user));
+    };
+    // A person's roles are kept by the application and changed there (ADR-013): the token
+    // says who they are, the application what they may do.
+    const known = async (from: Session) => {
+      try {
+        const { data, error, response } = await api.GET("/me");
+        if (cancelled) return;
+        if (data) setSession({ ...from, roles: data.roles, userId: data.user_id });
+        else if (response.status === 403)
+          setSession({
+            ...from,
+            roles: [],
+            refused: apiErrorMessage(error, "Your access has been switched off"),
+          });
+      } catch {
+        // Not reachable: the token's roles stand, and the API still decides every request.
+      }
     };
 
     void userManager.getUser().then(apply);

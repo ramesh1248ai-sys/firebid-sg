@@ -120,6 +120,9 @@ export function AppShell() {
                 ...(session?.roles.some((role) => ADMIN_ROLES.includes(role))
                   ? [{ to: "/admin", label: "Platform", end: false }]
                   : []),
+                ...(session?.roles.includes("system_admin")
+                  ? [{ to: "/people", label: "People", end: false }]
+                  : []),
               ].map((item) => (
                 <NavLink
                   key={item.to}
@@ -169,7 +172,13 @@ export function AppShell() {
           wide ? "max-w-none bg-card px-4 py-4" : "max-w-7xl px-6 py-8",
         )}
       >
-        {ownLayout ? (
+        {session?.refused ? (
+          <div className="fb-card p-6 sm:p-8">
+            <p role="alert" className="text-sm text-destructive">
+              {session.refused}
+            </p>
+          </div>
+        ) : ownLayout ? (
           <Outlet />
         ) : (
           <div className="fb-card p-6 sm:p-8">

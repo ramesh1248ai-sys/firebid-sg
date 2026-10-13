@@ -4,7 +4,12 @@ import { createContext, use } from "react";
 export interface Session {
   name: string;
   username: string;
+  /** The roles held in this application, once it has said; the token's until then. */
   roles: readonly string[];
+  /** Who this application knows the person as, once it has said. */
+  userId?: string;
+  /** Why the application will not serve them (their access is switched off). */
+  refused?: string;
 }
 
 export interface AuthState {

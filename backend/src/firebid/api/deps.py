@@ -16,7 +16,13 @@ from sqlalchemy.orm import Session
 
 from firebid.auth.claims import ClaimsError, map_claims
 from firebid.auth.permissions import Action, may
-from firebid.auth.provisioning import Principal, default_organisation, is_member, provision
+from firebid.auth.provisioning import (
+    Principal,
+    SwitchedOff,
+    default_organisation,
+    is_member,
+    provision,
+)
 from firebid.auth.tokens import TokenError, get_token_verifier
 from firebid.db.engine import session_scope
 from firebid.db.identity import set_transaction_identity
@@ -59,7 +65,13 @@ def get_principal(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, str(error)) from error
 
     organisation = default_organisation(session, settings.organisation_name)
-    principal = provision(session, identity, organisation)
+    try:
+        principal = provision(session, identity, organisation)
+    except SwitchedOff as error:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "your access has been switched off: ask a system administrator",
+        ) from error
     set_transaction_identity(session, principal.user_id)
     return principal
 

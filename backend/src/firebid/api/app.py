@@ -108,6 +108,7 @@ def create_app(
         specs,
         submission,
         symbols,
+        users,
         views,
     )
 
@@ -144,6 +145,8 @@ def create_app(
     app.include_router(progress.router)
     app.include_router(audit.router)
     app.include_router(admin.router)
+    app.include_router(users.router)
+    app.include_router(users.me_router)
 
     if settings.env in ("dev", "test"):
         from firebid.api import dev_jobs
