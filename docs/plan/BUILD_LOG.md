@@ -2937,3 +2937,23 @@ candidates tallied. Two faults were found on the way and fixed.
   are not views; a title on two lines with its scale beneath is still a view).
   FR-DOC-01: `tests/db/test_parse_pipeline.py::TestReadAgain`
   `::test_what_named_a_view_names_the_one_found_again`.
+
+## Test · E6: a clarification candidate's sheet is exported and compared · 2026-10-13
+
+The first of E6's small gaps. A candidate raised from a specification issue was exported
+with its rule and clause and no sheet, though TC-SYN-002 states the sheet of each.
+
+- **The export (`export_commercial.risks`).** A candidate from an issue gives the issue's
+  sheet, read as stage 8 reads it (`_sheet_of`, the first where an issue is on several).
+- **What is compared (`golden._risks`, stage 11).** The sheet a candidate cites, as
+  evidence: MEDIUM, only where the package gives one, and only for a candidate the run has.
+- **Result.** Six more evidence checks on TC-SYN-002, one for each seeded issue, and the
+  platform agrees on all six. No expected value of a package was changed.
+- **Not done.** The rest of E6: pipe runs placed as objects are; a "not specified" rule for
+  TC-SYN-001; the breeching inlet's level; the three listed TC-SYN-002 differences. The
+  full suite was not run here: the evaluation tests (250) and the golden run on a database
+  (4) were, with lint and types.
+- **Requirement IDs covered (test names):** FR-LRN-01:
+  `tests/evals/test_golden_comparison.py::TestEvidence`
+  `::test_a_clarification_candidate_from_an_issue_on_another_sheet`,
+  `tests/db/test_golden_run.py` (TC-SYN-002).
