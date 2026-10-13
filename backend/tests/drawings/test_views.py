@@ -300,6 +300,34 @@ class TestTitlesOnARealSheet:
         assert view.kind is views.ViewKind.PLAN
         assert view.title is not None and view.title.endswith("10TH STOREY - SHEET 2")
 
+    def test_the_sheets_a_drawing_list_names_are_not_views(self) -> None:
+        # Found on the benchmark tender: its two drawing lists were 75 and 43 views, a
+        # view to a row. Every row is a title, and the first has no row above it.
+        rows = (
+            "SITE PLAN, LOCATION PLAN",
+            "BASEMENT 2 PLAN - ZONE 2",
+            "1ST STOREY PLAN",
+            "AUTOMATIC FIRE ALARM SCHEMATIC",
+            "5TH STOREY PLAN",
+            "35TH STOREY - ROOF PLAN",
+        )
+        listed = tuple((row, 350.0, 250.0 + 8.5 * index, 2.4) for index, row in enumerate(rows))
+
+        (view,) = views.detect(self.sheet(listed), self.PAGE, "AS INDICATED")
+
+        assert view.title is not None and view.title.endswith("10TH STOREY - SHEET 2")
+
+    def test_a_title_on_two_lines_with_its_scale_beneath_is_still_a_view(self) -> None:
+        enlarged = (
+            ("ENLARGED PLAN", 700.0, 700.0, 5.0),
+            ("RISER ROOM LAYOUT", 700.0, 707.0, 5.0),
+            ("1 : 50", 700.0, 714.0, 3.5),
+        )
+
+        found = views.detect(self.sheet(enlarged), self.PAGE, "AS INDICATED")
+
+        assert ViewKind.ENLARGED_PLAN in [view.kind for view in found]
+
     def test_a_room_s_name_that_holds_a_title_s_word_is_not_a_view(self) -> None:
         # Found on A03-03-03: a laboratory's FROZEN SECTION room made the sheet a section.
         rooms = tuple(

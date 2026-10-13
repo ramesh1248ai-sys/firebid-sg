@@ -2877,3 +2877,63 @@ real sheets, waits on its decision and was not touched.
   view; a room's name is not a view; a second view titled in larger letters still is).
   FR-VIS-05: `tests/drawings/test_grid_scale.py`
   `::test_a_figure_beside_the_wrong_line_does_not_undo_a_view_stating_no_scale`.
+
+## Fix · R11: a drawing list is not 75 views; what named a view names the one found again · 2026-10-13
+
+What R7 left not done: the benchmark tender against the new title rules, and the MOH bid's
+candidates tallied. Two faults were found on the way and fixed.
+
+- **The benchmark tender (121 sheets) was read, as `BID-2026-020`.** Every sheet was parsed
+  and detected, none with an error. It had 282 views: its two drawing lists were 75 and 43,
+  a view to a row ("5TH STOREY PLAN", "AUTOMATIC FIRE ALARM SCHEMATIC"). R7's rule for a
+  row of a list did not see them: it looked for a line above and a line below that were
+  not titles, and every row of a drawing list is one; and a list's first row has no line
+  above it.
+- **Fix (`drawings/views._a_row_of_a_list`).** Text is a row of a list when it is one of
+  three or more lines, one under another, that start where it starts, followed from each
+  to the next; a scale is not a line. A title on two lines with its scale beneath is still
+  a title. `views.DETECTOR_VERSION` is `7`, so "Read again" finds a bid's views again.
+- **On all 121 sheets of the benchmark tender,** old against new from the stored geometry:
+  the views change on 19 sheets, 282 to 144, and nothing that went was a view's title.
+  - The two drawing lists are one view each.
+  - On five sheets three lines of a note went ("THE LAYOUT REPRESENTS THE DESIGN INTENT.").
+  - On nine, "ARCHITECT'S LAYOUT" or "(INDICATIVE LAYOUT ONLY, SUBJECT TO" beside the plan.
+  - On one, "(RATING AS SHOWN ON PLAN)"; on two, one of the architect's section markers.
+- **On all 148 sheets of the MOH bid,** old against new: no sheet changes.
+- **Finding views again left what named them naming nothing.** A view found again is a
+  new row. Every symbol of the bid (12,088 on the MOH bid, 15,768 on the benchmark) and
+  every sheet's design basis (148) still named the row that was replaced. The design
+  basis then answers "no match line was found on this sheet" to a person choosing a side,
+  until it is read again by hand, as it was after R10 and R7; an exported run gives a
+  symbol no view. Nothing is constrained to notice: the columns are not foreign keys.
+- **Fix.** `services/views.detect_sheet` gives each of the sheet's symbols the view it
+  lies in now, by the rule it was recorded with. `parse_pipeline.views_again` queues one
+  `design.basis` job where the bid has a design basis: it is read again on the views found
+  now, and a confirmed sheet keeps its confirmation.
+- **On the stack,** rebuilt (backend, worker and the parser pool: the views job runs in
+  the pool, and with only the first two rebuilt it found nothing to do).
+  - Benchmark: views found again by one job in 34 seconds. 144 views on 121 sheets: 111
+    sheets with one, five with two, one with three, four with five.
+  - MOH: views found again in 5 min 41 s, then the design basis. 148 plans, each with a
+    verified scale; 148 sheets proposed, none blocked; 264 match lines on all 148. As
+    before. No symbol and no design basis names a view that is not there.
+  - The MOH bid's candidates, not tallied since it was uploaded again: 3,395 match one of
+    14 legend rows and 8,693 match none, under 576 symbol keys (2,975 and 8,693 in 578
+    groups on the bid it replaced). Nothing is confirmed, so nothing is counted.
+- **Not done.**
+  - Nine benchmark sheets still have views that are not: on seven the architect's section
+    markers ("Section", "SheetNr.", "D-D", "A244", one under another, of which only two
+    start at one place), on two "ARCHITECT'S LAYOUT" with one line beneath it.
+  - The benchmark tender's scales: of 122 plan and enlarged plan views two are verified,
+    63 conflict, 55 are unverified and two say not to scale. One states 1:250 and its
+    grid dimensions give 1:225. Not looked into: the file may be a reduced print. It is the timing sample, not
+    a bid, and no count is taken from it.
+  - A drawing list is still a plan with no title, not a kind of its own.
+  - The benchmark's timings were not taken: the machine slept during the run.
+  - The full suite was not run here: the drawings, design and parsing tests, the database
+    tests for views, the design basis and the parse pipeline, lint and types were.
+- **Requirement IDs covered (test names):** FR-VIS-08:
+  `tests/drawings/test_views.py::TestTitlesOnARealSheet` (the sheets a drawing list names
+  are not views; a title on two lines with its scale beneath is still a view).
+  FR-DOC-01: `tests/db/test_parse_pipeline.py::TestReadAgain`
+  `::test_what_named_a_view_names_the_one_found_again`.

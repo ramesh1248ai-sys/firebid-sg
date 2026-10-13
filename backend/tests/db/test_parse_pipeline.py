@@ -763,6 +763,62 @@ class TestReadAgain:
         again = detect_views_again(cast(JobContext, None), bid_id=str(bid.id), user_id=str(user.id))
         assert again["sheets"] == 0
 
+    def test_what_named_a_view_names_the_one_found_again(
+        self,
+        session: Session,
+        bid: Bid,
+        user: AppUser,
+        store: MemoryObjectStore,
+        three_sheet_pdf: bytes,
+        as_application_role: None,
+    ) -> None:
+        # Found on the real bid: after its views were found again, every symbol and every
+        # sheet's design basis named a view that was no longer there.
+        from firebid.db.models.design import SheetDesign
+        from firebid.db.models.symbols import SymbolInstance
+
+        document = upload(session, bid, store, three_sheet_pdf)
+        run_parse(session, document.id, user.id)
+        old = {
+            view.sheet_id: view.id
+            for view in session.execute(
+                select(SheetView).where(SheetView.bid_id == bid.id, SheetView.ordinal == 0)
+            ).scalars()
+        }
+        placed = session.execute(
+            select(func.count())
+            .select_from(SymbolInstance)
+            .where(SymbolInstance.bid_id == bid.id, SymbolInstance.view_id.is_not(None))
+        ).scalar_one()
+        assert placed > 0
+        for sheet_id, view_id in old.items():
+            session.add(
+                SheetDesign(
+                    bid_id=bid.id,
+                    sheet_id=sheet_id,
+                    view_id=view_id,
+                    state="proposed",
+                    drawn_heads=0,
+                )
+            )
+        session.execute(text("UPDATE sheet_view SET detector_version = 'older'"))
+        session.commit()
+
+        parse_pipeline.read_again(session, bid.id, person(user))
+        session.commit()
+        detect_views_again(cast(JobContext, None), bid_id=str(bid.id), user_id=str(user.id))
+
+        session.expire_all()
+        now = set(session.execute(select(SheetView.id).where(SheetView.bid_id == bid.id)).scalars())
+        assert not now & set(old.values())
+        named = session.execute(
+            select(SymbolInstance.view_id).where(SymbolInstance.bid_id == bid.id)
+        ).scalars()
+        assert len([view_id for view_id in named if view_id in now]) == placed
+        assert queued(session, "design.basis") == [
+            {"bid_id": str(bid.id), "user_id": str(user.id)}
+        ], "the design basis is read again on the views found now"
+
     def test_symbols_read_by_an_older_detector_are_read_again_by_one_job(
         self,
         session: Session,

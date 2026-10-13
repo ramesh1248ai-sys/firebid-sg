@@ -178,6 +178,17 @@ gaps:
       sheet on the same gridlines. A bid's views are checked when a document finishes or a
       view is calibrated; a bid read before this has its views found again by "Read again"
       on the Documents page.
+  - gap: "On a second consultant's drawings some text is still read as a view, and few scales are proved"
+    cause: >-
+      The 121-sheet benchmark tender was read on 13 October 2026. Its drawing lists and
+      notes are no longer views, but on seven sheets the section markers of the architect's
+      plan are, and on two the words ARCHITECT'S LAYOUT. Of its 122 plan views two have a
+      verified scale: 63 conflict with their own dimensions (one states 1:250 and its grid
+      gives 1:225) and 55 have nothing to prove them. Not looked into: the file may be a
+      reduced print.
+    action: >-
+      Before a tender from this consultant is counted: find why its dimensions disagree with
+      its stated scales, and tell a section marker from a section's title.
   - gap: "A real plan's grid names a place but is not shared between sheets"
     cause: >-
       Gridlines drawn dashed, a wing's at an angle, and lines labelled with a letter and a

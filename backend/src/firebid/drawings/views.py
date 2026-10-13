@@ -29,7 +29,7 @@ from firebid.drawings.scale import Stated, Verdict, evidence_in, parse_stated, v
 from firebid.drawings.title_block import Box, Span, locate
 
 # Bumped when detection changes, so every sheet's views are detected again.
-DETECTOR_VERSION = "6"
+DETECTOR_VERSION = "7"
 
 
 class ViewKind(StrEnum):
@@ -74,9 +74,11 @@ JOIN_GAP = 0.3
 ORDINARY_AT_LEAST = 20
 # A row of a list (a legend's "WET RISER LANDING VALVE (SCHEMATIC)") starts where the rows
 # above and below it start, to within this many millimetres, and they are within this many
-# of its heights. A title stands alone, with at most its scale beneath it.
+# of its heights. A title stands alone, with at most a second line of it and its scale
+# beneath it. The sheets a drawing list names ("5TH STOREY PLAN", row after row) are rows too.
 LIST_ALIGNED_MM = 0.5
 LIST_REACH = 8.0
+LIST_LINES = 3
 
 
 @dataclass(frozen=True)
@@ -246,26 +248,32 @@ def _a_label(span: dict[str, Any], ordinary: float | None) -> bool:
 
 
 def _a_row_of_a_list(span: dict[str, Any], spans: list[dict[str, Any]]) -> bool:
-    """Whether text has a line above it and a line below it that start where it starts."""
+    """Whether text is one of three or more lines, one under another, that start where it
+    starts. A list's first row has none above it, and the rows of a drawing list are titles
+    themselves, so the lines are followed from each to the next."""
     if not _level(span):
         return False
-    left, top, reach = float(span["minx"]), float(span["miny"]), LIST_REACH * _tall(span)
-    above = below = False
-    for other in spans:
-        apart = float(other["miny"]) - top
-        if (
-            other is span
-            or not _level(other)
-            or abs(float(other["minx"]) - left) > LIST_ALIGNED_MM
-            or not 0 < abs(apart) <= reach
-        ):
-            continue
-        words = str(other["text"])
-        stated = parse_stated(words)
-        if is_title(words) or stated.denominator or stated.nts:
-            continue
-        above, below = above or apart < 0, below or apart > 0
-    return above and below
+    left, reach = float(span["minx"]), LIST_REACH * _tall(span)
+    column = sorted(
+        float(other["miny"])
+        for other in spans
+        if other is not span
+        and _level(other)
+        and abs(float(other["minx"]) - left) <= LIST_ALIGNED_MM
+        and not _a_scale(str(other["text"]))
+    )
+    lines = 1
+    for step, tops in ((-1, reversed(column)), (1, column)):
+        at = float(span["miny"])
+        for top in tops:
+            if 0 < step * (top - at) <= reach:
+                lines, at = lines + 1, top
+    return lines >= LIST_LINES
+
+
+def _a_scale(words: str) -> bool:
+    stated = parse_stated(words)
+    return bool(stated.denominator or stated.nts)
 
 
 def _drawing_area(
