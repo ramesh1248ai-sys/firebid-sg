@@ -33,7 +33,7 @@ Three things do:
 | Area | State |
 | --- | --- |
 | Phase 2 build (P2-01 to P2-09) | Done. Every Phase 2 requirement has a test. Exit report: not ready for the gate, ready for the pilot |
-| Real tender (MOH, 148 sheets) | Read again without error on 12 October, as `BID-2026-019`; every sheet is one plan with a verified scale, and its design basis is read for all 148, with 264 match lines (R3, R9, R10, R7). On the bid it replaces, 2,975 candidates matched a legend row and 8,693 matched none, in 578 groups; the new bid's were not tallied. Nothing is confirmed, so nothing is counted |
+| Real tender (MOH, 148 sheets) | Read again without error on 12 October, as `BID-2026-019`; every sheet is one plan with a verified scale, and its design basis is read for all 148, with 264 match lines (R3, R9, R10, R7). 3,395 candidates match one of 14 legend rows and 8,693 match none, under 576 symbol keys. Nothing is confirmed, so nothing is counted |
 | Golden reference comparison | Built for exact, tolerance, completeness and evidence on stages 1 to 12, with levels, attributes, systems and instance positions. Three synthetic packages run in CI. Semantic comparison is not built |
 | Screens | Every step of a bid has a screen since PR #88: team, the bid's moves, G2, productivity import |
 | User manual | Walkthrough, exceptions guide and screen reference, with a Word copy generated from them |
@@ -75,6 +75,7 @@ P6 wait on the people named.
 | R5 | Devices drawn as pieces that do not touch (A3) | Only if R4 shows them missed: a legend row's sample becomes everything in its cell. Not by distance: measured, there is no gap that separates a device from its neighbours | L | R4 |
 | R6 | Lettered devices inside an assembly: about 200 flow switches (A1 step 2) | Only if they are to be counted from symbols: find a row's letters on the plan and take the closed shape around them | M | R4; Senior Estimator |
 | R7 | **Done but for C3, 2026-10-12.** Views and grid (C4, C1, C3, C2) | The false second view on 13 sheets was a legend row and a room's name read as view titles: neither is one now. `A03-B6-04` had its scale undone by one figure beside the wrong line: it is verified at 1:100. The sheet with three line families (C2) already has its grid. Left: a grid index on real sheets (C3) | M | C3 waits on a decision |
+| R11 | **Done, 2026-10-13.** The benchmark tender against R7's title rules; what named a view after views are found again (found in R7) | Its two drawing lists were 75 and 43 views, a view to a row: a row of a list is now any of three lines one under another, titles or not. 282 views became 144 on 19 of its 121 sheets; the MOH bid's do not change. Finding views again left every symbol and design basis naming a view that was gone: symbols are given the view found now, and the design basis is read again. Left: the architect's section markers on seven benchmark sheets, and that tender's scales | S to M | Nothing |
 | R8 | A stale proposal is still listed in the library | Withdraw it when its bid is read again, if so decided | S | Product owner |
 
 ### E. Evaluation: the golden reference comparison
