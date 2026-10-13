@@ -266,17 +266,25 @@ def _instance(one: DetectedObject, view: SheetView | None) -> dict[str, Any]:
     if one.grid_reference:
         bay = BAY.match(one.grid_reference)
         out["grid"] = "{0}-{2}/{1}-{3}".format(*bay.groups()) if bay else one.grid_reference
+    return out | _offset(view, x, y)
+
+
+def _offset(view: SheetView | None, x: float, y: float) -> dict[str, Any]:
+    """A point on the sheet as its distance in the building from the view's first gridline
+    each way; nothing where the view has no grid or no scale."""
     grid: Any = view.grid if view is not None else None
     # The scale the view is drawn at: proved, or as stated where nobody has proved it.
     scale = (view.denominator or view.stated_denominator) if view is not None else None
-    if isinstance(grid, dict) and scale and grid.get("across") and grid.get("up"):
-        (across, at_x), (up, at_y) = grid["across"][0], grid["up"][0]
-        out["offset_mm"] = {
+    if not (isinstance(grid, dict) and scale and grid.get("across") and grid.get("up")):
+        return {}
+    (across, at_x), (up, at_y) = grid["across"][0], grid["up"][0]
+    return {
+        "offset_mm": {
             "across": [str(across), round((x - float(at_x)) * scale, 1)],
             # Sheet coordinates run down the page; the building's run up.
             "up": [str(up), round((float(at_y) - y) * scale, 1)],
         }
-    return out
+    }
 
 
 def _pipe(
@@ -285,12 +293,27 @@ def _pipe(
     runs = list(session.execute(select(PipeRun).where(PipeRun.bid_id == bid_id)).scalars())
     if not runs:
         return None
+    views = {
+        view.id: view
+        for view in session.execute(select(SheetView).where(SheetView.bid_id == bid_id)).scalars()
+    }
     lengths: dict[str, dict[str, float]] = {number: {} for number in number_of.values()}
     unsized: dict[str, float] = defaultdict(float)
+    placed: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for run in runs:
         number = number_of.get(run.sheet_id)
         if number is None or run.length_mm is None:
             continue
+        view = views.get(run.view_id) if run.view_id else None
+        placed[number].append(
+            {
+                "dn": run.nominal_dn,
+                "points": [
+                    {"x": float(x), "y": float(y)} | _offset(view, float(x), float(y))
+                    for x, y in run.points
+                ],
+            }
+        )
         if run.nominal_dn is None:
             unsized[number] += run.length_mm
             continue
@@ -303,6 +326,7 @@ def _pipe(
                 "measured": bool(lengths[number]) or number in unsized,
                 "length_mm_by_dn": {dn: round(v, 1) for dn, v in sorted(lengths[number].items())},
                 **({"unsized_length_mm": round(unsized[number], 1)} if number in unsized else {}),
+                "runs": placed[number],
             }
             for number in sorted(lengths)
         ]

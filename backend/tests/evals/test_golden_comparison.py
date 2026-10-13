@@ -522,6 +522,73 @@ class TestWhereAnObjectIs:
         assert len(placed) == 27 + 6
 
 
+class TestWhereAPipeRunIs:
+    """Stage 6 compared how much pipe of each size a sheet has. The right length drawn
+    somewhere else passed, though each package lists every run with its ends."""
+
+    SHEET = "FP-L05-201"
+
+    def first(self, run: golden.Run) -> Any:
+        (sheet,) = [one for one in run["STG-006"]["sheets"] if one["sheet"] == self.SHEET]
+        return sheet["runs"][0]
+
+    def test_the_right_length_of_pipe_drawn_somewhere_else(self, package: golden.Package) -> None:
+        run = the_reference_s_own(package)
+        self.first(run)["from_mm"] = [1200.0, 9000.0]
+        self.first(run)["to_mm"] = [1550.0, 9000.0]
+
+        result = golden.compare(package, run)
+
+        assert defects(result) == [
+            ("STG-006", "fp-l05-201 / DN150 / run 1200, 3000 to 1550, 3000", "missing", "MEDIUM")
+        ]
+        assert {d.dimension for d in result.differences} == {"evidence"}
+
+    def test_an_end_within_the_tolerance_is_at_its_place(self, package: golden.Package) -> None:
+        run = the_reference_s_own(package)
+        self.first(run)["from_mm"] = [1200.0, 3200.0]
+        self.first(run)["to_mm"] = [1550.0, 3200.0]
+
+        assert golden.compare(package, run).differences == []
+
+    def test_a_run_the_platform_cuts_in_two_or_places_by_gridlines_is_the_same_pipe(
+        self, package: golden.Package
+    ) -> None:
+        # Gridline A is at 500 and gridline 1 at 500: the run from 1200 to 1550 at 3000.
+        run = the_reference_s_own(package)
+        first = self.first(run)
+
+        def at(x: float) -> dict[str, Any]:
+            return {"offset_mm": {"across": ["A", x - 500.0], "up": ["1", 2500.0]}}
+
+        del first["from_mm"], first["to_mm"]
+        first["points"] = [at(1200.0), at(1400.0)]
+        (sheet,) = [one for one in run["STG-006"]["sheets"] if one["sheet"] == self.SHEET]
+        sheet["runs"].append({"dn": 150, "points": [at(1400.0), at(1550.0)]})
+
+        assert golden.compare(package, run).differences == []
+
+    def test_pipe_of_another_size_at_its_place_is_not_it(self, package: golden.Package) -> None:
+        run = the_reference_s_own(package)
+        self.first(run)["dn"] = 100
+
+        assert defects(golden.compare(package, run)) == [
+            ("STG-006", "fp-l05-201 / DN150 / run 1200, 3000 to 1550, 3000", "missing", "MEDIUM")
+        ]
+
+    def test_a_run_that_places_no_pipe_keeps_its_lengths_and_loses_the_evidence(
+        self, package: golden.Package
+    ) -> None:
+        run = the_reference_s_own(package)
+        for one in run["STG-006"]["sheets"]:
+            del one["runs"]
+
+        result = golden.compare(package, run)
+
+        assert result.differences and {d.dimension for d in result.differences} == {"evidence"}
+        assert {d.classification for d in result.differences} == {"MEDIUM"}
+
+
 class TestAttributesAndSystemsAtTheTakeoff:
     """What an item states beyond its size, and the system it is of. On TC-SYN-003 (pumps
     with a schedule, pipe of three systems) and TC-SYN-002 (a specification nobody has
