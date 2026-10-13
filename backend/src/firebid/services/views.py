@@ -21,13 +21,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from firebid.db.audit import record_event
 from firebid.db.models.core import Bid
 from firebid.db.models.documents import Sheet, SheetRevision
 from firebid.db.models.drawings import SheetGeometry, SheetView
+from firebid.db.models.symbols import SymbolInstance
 from firebid.domain.actors import Actor, AuditContext
 from firebid.drawings import scale, views
 from firebid.drawings.grids import GridSystem
@@ -71,12 +72,33 @@ def detect_sheet(session: Session, store: ObjectStore, record: SheetGeometry) ->
         session.add(row)
         rows.append(row)
     session.flush()
+    if existing:
+        _point_symbols_at(session, record.sheet_id, rows)
     log.info(
         "views_detected",
         sheet_id=str(record.sheet_id),
         views=[(row.kind, row.scale_status) for row in rows],
     )
     return rows
+
+
+def _point_symbols_at(session: Session, sheet_id: Any, rows: list[SheetView]) -> None:
+    """A sheet's symbols were recorded in the views that have just been replaced: each is
+    given the view it lies in now, the first where two overlap, as when it was recorded."""
+    session.execute(
+        update(SymbolInstance).where(SymbolInstance.sheet_id == sheet_id).values(view_id=None)
+    )
+    for row in reversed(rows):
+        x0, y0, x1, y1 = row.extent[:4]
+        session.execute(
+            update(SymbolInstance)
+            .where(
+                SymbolInstance.sheet_id == sheet_id,
+                SymbolInstance.cx.between(x0, x1),
+                SymbolInstance.cy.between(y0, y1),
+            )
+            .values(view_id=row.id)
+        )
 
 
 def detect_all(session: Session, store: ObjectStore, sheets: list[Sheet]) -> list[SheetView]:

@@ -695,6 +695,8 @@ def views_again(
     lock_bid(session, bid_id)
     regraded = views.check_against_grid(session, bid_id)
     queued = detect_again(session, bid_id, user_id)["sheets"] if done else 0
+    if done:
+        _queue_design_basis(session, bid_id, user_id)
     log.info(
         "views_found_again",
         bid_id=str(bid_id),
@@ -704,6 +706,26 @@ def views_again(
         detecting=queued,
     )
     return {"sheets": done, "failed": failed, "regraded": len(regraded), "detecting": queued}
+
+
+def _queue_design_basis(session: Session, bid_id: uuid.UUID, user_id: uuid.UUID | None) -> None:
+    """A design basis names the plan view it was read on, and its match lines are placed on
+    that view: where a bid has one, it is read again on the views found now."""
+    from firebid.db.models.design import SheetDesign
+    from firebid.jobs.enqueue import enqueue_once
+    from firebid.jobs.tasks import read_design_basis
+
+    has_one = session.execute(
+        select(SheetDesign.id).where(SheetDesign.bid_id == bid_id).limit(1)
+    ).first()
+    if has_one:
+        enqueue_once(
+            session,
+            read_design_basis,
+            f"design.basis:{bid_id}",
+            bid_id=str(bid_id),
+            user_id=str(user_id) if user_id else "",
+        )
 
 
 def symbols_again(
