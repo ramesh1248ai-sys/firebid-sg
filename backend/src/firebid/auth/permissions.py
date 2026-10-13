@@ -46,6 +46,7 @@ class Action(StrEnum):
     KNOWLEDGE_CORPUS_APPLY = "knowledge_corpus.apply"
     AUDIT_READ_ORGANISATION = "audit.read.organisation"
     ADMIN_READ_PLATFORM = "admin.read.platform"
+    USER_MANAGE = "user.manage"  # who holds which role, and whose access is switched off
 
 
 # Accountable roles from requirements §3.2. Keep this table and the RACI in step.
@@ -96,6 +97,8 @@ _MATRIX: dict[Action, frozenset[str]] = {
     # Routing, provider health and what the platform is spending. The commercial director
     # owns the budget, so they see it too.
     Action.ADMIN_READ_PLATFORM: frozenset({Role.SYSTEM_ADMIN, Role.COMMERCIAL_DIRECTOR}),
+    # Granting a role grants what it may approve, so only the administrators do (ADR-013).
+    Action.USER_MANAGE: frozenset({Role.SYSTEM_ADMIN}),
 }
 
 GATE_ACTIONS: dict[str, Action] = {

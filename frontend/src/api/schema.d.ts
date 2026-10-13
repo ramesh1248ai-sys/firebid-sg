@@ -67,6 +67,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Users
+         * @description Everyone who has signed in to this organisation, by name.
+         */
+        get: operations["list_users_admin_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Assignable Roles
+         * @description The roles a person may be given, in the order of requirements §3.
+         */
+        get: operations["assignable_roles_admin_users_roles_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change User
+         * @description Set the roles someone holds, or switch their access off or on. It holds from their
+         *     next request. What they did stays on record under their name, and the bids they are on
+         *     keep them on the team.
+         */
+        patch: operations["change_user_admin_users__user_id__patch"];
+        trace?: never;
+    };
     "/audit": {
         parameters: {
             query?: never;
@@ -4068,6 +4130,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Me
+         * @description The caller as this application knows them. The roles are the ones held here, which
+         *     the token's may no longer be: the screens show and hide by these.
+         */
+        get: operations["me_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/measurement-rules": {
         parameters: {
             query?: never;
@@ -6720,6 +6803,20 @@ export interface components {
             /** Side */
             side?: number | null;
         };
+        /** MeOut */
+        MeOut: {
+            /** Display Name */
+            display_name: string;
+            /** Roles */
+            roles: string[];
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Username */
+            username: string;
+        };
         /** MeasureIn */
         MeasureIn: {
             /** Points */
@@ -8687,6 +8784,39 @@ export interface components {
              */
             stored: components["schemas"]["DocumentOut"][];
         };
+        /**
+         * UserIn
+         * @description What to change; what is left out stays as it is.
+         */
+        UserIn: {
+            /** Is Active */
+            is_active?: boolean | null;
+            /** Roles */
+            roles?: components["schemas"]["Role"][] | null;
+        };
+        /** UserOut */
+        UserOut: {
+            /** Bids */
+            bids: number;
+            /** Display Name */
+            display_name: string;
+            /**
+             * First Signed In At
+             * Format: date-time
+             */
+            first_signed_in_at: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Roles */
+            roles: string[];
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Username */
+            username: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -8945,6 +9075,81 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoutingOut"];
+                };
+            };
+        };
+    };
+    list_users_admin_users_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"][];
+                };
+            };
+        };
+    };
+    assignable_roles_admin_users_roles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
+                };
+            };
+        };
+    };
+    change_user_admin_users__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -16315,6 +16520,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    me_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
                 };
             };
         };

@@ -17,5 +17,6 @@ A record stays **Proposed** until the Tech Lead (and, where marked, the Executiv
 | [ADR-010](ADR-010-staged-per-sheet-parse-pipeline.md) | A staged, per-sheet parse pipeline | Accepted, 2 Oct 2026 |
 | [ADR-011](ADR-011-design-development-as-an-estimating-aid.md) | Design development as an estimating aid, and document origin at intake | Accepted, 2 Oct 2026 |
 | [ADR-012](ADR-012-one-takeoff-for-a-projects-bids.md) | One verified takeoff for a project's several bids | Accepted, 4 Oct 2026 |
+| [ADR-013](ADR-013-roles-are-held-and-changed-in-the-application.md) | A person's roles are held and changed in the application | Accepted, 13 Oct 2026 |
 
 Planned: ADR-009 Phase 4 orchestration engine (step P3-03).

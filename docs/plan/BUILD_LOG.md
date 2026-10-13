@@ -3009,3 +3009,51 @@ right length drawn somewhere else passed, though each package lists every run wi
   somewhere else; an end within the tolerance; a run cut in two, or placed by gridlines;
   pipe of another size at its place; a run that places no pipe),
   `tests/db/test_golden_run.py` (all three packages).
+
+## Feat · A People page: a person's roles and access are set in the application · 2026-10-13
+
+Asked for by Ramesh R: a screen to edit people's details and access level. Not a plan item.
+
+- **A decision came first (ADR-013).** A person's roles were copied from the sign-in token
+  at every sign-in, so a role changed in the application would have been undone the next
+  time they signed in. Of three options Ramesh R chose: the application holds the roles and
+  a system administrator changes them; the name and sign-in name stay the sign-in
+  service's and are shown, not edited.
+- **Sign-in (`auth/provisioning.provision`).** A person is created at first sign-in with
+  the roles their token carries. After that their roles are read from `user_role`. Someone
+  whose access is off is answered 403 on every request. Where the organisation has no
+  system administrator who can sign in, a token that carries `system_admin` is believed:
+  the first administrator of an installation, and the way back for one that has lost them.
+- **The API (`api/users.py`).** `GET /admin/users` (everyone, with roles, how many bids
+  they are on, access on or off), `GET /admin/users/roles`, `PATCH /admin/users/{id}`
+  (roles, access). Only a system administrator (`user.manage`). Nobody changes their own
+  access; the organisation keeps one administrator who can sign in; `system` is nobody's.
+  Each change is an audit event on the organisation's chain, the person named by id.
+  `GET /me` tells anyone signed in who they are and the roles they hold here.
+- **The screens.** A People page (`/people`, in the menu for a system administrator): a
+  table, and beside each person an Edit that opens the roles as tick boxes and "Access on".
+  The screens showed and hid things by the token's roles; they now use `/me`'s
+  (`AuthProvider`), and keep the token's if it cannot be reached. Someone switched off sees
+  why in place of any page.
+- **No migration.** `user_role` and `app_user.is_active` were there.
+- **On the stack,** rebuilt, with the development accounts and real tokens: the
+  administrator is told who she is and lists the seven people; a role she gives the
+  procurement account is in that account's `/me` at once; switched off, it is answered 403
+  with the reason, and switched on again it is as it was; her own access is refused her
+  (409); an estimator is refused the list (403).
+- **Manual check to make.** The page itself was not opened in a browser here; its
+  behaviour is in its tests.
+- **Not done.** No screen removes a person, or shows their history of changes but History.
+  The DPO has not been asked whether a role change may name the person by more than an id.
+  Production's Entra ID app roles keep being issued and are ignored after first sign-in:
+  the runbook for a leaver should say to switch them off here too. The end-to-end suite has
+  no test of the page. The full suite was not run here: the tests below, the workspace,
+  admin, audit and auth tests (102), the frontend suite (151), lint and types were.
+- **Requirement IDs covered (test names):** FR-ADM-01: `tests/db/test_user_admin.py`
+  (`TestTheScreen`: everyone listed; only a system administrator, role by role;
+  `TestChangingSomeone`: roles set and audited; no role; access off and on; nothing recorded
+  for no change; `system` and an unknown role refused; nobody their own; the last
+  administrator; another organisation's person; `TestSigningIn`: first sign-in takes the
+  token's roles; after that the roles here stand; a role taken away is gone; switched off is
+  refused; an organisation with no administrator; a token makes nobody one otherwise; a
+  request answered 403; `/me`), `frontend/src/pages/Users.test.tsx` (six tests).
