@@ -785,7 +785,9 @@ def _risks(out: dict[str, Any], stage: Stage) -> list[Fact]:
             about = f"{one['rule']}, " + (f"clause {clause}" if clause else "no clause")
         else:
             about = str(one.get("client_item") or one.get("our_line") or one.get("ref"))
-        facts.append(Fact(("candidate", str(one.get("from")), about), True, "completeness"))
+        candidate = ("candidate", str(one.get("from")), about)
+        facts.append(Fact(candidate, True, "completeness"))
+        facts += _evidence((*candidate, "sheet"), candidate, one.get("sheet"))
     checklist = out.get("checklist", {})
     for item in checklist.get("items", []):
         system = str(item.get("system") or checklist.get("system"))
