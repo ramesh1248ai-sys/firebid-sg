@@ -849,6 +849,28 @@ class TestEvidence:
         }
         assert len(found) == 2 + len(matrix["systems"])
 
+    def test_a_clarification_candidate_from_an_issue_on_another_sheet(
+        self, priced: golden.Package
+    ) -> None:
+        run = self.own(priced)
+        (asked,) = [
+            one
+            for one in run["STG-011"]["clarification_candidates"]
+            if one.get("rule") == "conflict:pipe_material"
+        ]
+        asked["sheet"] = "FP-B1-202"
+
+        found = defects(golden.compare(priced, run))
+
+        assert found == [
+            (
+                "STG-011",
+                "candidate / specification issue / conflict:pipe_material, clause 2.1.3 / sheet",
+                "wrong",
+                "MEDIUM",
+            )
+        ]
+
     def test_something_missing_is_reported_once_and_not_for_its_evidence_too(
         self, priced: golden.Package
     ) -> None:

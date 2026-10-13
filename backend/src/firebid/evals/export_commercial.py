@@ -104,14 +104,12 @@ def specification(session: Session, bid: Bid) -> dict[str, Any] | None:
     ).scalars()
     issues = []
     for issue in analysis.list_issues(session, bid.id):
-        sheets = issue.drawing_ref.get("sheets")
-        first = sheets[0] if isinstance(sheets, list) and sheets else issue.drawing_ref
         issues.append(
             {
                 "rule": issue.rule,
                 "clause": issue.spec_ref.get("clause"),
                 "about": issue.detail.get("what"),
-                "sheet": first.get("sheet_number") if isinstance(first, dict) else None,
+                "sheet": _sheet_of(issue),
                 "severity": issue.severity,
                 "state": issue.state,
             }
@@ -295,6 +293,13 @@ def pricing(session: Session, bid: Bid) -> dict[str, Any] | None:
     }
 
 
+def _sheet_of(issue: Any) -> str | None:
+    """The sheet an issue is on: the first of them where it is on several."""
+    sheets = issue.drawing_ref.get("sheets")
+    first = sheets[0] if isinstance(sheets, list) and sheets else issue.drawing_ref
+    return first.get("sheet_number") if isinstance(first, dict) else None
+
+
 def risks(session: Session, bid: Bid) -> dict[str, Any] | None:
     from firebid.services import boq, clarifications, risk
     from firebid.services import spec_analysis as analysis
@@ -323,7 +328,11 @@ def risks(session: Session, bid: Bid) -> dict[str, Any] | None:
         issue = issues.get(candidate.ref)
         kind, _, ref = candidate.ref.partition(":")
         if issue is not None:
-            one |= {"rule": issue.rule, "clause": issue.spec_ref.get("clause")}
+            one |= {
+                "rule": issue.rule,
+                "clause": issue.spec_ref.get("clause"),
+                "sheet": _sheet_of(issue),
+            }
         elif candidate.kind == "boq_variance" and kind == "client":
             one["client_item"] = client_item.get(ref, ref)
         elif candidate.kind == "boq_variance":
