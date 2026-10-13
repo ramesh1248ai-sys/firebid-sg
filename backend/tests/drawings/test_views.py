@@ -303,8 +303,14 @@ class TestTitlesOnARealSheet:
     def test_the_sheets_a_drawing_list_names_are_not_views(self) -> None:
         # Found on the benchmark tender: its two drawing lists were 75 and 43 views, a
         # view to a row. Every row is a title, and the first has no row above it.
-        rows = ("SITE PLAN, LOCATION PLAN", "BASEMENT 2 PLAN - ZONE 2", "1ST STOREY PLAN")
-        rows += ("AUTOMATIC FIRE ALARM SCHEMATIC", "5TH STOREY PLAN", "35TH STOREY - ROOF PLAN")
+        rows = (
+            "SITE PLAN, LOCATION PLAN",
+            "BASEMENT 2 PLAN - ZONE 2",
+            "1ST STOREY PLAN",
+            "AUTOMATIC FIRE ALARM SCHEMATIC",
+            "5TH STOREY PLAN",
+            "35TH STOREY - ROOF PLAN",
+        )
         listed = tuple((row, 350.0, 250.0 + 8.5 * index, 2.4) for index, row in enumerate(rows))
 
         (view,) = views.detect(self.sheet(listed), self.PAGE, "AS INDICATED")
